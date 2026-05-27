@@ -1,0 +1,6 @@
+{
+  "project": "Radar de Prospección de Carreras",
+  "variant": "vista-usuario-final",
+  "stack": ["Vite", "React", "TypeScript"],
+  "notes": "Frontend con data mock en constants.tsx y consumo opcional de Gemini."
+}
