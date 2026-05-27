@@ -42,6 +42,9 @@ import { ensureRadarSchemaSupport } from './services/schemaMaintenance.js';
 const app  = express();
 const PORT = process.env.API_PORT || 3001;
 
+// Necesario para Railway/Vercel (proxy inverso)
+app.set('trust proxy', 1);
+
 // ── Orígenes permitidos (configurable por env) ───────────
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
