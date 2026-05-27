@@ -1,16 +1,12 @@
 // services/apiService.ts
 // Servicio central para llamar al backend Express/MySQL.
-// En dev: VITE_API_URL vacío → Vite proxia /api/* → localhost:3002
-// En prod: VITE_API_URL=https://xxx.railway.app → llama directo al backend
+// Usa rutas relativas (/api/*) — el proxy de Vite (dev) y las rewrites de Vercel (prod)
+// enrutan al backend sin necesidad de conocer la URL absoluta de Railway.
 
-const BASE = (import.meta.env.VITE_API_URL ?? '') + '/api';
-
-function authHeaders(): Record<string, string> {
-  return {};
-}
+const BASE = '/api';
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { headers: authHeaders() });
+  const res = await fetch(`${BASE}${path}`, { credentials: 'include' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || `Error ${res.status}`);
@@ -21,7 +17,8 @@ async function get<T>(path: string): Promise<T> {
 export async function post<T>(path: string, body: object): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body:    JSON.stringify(body),
   });
   if (!res.ok) {

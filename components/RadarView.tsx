@@ -169,6 +169,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
   const [trends, setTrends]       = useState<ApiTrend[]>([]);
   const [scenarios, setScenarios] = useState<ApiScenario[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [loadError, setLoadError]     = useState<string | null>(null);
 
   useEffect(() => {
     if (activeTabProp) setActiveTab(activeTabProp);
@@ -191,9 +192,10 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
 
   useEffect(() => {
     setLoadingData(true);
+    setLoadError(null);
     Promise.all([getSenales(), getTendencias(), getEscenarios()])
       .then(([sig, trend, scen]) => { setSignals(sig.data); setTrends(trend.data); setScenarios(scen.data); })
-      .catch(err => console.error('Error cargando datos:', err))
+      .catch(err => { console.error('Error cargando datos:', err); setLoadError(err.message || 'Error al cargar los datos'); })
       .finally(() => setLoadingData(false));
   }, []);
 
@@ -664,6 +666,12 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', opacity: 0.5 }}>
             <Loader2 size={36} className="animate-spin" style={{ color: C.teal, marginBottom: 12 }} />
             <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: C.muted }}>Cargando datos…</p>
+          </div>
+        ) : loadError ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
+            <div style={{ fontSize: '2rem', marginBottom: 8 }}>⚠️</div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#F43F5E' }}>{loadError}</p>
+            <p style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Recarga la página o vuelve a iniciar sesión.</p>
           </div>
         ) : (
           <>
