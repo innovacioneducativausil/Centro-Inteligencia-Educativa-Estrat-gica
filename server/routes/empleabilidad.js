@@ -1666,4 +1666,42 @@ router.get('/empleabilidad/stats-tab', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
+// ── GET /api/empleabilidad/informes ──────────────────────────────────────────
+// Devuelve los informes descargables con filtros opcionales: anio, unidad, facultad
+router.get('/empleabilidad/informes', async (req, res) => {
+  try {
+    const { anio, unidad, facultad } = req.query;
+    const where = ['activo = 1'];
+    const params = [];
+    if (anio)     { where.push('anio = ?');            params.push(Number(anio)); }
+    if (unidad)   { where.push('unidad = ?');          params.push(unidad); }
+    if (facultad) { where.push('facultad = ?');        params.push(facultad); }
+
+    const [rows] = await db.query(
+      `SELECT id, nombre, anio, unidad, facultad, url_descarga, tipo_acceso
+       FROM informe_empleabilidad
+       WHERE ${where.join(' AND ')}
+       ORDER BY anio DESC, unidad, facultad`,
+      params
+    );
+
+    // Catálogos para los selectores del frontend
+    const [[años]]    = await Promise.all([
+      db.query('SELECT DISTINCT anio FROM informe_empleabilidad WHERE activo=1 ORDER BY anio DESC'),
+    ]);
+    const [unidades]  = await db.query('SELECT DISTINCT unidad  FROM informe_empleabilidad WHERE activo=1 ORDER BY unidad');
+    const [facultades]= await db.query('SELECT DISTINCT facultad FROM informe_empleabilidad WHERE activo=1 ORDER BY facultad');
+
+    res.json({
+      total: rows.length,
+      data: rows,
+      catalogos: {
+        años:      años.map(r => r.anio),
+        unidades:  unidades.map(r => r.unidad),
+        facultades: facultades.map(r => r.facultad),
+      },
+    });
+  } catch (e) { serverError(res, e); }
+});
+
 export default router;

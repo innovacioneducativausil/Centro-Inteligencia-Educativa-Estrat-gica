@@ -687,12 +687,180 @@ interface Filtros {
   años: number[]; facultades: string[]; carreras: string[];
   programas: string[]; ciclos: { codigo: string; anio: number }[];
 }
-type TabEmpl = 'resumen' | 'laboral' | 'emprendedor' | 'busqueda';
+// ── Componente: Descarga de Informes ─────────────────────────────────────────
+interface InformeDescarga {
+  id: number; nombre: string; anio: number; unidad: string;
+  facultad: string; url_descarga: string | null; tipo_acceso: 'descarga' | 'sharepoint';
+}
+interface DescargaCatalogos { años: number[]; unidades: string[]; facultades: string[]; }
+
+function DescargaInformes({ card, text, muted, border, isDark }: {
+  card: string; text: string; muted: string; border: string; isDark: boolean;
+}) {
+  const ACCENT_DL = '#0F766E';
+  const [informes,   setInformes]   = useState<InformeDescarga[]>([]);
+  const [catalogos,  setCatalogos]  = useState<DescargaCatalogos>({ años: [], unidades: [], facultades: [] });
+  const [loading,    setLoading]    = useState(true);
+  const [filtAnio,   setFiltAnio]   = useState('');
+  const [filtUnidad, setFiltUnidad] = useState('');
+  const [filtFacultad, setFiltFacultad] = useState('');
+
+  const fetchInformes = React.useCallback(async () => {
+    setLoading(true);
+    const p = new URLSearchParams();
+    if (filtAnio)    p.set('anio',    filtAnio);
+    if (filtUnidad)  p.set('unidad',  filtUnidad);
+    if (filtFacultad) p.set('facultad', filtFacultad);
+    try {
+      const r = await fetch(`/api/empleabilidad/informes?${p}`, { credentials: 'include' });
+      const d = await r.json();
+      if (!d.error) { setInformes(d.data || []); setCatalogos(d.catalogos || { años: [], unidades: [], facultades: [] }); }
+    } catch { /* silencioso */ }
+    setLoading(false);
+  }, [filtAnio, filtUnidad, filtFacultad]);
+
+  useEffect(() => { fetchInformes(); }, [fetchInformes]);
+
+  const limpiar = () => { setFiltAnio(''); setFiltUnidad(''); setFiltFacultad(''); };
+
+  const handleDescargar = (inf: InformeDescarga) => {
+    if (!inf.url_descarga) { alert('Este informe aún no tiene archivo disponible. Contacta al administrador.'); return; }
+    if (inf.tipo_acceso === 'sharepoint') { window.open(inf.url_descarga, '_blank'); return; }
+    const a = document.createElement('a');
+    a.href = inf.url_descarga;
+    a.download = inf.nombre + '.pdf';
+    a.target = '_blank';
+    a.click();
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background: card, borderRadius: 12, border: `1px solid ${border}`,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: '14px 16px',
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+      {/* Filtros */}
+      <div style={{ ...cardStyle }}>
+        <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 12 }}>
+          Filtros
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, alignItems: 'end' }}>
+          {/* Año */}
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Año</div>
+            <select value={filtAnio} onChange={e => setFiltAnio(e.target.value)}
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <option value="">Todos</option>
+              {catalogos.años.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+          {/* Unidad */}
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Unidad</div>
+            <select value={filtUnidad} onChange={e => setFiltUnidad(e.target.value)}
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <option value="">Todas</option>
+              {catalogos.unidades.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          {/* Facultad */}
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Facultad</div>
+            <select value={filtFacultad} onChange={e => setFiltFacultad(e.target.value)}
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <option value="">Todas</option>
+              {catalogos.facultades.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          {/* Limpiar */}
+          <button onClick={limpiar}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: text, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>filter_list_off</span>
+            Limpiar filtros
+          </button>
+        </div>
+      </div>
+
+      {/* Tabla */}
+      <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+        {/* Cabecera tabla */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${border}` }}>
+          <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted }}>
+            Informes disponibles
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: muted }}>
+            Informes encontrados:&nbsp;
+            <span style={{ fontWeight: 900, color: ACCENT_DL, fontSize: 14 }}>{loading ? '…' : informes.length}</span>
+          </span>
+        </div>
+
+        {loading ? (
+          <div style={{ padding: '40px 16px', textAlign: 'center', color: muted, fontSize: 12 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 28, display: 'block', marginBottom: 8, opacity: 0.4 }}>hourglass_empty</span>
+            Cargando informes…
+          </div>
+        ) : informes.length === 0 ? (
+          <div style={{ padding: '40px 16px', textAlign: 'center', color: muted, fontSize: 12 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 28, display: 'block', marginBottom: 8, opacity: 0.4 }}>folder_off</span>
+            No hay informes con los filtros seleccionados.
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#f8fafc' }}>
+                {['Estudio de empleabilidad', 'Año', 'Unidad', 'Facultad', 'Acción'].map(h => (
+                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: muted, borderBottom: `1px solid ${border}` }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {informes.map((inf, idx) => (
+                <tr key={inf.id} style={{ borderBottom: idx < informes.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.015)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: text }}>{inf.nombre}</td>
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: text }}>{inf.anio}</td>
+                  <td style={{ padding: '12px 14px', fontSize: 12, color: muted }}>{inf.unidad}</td>
+                  <td style={{ padding: '12px 14px', fontSize: 12, color: muted }}>{inf.facultad}</td>
+                  <td style={{ padding: '12px 14px' }}>
+                    {inf.tipo_acceso === 'sharepoint' ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <button onClick={() => handleDescargar(inf)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: `1px solid ${border}`, background: card, color: text, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
+                          Ir a SharePoint
+                        </button>
+                        <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 5, background: '#E0F2FE', color: '#0369A1' }}>SharePoint</span>
+                      </div>
+                    ) : (
+                      <button onClick={() => handleDescargar(inf)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', borderRadius: 7, border: 'none', background: ACCENT_DL, color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span>
+                        Descargar
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type TabEmpl = 'resumen' | 'laboral' | 'emprendedor' | 'busqueda' | 'descarga';
 const TABS: { key: TabEmpl; label: string; icon: string; color: string }[] = [
   { key: 'resumen',     label: 'Información General',            icon: 'bar_chart',     color: '#1E3A8A' },
   { key: 'laboral',     label: 'Egresados en Actividad Laboral', icon: 'work',          color: '#1D4ED8' },
   { key: 'emprendedor', label: 'Egresados Emprendedores',        icon: 'rocket_launch', color: '#0284C7' },
   { key: 'busqueda',    label: 'Egresados en Búsqueda Laboral',  icon: 'manage_search', color: '#0891B2' },
+  { key: 'descarga',    label: 'Descarga de informes',           icon: 'download',      color: '#0F766E' },
 ];
 
 const EMPTY_RESUMEN: Resumen = {
@@ -798,7 +966,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
 
   // Recargar stats del tab cuando cambia el tab o filtros
   useEffect(() => {
-    if (activeTab !== 'resumen') {
+    if (activeTab !== 'resumen' && activeTab !== 'descarga') {
       fetchTabStats(activeTab);
     }
   }, [activeTab, fetchTabStats]);
@@ -1156,8 +1324,11 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
         </div>
       )}
 
+      {/* ═══ TAB DESCARGA DE INFORMES ══════════════════════════════════════════ */}
+      {activeTab === 'descarga' && <DescargaInformes card={card} text={text} muted={muted} border={border} isDark={isDark} />}
+
       {/* ═══ TABS EGRESADOS — Dashboards ═══════════════════════════════════════ */}
-      {activeTab !== 'resumen' && (() => {
+      {activeTab !== 'resumen' && activeTab !== 'descarga' && (() => {
         const cfg = TABS.find(t => t.key === activeTab)!;
         const C1 = cfg.color;
         // Derivar gradiente tonal para KPI cards

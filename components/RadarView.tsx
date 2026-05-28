@@ -1030,6 +1030,17 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   )}
                 </div>
 
+                {/* Autor (solo tendencias y escenarios) */}
+                {selectedType !== 'señal' && (
+                  <div className="flex items-center gap-2 py-1">
+                    <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 15, color: D.muted }}>person</span>
+                    <span className="text-xs font-black uppercase tracking-wide" style={{ color: D.muted }}>Autor:</span>
+                    <span className="text-xs font-semibold" style={{ color: selectedSignal.autor ? D.text : D.muted }}>
+                      {selectedSignal.autor || 'Sin autor registrado'}
+                    </span>
+                  </div>
+                )}
+
                 {/* Fuentes del escenario (solo escenarios) */}
                 {selectedType === 'escenario' && selectedSignal.referencias && selectedSignal.referencias.length > 0 && (
                   <div className="p-4 rounded-xl border" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(249,250,251,0.9)', borderColor: D.border }}>
