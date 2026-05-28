@@ -104,13 +104,23 @@ function RecommendationBlock({ icon, title, items }: { icon: React.ReactNode; ti
   );
 }
 
+// ── 6 pasos fijos (coinciden con las imágenes de referencia) ─────────────────
+const PASOS_FIJOS: MetodoPaso[] = [
+  { orden: 1, titulo: 'Búsqueda Automatizada',   descripcion: 'Rastreo de miles de ofertas laborales en principales portales de empleo.' },
+  { orden: 2, titulo: 'Recolección de Datos',    descripcion: 'Extracción y estructuración de la información de vacantes activas.' },
+  { orden: 3, titulo: 'Procesamiento con IA',    descripcion: 'Procesamiento de lenguaje natural para limpiar y normalizar datos.' },
+  { orden: 4, titulo: 'Identificación de Patrones', descripcion: 'Análisis semántico para agrupar habilidades y roles equivalentes.' },
+  { orden: 5, titulo: 'Extracción de Insights',  descripcion: 'Generación de rankings de puestos, herramientas y competencias clave.' },
+  { orden: 6, titulo: 'Aplicación Estratégica',  descripcion: 'Traducción de hallazgos del mercado en recomendaciones académicas.' },
+];
+
 // ── Iconos por orden de paso ──────────────────────────────────────────────────
 const STEP_ICONS: Record<number, React.ReactNode> = {
-  1: <Search  className="h-6 w-6" />,
-  2: <Database className="h-6 w-6" />,
-  3: <Bot     className="h-6 w-6" />,
-  4: <Network  className="h-6 w-6" />,
-  5: <Lightbulb className="h-6 w-6" />,
+  1: <Search        className="h-6 w-6" />,
+  2: <Database      className="h-6 w-6" />,
+  3: <Bot           className="h-6 w-6" />,
+  4: <Network       className="h-6 w-6" />,
+  5: <Lightbulb     className="h-6 w-6" />,
   6: <GraduationCap className="h-6 w-6" />,
 };
 
@@ -131,7 +141,9 @@ const APLICACIONES = [
   'Alineamiento con demandas del mercado.',
 ];
 
-function MetodologiaView({ steps, onVerInformes }: { steps: MetodoPaso[]; onVerInformes: () => void }) {
+function MetodologiaView({ steps: _steps, onVerInformes }: { steps: MetodoPaso[]; onVerInformes: () => void }) {
+  // Siempre usamos los 6 pasos estándar del diseño de referencia
+  const steps = PASOS_FIJOS;
   return (
     <div className="space-y-6">
       {/* ── Hero ─────────────────────────────────────────────────── */}
@@ -200,8 +212,8 @@ function MetodologiaView({ steps, onVerInformes }: { steps: MetodoPaso[]; onVerI
           <div className="grid grid-cols-2 gap-3">
             {INSIGHTS.map(({ icon, label }) => (
               <div key={label}
-                className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
-                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#00A3E0] shadow-sm border border-slate-100">
+                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#00A3E0] shadow-sm border border-slate-100">
                   {icon}
                 </div>
                 <span className="text-xs font-semibold leading-relaxed text-slate-700">{label}</span>

@@ -95,7 +95,17 @@ router.get('/escenarios', async (req, res) => {
       probability:    row.probabilidad ?? null,
       topico:         row.topico_nombre || null,
       autor:          row.autor || null,
-      referencias:    (() => { try { return JSON.parse(row.referencias_escenario || 'null') || []; } catch { return []; } })(),
+      // url_fuente puede ser JSON array o URL simple
+      referencias:    (() => {
+        const raw = row.url_fuente;
+        if (!raw) return [];
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed.filter(Boolean);
+          if (typeof parsed === 'string' && parsed) return [parsed];
+        } catch { /* no es JSON válido */ }
+        return [raw];
+      })(),
     }));
 
     res.json({ total: scenarios.length, data: scenarios });
