@@ -572,8 +572,8 @@ interface DSeg { pct: number; color: string; }
 function DonutChart({ segments, size = 120, stroke = 22, centerText, centerColor, showExtLabel, extLabelAll }: {
   segments: DSeg[]; size?: number; stroke?: number; centerText?: string; centerColor?: string; showExtLabel?: boolean; extLabelAll?: boolean;
 }) {
-  // extLabelAll usa overflow:visible para no inflar el alto del SVG (la altura del card queda compacta)
-  const pad   = showExtLabel ? 32 : 0;
+  // pad reducido a 18 para que el SVG no crezca demasiado y los cards queden compactos
+  const pad   = showExtLabel ? 18 : 0;
   const cx    = size / 2 + pad;
   const cy    = size / 2 + pad;
   const r     = (size - stroke) / 2 - 2;
@@ -1065,7 +1065,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                   { pct: resumen.tasaEmpleabilidad, color: ACCENT    },
                   { pct: noTrabaja,                 color: '#e5e7eb' },
                 ]}
-                size={160} stroke={32}
+                size={130} stroke={26}
                 centerText={`${resumen.tasaEmpleabilidad}%`}
                 showExtLabel
               />
@@ -1091,7 +1091,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                   { pct: resumen.tasaAfinidad, color: ACCENT2   },
                   { pct: noAfinidad,           color: '#e5e7eb' },
                 ]}
-                size={160} stroke={32}
+                size={130} stroke={26}
                 centerText={`${resumen.tasaAfinidad}%`}
                 showExtLabel
               />
@@ -1121,7 +1121,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               {!solo2022 && (
                 <div style={{ background: ACCENT, borderRadius: 10, color: '#fff',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  padding: '12px 16px', textAlign: 'center' }}>
+                  padding: '18px 16px', textAlign: 'center', flex: 1 }}>
                   <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', opacity: 0.9 }}>
                     Emprendedores
                   </span>
