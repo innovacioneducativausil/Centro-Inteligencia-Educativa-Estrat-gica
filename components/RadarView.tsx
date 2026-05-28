@@ -1175,10 +1175,12 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   </div>
                 )}
 
-                {/* Fuente */}
-                {selectedType !== 'escenario' && (selectedSignal.source || selectedSignal.link) && (
+                {/* Fuente / Referencia */}
+                {(selectedSignal.source || selectedSignal.link) && (
                   <div className="p-4 rounded-xl border" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(249,250,251,0.9)', borderColor: D.border }}>
-                    <span className="block text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: D.muted }}>Fuente Original</span>
+                    <span className="block text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: D.muted }}>
+                      {selectedType === 'escenario' ? 'Referencia' : 'Fuente Original'}
+                    </span>
                     {selectedSignal.source && (
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="material-symbols-outlined" style={{ fontSize: 16, color: D.muted }}>article</span>
@@ -1189,7 +1191,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                       <a href={selectedSignal.link} target="_blank" rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-[11px] font-semibold hover:underline"
                         style={{ color: '#2A9D8F' }}>
-                        <Eye size={11} /> Visitar fuente
+                        <Eye size={11} /> {selectedType === 'escenario' ? 'Ver referencia' : 'Visitar fuente'}
                       </a>
                     )}
                   </div>

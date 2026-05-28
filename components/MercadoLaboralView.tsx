@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ArrowRight,
   BarChart3,
   BookOpen,
+  Bot,
   BriefcaseBusiness,
   CheckCircle2,
+  Database,
   GraduationCap,
   Lightbulb,
   LineChart,
   Loader2,
+  Network,
   Search,
   Target,
   University,
@@ -96,6 +100,139 @@ function RecommendationBlock({ icon, title, items }: { icon: React.ReactNode; ti
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+// ── Iconos por orden de paso ──────────────────────────────────────────────────
+const STEP_ICONS: Record<number, React.ReactNode> = {
+  1: <Search  className="h-6 w-6" />,
+  2: <Database className="h-6 w-6" />,
+  3: <Bot     className="h-6 w-6" />,
+  4: <Network  className="h-6 w-6" />,
+  5: <Lightbulb className="h-6 w-6" />,
+  6: <GraduationCap className="h-6 w-6" />,
+};
+
+const INSIGHTS = [
+  { icon: <BriefcaseBusiness className="h-5 w-5" />, label: 'Puestos más demandados.' },
+  { icon: <Lightbulb         className="h-5 w-5" />, label: 'Habilidades más solicitadas.' },
+  { icon: <Wrench            className="h-5 w-5" />, label: 'Herramientas y conocimientos técnicos.' },
+  { icon: <LineChart         className="h-5 w-5" />, label: 'Tendencias del mercado laboral.' },
+  { icon: <BookOpen          className="h-5 w-5" />, label: 'Oportunidades de mejora curricular.' },
+  { icon: <Target            className="h-5 w-5" />, label: 'Recomendaciones para empleabilidad.' },
+];
+
+const APLICACIONES = [
+  'Actualización curricular.',
+  'Diseño de experiencias formativas.',
+  'Orientación a estudiantes y egresados.',
+  'Fortalecimiento de competencias profesionales.',
+  'Alineamiento con demandas del mercado.',
+];
+
+function MetodologiaView({ steps, onVerInformes }: { steps: MetodoPaso[]; onVerInformes: () => void }) {
+  return (
+    <div className="space-y-6">
+      {/* ── Hero ─────────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-500">
+          <span className="material-symbols-outlined text-[13px]">calendar_today</span>
+          Periodo: Perú 2025 - 2026
+        </div>
+        <h1 className="mt-3 text-2xl font-black leading-tight text-[#002D72]">
+          Análisis técnico del mercado laboral
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-slate-600">
+          Herramienta de análisis para la toma de decisiones académicas, actualización curricular y fortalecimiento de la empleabilidad.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button className="inline-flex items-center gap-2 rounded-lg bg-[#002D72] px-4 py-2.5 text-sm font-black text-white shadow-sm">
+            <Lightbulb className="h-4 w-4" /> Cómo se elaboraron
+          </button>
+          <button onClick={onVerInformes}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-[#002D72] shadow-sm hover:bg-slate-50">
+            <Search className="h-4 w-4" /> Ver informes
+          </button>
+        </div>
+      </div>
+
+      {/* ── Sección pasos ────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-xl font-black text-[#002D72]">¿Cómo se elaboraron los informes?</h2>
+        <p className="mb-6 text-sm font-medium text-slate-500">
+          Los informes fueron construidos mediante análisis automatizado de ofertas laborales, procesamiento con
+          Inteligencia Artificial y extracción de patrones relevantes para la gestión académica.
+        </p>
+        {/* Pasos horizontales */}
+        <div className="flex flex-wrap items-start gap-2 lg:flex-nowrap">
+          {steps.map((step, idx) => (
+            <React.Fragment key={step.orden}>
+              <div className="flex-1 min-w-[130px] rounded-xl border border-slate-100 bg-slate-50 p-4 relative">
+                {/* Número badge */}
+                <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#00A3E0] text-[10px] font-black text-white">
+                  {step.orden}
+                </span>
+                {/* Icono */}
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#002D72] shadow-sm border border-slate-100">
+                  {STEP_ICONS[step.orden] ?? <BarChart3 className="h-5 w-5" />}
+                </div>
+                <h3 className="mb-1.5 text-[11px] font-black uppercase leading-tight tracking-wide text-[#002D72]">{step.titulo}</h3>
+                <p className="text-[11px] font-medium leading-relaxed text-slate-500">{step.descripcion}</p>
+              </div>
+              {idx < steps.length - 1 && (
+                <ArrowRight className="mt-6 h-5 w-5 shrink-0 text-slate-300 hidden lg:block" />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Insights + Aplicación ─────────────────────────────────── */}
+      <div className="grid gap-5 lg:grid-cols-2">
+
+        {/* Insights clave extraídos */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center gap-2">
+            <div className="h-6 w-1 rounded-full bg-[#00A3E0]" />
+            <h2 className="text-lg font-black text-[#002D72]">Insights clave extraídos</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {INSIGHTS.map(({ icon, label }) => (
+              <div key={label}
+                className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#00A3E0] shadow-sm border border-slate-100">
+                  {icon}
+                </div>
+                <span className="text-xs font-semibold leading-relaxed text-slate-700">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Aplicación Académica Estratégica */}
+        <div className="rounded-2xl bg-[#002D72] p-6 text-white shadow-sm relative overflow-hidden">
+          {/* Ícono decorativo */}
+          <GraduationCap className="absolute right-5 top-5 h-20 w-20 text-white/10" />
+          <div className="mb-5 flex items-center gap-2">
+            <div className="h-6 w-1 rounded-full bg-[#00A3E0]" />
+            <h2 className="text-lg font-black text-white">Aplicación Académica Estratégica</h2>
+          </div>
+          <ul className="mb-6 space-y-3">
+            {APLICACIONES.map((item) => (
+              <li key={item} className="flex items-center gap-3 text-sm font-medium text-blue-100">
+                <span className="flex h-2 w-2 shrink-0 rounded-full bg-[#00A3E0]" />
+                {item}
+              </li>
+            ))}
+          </ul>
+          <button onClick={onVerInformes}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00A3E0] px-5 py-3 text-sm font-black text-white shadow-md hover:bg-[#0091c7] transition-colors">
+            Ver informes de mercado laboral <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 }
@@ -219,76 +356,58 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
         {/* ── TABS: INFORME / METODOLOGIA ───────────────────────────────── */}
         {tab !== 'benchmarking' && (
           <>
-            {/* Header */}
-            <header className="rounded-xl border border-slate-200 bg-[#002D72] p-5 text-white shadow-sm">
-              <div className="grid gap-5 lg:grid-cols-[260px_1fr_320px] lg:items-center">
-                <div>
-                  <h1 className="text-2xl font-black uppercase leading-tight tracking-wide text-[#00A3E0] md:text-3xl">
-                    {informe?.informe.tituloHeader || 'Informes de mercado laboral'}
-                  </h1>
-                  <p className="mt-1 text-lg font-black uppercase text-white">{informe?.informe.periodo || 'Peru 2025 - 2026'}</p>
-                  <div className="mt-3 h-1 w-20 rounded-full bg-[#00A3E0]" />
-                </div>
-                <p className="border-l border-white/20 pl-5 text-sm font-medium leading-relaxed text-blue-50">
-                  {informe?.informe.descripcionHeader || 'Selecciona una carrera para visualizar el informe curado del mercado laboral.'}
-                </p>
-                <div className="rounded-lg bg-white/10 p-4 text-sm font-black leading-snug text-blue-50">
-                  <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#00A3E0]">
-                    <BarChart3 className="h-5 w-5" />
+            {/* Header y selector solo en tab informe */}
+            {tab === 'informe' && (
+              <>
+                <header className="rounded-xl border border-slate-200 bg-[#002D72] p-5 text-white shadow-sm">
+                  <div className="grid gap-5 lg:grid-cols-[260px_1fr_320px] lg:items-center">
+                    <div>
+                      <h1 className="text-2xl font-black uppercase leading-tight tracking-wide text-[#00A3E0] md:text-3xl">
+                        {informe?.informe.tituloHeader || 'Informes de mercado laboral'}
+                      </h1>
+                      <p className="mt-1 text-lg font-black uppercase text-white">{informe?.informe.periodo || 'Peru 2025 - 2026'}</p>
+                      <div className="mt-3 h-1 w-20 rounded-full bg-[#00A3E0]" />
+                    </div>
+                    <p className="border-l border-white/20 pl-5 text-sm font-medium leading-relaxed text-blue-50">
+                      {informe?.informe.descripcionHeader || 'Selecciona una carrera para visualizar el informe curado del mercado laboral.'}
+                    </p>
+                    <div className="rounded-lg bg-white/10 p-4 text-sm font-black leading-snug text-blue-50">
+                      <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#00A3E0]">
+                        <BarChart3 className="h-5 w-5" />
+                      </div>
+                      {informe?.informe.insightHeader || 'Sector en transformacion con demanda de perfiles digitales, analiticos y sostenibles.'}
+                    </div>
                   </div>
-                  {informe?.informe.insightHeader || 'Sector en transformacion con demanda de perfiles digitales, analiticos y sostenibles.'}
-                </div>
-              </div>
-            </header>
-
-            {/* Selector facultad/carrera */}
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
-                <label className="block">
-                  <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Facultad</span>
-                  <select
-                    value={facultad}
-                    onChange={(e) => handleFacultad(e.target.value)}
-                    className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#002D72] outline-none"
-                  >
-                    {facultades.map((f) => <option key={f.nombre}>{f.nombre}</option>)}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Carrera</span>
-                  <select
-                    value={carrera}
-                    onChange={(e) => setCarrera(e.target.value)}
-                    className="h-11 w-full rounded-lg border border-cyan-300 bg-white px-3 text-sm font-bold text-[#002D72] outline-none"
-                  >
-                    {carreras.map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </label>
-                {informe?.informe.documentoInformeUrl && (
-                  <a
-                    href={informe.informe.documentoInformeUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-11 items-center justify-center rounded-lg bg-[#002D72] px-4 text-sm font-black text-white"
-                  >
-                    Exportar informe
-                  </a>
-                )}
-              </div>
-            </section>
+                </header>
+                <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+                    <label className="block">
+                      <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Facultad</span>
+                      <select value={facultad} onChange={(e) => handleFacultad(e.target.value)}
+                        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#002D72] outline-none">
+                        {facultades.map((f) => <option key={f.nombre}>{f.nombre}</option>)}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Carrera</span>
+                      <select value={carrera} onChange={(e) => setCarrera(e.target.value)}
+                        className="h-11 w-full rounded-lg border border-cyan-300 bg-white px-3 text-sm font-bold text-[#002D72] outline-none">
+                        {carreras.map((c) => <option key={c}>{c}</option>)}
+                      </select>
+                    </label>
+                    {informe?.informe.documentoInformeUrl && (
+                      <a href={informe.informe.documentoInformeUrl} target="_blank" rel="noreferrer"
+                        className="inline-flex h-11 items-center justify-center rounded-lg bg-[#002D72] px-4 text-sm font-black text-white">
+                        Exportar informe
+                      </a>
+                    )}
+                  </div>
+                </section>
+              </>
+            )}
 
             {tab === 'metodologia' ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {metodologia.map((step) => (
-                  <div key={step.orden} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="mb-3 flex items-center gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-50 text-sm font-black text-[#00A3E0]">{step.orden}</span>
-                      <h2 className="text-sm font-black uppercase tracking-wide text-[#002D72]">{step.titulo}</h2>
-                    </div>
-                    <p className="text-sm font-medium leading-relaxed text-slate-600">{step.descripcion}</p>
-                  </div>
-                ))}
-              </div>
+              <MetodologiaView steps={metodologia} onVerInformes={() => setTab('informe')} />
             ) : loading ? (
               <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-[#002D72]" />
