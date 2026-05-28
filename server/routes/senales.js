@@ -58,7 +58,6 @@ router.get('/senales', async (req, res) => {
          s.url_fuente,
          s.fecha_publicacion,
          s.fecha_senal_articulo,
-         s.autor,
          MIN(p.id_pestel)      AS pestel_id,
          MIN(p.nombre_pestel)  AS categoria,
          MIN(p.slug_pestel)    AS pestel_slug,
@@ -108,7 +107,6 @@ router.get('/senales', async (req, res) => {
       impact:         55 + (idx * 11) % 45,
       maturity:       40 + (idx * 13) % 60,
       topico:         row.topico_nombre || null,
-      autor:          row.autor || null,
     }));
 
     res.json({ total: signals.length, data: signals });

@@ -115,10 +115,10 @@ function toSignal(s: ApiSignal): Signal {
   return { id: s.id, emoji: s.emoji, title: s.title, category: s.category, sector: (s.sector as Sector) || Sector.Educacion, youtubeId: s.youtubeId ?? undefined, imageUrl: s.imageUrl ?? null, signalText: s.signalText, implicationText: s.implicationText, reasonText: s.reasonText, source: s.source ?? '', link: s.sourceUrl ?? '', color: s.color, topico: s.topico ?? null, publishedAt: s.publishedAt };
 }
 function toTrend(t: ApiTrend): Signal {
-  return { id: t.id, emoji: t.emoji, title: t.name, category: t.category, sector: (t.sector as Sector) || Sector.Educacion, youtubeId: t.youtubeId ?? undefined, imageUrl: t.imageUrl ?? null, signalText: t.fullDescription || t.description || '', implicationText: t.fullDescription || t.description || '', reasonText: t.reasonText || '', source: t.source ?? '', link: t.sourceUrl ?? '', color: t.color, topico: t.topico ?? null, topicosRelacionados: t.topicosRelacionados ?? [], nombreTendencia: t.nombreTendencia ?? null };
+  return { id: t.id, emoji: t.emoji, title: t.name, category: t.category, sector: (t.sector as Sector) || Sector.Educacion, youtubeId: t.youtubeId ?? undefined, imageUrl: t.imageUrl ?? null, signalText: t.fullDescription || t.description || '', implicationText: t.fullDescription || t.description || '', reasonText: t.reasonText || '', source: t.source ?? '', link: t.sourceUrl ?? '', color: t.color, topico: t.topico ?? null, topicosRelacionados: t.topicosRelacionados ?? [], nombreTendencia: t.nombreTendencia ?? null, autor: t.autor ?? null };
 }
 function toScenario(s: ApiScenario): Signal {
-  return { id: s.id, emoji: s.emoji, title: s.title, category: s.category, sector: (s.sector as Sector) || Sector.Educacion, youtubeId: undefined, signalText: s.fullDescription || s.description || '', implicationText: s.fullDescription || s.description || '', reasonText: s.reasonText || '', source: s.source ?? '', link: s.sourceUrl ?? '', color: s.color, topico: s.topico ?? null, probability: s.probability };
+  return { id: s.id, emoji: s.emoji, title: s.title, category: s.category, sector: (s.sector as Sector) || Sector.Educacion, youtubeId: undefined, signalText: s.fullDescription || s.description || '', implicationText: s.fullDescription || s.description || '', reasonText: s.reasonText || '', source: s.source ?? '', link: s.sourceUrl ?? '', color: s.color, topico: s.topico ?? null, probability: s.probability, autor: s.autor ?? null, referencias: s.referencias ?? null };
 }
 
 
@@ -1030,6 +1030,27 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   )}
                 </div>
 
+                {/* Fuentes del escenario (solo escenarios) */}
+                {selectedType === 'escenario' && selectedSignal.referencias && selectedSignal.referencias.length > 0 && (
+                  <div className="p-4 rounded-xl border" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(249,250,251,0.9)', borderColor: D.border }}>
+                    <span className="block text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: D.muted }}>Fuentes del Escenario</span>
+                    <div className="space-y-2">
+                      {selectedSignal.referencias.map((ref, idx) => (
+                        <div key={idx} className="flex items-start gap-2">
+                          <span className="material-symbols-outlined flex-shrink-0 mt-0.5" style={{ fontSize: 13, color: D.muted }}>link</span>
+                          {ref.startsWith('http') ? (
+                            <a href={ref} target="_blank" rel="noopener noreferrer"
+                              className="text-xs font-medium hover:underline break-all"
+                              style={{ color: '#2A9D8F' }}>{ref}</a>
+                          ) : (
+                            <span className="text-xs" style={{ color: D.text }}>{ref}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {selectedSignal.youtubeId && (
                   <div className="aspect-video rounded-xl overflow-hidden bg-black shadow-lg">
                     <iframe className="w-full h-full"
@@ -1062,7 +1083,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                 <div>
                   <span className="block text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: D.muted }}>Clasificación</span>
                   <div className="space-y-3">
-                    {selectedSignal.autor && (
+                    {selectedType !== 'señal' && selectedSignal.autor && (
                       <div>
                         <span className="block text-[10px] mb-1" style={{ color: D.muted }}>Autor</span>
                         <span className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: D.text }}>

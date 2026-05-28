@@ -46,6 +46,7 @@ router.get('/escenarios', async (req, res) => {
          e.probabilidad,
          e.fecha_publicacion,
          e.autor,
+         e.referencias_escenario,
          MIN(p.nombre_pestel)    AS categoria,
          MIN(p.slug_pestel)      AS pestel_slug,
          MIN(p.color)            AS color_pestel,
@@ -94,6 +95,7 @@ router.get('/escenarios', async (req, res) => {
       probability:    row.probabilidad ?? null,
       topico:         row.topico_nombre || null,
       autor:          row.autor || null,
+      referencias:    (() => { try { return JSON.parse(row.referencias_escenario || 'null') || []; } catch { return []; } })(),
     }));
 
     res.json({ total: scenarios.length, data: scenarios });

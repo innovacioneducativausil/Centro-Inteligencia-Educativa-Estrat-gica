@@ -54,7 +54,6 @@ export interface ApiSignal {
   impact: number;
   maturity: number;
   topico: string | null;
-  autor: string | null;
 }
 
 export interface ApiTrend {
@@ -110,6 +109,7 @@ export interface ApiScenario {
   probability: number;
   topico: string | null;
   autor: string | null;
+  referencias: string[] | null;
 }
 
 export interface PestelItem {

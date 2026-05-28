@@ -65,6 +65,8 @@ export interface Signal {
   publishedAt?: string | null;
   nombreTendencia?: string | null;
   probability?: number;
+  autor?: string | null;
+  referencias?: string[] | null;
 }
 
 export interface Trend {

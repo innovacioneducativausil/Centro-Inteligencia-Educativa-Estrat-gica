@@ -203,13 +203,13 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
               fuente_senal, url_fuente,
               url_imagen_senal, url_video_senal,
               pais_origen, fecha_senal_articulo,
-              autor, id_topico, id_estado, id_usuario_creador, fecha_publicacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 3, ?, NULL)`,
+              id_topico, id_estado, id_usuario_creador, fecha_publicacion)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 3, ?, NULL)`,
           [newId, tituloFin, nombreFin, descCortaFin, descLargaFin,
            razonCambioFin, fuenteFin, urlFuenteFin,
            urlImagenFin, urlVideoFin,
            paisOrigenFin, fechaArticuloFin,
-           autor?.trim() || null, topicoId, usuarioId]
+           topicoId, usuarioId]
         );
         for (const pid of finalPestelIds)
           await db.query('INSERT IGNORE INTO senal_pestel (id_senal, id_pestel) VALUES (?, ?)', [newId, pid]);
