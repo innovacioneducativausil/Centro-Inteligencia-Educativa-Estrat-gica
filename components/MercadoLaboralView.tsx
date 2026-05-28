@@ -158,15 +158,6 @@ function MetodologiaView({ steps: _steps, onVerInformes }: { steps: MetodoPaso[]
         <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-slate-600">
           Herramienta de análisis para la toma de decisiones académicas, actualización curricular y fortalecimiento de la empleabilidad.
         </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <button className="inline-flex items-center gap-2 rounded-lg bg-[#002D72] px-4 py-2.5 text-sm font-black text-white shadow-sm">
-            <Lightbulb className="h-4 w-4" /> Cómo se elaboraron
-          </button>
-          <button onClick={onVerInformes}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-[#002D72] shadow-sm hover:bg-slate-50">
-            <Search className="h-4 w-4" /> Ver informes
-          </button>
-        </div>
       </div>
 
       {/* ── Sección pasos ────────────────────────────────────────── */}
@@ -270,11 +261,7 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
         if (!alive) return;
         setFacultades(filters.facultades);
         setMetodologia(metodo.data);
-        const firstFacultad = filters.facultades[0];
-        if (firstFacultad) {
-          setFacultad(firstFacultad.nombre);
-          setCarrera(firstFacultad.carreras[0] || '');
-        }
+        // No auto-seleccionar: el usuario debe elegir facultad y carrera
       })
       .catch((e) => alive && setError(e.message))
       .finally(() => alive && setLoading(false));
@@ -301,8 +288,8 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
 
   const handleFacultad = (value: string) => {
     setFacultad(value);
-    const nextCarreras = facultades.find((f) => f.nombre === value)?.carreras ?? [];
-    setCarrera(nextCarreras[0] || '');
+    setCarrera(''); // limpiar carrera al cambiar facultad
+    setInforme(null);
   };
 
   const bg = isDark ? '#0f172a' : '#f8fafc';
@@ -375,13 +362,13 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
                   <div className="grid gap-5 lg:grid-cols-[260px_1fr_320px] lg:items-center">
                     <div>
                       <h1 className="text-2xl font-black uppercase leading-tight tracking-wide text-[#00A3E0] md:text-3xl">
-                        {informe?.informe.tituloHeader || 'Informes de mercado laboral'}
+                        {informe?.informe.tituloHeader || 'Informes de Mercado Laboral'}
                       </h1>
-                      <p className="mt-1 text-lg font-black uppercase text-white">{informe?.informe.periodo || 'Peru 2025 - 2026'}</p>
+                      <p className="mt-1 text-lg font-black uppercase text-white">{informe?.informe.periodo || 'Perú 2025 - 2026'}</p>
                       <div className="mt-3 h-1 w-20 rounded-full bg-[#00A3E0]" />
                     </div>
                     <p className="border-l border-white/20 pl-5 text-sm font-medium leading-relaxed text-blue-50">
-                      {informe?.informe.descripcionHeader || 'Selecciona una carrera para visualizar el informe curado del mercado laboral.'}
+                      {informe?.informe.descripcionHeader || 'Selecciona una facultad y una carrera para visualizar el análisis técnico correspondiente.'}
                     </p>
                     <div className="rounded-lg bg-white/10 p-4 text-sm font-black leading-snug text-blue-50">
                       <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#00A3E0]">
@@ -394,17 +381,23 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
                 <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
                     <label className="block">
-                      <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Facultad</span>
+                      <span className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <span className="material-symbols-outlined text-[13px]">apartment</span> Facultad
+                      </span>
                       <select value={facultad} onChange={(e) => handleFacultad(e.target.value)}
                         className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#002D72] outline-none">
-                        {facultades.map((f) => <option key={f.nombre}>{f.nombre}</option>)}
+                        <option value="">Selecciona una facultad...</option>
+                        {facultades.map((f) => <option key={f.nombre} value={f.nombre}>{f.nombre}</option>)}
                       </select>
                     </label>
                     <label className="block">
-                      <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Carrera</span>
-                      <select value={carrera} onChange={(e) => setCarrera(e.target.value)}
-                        className="h-11 w-full rounded-lg border border-cyan-300 bg-white px-3 text-sm font-bold text-[#002D72] outline-none">
-                        {carreras.map((c) => <option key={c}>{c}</option>)}
+                      <span className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <span className="material-symbols-outlined text-[13px]">school</span> Carrera
+                      </span>
+                      <select value={carrera} onChange={(e) => setCarrera(e.target.value)} disabled={!facultad}
+                        className="h-11 w-full rounded-lg border border-cyan-300 bg-white px-3 text-sm font-bold text-[#002D72] outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                        <option value="">Selecciona una carrera...</option>
+                        {carreras.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </label>
                     {informe?.informe.documentoInformeUrl && (
@@ -426,10 +419,16 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
                 <p className="text-sm font-semibold text-slate-500">Cargando informe de mercado...</p>
               </div>
             ) : !informe ? (
-              <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center">
-                <BarChart3 className="h-10 w-10 text-slate-300" />
-                <p className="text-sm font-black uppercase tracking-wide text-slate-400">Sin informe disponible</p>
-                <p className="text-xs font-medium text-slate-400">Selecciona otra facultad o carrera para ver el informe curado.</p>
+              <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white py-20 text-center shadow-sm">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#E0F4FD]">
+                  <Lightbulb className="h-8 w-8 text-[#00A3E0]" />
+                </div>
+                <div>
+                  <p className="text-base font-black text-[#002D72]">Selecciona una facultad y una carrera</p>
+                  <p className="mt-1 max-w-xs text-xs font-medium leading-relaxed text-slate-400">
+                    Utilice los selectores superiores para consultar el informe de mercado laboral y tendencias de una carrera específica.
+                  </p>
+                </div>
               </div>
             ) : (
               <>
