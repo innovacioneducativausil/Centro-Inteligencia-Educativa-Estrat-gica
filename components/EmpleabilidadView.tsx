@@ -866,7 +866,9 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
 
   const noTrabaja   = Math.round(Math.max(0, 100 - resumen.tasaEmpleabilidad) * 100) / 100;
   const noAfinidad  = Math.round(Math.max(0, 100 - resumen.tasaAfinidad)      * 100) / 100;
-  const rangoSegs   = rangos.map((r, i) => ({ pct: r.pct, color: SALARY_COLORS[i] || '#ccc' }));
+  // Excluir rangos sin clasificar ("-") del gráfico y la leyenda
+  const rangosVis   = rangos.filter(r => r.rango && r.rango.trim() !== '-');
+  const rangoSegs   = rangosVis.map((r, i) => ({ pct: r.pct, color: SALARY_COLORS[i] || '#ccc' }));
   // 2022 no tiene columna EMPRENDEDOR en el Excel → ocultar la tarjeta
   const solo2022    = selAños.length === 1 && selAños[0] === '2022';
 
@@ -891,23 +893,6 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
         </h2>
         <span style={{ fontSize: 11, color: muted, display: 'block', marginTop: 2,
           visibility: (loading || tabStatsLoading) ? 'visible' : 'hidden' }}>cargando…</span>
-        {canImport && (
-          <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: 6 }}>
-            <button onClick={handleNormalizarSalarios}
-              title="Normaliza rangos salariales y estados laborales duplicados o mal clasificados"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
-                borderRadius: 8, border: `1px solid ${border}`, background: card, color: text,
-                fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-              ⚙ Normalizar rangos
-            </button>
-            <button onClick={() => setShowImport(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px',
-                borderRadius: 8, border: 'none', background: ACCENT, color: '#fff',
-                fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-              ↑ Importar Excel
-            </button>
-          </div>
-        )}
       </div>
 
       {/* TABS */}
@@ -1037,13 +1022,13 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 10 }}>
                 Rango Salarial Promedio
               </div>
-              {rangos.length === 0 ? (
+              {rangosVis.length === 0 ? (
                 <div style={{ color: muted, fontSize: 12, textAlign: 'center', padding: 16 }}>Sin datos</div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                  {/* Leyenda — máx 7 rangos visibles con scroll si hubiera más */}
+                  {/* Leyenda — los porcentajes aparecen aquí (no en el donut) */}
                   <div style={{ flex: '1 1 auto', minWidth: 0, maxHeight: 210, overflowY: 'auto' }}>
-                    {rangos.map((r, i) => (
+                    {rangosVis.map((r, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
                         <div style={{ width: 11, height: 11, borderRadius: 3, background: SALARY_COLORS[i % SALARY_COLORS.length], flexShrink: 0 }} />
                         <span style={{ fontSize: 11, color: text, lineHeight: 1.3, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.rango}</span>
@@ -1051,9 +1036,9 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                       </div>
                     ))}
                   </div>
-                  {/* Donut — contenedor con padding suficiente para absorber las etiquetas externas */}
-                  <div style={{ flexShrink: 0, padding: '8px 24px' }}>
-                    <DonutChart segments={rangoSegs} size={150} stroke={30} extLabelAll />
+                  {/* Donut — sin etiquetas externas; los porcentajes van en la leyenda izquierda */}
+                  <div style={{ flexShrink: 0, padding: '8px 12px' }}>
+                    <DonutChart segments={rangoSegs} size={150} stroke={30} />
                   </div>
                 </div>
               )}
@@ -1064,7 +1049,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
 
             {/* Tasa de Empleabilidad */}
-            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '12px 14px' }}>
+            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
               <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 6, textAlign: 'center' }}>
                 Tasa de Empleabilidad
               </div>
@@ -1090,7 +1075,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
             </div>
 
             {/* Afinidad Laboral */}
-            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '12px 14px' }}>
+            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
               <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 6, textAlign: 'center' }}>
                 Afinidad Laboral
               </div>
