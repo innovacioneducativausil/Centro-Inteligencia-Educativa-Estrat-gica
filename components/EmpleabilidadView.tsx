@@ -992,33 +992,94 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
 
       {/* ═══ TAB RESUMEN — Dashboard ════════════════════════════════════════════ */}
       {activeTab === 'resumen' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
 
-          {/* FILA 1 — KPIs + Rango Salarial (grid 4 cols igual al bottom) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, alignItems: 'start' }}>
+          {/* ── MITAD IZQUIERDA: KPIs pegados encima de los donuts ── */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
 
-            {/* KPI 1 */}
-            <div style={{ background: ACCENT, borderRadius: 10, color: '#fff', padding: '12px 16px' }}>
-              <div style={{ fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.2px', opacity: 0.85, marginBottom: 4, lineHeight: 1.3 }}>
-                Egresados Colocados Laboralmente
+            {/* KPIs */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ background: ACCENT, borderRadius: 10, color: '#fff', padding: '12px 16px' }}>
+                <div style={{ fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.2px', opacity: 0.85, marginBottom: 4, lineHeight: 1.3 }}>
+                  Egresados Colocados Laboralmente
+                </div>
+                <div style={{ fontSize: 42, fontWeight: 900, lineHeight: 1 }}>
+                  {resumen.egresadosColocados.toLocaleString()}
+                </div>
               </div>
-              <div style={{ fontSize: 42, fontWeight: 900, lineHeight: 1 }}>
-                {resumen.egresadosColocados.toLocaleString()}
+              <div style={{ background: '#1D4ED8', borderRadius: 10, color: '#fff', padding: '12px 16px' }}>
+                <div style={{ fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.2px', opacity: 0.85, marginBottom: 4, lineHeight: 1.3 }}>
+                  Alumni con Empleo Afín a su Carrera
+                </div>
+                <div style={{ fontSize: 42, fontWeight: 900, lineHeight: 1 }}>
+                  {resumen.alumniAfinCarrera.toLocaleString()}
+                </div>
               </div>
             </div>
 
-            {/* KPI 2 */}
-            <div style={{ background: '#1D4ED8', borderRadius: 10, color: '#fff', padding: '12px 16px' }}>
-              <div style={{ fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.2px', opacity: 0.85, marginBottom: 4, lineHeight: 1.3 }}>
-                Alumni con Empleo Afín a su Carrera
-              </div>
-              <div style={{ fontSize: 42, fontWeight: 900, lineHeight: 1 }}>
-                {resumen.alumniAfinCarrera.toLocaleString()}
-              </div>
-            </div>
+            {/* Donuts — directamente debajo de los KPIs */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
 
-            {/* Rango Salarial — ocupa cols 3-4 (50% del ancho) */}
-            <div style={{ ...cardStyle, gridColumn: '3 / 5', padding: '14px 16px' }}>
+              {/* Tasa de Empleabilidad */}
+              <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
+                <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, textAlign: 'center' }}>
+                  Tasa de Empleabilidad
+                </div>
+                <DonutChart
+                  segments={[
+                    { pct: resumen.tasaEmpleabilidad, color: ACCENT    },
+                    { pct: noTrabaja,                 color: '#e5e7eb' },
+                  ]}
+                  size={130} stroke={26}
+                  centerText={`${resumen.tasaEmpleabilidad}%`}
+                  showExtLabel
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT, flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, fontWeight: 600, color: text }}>TRABAJA {resumen.tasaEmpleabilidad}%</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb', flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, fontWeight: 600, color: muted }}>NO TRABAJA {noTrabaja}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Afinidad Laboral */}
+              <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
+                <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, textAlign: 'center' }}>
+                  Afinidad Laboral
+                </div>
+                <DonutChart
+                  segments={[
+                    { pct: resumen.tasaAfinidad, color: ACCENT2   },
+                    { pct: noAfinidad,           color: '#e5e7eb' },
+                  ]}
+                  size={130} stroke={26}
+                  centerText={`${resumen.tasaAfinidad}%`}
+                  showExtLabel
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT2, flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, fontWeight: 600, color: text }}>SÍ {resumen.tasaAfinidad}%</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb', flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, fontWeight: 600, color: muted }}>NO {noAfinidad}%</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* ── MITAD DERECHA: Rango Salarial + Gráficas ── */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+
+            {/* Rango Salarial */}
+            <div style={{ ...cardStyle, padding: '14px 16px' }}>
               <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 10 }}>
                 Rango Salarial Promedio
               </div>
@@ -1026,8 +1087,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                 <div style={{ color: muted, fontSize: 12, textAlign: 'center', padding: 16 }}>Sin datos</div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 0 }}>
-                  {/* Col 1 — texto de leyenda (sin porcentaje) */}
-                  <div style={{ flex: '1 1 auto', minWidth: 0, maxHeight: 210, overflowY: 'auto' }}>
+                  <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                     {rangosVis.map((r, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
                         <div style={{ width: 11, height: 11, borderRadius: 3, background: SALARY_COLORS[i % SALARY_COLORS.length], flexShrink: 0 }} />
@@ -1035,121 +1095,68 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                       </div>
                     ))}
                   </div>
-                  {/* Col 2 — columna de porcentajes (entre leyenda y donut) */}
-                  <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end', paddingRight: 10, paddingLeft: 8 }}>
+                  <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingRight: 10, paddingLeft: 8 }}>
                     {rangosVis.map((r, i) => (
                       <span key={i} style={{ fontSize: 11, fontWeight: 800, lineHeight: 1.3, marginBottom: 4, color: SALARY_COLORS[i % SALARY_COLORS.length] }}>
                         {r.pct}%
                       </span>
                     ))}
                   </div>
-                  {/* Col 3 — donut limpio */}
                   <div style={{ flexShrink: 0 }}>
                     <DonutChart segments={rangoSegs} size={148} stroke={30} />
                   </div>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* FILA 2 — Donuts + Barras */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+            {/* Gráficas — Nivel de Puesto + Satisfacción */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
 
-            {/* Tasa de Empleabilidad */}
-            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
-              <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, textAlign: 'center' }}>
-                Tasa de Empleabilidad
-              </div>
-              <DonutChart
-                segments={[
-                  { pct: resumen.tasaEmpleabilidad, color: ACCENT    },
-                  { pct: noTrabaja,                 color: '#e5e7eb' },
-                ]}
-                size={130} stroke={26}
-                centerText={`${resumen.tasaEmpleabilidad}%`}
-                showExtLabel
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT, flexShrink: 0 }} />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: text }}>TRABAJA {resumen.tasaEmpleabilidad}%</span>
+              {/* Nivel de Puesto + Emprendedores */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ ...cardStyle, padding: '10px 14px' }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 8 }}>
+                    Nivel de Puesto
+                  </div>
+                  {niveles.length === 0
+                    ? <div style={{ color: muted, fontSize: 12 }}>Sin datos</div>
+                    : niveles.map((n, i) => <HBar key={i} label={n.nivel} pct={n.pct} color={getNivelColor(n.nivel)} textColor={text} />)
+                  }
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb', flexShrink: 0 }} />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: muted }}>NO TRABAJA {noTrabaja}%</span>
-                </div>
+                {!solo2022 && (
+                  <div style={{ background: ACCENT, borderRadius: 10, color: '#fff',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    padding: '18px 16px', textAlign: 'center' }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', opacity: 0.9 }}>
+                      Emprendedores
+                    </span>
+                    <span style={{ fontSize: 32, fontWeight: 900, lineHeight: 1.2 }}>{resumen.tasaEmprendimiento}%</span>
+                  </div>
+                )}
               </div>
-            </div>
 
-            {/* Afinidad Laboral */}
-            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
-              <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, textAlign: 'center' }}>
-                Afinidad Laboral
-              </div>
-              <DonutChart
-                segments={[
-                  { pct: resumen.tasaAfinidad, color: ACCENT2   },
-                  { pct: noAfinidad,           color: '#e5e7eb' },
-                ]}
-                size={130} stroke={26}
-                centerText={`${resumen.tasaAfinidad}%`}
-                showExtLabel
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT2, flexShrink: 0 }} />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: text }}>SÍ {resumen.tasaAfinidad}%</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb', flexShrink: 0 }} />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: muted }}>NO {noAfinidad}%</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Nivel de Puesto + Emprendedores */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Satisfacción USIL */}
               <div style={{ ...cardStyle, padding: '10px 14px' }}>
                 <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 8 }}>
-                  Nivel de Puesto
+                  Satisfacción USIL
                 </div>
-                {niveles.length === 0
+                {satisf.length === 0
                   ? <div style={{ color: muted, fontSize: 12 }}>Sin datos</div>
-                  : niveles.map((n, i) => <HBar key={i} label={n.nivel} pct={n.pct} color={getNivelColor(n.nivel)} textColor={text} />)
+                  : satisf.map((s, i) => (
+                      <HBar key={i} label={s.nivel} pct={s.pct}
+                        color={getSatisfColor(s.nivel)} textColor={text} />
+                    ))
                 }
+                {satisf.length > 0 && (
+                  <div style={{ marginTop: 6, fontSize: 9, color: muted, textAlign: 'right' }}>
+                    %TG Recuento de Satisfacción USIL
+                  </div>
+                )}
               </div>
-              {!solo2022 && (
-                <div style={{ background: ACCENT, borderRadius: 10, color: '#fff',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  padding: '18px 16px', textAlign: 'center', flex: 1 }}>
-                  <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', opacity: 0.9 }}>
-                    Emprendedores
-                  </span>
-                  <span style={{ fontSize: 32, fontWeight: 900, lineHeight: 1.2 }}>{resumen.tasaEmprendimiento}%</span>
-                </div>
-              )}
-            </div>
 
-            {/* Satisfacción USIL */}
-            <div style={{ ...cardStyle, padding: '10px 14px' }}>
-              <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 8 }}>
-                Satisfacción USIL
-              </div>
-              {satisf.length === 0
-                ? <div style={{ color: muted, fontSize: 12 }}>Sin datos</div>
-                : satisf.map((s, i) => (
-                    <HBar key={i} label={s.nivel} pct={s.pct}
-                      color={getSatisfColor(s.nivel)} textColor={text} />
-                  ))
-              }
-              {satisf.length > 0 && (
-                <div style={{ marginTop: 6, fontSize: 9, color: muted, textAlign: 'right' }}>
-                  %TG Recuento de Satisfacción USIL
-                </div>
-              )}
             </div>
-
           </div>
+
         </div>
       )}
 
