@@ -1025,20 +1025,27 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               {rangosVis.length === 0 ? (
                 <div style={{ color: muted, fontSize: 12, textAlign: 'center', padding: 16 }}>Sin datos</div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                  {/* Leyenda — los porcentajes aparecen aquí (no en el donut) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 0 }}>
+                  {/* Col 1 — texto de leyenda (sin porcentaje) */}
                   <div style={{ flex: '1 1 auto', minWidth: 0, maxHeight: 210, overflowY: 'auto' }}>
                     {rangosVis.map((r, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
                         <div style={{ width: 11, height: 11, borderRadius: 3, background: SALARY_COLORS[i % SALARY_COLORS.length], flexShrink: 0 }} />
-                        <span style={{ fontSize: 11, color: text, lineHeight: 1.3, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.rango}</span>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: SALARY_COLORS[i % SALARY_COLORS.length], flexShrink: 0 }}>{r.pct}%</span>
+                        <span style={{ fontSize: 11, color: text, lineHeight: 1.3, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.rango}</span>
                       </div>
                     ))}
                   </div>
-                  {/* Donut — sin etiquetas externas; los porcentajes van en la leyenda izquierda */}
-                  <div style={{ flexShrink: 0, padding: '8px 12px' }}>
-                    <DonutChart segments={rangoSegs} size={150} stroke={30} />
+                  {/* Col 2 — columna de porcentajes (entre leyenda y donut) */}
+                  <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end', paddingRight: 10, paddingLeft: 8 }}>
+                    {rangosVis.map((r, i) => (
+                      <span key={i} style={{ fontSize: 11, fontWeight: 800, lineHeight: 1.3, marginBottom: 4, color: SALARY_COLORS[i % SALARY_COLORS.length] }}>
+                        {r.pct}%
+                      </span>
+                    ))}
+                  </div>
+                  {/* Col 3 — donut limpio */}
+                  <div style={{ flexShrink: 0 }}>
+                    <DonutChart segments={rangoSegs} size={148} stroke={30} />
                   </div>
                 </div>
               )}
@@ -1049,8 +1056,8 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
 
             {/* Tasa de Empleabilidad */}
-            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
-              <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 6, textAlign: 'center' }}>
+            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
+              <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, textAlign: 'center' }}>
                 Tasa de Empleabilidad
               </div>
               <DonutChart
@@ -1058,25 +1065,25 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                   { pct: resumen.tasaEmpleabilidad, color: ACCENT    },
                   { pct: noTrabaja,                 color: '#e5e7eb' },
                 ]}
-                size={130} stroke={26}
+                size={160} stroke={32}
                 centerText={`${resumen.tasaEmpleabilidad}%`}
                 showExtLabel
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', marginTop: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT, flexShrink: 0 }} />
-                  <span style={{ fontSize: 9, fontWeight: 600, color: text }}>TRABAJA {resumen.tasaEmpleabilidad}%</span>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT, flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, fontWeight: 600, color: text }}>TRABAJA {resumen.tasaEmpleabilidad}%</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#e5e7eb', flexShrink: 0 }} />
-                  <span style={{ fontSize: 9, fontWeight: 600, color: muted }}>NO TRABAJA {noTrabaja}%</span>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb', flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, fontWeight: 600, color: muted }}>NO TRABAJA {noTrabaja}%</span>
                 </div>
               </div>
             </div>
 
             {/* Afinidad Laboral */}
-            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
-              <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 6, textAlign: 'center' }}>
+            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
+              <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, textAlign: 'center' }}>
                 Afinidad Laboral
               </div>
               <DonutChart
@@ -1084,18 +1091,18 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                   { pct: resumen.tasaAfinidad, color: ACCENT2   },
                   { pct: noAfinidad,           color: '#e5e7eb' },
                 ]}
-                size={130} stroke={26}
+                size={160} stroke={32}
                 centerText={`${resumen.tasaAfinidad}%`}
                 showExtLabel
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', marginTop: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT2, flexShrink: 0 }} />
-                  <span style={{ fontSize: 9, fontWeight: 600, color: text }}>SÍ {resumen.tasaAfinidad}%</span>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT2, flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, fontWeight: 600, color: text }}>SÍ {resumen.tasaAfinidad}%</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#e5e7eb', flexShrink: 0 }} />
-                  <span style={{ fontSize: 9, fontWeight: 600, color: muted }}>NO {noAfinidad}%</span>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb', flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, fontWeight: 600, color: muted }}>NO {noAfinidad}%</span>
                 </div>
               </div>
             </div>
