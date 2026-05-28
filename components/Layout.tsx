@@ -99,6 +99,15 @@ const Layout: React.FC<LayoutProps> = ({
     });
   };
 
+  const markAllSeen = () => {
+    setSeenIds(prev => {
+      const next = new Set(prev);
+      publishedNotifs.forEach(n => next.add(n.id));
+      try { localStorage.setItem(`radar_seen_${user.correo}`, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+
   const tipoColor = (t: string) => t === 'senal' ? '#0D9488' : t === 'tendencia' ? '#3b82f6' : '#a855f7';
   const tipoLabel = (t: string) => t === 'senal' ? 'Señal' : t === 'tendencia' ? 'Tendencia' : 'Escenario';
   const fmtDate   = (d: string | null) => d ? new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '';
@@ -196,7 +205,14 @@ const Layout: React.FC<LayoutProps> = ({
               <div style={{ padding: '12px 16px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,42,63,0.06)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: 700, fontSize: 12, color: theme === 'dark' ? '#e2e8f0' : '#0F2A3F' }}>Actividad reciente</span>
                 {unreadCount > 0 && (
-                  <span style={{ fontSize: 10, color: '#E76F51', fontWeight: 700 }}>{unreadCount} nueva{unreadCount !== 1 ? 's' : ''}</span>
+                  <button
+                    onClick={markAllSeen}
+                    style={{ fontSize: 10, color: '#0D9488', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', borderRadius: 4, fontFamily: 'inherit' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.textDecoration = 'underline'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.textDecoration = 'none'; }}
+                  >
+                    Marcar todas como leídas
+                  </button>
                 )}
               </div>
               <div style={{ maxHeight: 320, overflowY: 'auto' }}>
