@@ -53,10 +53,11 @@ const Layout: React.FC<LayoutProps> = ({
   }, []);
 
   const toggleBell = async () => {
-    setBellOpen(prev => !prev);
-    if (!notifsLoaded) {
+    const nextOpen = !bellOpen;
+    setBellOpen(nextOpen);
+    if (nextOpen) {
       try {
-        const res   = await fetch('/api/admin/notificaciones');
+        const res = await fetch('/api/admin/notificaciones', { credentials: 'include' });
         if (res.ok) { const j = await res.json(); setNotifs(j.data || []); setNotifsLoaded(true); }
       } catch { /* silencioso */ }
     }
@@ -158,7 +159,7 @@ const Layout: React.FC<LayoutProps> = ({
             <div style={{ position: 'absolute', left: 'calc(100% + 10px)', bottom: 0, width: 290, borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.35)', background: theme === 'dark' ? '#1e293b' : 'white', border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,42,63,0.1)'}`, zIndex: 100, overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,42,63,0.06)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: 700, fontSize: 12, color: theme === 'dark' ? '#e2e8f0' : '#0F2A3F' }}>Actividad reciente</span>
-                <button onClick={() => { setNotifs([]); setNotifsLoaded(false); }} style={{ fontSize: 11, fontWeight: 600, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>Limpiar</button>
+                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>Solo publicados</span>
               </div>
               <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                 {notifs.length === 0 ? (

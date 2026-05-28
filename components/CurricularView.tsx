@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ThemeColors } from '../types';
 import ImpactoCurricularView from './ImpactoCurricularView';
+import BenchmarkingView from './BenchmarkingView';
 
 interface CurricularViewProps {
   themeColors: ThemeColors;
@@ -105,7 +106,110 @@ interface ImportResult {
   errors: { fila: number; error: string }[];
 }
 
-type TabCurricular = 'mapa' | 'impacto';
+type TabCurricular = 'mapa' | 'silabos' | 'benchmarking' | 'impacto';
+
+// ── Mapa Sílabos — vista base (interfaz preparada, datos futuros) ─────────────
+function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrerasFiltradas, selFacultad, filtros }: {
+  card: string; text: string; muted: string; border: string; isDark: boolean;
+  selCarrera: string; selFacultad: string;
+  carrerasFiltradas: { id_carrera: number; nombre_carrera: string; id_facultad: number; nombre_facultad: string }[];
+  filtros: FiltrosData;
+}) {
+  const [selCiclo,  setSelCiclo]  = React.useState('');
+  const [selCurso,  setSelCurso]  = React.useState('');
+
+  const cardStyle: React.CSSProperties = {
+    background: card, borderRadius: 12, border: `1px solid ${border}`,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  };
+
+  // Sílabos de ejemplo (vacíos hasta que se integre el backend)
+  const silabosEjemplo = selCarrera !== 'Todas' ? [
+    { ciclo: 1, curso: 'Fundamentos de la Carrera',   estado: 'Pendiente', creditos: 4, codigo: 'FND101' },
+    { ciclo: 1, curso: 'Matemática Básica',            estado: 'Pendiente', creditos: 3, codigo: 'MAT101' },
+    { ciclo: 2, curso: 'Diseño y Metodología',         estado: 'Pendiente', creditos: 4, codigo: 'DIS201' },
+    { ciclo: 2, curso: 'Comunicación Profesional',     estado: 'Pendiente', creditos: 3, codigo: 'COM201' },
+  ] : [];
+
+  const ciclosFiltrados = selCiclo ? silabosEjemplo.filter(s => String(s.ciclo) === selCiclo) : silabosEjemplo;
+  const cursosFinales   = selCurso ? ciclosFiltrados.filter(s => s.curso.toLowerCase().includes(selCurso.toLowerCase())) : ciclosFiltrados;
+
+  const estadoColor = (e: string) => e === 'Disponible' ? '#10b981' : e === 'Revisión' ? '#f59e0b' : '#94a3b8';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Filtros adicionales sílabos */}
+      <div style={{ ...cardStyle, padding: '14px 18px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ minWidth: 120 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Ciclo</div>
+          <select value={selCiclo} onChange={e => setSelCiclo(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`, background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            <option value="">Todos</option>
+            {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>Ciclo {n}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Buscar curso</div>
+          <input value={selCurso} onChange={e => setSelCurso(e.target.value)} placeholder="Nombre del curso..."
+            style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`, background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, boxSizing: 'border-box' }} />
+        </div>
+      </div>
+
+      {/* Tabla de sílabos */}
+      <div style={{ ...cardStyle, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted }}>Sílabos de cursos</span>
+          <span style={{ fontSize: 10, color: muted }}>
+            {selCarrera !== 'Todas' ? `${cursosFinales.length} curso(s) encontrados` : 'Selecciona una carrera para ver los sílabos'}
+          </span>
+        </div>
+        {selCarrera === 'Todas' ? (
+          <div style={{ padding: '50px 16px', textAlign: 'center', color: muted }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 36, display: 'block', marginBottom: 10, opacity: 0.4 }}>menu_book</span>
+            <p style={{ fontSize: 13, fontWeight: 600 }}>Selecciona una carrera en los filtros superiores</p>
+            <p style={{ fontSize: 11, marginTop: 4 }}>Los sílabos se mostrarán por ciclo y curso.</p>
+          </div>
+        ) : cursosFinales.length === 0 ? (
+          <div style={{ padding: '40px 16px', textAlign: 'center', color: muted, fontSize: 12 }}>Sin resultados para los filtros seleccionados.</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#f8fafc' }}>
+                {['Ciclo', 'Código', 'Curso', 'Créditos', 'Estado', 'Sílabo'].map(h => (
+                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: muted, borderBottom: `1px solid ${border}` }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {cursosFinales.map((s, idx) => (
+                <tr key={idx} style={{ borderBottom: idx < cursosFinales.length - 1 ? `1px solid ${border}` : 'none' }}>
+                  <td style={{ padding: '11px 14px', fontSize: 11, fontWeight: 700, color: text }}>Ciclo {s.ciclo}</td>
+                  <td style={{ padding: '11px 14px', fontSize: 11, color: muted }}>{s.codigo}</td>
+                  <td style={{ padding: '11px 14px', fontSize: 12, fontWeight: 600, color: text }}>{s.curso}</td>
+                  <td style={{ padding: '11px 14px', fontSize: 11, color: muted, textAlign: 'center' }}>{s.creditos}</td>
+                  <td style={{ padding: '11px 14px' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 100, background: estadoColor(s.estado) + '22', color: estadoColor(s.estado) }}>{s.estado}</span>
+                  </td>
+                  <td style={{ padding: '11px 14px' }}>
+                    <button style={{ fontSize: 10, fontWeight: 700, padding: '5px 10px', borderRadius: 7, border: `1px solid ${border}`, background: card, color: muted, cursor: 'not-allowed', opacity: 0.6 }}>
+                      Ver sílabo
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Info pendiente */}
+      <div style={{ padding: '12px 16px', borderRadius: 10, background: isDark ? 'rgba(59,130,246,0.08)' : '#eff6ff', border: `1px solid ${isDark ? 'rgba(59,130,246,0.2)' : '#bfdbfe'}`, fontSize: 11, color: isDark ? '#93c5fd' : '#1d4ed8', fontWeight: 500 }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 14, verticalAlign: 'middle', marginRight: 6 }}>info</span>
+        Esta vista está preparada para integrar sílabos por carrera, ciclo y curso. Permite en el futuro analizar contenidos, competencias y relación con el mercado laboral.
+      </div>
+    </div>
+  );
+}
 
 const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRole }) => {
   const [activeTab, setActiveTab]  = useState<TabCurricular>('mapa');
@@ -295,48 +399,66 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   return (
     <div style={{ padding: '14px 20px', background: bg, minHeight: '100%', color: text, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-      {/* ── FILTROS ──────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end',
-        background: card, borderRadius: 12, border: `1px solid ${border}`, padding: '14px 18px' }}>
-        <div style={{ flex: 1, minWidth: 160 }}>
-          <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-            Facultad
-          </label>
-          <select value={selFacultad} onChange={e => handleFacultadChange(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`,
-              background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            <option>Todas</option>
-            {filtros.facultades.map(f => <option key={f.id_facultad}>{f.nombre_facultad}</option>)}
-          </select>
-        </div>
-        <div style={{ flex: 2, minWidth: 200 }}>
-          <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-            Carrera
-          </label>
-          <select value={selCarrera} onChange={e => handleCarreraChange(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`,
-              background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            <option>Todas</option>
-            {carrerasFiltradas.map(c => <option key={c.id_carrera}>{c.nombre_carrera}</option>)}
-          </select>
-        </div>
+      {/* ── TABS PRINCIPALES (arriba, igual que Empleabilidad/Mercado) ──── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+        {([
+          { key: 'mapa',        label: 'Mapa Curricular',    icon: 'map' },
+          { key: 'silabos',     label: 'Mapa Sílabos',       icon: 'menu_book' },
+          { key: 'benchmarking',label: 'Benchmarking',        icon: 'compare' },
+          { key: 'impacto',     label: 'Impacto Curricular',  icon: 'insights' },
+        ] as { key: TabCurricular; label: string; icon: string }[]).map(t => {
+          const active = activeTab === t.key;
+          return (
+            <button key={t.key} onClick={() => setActiveTab(t.key)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 40, padding: '0 16px', borderRadius: 8, border: active ? 'none' : `1px solid ${border}`, cursor: 'pointer', fontSize: 12, fontWeight: 700, transition: 'all .15s',
+                background: active ? USIL : card, color: active ? '#fff' : muted }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>{t.icon}</span>
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── TABS: Mapa Curricular | Impacto Curricular ──────────────────── */}
-      <div style={{ display: 'flex', gap: 4, borderBottom: `2px solid ${border}` }}>
-        {([
-          { key: 'mapa',    label: 'Mapa Curricular' },
-          { key: 'impacto', label: 'Impacto Curricular' },
-        ] as { key: TabCurricular; label: string }[]).map(t => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)}
-            style={{ padding: '8px 18px', border: 'none',
-              borderBottom: activeTab === t.key ? `2px solid ${USIL}` : '2px solid transparent',
-              background: 'transparent', color: activeTab === t.key ? USIL : muted,
-              fontWeight: activeTab === t.key ? 800 : 600, fontSize: 12, cursor: 'pointer', marginBottom: -2 }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* ── FILTROS (solo para mapa y sílabos) ──────────────────────────── */}
+      {(activeTab === 'mapa' || activeTab === 'silabos') && (
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end',
+          background: card, borderRadius: 12, border: `1px solid ${border}`, padding: '14px 18px' }}>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+              Facultad
+            </label>
+            <select value={selFacultad} onChange={e => handleFacultadChange(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`,
+                background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <option>Todas</option>
+              {filtros.facultades.map(f => <option key={f.id_facultad}>{f.nombre_facultad}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: 2, minWidth: 200 }}>
+            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+              Carrera
+            </label>
+            <select value={selCarrera} onChange={e => handleCarreraChange(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`,
+                background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <option>Todas</option>
+              {carrerasFiltradas.map(c => <option key={c.id_carrera}>{c.nombre_carrera}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: BENCHMARKING ────────────────────────────────────────── */}
+      {activeTab === 'benchmarking' && (
+        <BenchmarkingView themeColors={C} userRole={userRole} />
+      )}
+
+      {/* ── TAB: MAPA SÍLABOS ────────────────────────────────────────── */}
+      {activeTab === 'silabos' && (
+        <MapaSilabosView card={card} text={text} muted={muted} border={border} isDark={isDark}
+          selCarrera={selCarrera} carrerasFiltradas={carrerasFiltradas}
+          selFacultad={selFacultad} filtros={filtros} />
+      )}
 
       {/* ── TAB: IMPACTO CURRICULAR ────────────────────────────────────── */}
       {activeTab === 'impacto' && (

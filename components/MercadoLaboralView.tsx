@@ -18,7 +18,6 @@ import {
   Wrench,
 } from 'lucide-react';
 import { ThemeColors } from '../types';
-import BenchmarkingView from './BenchmarkingView';
 
 interface MercadoLaboralViewProps {
   themeColors: ThemeColors;
@@ -241,7 +240,7 @@ function MetodologiaView({ steps: _steps, onVerInformes }: { steps: MetodoPaso[]
 }
 
 const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, userRole }) => {
-  const [tab, setTab] = useState<'informe' | 'metodologia' | 'benchmarking'>('metodologia');
+  const [tab, setTab] = useState<'informe' | 'metodologia'>('metodologia');
   const [facultades, setFacultades] = useState<FiltroFacultad[]>([]);
   const [facultad, setFacultad] = useState('');
   const [carrera, setCarrera] = useState('');
@@ -294,7 +293,7 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
 
   const bg = isDark ? '#0f172a' : '#f8fafc';
 
-  if (error && !informe && tab !== 'benchmarking') {
+  if (error && !informe) {
     return (
       <div className="flex min-h-full items-center justify-center p-8" style={{ background: bg }}>
         <div className="max-w-md rounded-xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">{error}</div>
@@ -311,7 +310,6 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
           {[
             { key: 'metodologia', label: 'Como se elaboraron', icon: Lightbulb },
             { key: 'informe',     label: 'Ver informes',        icon: Search },
-            { key: 'benchmarking', label: 'Benchmarking Universitario', icon: University },
           ].map((item) => {
             const active = tab === item.key;
             return (
@@ -325,35 +323,15 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
               </button>
             );
           })}
-          {loading && tab !== 'benchmarking' && (
+          {loading && (
             <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-500">
               <Loader2 className="h-4 w-4 animate-spin" /> Cargando
             </span>
           )}
         </div>
 
-        {/* ── TAB: BENCHMARKING ──────────────────────────────────────────── */}
-        {tab === 'benchmarking' && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-3 border-b border-slate-100 pb-4">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#002D72]">
-                <University className="h-5 w-5 text-white" />
-              </span>
-              <div>
-                <h2 className="text-sm font-black uppercase tracking-wide text-[#002D72]">
-                  Benchmarking Universitario
-                </h2>
-                <p className="text-xs font-medium text-slate-500">
-                  Compara la malla propia con universidades competidoras y referentes internacionales
-                </p>
-              </div>
-            </div>
-            <BenchmarkingView themeColors={themeColors} userRole={userRole} />
-          </div>
-        )}
-
         {/* ── TABS: INFORME / METODOLOGIA ───────────────────────────────── */}
-        {tab !== 'benchmarking' && (
+        {(
           <>
             {/* Header y selector solo en tab informe */}
             {tab === 'informe' && (

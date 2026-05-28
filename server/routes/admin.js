@@ -1119,17 +1119,20 @@ router.get('/admin/notificaciones', adminOnly, async (_req, res) => {
     const [rows] = await db.query(
       `(SELECT id_senal      AS id, titulo_senal      AS titulo, 'senal'     AS tipo,
                id_estado, fecha_publicacion, fecha_creacion
-        FROM senal)
+        FROM senal
+        WHERE id_estado = 1 AND fecha_publicacion IS NOT NULL)
        UNION ALL
        (SELECT id_tendencia  AS id, titulo_tendencia  AS titulo, 'tendencia' AS tipo,
                id_estado, fecha_publicacion, fecha_creacion
-        FROM tendencia)
+        FROM tendencia
+        WHERE id_estado = 1 AND fecha_publicacion IS NOT NULL)
        UNION ALL
        (SELECT id_escenario  AS id, titulo_escenario  AS titulo, 'escenario' AS tipo,
                id_estado, fecha_publicacion, fecha_creacion
-        FROM escenario)
-       ORDER BY fecha_creacion DESC
-       LIMIT 20`
+        FROM escenario
+        WHERE id_estado = 1 AND fecha_publicacion IS NOT NULL)
+       ORDER BY fecha_publicacion DESC
+       LIMIT 30`
     );
     res.json({ data: rows });
   } catch (err) {
