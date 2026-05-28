@@ -46,7 +46,6 @@ router.get('/escenarios', async (req, res) => {
          e.probabilidad,
          e.fecha_publicacion,
          e.autor,
-         e.referencias_escenario,
          MIN(p.nombre_pestel)    AS categoria,
          MIN(p.slug_pestel)      AS pestel_slug,
          MIN(p.color)            AS color_pestel,
