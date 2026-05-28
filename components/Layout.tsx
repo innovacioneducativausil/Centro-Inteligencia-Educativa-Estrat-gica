@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Home, TrendingUp, Briefcase, Bell, Sun, Moon, LogOut, User, Layers, FileText, Settings2, BookOpen, BarChart3 } from 'lucide-react';
 import { ThemeColors } from '../types';
 import { AuthUser } from './LoginView';
@@ -14,6 +14,7 @@ interface LayoutProps {
   children: React.ReactNode;
   user: AuthUser;
   onLogout: () => void;
+  onNotifClick: (notif: { id: string; tipo: string }) => void;
 }
 
 // â”€â”€ Color palette (matches HTML design)
@@ -31,16 +32,30 @@ const Layout: React.FC<LayoutProps> = ({
   activeView, setActiveView,
   setRadarTab,
   theme, themeColors, toggleTheme,
-  children, user, onLogout,
+  children, user, onLogout, onNotifClick,
 }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [bellOpen,    setBellOpen]    = useState(false);
   const [notifs, setNotifs] = useState<{ id: string; titulo: string; tipo: string; id_estado: number; fecha_publicacion: string | null; fecha_creacion: string }[]>([]);
   const [notifsLoaded, setNotifsLoaded] = useState(false);
+  const [seenIds, setSeenIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(`radar_seen_${user.correo}`);
+      return new Set(stored ? JSON.parse(stored) : []);
+    } catch { return new Set(); }
+  });
   const bellRef    = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = user.rol === 'admin' || user.rol === 'analista';
+
+  // Fetch on mount for initial badge count
+  useEffect(() => {
+    fetch('/api/admin/notificaciones', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { setNotifs(j.data || []); setNotifsLoaded(true); })
+      .catch(() => {});
+  }, []);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -63,11 +78,30 @@ const Layout: React.FC<LayoutProps> = ({
     }
   };
 
-  const tipoColor  = (t: string) => t === 'senal' ? '#0D9488' : t === 'tendencia' ? '#3b82f6' : '#a855f7';
-  const tipoLabel  = (t: string) => t === 'senal' ? 'Señal' : t === 'tendencia' ? 'Tendencia' : 'Escenario';
-  const estadoLabel = (e: number) => e === 1 ? 'Publicado' : e === 2 ? 'Revisión' : e === 3 ? 'Archivado' : 'Borrador';
-  const estadoColor = (e: number) => e === 1 ? '#10b981' : e === 2 ? '#f59e0b' : e === 3 ? '#94a3b8' : '#64748b';
-  const fmtDate    = (d: string | null) => d ? new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '';
+  // Solo publicadas con fecha válida, ordenadas de más reciente a más antigua
+  const publishedNotifs = useMemo(() =>
+    notifs
+      .filter(n => n.id_estado === 1 && n.fecha_publicacion)
+      .sort((a, b) => new Date(b.fecha_publicacion!).getTime() - new Date(a.fecha_publicacion!).getTime()),
+    [notifs]
+  );
+
+  const unreadCount = useMemo(() =>
+    publishedNotifs.filter(n => !seenIds.has(n.id)).length,
+    [publishedNotifs, seenIds]
+  );
+
+  const markSeen = (id: string) => {
+    setSeenIds(prev => {
+      const next = new Set(prev).add(id);
+      try { localStorage.setItem(`radar_seen_${user.correo}`, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+
+  const tipoColor = (t: string) => t === 'senal' ? '#0D9488' : t === 'tendencia' ? '#3b82f6' : '#a855f7';
+  const tipoLabel = (t: string) => t === 'senal' ? 'Señal' : t === 'tendencia' ? 'Tendencia' : 'Escenario';
+  const fmtDate   = (d: string | null) => d ? new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '';
 
   const navItems = [
     { key: 'inicio', label: 'Inicio', icon: Home, short: 'Inicio' },
@@ -149,8 +183,10 @@ const Layout: React.FC<LayoutProps> = ({
             onMouseLeave={e => { if (!bellOpen) (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
           >
             <Bell style={{ width: 15, height: 15, color: 'rgba(255,255,255,0.6)' }} strokeWidth={2} />
-            {notifs.length > 0 && (
-              <span style={{ position: 'absolute', top: 6, right: 6, width: 6, height: 6, background: '#E76F51', borderRadius: '50%', border: '1.5px solid ' + NAV.bg }} />
+            {unreadCount > 0 && (
+              <span style={{ position: 'absolute', top: 3, right: 3, minWidth: 14, height: 14, background: '#E76F51', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: 'white', padding: '0 3px', border: '1.5px solid ' + NAV.bg, lineHeight: 1 }}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
             )}
           </button>
 
@@ -159,21 +195,31 @@ const Layout: React.FC<LayoutProps> = ({
             <div style={{ position: 'absolute', left: 'calc(100% + 10px)', bottom: 0, width: 290, borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.35)', background: theme === 'dark' ? '#1e293b' : 'white', border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,42,63,0.1)'}`, zIndex: 100, overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,42,63,0.06)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: 700, fontSize: 12, color: theme === 'dark' ? '#e2e8f0' : '#0F2A3F' }}>Actividad reciente</span>
-                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>Solo publicados</span>
+                {unreadCount > 0 && (
+                  <span style={{ fontSize: 10, color: '#E76F51', fontWeight: 700 }}>{unreadCount} nueva{unreadCount !== 1 ? 's' : ''}</span>
+                )}
               </div>
               <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                {notifs.length === 0 ? (
+                {publishedNotifs.length === 0 ? (
                   <p style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>No hay actividad reciente</p>
-                ) : notifs.map(n => (
-                  <div key={`${n.tipo}-${n.id}`} style={{ padding: '10px 16px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 100, background: tipoColor(n.tipo), color: 'white' }}>{tipoLabel(n.tipo)}</span>
-                      <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px', borderRadius: 100, background: estadoColor(n.id_estado) + '22', color: estadoColor(n.id_estado) }}>{estadoLabel(n.id_estado)}</span>
-                      <span style={{ fontSize: 9, color: '#94a3b8', marginLeft: 'auto' }}>{fmtDate(n.fecha_creacion)}</span>
+                ) : publishedNotifs.map(n => {
+                  const unread = !seenIds.has(n.id);
+                  return (
+                    <div
+                      key={`${n.tipo}-${n.id}`}
+                      onClick={() => { markSeen(n.id); onNotifClick({ id: n.id, tipo: n.tipo }); setBellOpen(false); }}
+                      style={{ padding: '10px 16px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`, cursor: 'pointer', borderLeft: unread ? '3px solid #0D9488' : '3px solid transparent', background: unread ? (theme === 'dark' ? 'rgba(13,148,136,0.06)' : 'rgba(13,148,136,0.04)') : 'transparent', transition: 'background .15s' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#f8fafc'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = unread ? (theme === 'dark' ? 'rgba(13,148,136,0.06)' : 'rgba(13,148,136,0.04)') : 'transparent'; }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 100, background: tipoColor(n.tipo), color: 'white' }}>{tipoLabel(n.tipo)}</span>
+                        <span style={{ fontSize: 9, color: '#94a3b8', marginLeft: 'auto' }}>{fmtDate(n.fecha_publicacion)}</span>
+                      </div>
+                      <p style={{ fontSize: 11, fontWeight: unread ? 600 : 500, color: theme === 'dark' ? '#cbd5e1' : '#1e293b', lineHeight: 1.4 }}>{n.titulo}</p>
                     </div>
-                    <p style={{ fontSize: 11, fontWeight: 500, color: theme === 'dark' ? '#cbd5e1' : '#1e293b', lineHeight: 1.4 }}>{n.titulo}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

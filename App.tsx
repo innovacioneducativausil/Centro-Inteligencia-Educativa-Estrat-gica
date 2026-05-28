@@ -11,12 +11,15 @@ import GestionView from './components/GestionView';
 import LoginView, { AuthUser } from './components/LoginView';
 import { THEMES } from './constants';
 
+type PendingNotif = { uuid: string; tipo: 'senal' | 'tendencia' | 'escenario' } | null;
+
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState('inicio');
   const [radarTab, setRadarTab] = useState<any>('señales');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [pendingNotif, setPendingNotif] = useState<PendingNotif>(null);
 
   const themeColors = useMemo(() => THEMES[theme], [theme]);
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -39,12 +42,21 @@ const App: React.FC = () => {
     setUser(null);
   };
 
+  const handleNotifClick = (notif: { id: string; tipo: string }) => {
+    const tabMap: Record<string, 'señales' | 'tendencias' | 'escenarios'> = {
+      senal: 'señales', tendencia: 'tendencias', escenario: 'escenarios',
+    };
+    setRadarTab(tabMap[notif.tipo] ?? 'señales');
+    setActiveView('radar');
+    setPendingNotif({ uuid: notif.id, tipo: notif.tipo as PendingNotif['tipo'] });
+  };
+
   const renderView = () => {
     switch (activeView) {
       case 'inicio':
         return <Dashboard themeColors={themeColors} setActiveView={setActiveView} setRadarTab={setRadarTab} theme={theme} />;
       case 'radar':
-        return <RadarView themeColors={themeColors} activeTabProp={radarTab} setRadarTab={setRadarTab} />;
+        return <RadarView themeColors={themeColors} activeTabProp={radarTab} setRadarTab={setRadarTab} pendingNotif={pendingNotif} onPendingNotifConsumed={() => setPendingNotif(null)} />;
       case 'empleabilidad':
         return <EmpleabilidadView themeColors={themeColors} userRole={user?.rol} />;
       case 'curricular':
@@ -93,6 +105,7 @@ const App: React.FC = () => {
       toggleTheme={toggleTheme}
       user={user}
       onLogout={handleLogout}
+      onNotifClick={handleNotifClick}
     >
       {renderView()}
     </Layout>

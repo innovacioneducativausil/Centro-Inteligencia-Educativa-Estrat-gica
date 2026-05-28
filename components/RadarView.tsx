@@ -10,6 +10,8 @@ interface RadarViewProps {
   themeColors: ThemeColors;
   activeTabProp?: 'señales' | 'tendencias' | 'escenarios';
   setRadarTab?: (tab: 'señales' | 'tendencias' | 'escenarios') => void;
+  pendingNotif?: { uuid: string; tipo: 'senal' | 'tendencia' | 'escenario' } | null;
+  onPendingNotifConsumed?: () => void;
 }
 
 const stripHtml = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/  +/g, ' ').trim();
@@ -132,7 +134,7 @@ const VIEWS_FOR_TAB: Record<string, { id: ViewMode; symbol: string; label: strin
   escenarios: [{ id: 'cards', symbol: '⊞', label: 'Cartillas' }, { id: 'cluster', symbol: '❋', label: 'Clusters' }],
 };
 
-const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRadarTab }) => {
+const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRadarTab, pendingNotif, onPendingNotifConsumed }) => {
   const [activeTab, setActiveTab] = useState<'señales' | 'tendencias' | 'escenarios' | 'cadena'>(activeTabProp || 'señales');
   const [activeView, setActiveView] = useState<ViewMode>('cards');
   const [sortOrder, setSortOrder] = useState<SortOrder>('recientes');
@@ -198,6 +200,41 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
       .catch(err => { console.error('Error cargando datos:', err); setLoadError(err.message || 'Error al cargar los datos'); })
       .finally(() => setLoadingData(false));
   }, []);
+
+  // Auto-abrir modal cuando viene una notificación pendiente y los datos ya están cargados
+  useEffect(() => {
+    if (!pendingNotif || loadingData) return;
+    let found = false;
+    if (pendingNotif.tipo === 'senal') {
+      const raw = signals.find(s => s.uuid === pendingNotif.uuid);
+      if (raw) {
+        setAiMetrics(null); setAiMetricsError(null);
+        setSelectedUuid(raw.uuid);
+        setDescLargaContent(null); setShowDescLarga(false); setDescLargaLoading(false);
+        setSelectedSignal(toSignal(raw)); setSelectedType('señal'); setAiAnalysis(null); setAiError(null);
+        found = true;
+      }
+    } else if (pendingNotif.tipo === 'tendencia') {
+      const raw = trends.find(t => t.uuid === pendingNotif.uuid);
+      if (raw) {
+        setAiMetrics(null); setAiMetricsError(null);
+        setSelectedUuid(raw.uuid);
+        setDescLargaContent(null); setShowDescLarga(false); setDescLargaLoading(false);
+        setSelectedSignal(toTrend(raw)); setSelectedType('tendencia'); setAiAnalysis(null); setAiError(null);
+        found = true;
+      }
+    } else {
+      const raw = scenarios.find(s => s.uuid === pendingNotif.uuid);
+      if (raw) {
+        setAiMetrics(null); setAiMetricsError(null);
+        setSelectedUuid(raw.uuid);
+        setDescLargaContent(null); setShowDescLarga(false); setDescLargaLoading(false);
+        setSelectedSignal(toScenario(raw)); setSelectedType('escenario'); setAiAnalysis(null); setAiError(null);
+        found = true;
+      }
+    }
+    if (found) onPendingNotifConsumed?.();
+  }, [pendingNotif, loadingData, signals, trends, scenarios]);
 
 
   // ── Handlers
