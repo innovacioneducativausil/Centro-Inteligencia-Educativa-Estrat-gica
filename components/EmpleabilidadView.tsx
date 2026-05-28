@@ -992,7 +992,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
 
       {/* ═══ TAB RESUMEN — Dashboard ════════════════════════════════════════════ */}
       {activeTab === 'resumen' && (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', gap: 10 }}>
 
           {/* ── MITAD IZQUIERDA: KPIs pegados encima de los donuts ── */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
@@ -1017,8 +1017,8 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               </div>
             </div>
 
-            {/* Donuts — directamente debajo de los KPIs */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {/* Donuts — flex:1 para ocupar todo el alto restante de la columna izquierda */}
+            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
 
               {/* Tasa de Empleabilidad */}
               <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
@@ -1086,22 +1086,18 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               {rangosVis.length === 0 ? (
                 <div style={{ color: muted, fontSize: 12, textAlign: 'center', padding: 16 }}>Sin datos</div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                  {/* Leyenda: cuadrado + texto + porcentaje inline (pegado al texto) */}
                   <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                     {rangosVis.map((r, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
                         <div style={{ width: 11, height: 11, borderRadius: 3, background: SALARY_COLORS[i % SALARY_COLORS.length], flexShrink: 0 }} />
-                        <span style={{ fontSize: 11, color: text, lineHeight: 1.3, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.rango}</span>
+                        <span style={{ fontSize: 11, color: text, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>{r.rango}</span>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: SALARY_COLORS[i % SALARY_COLORS.length], flexShrink: 0 }}>{r.pct}%</span>
                       </div>
                     ))}
                   </div>
-                  <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingRight: 10, paddingLeft: 8 }}>
-                    {rangosVis.map((r, i) => (
-                      <span key={i} style={{ fontSize: 11, fontWeight: 800, lineHeight: 1.3, marginBottom: 4, color: SALARY_COLORS[i % SALARY_COLORS.length] }}>
-                        {r.pct}%
-                      </span>
-                    ))}
-                  </div>
+                  {/* Donut */}
                   <div style={{ flexShrink: 0 }}>
                     <DonutChart segments={rangoSegs} size={148} stroke={30} />
                   </div>
@@ -1109,8 +1105,8 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               )}
             </div>
 
-            {/* Gráficas — Nivel de Puesto + Satisfacción */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {/* Gráficas — Nivel de Puesto + Satisfacción — flex:1 para alinearse con los donuts */}
+            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
 
               {/* Nivel de Puesto + Emprendedores */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
