@@ -399,6 +399,26 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   return (
     <div style={{ padding: '14px 20px', background: bg, minHeight: '100%', color: text, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
+      {/* ── Advertencia: Módulo en construcción ──── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 16px', borderRadius: 10,
+        background: '#FFF7ED', border: '1.5px solid #FED7AA',
+        boxShadow: '0 2px 8px rgba(251,146,60,0.12)',
+      }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#EA580C', flexShrink: 0 }}>
+          construction
+        </span>
+        <div>
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#C2410C', letterSpacing: '0.2px' }}>
+            Módulo en construcción
+          </span>
+          <span style={{ fontSize: 11, color: '#9A3412', marginLeft: 8, fontWeight: 500 }}>
+            Algunas funciones pueden estar incompletas o cambiar próximamente.
+          </span>
+        </div>
+      </div>
+
       {/* ── TABS PRINCIPALES (arriba, igual que Empleabilidad/Mercado) ──── */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
         {([

@@ -112,6 +112,8 @@ const Layout: React.FC<LayoutProps> = ({
   const tipoLabel = (t: string) => t === 'senal' ? 'Señal' : t === 'tendencia' ? 'Tendencia' : 'Escenario';
   const fmtDate   = (d: string | null) => d ? new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '';
 
+  const NEW_BADGE_KEYS = new Set(['curricular', 'mercadoLaboral']);
+
   const navItems = [
     { key: 'inicio', label: 'Inicio', icon: Home, short: 'Inicio' },
     { key: 'radar', label: 'Radar', icon: TrendingUp, short: 'Radar' },
@@ -161,6 +163,19 @@ const Layout: React.FC<LayoutProps> = ({
               <span style={{ fontSize: 8, fontWeight: 600, color: active ? NAV.labelOn : NAV.labelOff, letterSpacing: '0.2px', transition: 'color .18s' }}>
                 {navShort}
               </span>
+              {NEW_BADGE_KEYS.has(navKey) && (
+                <span style={{
+                  position: 'absolute', top: 2, right: 2,
+                  background: 'linear-gradient(135deg,#F59E0B,#F97316)',
+                  color: '#fff', fontSize: 6, fontWeight: 800,
+                  padding: '1.5px 4px', borderRadius: 5,
+                  letterSpacing: '0.3px', lineHeight: 1.4,
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+                  pointerEvents: 'none',
+                }}>
+                  ¡Nuevo!
+                </span>
+              )}
             </button>
           );
         })}
