@@ -39,6 +39,7 @@ import { globalErrorHandler } from './middleware/errorHandler.js';
 import { cleanupExpiredArchives, ensureArchiveSupport, getArchiveRetentionDays } from './services/archiveMaintenance.js';
 import { ensureRadarSchemaSupport } from './services/schemaMaintenance.js';
 import { ensureActividadSupport } from './services/actividadMaintenance.js';
+import { runUserMigration } from './services/userMigration.js';
 import actividadRouter from './routes/actividad.js';
 
 const app  = express();
@@ -144,6 +145,7 @@ app.use(globalErrorHandler);
 ensureArchiveSupport()
   .then(() => ensureRadarSchemaSupport())
   .then(() => ensureActividadSupport())
+  .then(() => runUserMigration())
   .then(() => cleanupExpiredArchives())
   .catch(err => console.error('[SCHEMA] No se pudo preparar soporte de esquema:', err.message));
 

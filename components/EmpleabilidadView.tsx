@@ -694,34 +694,29 @@ interface InformeDescarga {
 }
 interface DescargaCatalogos { años: number[]; unidades: string[]; facultades: string[]; }
 
-function DescargaInformes({ card, text, muted, border, isDark }: {
+function DescargaInformes({ card, text, muted, border, isDark, selAños, selFacultad }: {
   card: string; text: string; muted: string; border: string; isDark: boolean;
+  selAños: string[]; selFacultad: string;
 }) {
   const ACCENT_DL = '#0F766E';
-  const [informes,   setInformes]   = useState<InformeDescarga[]>([]);
-  const [catalogos,  setCatalogos]  = useState<DescargaCatalogos>({ años: [], unidades: [], facultades: [] });
-  const [loading,    setLoading]    = useState(true);
-  const [filtAnio,   setFiltAnio]   = useState('');
-  const [filtUnidad, setFiltUnidad] = useState('');
-  const [filtFacultad, setFiltFacultad] = useState('');
+  const [informes, setInformes] = useState<InformeDescarga[]>([]);
+  const [loading,  setLoading]  = useState(true);
 
   const fetchInformes = React.useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams();
-    if (filtAnio)    p.set('anio',    filtAnio);
-    if (filtUnidad)  p.set('unidad',  filtUnidad);
-    if (filtFacultad) p.set('facultad', filtFacultad);
+    if (selAños.length === 1)          p.set('anio',     selAños[0]);
+    else if (selAños.length > 1)       p.set('anios',    selAños.join(','));
+    if (selFacultad && selFacultad !== 'Todas') p.set('facultad', selFacultad);
     try {
       const r = await fetch(`/api/empleabilidad/informes?${p}`, { credentials: 'include' });
       const d = await r.json();
-      if (!d.error) { setInformes(d.data || []); setCatalogos(d.catalogos || { años: [], unidades: [], facultades: [] }); }
+      if (!d.error) setInformes(d.data || []);
     } catch { /* silencioso */ }
     setLoading(false);
-  }, [filtAnio, filtUnidad, filtFacultad]);
+  }, [selAños, selFacultad]);
 
   useEffect(() => { fetchInformes(); }, [fetchInformes]);
-
-  const limpiar = () => { setFiltAnio(''); setFiltUnidad(''); setFiltFacultad(''); };
 
   const handleDescargar = (inf: InformeDescarga) => {
     if (!inf.url_descarga) { alert('Este informe aún no tiene archivo disponible. Contacta al administrador.'); return; }
@@ -740,48 +735,6 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-      {/* Filtros */}
-      <div style={{ ...cardStyle }}>
-        <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 12 }}>
-          Filtros
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, alignItems: 'end' }}>
-          {/* Año */}
-          <div>
-            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Año</div>
-            <select value={filtAnio} onChange={e => setFiltAnio(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              <option value="">Todos</option>
-              {catalogos.años.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </div>
-          {/* Unidad */}
-          <div>
-            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Unidad</div>
-            <select value={filtUnidad} onChange={e => setFiltUnidad(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              <option value="">Todas</option>
-              {catalogos.unidades.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-          </div>
-          {/* Facultad */}
-          <div>
-            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Facultad</div>
-            <select value={filtFacultad} onChange={e => setFiltFacultad(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              <option value="">Todas</option>
-              {catalogos.facultades.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </div>
-          {/* Limpiar */}
-          <button onClick={limpiar}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: text, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>filter_list_off</span>
-            Limpiar filtros
-          </button>
-        </div>
-      </div>
 
       {/* Tabla */}
       <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
@@ -1325,7 +1278,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
       )}
 
       {/* ═══ TAB DESCARGA DE INFORMES ══════════════════════════════════════════ */}
-      {activeTab === 'descarga' && <DescargaInformes card={card} text={text} muted={muted} border={border} isDark={isDark} />}
+      {activeTab === 'descarga' && <DescargaInformes card={card} text={text} muted={muted} border={border} isDark={isDark} selAños={selAños} selFacultad={selFacultad} />}
 
       {/* ═══ TABS EGRESADOS — Dashboards ═══════════════════════════════════════ */}
       {activeTab !== 'resumen' && activeTab !== 'descarga' && (() => {
