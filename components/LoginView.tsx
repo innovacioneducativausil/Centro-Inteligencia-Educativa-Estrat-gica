@@ -145,7 +145,7 @@ const PageFooter: React.FC = () => (
   <div className="mt-4 text-center space-y-2">
     <p className="text-xs font-medium text-slate-400">© 2024 Universidad San Ignacio de Loyola.</p>
     <div className="flex justify-center gap-5 text-xs">
-      <a href="#" className="text-slate-400 hover:text-blue-700 underline underline-offset-2">Soporte Técnico</a>
+      <a href="https://wa.link/odvsxk" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-700 underline underline-offset-2">Soporte Técnico</a>
       <span className="text-slate-300">|</span>
       <a href="#" className="text-slate-400 hover:text-blue-700 underline underline-offset-2">Política de Privacidad</a>
     </div>
