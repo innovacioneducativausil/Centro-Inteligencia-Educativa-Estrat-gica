@@ -1211,18 +1211,24 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   </div>
                 )}
 
-                {/* Fecha de publicación (solo señales) */}
-                {selectedType === 'señal' && selectedSignal.publishedAt && (
-                  <div>
-                    <span className="block text-[10px] mb-1" style={{ color: D.muted }}>Fecha del Artículo</span>
-                    <div className="flex items-center gap-1.5" style={{ color: D.secondary }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>calendar_today</span>
-                      <span className="text-xs font-semibold">
-                        {new Date(selectedSignal.publishedAt).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                      </span>
+                {/* Fecha del Artículo (solo señales) */}
+                {selectedType === 'señal' && (() => {
+                  const artDate = (selectedSignal as any).articleDate ?? null;
+                  const dateStr = artDate;
+                  return (
+                    <div>
+                      <span className="block text-[10px] mb-1" style={{ color: D.muted }}>Fecha del Artículo</span>
+                      <div className="flex items-center gap-1.5" style={{ color: D.secondary }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>calendar_today</span>
+                        <span className="text-xs font-semibold">
+                          {dateStr
+                            ? new Date(dateStr).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : 'Fecha no disponible'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Fuente / Referencia */}
                 {(selectedSignal.source || selectedSignal.link) && (

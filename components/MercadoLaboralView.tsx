@@ -305,6 +305,52 @@ function MetodologiaView({ steps: _steps, onVerInformes }: { steps: MetodoPaso[]
   );
 }
 
+function toTitleCase(str: string): string {
+  const small = new Set(['de','del','y','e','o','a','con','en','la','el','los','las','por','para','al']);
+  return str.toLowerCase().split(' ').map((w, i) =>
+    (i === 0 || !small.has(w)) ? w.charAt(0).toUpperCase() + w.slice(1) : w
+  ).join(' ');
+}
+
+function stripAccents(str: string): string {
+  return str.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+function buildFiltrosFromExcel(): FiltroFacultad[] {
+  const map = new Map<string, Set<string>>();
+  INFORMES_LABORALES.forEach(e => {
+    const fac = toTitleCase(e.facultad);
+    if (!map.has(fac)) map.set(fac, new Set());
+    map.get(fac)!.add(toTitleCase(e.carrera));
+  });
+  return [...map.entries()].sort((a,b) => a[0].localeCompare(b[0]))
+    .map(([nombre, cs]) => ({ nombre, carreras: [...cs].sort() }));
+}
+
+function mergeFiltros(fromApi: FiltroFacultad[], fromExcel: FiltroFacultad[]): FiltroFacultad[] {
+  const result = new Map<string, Set<string>>();
+  [...fromApi, ...fromExcel].forEach(fac => {
+    const normFac = stripAccents(fac.nombre);
+    // Find existing key by normalized comparison
+    let existingKey: string | undefined;
+    for (const k of result.keys()) {
+      if (stripAccents(k) === normFac) { existingKey = k; break; }
+    }
+    const key = existingKey ?? fac.nombre;
+    if (!result.has(key)) result.set(key, new Set());
+    fac.carreras.forEach(c => {
+      const normC = stripAccents(c);
+      let found = false;
+      for (const existing of result.get(key)!) {
+        if (stripAccents(existing) === normC) { found = true; break; }
+      }
+      if (!found) result.get(key)!.add(c);
+    });
+  });
+  return [...result.entries()].sort((a,b) => a[0].localeCompare(b[0]))
+    .map(([nombre, cs]) => ({ nombre, carreras: [...cs].sort() }));
+}
+
 const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, userRole }) => {
   const [tab, setTab] = useState<'informe' | 'metodologia'>('metodologia');
   const [facultades, setFacultades] = useState<FiltroFacultad[]>([]);
@@ -383,7 +429,8 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
     ])
       .then(([filters, metodo]) => {
         if (!alive) return;
-        setFacultades(filters.facultades);
+        const excelFiltros = buildFiltrosFromExcel();
+        setFacultades(mergeFiltros(filters.facultades, excelFiltros));
         setMetodologia(metodo.data);
         // No auto-seleccionar: el usuario debe elegir facultad y carrera
       })
@@ -473,12 +520,14 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
                     <p className="border-l border-white/20 pl-5 text-sm font-medium leading-relaxed text-blue-50">
                       {informe?.informe.descripcionHeader || 'Selecciona una facultad y una carrera para visualizar el análisis técnico correspondiente.'}
                     </p>
-                    <div className="rounded-lg bg-white/10 p-4 text-sm font-black leading-snug text-blue-50">
-                      <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#00A3E0]">
-                        <BarChart3 className="h-5 w-5" />
+                    {informe?.informe.insightHeader && (
+                      <div className="rounded-lg bg-white/10 p-4 text-sm font-black leading-snug text-blue-50">
+                        <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#00A3E0]">
+                          <BarChart3 className="h-5 w-5" />
+                        </div>
+                        {informe.informe.insightHeader}
                       </div>
-                      {informe?.informe.insightHeader || 'Sector en transformacion con demanda de perfiles digitales, analiticos y sostenibles.'}
-                    </div>
+                    )}
                   </div>
                 </header>
                 <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
