@@ -118,7 +118,9 @@ const Layout: React.FC<LayoutProps> = ({
     { key: 'empleabilidad', label: 'Empleabilidad', icon: Briefcase, short: 'Empleo' },
     { key: 'curricular', label: 'Curricular', icon: BookOpen, short: 'Curricular' },
     { key: 'mercadoLaboral', label: 'Mercado Laboral', icon: BarChart3, short: 'Mercado' },
-    { key: 'informes', label: 'Informes', icon: FileText, short: 'Informes' },
+    ...(!isAdmin ? [
+      { key: 'informes', label: 'Informes', icon: FileText, short: 'Informes' },
+    ] : []),
     ...(isAdmin ? [{ name: 'Gestión', icon: Settings2, short: 'Gestión' }] : []),
   ];
 
