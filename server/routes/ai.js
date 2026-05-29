@@ -6,7 +6,7 @@ import { adminOrAnalyst } from '../middleware/roles.js';
 import { isSafePublicHttpUrl } from '../utils/security.js';
 
 const router = Router();
-router.use(adminOrAnalyst);
+// Sin guard de rol — accesible a todos los usuarios autenticados (admin y usuario)
 
 const RETRYABLE_CODES = new Set(['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'UND_ERR_SOCKET', 'ENOTFOUND']);
 

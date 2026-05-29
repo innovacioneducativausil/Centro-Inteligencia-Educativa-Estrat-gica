@@ -8,10 +8,9 @@ import db from '../db.js';
 import { adminOrAnalyst } from '../middleware/roles.js';
 
 const router = Router();
-router.use(adminOrAnalyst);
 
-// GET /api/tables — devuelve todas las tablas de la BD
-router.get('/tables', async (_req, res) => {
+// GET /api/tables — devuelve todas las tablas de la BD (solo admin)
+router.get('/tables', adminOrAnalyst, async (_req, res) => {
   try {
     const [rows] = await db.query('SHOW TABLES');
     const tables = rows.map(row => Object.values(row)[0]);
@@ -21,8 +20,8 @@ router.get('/tables', async (_req, res) => {
   }
 });
 
-// GET /api/describe/:table — describe la estructura de una tabla
-router.get('/describe/:table', async (req, res) => {
+// GET /api/describe/:table — describe la estructura de una tabla (solo admin)
+router.get('/describe/:table', adminOrAnalyst, async (req, res) => {
   try {
     const table = req.params.table.replace(/[^a-zA-Z0-9_]/g, ''); // sanitize
     const [rows] = await db.query(`DESCRIBE \`${table}\``);
