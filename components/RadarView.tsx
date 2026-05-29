@@ -3,6 +3,7 @@ import { Zap, Activity, Eye, Sparkles, Loader2, Info, X, PlayCircle, ChevronDown
 import { ThemeColors, Signal, Sector } from '../types';
 import { analyzeSignalDeepDive, estimateImpactUrgency } from '../services/geminiService';
 import { getSenales, getTendencias, getEscenarios, ApiSignal, ApiTrend, ApiScenario } from '../services/apiService';
+import { logActividad } from '../services/actividadService';
 import CadenaView from './CadenaView';
 import { sanitizeRichHtml } from '../services/sanitizeHtml';
 
@@ -238,9 +239,9 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
 
 
   // ── Handlers
-  const handleOpenSignal   = (s: ApiSignal)   => { setSelectedSignal(toSignal(s));   setSelectedType('señal');     setAiAnalysis(null); setAiError(null); };
-  const handleOpenTrend    = (t: ApiTrend)    => { setSelectedSignal(toTrend(t));    setSelectedType('tendencia'); setAiAnalysis(null); setAiError(null); };
-  const handleOpenScenario = (s: ApiScenario) => { setSelectedSignal(toScenario(s)); setSelectedType('escenario'); setAiAnalysis(null); setAiError(null); };
+  const handleOpenSignal   = (s: ApiSignal)   => { setSelectedSignal(toSignal(s));   setSelectedType('señal');     setAiAnalysis(null); setAiError(null); logActividad('ver_senal',     { modulo: 'radar', elementoUuid: s.uuid, elementoTipo: 'señal',     elementoTitulo: s.title }); };
+  const handleOpenTrend    = (t: ApiTrend)    => { setSelectedSignal(toTrend(t));    setSelectedType('tendencia'); setAiAnalysis(null); setAiError(null); logActividad('ver_tendencia', { modulo: 'radar', elementoUuid: t.uuid, elementoTipo: 'tendencia', elementoTitulo: t.name  }); };
+  const handleOpenScenario = (s: ApiScenario) => { setSelectedSignal(toScenario(s)); setSelectedType('escenario'); setAiAnalysis(null); setAiError(null); logActividad('ver_escenario', { modulo: 'radar', elementoUuid: s.uuid, elementoTipo: 'escenario', elementoTitulo: s.title }); };
 
   const handleOpenItem = (item: UnifiedItem) => {
     setAiMetrics(null); setAiMetricsError(null);

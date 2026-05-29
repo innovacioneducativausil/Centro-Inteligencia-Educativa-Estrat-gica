@@ -2,12 +2,11 @@
 // Crea un nuevo usuario con contraseña hasheada directamente en la BD.
 // Uso: node scripts/createUser.js <correo> <contraseña> "<nombre completo>" [rol]
 //
-// Roles disponibles: admin | editor | analista | lector  (default: lector)
+// Roles disponibles: admin | usuario  (default: usuario)
 //
 // Ejemplos:
 //   node scripts/createUser.js admin@usil.edu Admin2025!  "Ana García"  admin
-//   node scripts/createUser.js editor@usil.edu Clave123!  "Luis Torres" editor
-//   node scripts/createUser.js lector@usil.edu Pass2025!  "María López"
+//   node scripts/createUser.js user@usil.edu  Clave123!   "Luis Torres" usuario
 
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
@@ -20,9 +19,9 @@ dotenv.config({ path: resolve(__dirname, '../../.env') });
 
 const { default: db } = await import('../db.js');
 
-const ROLES_VALIDOS = ['admin', 'editor', 'analista', 'lector'];
+const ROLES_VALIDOS = ['admin', 'usuario'];
 
-const [,, correo, password, nombre, rol = 'lector'] = process.argv;
+const [,, correo, password, nombre, rol = 'usuario'] = process.argv;
 
 if (!correo || !password || !nombre) {
   console.log(`
@@ -31,16 +30,17 @@ if (!correo || !password || !nombre) {
   Uso:
     node scripts/createUser.js <correo> <contraseña> "<nombre>" [rol]
 
-  Roles: admin | editor | analista | lector  (default: lector)
+  Roles: admin | usuario  (default: usuario)
 
   Ejemplo:
-    node scripts/createUser.js admin@usil.edu Admin2025! "Ana García" admin
+    node scripts/createUser.js admin@usil.edu  Admin2025!  "Ana García"  admin
+    node scripts/createUser.js user@usil.edu   Clave123!   "Luis Torres"
 `);
   process.exit(1);
 }
 
 if (!ROLES_VALIDOS.includes(rol)) {
-  console.error(`\n❌  Rol inválido: "${rol}". Usa: admin | editor | analista | lector\n`);
+  console.error(`\n❌  Rol inválido: "${rol}". Usa: admin | usuario\n`);
   process.exit(1);
 }
 

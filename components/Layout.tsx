@@ -47,7 +47,7 @@ const Layout: React.FC<LayoutProps> = ({
   const bellRef    = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const isAdmin = user.rol === 'admin' || user.rol === 'analista';
+  const isAdmin = user.rol === 'admin';
 
   // Fetch on mount for initial badge count
   useEffect(() => {

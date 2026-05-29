@@ -10,6 +10,7 @@ import ReportsView from './components/ReportsView';
 import GestionView from './components/GestionView';
 import LoginView, { AuthUser } from './components/LoginView';
 import { THEMES } from './constants';
+import { logActividad } from './services/actividadService';
 
 type PendingNotif = { uuid: string; tipo: 'senal' | 'tendencia' | 'escenario' } | null;
 
@@ -35,11 +36,21 @@ const App: React.FC = () => {
   const handleLogin = (userData: AuthUser) => {
     setUser(userData);
     setActiveView('inicio');
+    // El backend ya registra el login en actividad_usuario al autenticar
   };
 
   const handleLogout = () => {
+    // Log antes de limpiar la cookie (el backend también registra en logout)
+    logActividad('logout');
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
     setUser(null);
+  };
+
+  const handleNavigate = (view: string) => {
+    // Bloquear Gestión para usuarios no-admin (frontend + guard)
+    if (view === 'gestion' && user?.rol !== 'admin') return;
+    setActiveView(view);
+    logActividad('nav_modulo', { modulo: view });
   };
 
   const handleNotifClick = (notif: { id: string; tipo: string }) => {
@@ -52,9 +63,13 @@ const App: React.FC = () => {
   };
 
   const renderView = () => {
+    // Doble guard en render: si un usuario no-admin llega a 'gestion' por cualquier vía, redirigir
+    if (activeView === 'gestion' && user?.rol !== 'admin') {
+      return <Dashboard themeColors={themeColors} setActiveView={handleNavigate} setRadarTab={setRadarTab} theme={theme} />;
+    }
     switch (activeView) {
       case 'inicio':
-        return <Dashboard themeColors={themeColors} setActiveView={setActiveView} setRadarTab={setRadarTab} theme={theme} />;
+        return <Dashboard themeColors={themeColors} setActiveView={handleNavigate} setRadarTab={setRadarTab} theme={theme} />;
       case 'radar':
         return <RadarView themeColors={themeColors} activeTabProp={radarTab} setRadarTab={setRadarTab} pendingNotif={pendingNotif} onPendingNotifConsumed={() => setPendingNotif(null)} />;
       case 'empleabilidad':
@@ -70,7 +85,7 @@ const App: React.FC = () => {
       case 'gestion':
         return <GestionView themeColors={themeColors} user={user!} />;
       default:
-        return <Dashboard themeColors={themeColors} setActiveView={setActiveView} setRadarTab={setRadarTab} theme={theme} />;
+        return <Dashboard themeColors={themeColors} setActiveView={handleNavigate} setRadarTab={setRadarTab} theme={theme} />;
     }
   };
 
@@ -97,7 +112,7 @@ const App: React.FC = () => {
   return (
     <Layout
       activeView={activeView}
-      setActiveView={setActiveView}
+      setActiveView={handleNavigate}
       radarTab={radarTab}
       setRadarTab={setRadarTab}
       theme={theme}

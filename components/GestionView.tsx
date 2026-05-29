@@ -4,6 +4,7 @@ import { Loader2, ShieldAlert, Zap, Activity, Eye } from 'lucide-react';
 import { ThemeColors } from '../types';
 import { AuthUser } from './LoginView';
 import ImportarView from './ImportarView';
+import MonitoreoView from './MonitoreoView';
 import { sanitizeRichHtml } from '../services/sanitizeHtml';
 
 // ── Tipos ─────────────────────────────────────────────────
@@ -138,7 +139,7 @@ const COUNTRIES = [
   'Oceanía','Europa del Este','Europa Occidental',
 ];
 
-type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar';
+type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar' | 'monitoreo';
 
 interface GestionViewProps {
   themeColors: ThemeColors;
@@ -146,7 +147,8 @@ interface GestionViewProps {
 }
 
 // ── Constantes ────────────────────────────────────────────
-const ALLOWED_ROLES = ['admin', 'analista'];
+const ALLOWED_ROLES = ['admin'];
+const MONITOR_CORREOS = ['acastroh@usil.edu.pe', 'mmontoyar@usil.edu.pe'];
 const PAGE_LIMIT    = 10;
 
 const TAB_CONFIG: Record<Tab, { label: string; nueva: string }> = {
@@ -272,7 +274,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
   // ── Fetch ────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
-    if (!canAccess) return;
+    if (!canAccess || activeTab === 'importar' || activeTab === 'monitoreo') return;
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({
@@ -680,6 +682,11 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   const currentPage = pageData?.page  ?? page;
 
   const isDark = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
+
+  // ── Vista de monitoreo (tab monitoreo, solo correos autorizados) ──
+  if (activeTab === 'monitoreo') {
+    return <MonitoreoView themeColors={themeColors} />;
+  }
 
   // ── Vista de importación (tab importar) ──────────────────
   if (activeTab === 'importar') {
@@ -1638,6 +1645,21 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               </button>
             );
           })}
+          {/* Tab Monitoreo: solo visible para correos autorizados */}
+          {MONITOR_CORREOS.includes(user.correo) && (
+            <button
+              onClick={() => switchTab('monitoreo')}
+              className={`px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                activeTab === 'monitoreo'
+                  ? 'text-white shadow-sm'
+                  : `opacity-60 hover:opacity-90 ${themeColors.text}`
+              }`}
+              style={activeTab === 'monitoreo' ? { background: '#0f766e' } : undefined}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>monitoring</span>
+              MONITOREO
+            </button>
+          )}
         </div>
       </div>
 

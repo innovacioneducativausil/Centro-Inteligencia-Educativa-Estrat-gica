@@ -38,6 +38,8 @@ import { requireAuth }        from './middleware/auth.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { cleanupExpiredArchives, ensureArchiveSupport, getArchiveRetentionDays } from './services/archiveMaintenance.js';
 import { ensureRadarSchemaSupport } from './services/schemaMaintenance.js';
+import { ensureActividadSupport } from './services/actividadMaintenance.js';
+import actividadRouter from './routes/actividad.js';
 
 const app  = express();
 const PORT = process.env.API_PORT || 3001;
@@ -130,6 +132,7 @@ app.use('/api', requireAuth, cadenaRouter);
 app.use('/api', requireAuth, mercadoLaboralRouter);
 app.use('/api', requireAuth, benchmarkingRouter);
 app.use('/api', requireAuth, motorCurricularRouter);
+app.use('/api', requireAuth, actividadRouter);
 
 // ── 404 genérico ─────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
@@ -140,6 +143,7 @@ app.use(globalErrorHandler);
 // ── Arrancar servidor ───────────────────────────────────
 ensureArchiveSupport()
   .then(() => ensureRadarSchemaSupport())
+  .then(() => ensureActividadSupport())
   .then(() => cleanupExpiredArchives())
   .catch(err => console.error('[SCHEMA] No se pudo preparar soporte de esquema:', err.message));
 

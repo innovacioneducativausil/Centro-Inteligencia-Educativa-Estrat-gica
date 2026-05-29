@@ -24,11 +24,19 @@ function authCookieOptions() {
 
 // ── Rol → etiqueta legible ───────────────────────────────
 const ROL_LABELS = {
-  admin:    'Administrador',
-  editor:   'Editor de Contenido',
-  analista: 'Analista',
-  lector:   'Lector',
+  admin:   'Administrador',
+  usuario: 'Usuario',
 };
+
+async function logActividad(db, idUsuario, correo, evento, ip) {
+  try {
+    await db.query(
+      `INSERT INTO actividad_usuario (id_usuario, correo, evento, ip, fecha_hora)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [idUsuario, correo, evento, ip || null]
+    );
+  } catch { /* silencioso — no bloquear login/logout */ }
+}
 
 /**
  * POST /api/auth/login
@@ -82,6 +90,10 @@ router.post('/auth/login', async (req, res) => {
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
     res.cookie(AUTH_COOKIE, token, authCookieOptions());
+
+    // Log de actividad (fire-and-forget)
+    const loginIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null;
+    logActividad(db, user.id_usuario, user.correo_usuario, 'login', loginIp);
 
     res.json({
       user: {
@@ -407,7 +419,16 @@ router.post('/auth/reset-password', async (req, res) => {
  * El token se invalida en el cliente (borrando localStorage).
  * Este endpoint solo confirma la operación.
  */
-router.post('/auth/logout', (_req, res) => {
+router.post('/auth/logout', (req, res) => {
+  // Intentar extraer usuario del token para loguear el cierre de sesión
+  const cookieToken = req.cookies?.[AUTH_COOKIE];
+  if (cookieToken) {
+    try {
+      const payload = jwt.verify(cookieToken, JWT_SECRET);
+      const logoutIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null;
+      logActividad(db, payload.id, payload.correo, 'logout', logoutIp);
+    } catch { /* token ya expirado — no bloquear */ }
+  }
   res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(), maxAge: undefined });
   res.json({ message: 'Sesión cerrada correctamente.' });
 });

@@ -100,7 +100,7 @@ function requireRole(...roles) {
     next();
   };
 }
-const adminOnly = requireRole('admin', 'analista');
+const adminOnly = requireRole('admin');
 
 // ── Helpers ────────────────────────────────────────────────
 function parsePagination(query) {
@@ -1114,7 +1114,7 @@ router.patch('/admin/:resource/:uuid/archive', adminOnly, async (req, res) => {
   }
 });
 
-router.get('/admin/notificaciones', adminOnly, async (_req, res) => {
+router.get('/admin/notificaciones', async (_req, res) => {
   try {
     const [rows] = await db.query(
       `(SELECT id_senal      AS id, titulo_senal      AS titulo, 'senal'     AS tipo,

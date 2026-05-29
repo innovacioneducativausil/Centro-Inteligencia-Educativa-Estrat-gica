@@ -7,4 +7,4 @@ export function requireRole(...roles) {
   };
 }
 
-export const adminOrAnalyst = requireRole('admin', 'analista');
+export const adminOnly = requireRole('admin');
