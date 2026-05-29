@@ -149,6 +149,16 @@ router.get('/auth/me', async (req, res) => {
 
     const nombre = user.nombre_corto || user.nombre_usuario;
 
+    // Si el rol cambió desde que se emitió el JWT, emitir cookie renovada
+    if (user.rol !== payload.rol) {
+      const newToken = jwt.sign(
+        { id: user.id_usuario, nombre, correo: user.correo_usuario, rol: user.rol },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRES }
+      );
+      res.cookie(AUTH_COOKIE, newToken, authCookieOptions());
+    }
+
     res.json({
       user: {
         id:          user.id_usuario,

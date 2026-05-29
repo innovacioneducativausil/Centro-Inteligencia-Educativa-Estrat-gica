@@ -1,8 +1,9 @@
 // server/services/userMigration.js
-// Migración automática de usuarios y roles. Se ejecuta al arrancar Railway.
+// Migración automática de usuarios y roles al arrancar Railway.
+// Cada paso tiene su propio try/catch — un fallo no detiene los siguientes.
 import db from '../db.js';
 
-// Hash de bcrypt para la contraseña temporal "Usuario2026*" (rondas=10, verificado localmente)
+// Hash bcrypt de "Usuario2026*" (verificado: bcrypt.compare retorna true)
 const HASH_USUARIO2026 = '$2b$10$.uvMqDT.FrLCvDpQYrvAr.zL84/e0UPxti5nqKfwj86ugrUUB5wbW';
 
 const USUARIOS_NUEVOS = [
@@ -14,32 +15,43 @@ const USUARIOS_NUEVOS = [
 ];
 
 export async function runUserMigration() {
-  try {
-    // 1. Ampliar ENUM para incluir 'usuario' (si ya está, MySQL lo ignora silenciosamente)
-    await db.query(
-      `ALTER TABLE usuario MODIFY rol ENUM('admin','editor','analista','lector','usuario') NOT NULL DEFAULT 'usuario'`
-    );
+  console.log('[USER MIGRATION] Iniciando...');
 
-    // 2. Poner acastroh como admin explícitamente
-    await db.query(
+  // Paso 1: Convertir columna rol de ENUM a VARCHAR(50)
+  // Esto permite insertar 'usuario' sin importar el ENUM previo
+  try {
+    await db.query(`ALTER TABLE usuario MODIFY rol VARCHAR(50) NOT NULL DEFAULT 'usuario'`);
+    console.log('[USER MIGRATION] Paso 1: rol → VARCHAR(50) OK');
+  } catch (e) {
+    // Puede fallar si ya es VARCHAR — no es crítico
+    console.warn('[USER MIGRATION] Paso 1 (ALTER):', e.message);
+  }
+
+  // Paso 2: Poner acastroh como admin
+  try {
+    const [r] = await db.query(
       `UPDATE usuario SET rol='admin' WHERE correo_usuario='acastroh@usil.edu.pe' AND rol != 'admin'`
     );
+    if (r.affectedRows) console.log('[USER MIGRATION] Paso 2: acastroh → admin');
+  } catch (e) { console.warn('[USER MIGRATION] Paso 2:', e.message); }
 
-    // 3. Migrar roles legacy → usuario
-    await db.query(
+  // Paso 3: Migrar roles legacy → usuario
+  try {
+    const [r] = await db.query(
       `UPDATE usuario SET rol='usuario' WHERE rol IN ('editor','analista','lector')`
     );
+    if (r.affectedRows) console.log(`[USER MIGRATION] Paso 3: ${r.affectedRows} usuarios migrados → usuario`);
+  } catch (e) { console.warn('[USER MIGRATION] Paso 3:', e.message); }
 
-    // 4. Limpiar ENUM — solo admin y usuario
-    await db.query(
-      `ALTER TABLE usuario MODIFY rol ENUM('admin','usuario') NOT NULL DEFAULT 'usuario'`
-    );
-
-    // 5. Eliminar usuario admin@usil.edu (solo existe en Railway como cuenta temporal)
+  // Paso 4: Eliminar admin@usil.edu
+  try {
     await db.query(`DELETE FROM usuario WHERE correo_usuario='admin@usil.edu'`);
+    console.log('[USER MIGRATION] Paso 4: admin@usil.edu eliminado');
+  } catch (e) { console.warn('[USER MIGRATION] Paso 4:', e.message); }
 
-    // 6. Crear los 5 usuarios nuevos si no existen
-    for (const u of USUARIOS_NUEVOS) {
+  // Paso 5: Crear usuarios nuevos si no existen
+  for (const u of USUARIOS_NUEVOS) {
+    try {
       const [[existe]] = await db.query(
         'SELECT id_usuario FROM usuario WHERE correo_usuario = ?',
         [u.correo]
@@ -51,12 +63,12 @@ export async function runUserMigration() {
            VALUES (?,?,?,?,?,'usuario',1,1,NOW(),NOW())`,
           [u.id, u.nombre, u.corto, u.correo, HASH_USUARIO2026]
         );
-        console.log(`[USER MIGRATION] Creado: ${u.correo}`);
+        console.log(`[USER MIGRATION] Paso 5: creado ${u.correo}`);
       }
+    } catch (e) {
+      console.warn(`[USER MIGRATION] Paso 5 (${u.correo}):`, e.message);
     }
-
-    console.log('[USER MIGRATION] Completada correctamente.');
-  } catch (err) {
-    console.error('[USER MIGRATION] Error (no crítico):', err.message);
   }
+
+  console.log('[USER MIGRATION] Finalizada.');
 }
