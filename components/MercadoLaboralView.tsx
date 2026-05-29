@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   BarChart3,
@@ -6,18 +6,84 @@ import {
   Bot,
   BriefcaseBusiness,
   CheckCircle2,
+  ChevronDown,
   Database,
+  Download,
+  FileText,
   GraduationCap,
+  Image,
   Lightbulb,
   LineChart,
   Loader2,
   Network,
   Search,
   Target,
-  University,
   Wrench,
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { ThemeColors } from '../types';
+
+// ── Directorio de informes laborales (fuente: Excel por carrera) ─────────────
+interface InformeLaboralEntry {
+  facultad: string;
+  carrera: string;
+  urlInformeCompleto: string;
+  urlInfografia: string;
+}
+
+const INFORMES_LABORALES: InformeLaboralEntry[] = [
+  { facultad: 'FACULTAD DE ADMINISTRACIÓN HOTELERA, TURISMO Y GASTRONOMÍA', carrera: 'ADMINISTRACIÓN HOTELERA',                                   urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQAgehST4rttSY7yUlaAFHYrAaZE1Lmht2x3IIU33sCP4gM?e=pOd6aP', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDhgsFlk9ouS48l8NCuLRfMASaILdcX4Lg-qKfpkNP49pI?e=r5lFIP' },
+  { facultad: 'FACULTAD DE ADMINISTRACIÓN HOTELERA, TURISMO Y GASTRONOMÍA', carrera: 'ARTE CULINARIO',                                             urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQADrxvKT3qpTJPTEAFGAoXwATjBgBqCr96PCC1r0vVioGY?e=RMAm41', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQCb7jXBzNsUTKwWu9NHAx4rAf79o2Gk60fgy8Hvail9TJ8?e=XymoPd' },
+  { facultad: 'FACULTAD DE ADMINISTRACIÓN HOTELERA, TURISMO Y GASTRONOMÍA', carrera: 'GESTIÓN E INNOVACIÓN EN GASTRONOMÍA',                        urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQDELAMRW8w0Rp7jmAoVD9FwAYz7-nEvqa1jeOZP-5thYh8?e=RHblWY', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDNkJNZNoZKQaHYSIS3MoJ0AY7PCEaF0KvRXW5Mia1_zGU?e=R3Su7K' },
+  { facultad: 'FACULTAD DE ARQUITECTURA',                                    carrera: 'ARQUITECTURA, URBANISMO Y TERRITORIO',                        urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQCjn3Fp10LCRZGD2zny-MgSAUXTSdbAJHXpVdlX-R806gQ?e=DxiLQn', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQAy7Us821AGTbWuDkdlSOF4ASXFadW-Yf4URpmZrjcSb70?e=lfkxs1' },
+  { facultad: 'FACULTAD DE ARTES Y HUMANIDADES',                             carrera: 'ARTE Y DISEÑO EMPRESARIAL',                                   urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQBz58wjYMugQZolIjDdbOOBAei0LEPk69NmAellSZBp3ZI?e=pszlQY', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQChSGsQlyMNT5gNAzTQFYNQAX_vtAvb_TDkzlirbm3gVXQ?e=Nuelpn' },
+  { facultad: 'FACULTAD DE ARTES Y HUMANIDADES',                             carrera: 'COMUNICACIÓN',                                               urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQAtqBxBt-gNT7_371LikE_mAYi2ANfThsegwZgjdGtlXqQ?e=3KXZwo', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQAaMXth_-nkRZmMZEYxC11zAabeifLQ5iQEovBWaxWfJqI?e=efHwiq' },
+  { facultad: 'FACULTAD DE ARTES Y HUMANIDADES',                             carrera: 'MÚSICA',                                                     urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQCmsSoNujJ_SI6xjtPFZpjTAX5QblnTl2qO3CqncFq0lJg?e=4QfryE', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDF7Pwc-MRNTJwnwvKpw7lbAVIxBOS6rzlo1yYSH7VtoUY?e=Y0y9xe' },
+  { facultad: 'FACULTAD DE CIENCIAS DE LA SALUD',                            carrera: 'CIENCIAS DE LA ACTIVIDAD FÍSICA Y DEL DEPORTE',              urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQC-3F9yO0sgTYtYF5EDYzTAAdqHctLcieVrOGBo5760g7U?e=onIRcT', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQALkxnWz9x7Q68Jwk82BhEMATTgecJNXZ0rOzi3UkrTjEA?e=wb4dIE' },
+  { facultad: 'FACULTAD DE CIENCIAS DE LA SALUD',                            carrera: 'ENFERMERÍA',                                                  urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQAyDhA_tSouSIHWEUDffF3CAV6zY_K51H28vdc_B8KVnyA?e=rMk4jq', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDsrLXJRYxTTqxMB4LVsPqNAUOuzl0Lyf5ANdCjc7gNREQ?e=1fMwAf' },
+  { facultad: 'FACULTAD DE CIENCIAS DE LA SALUD',                            carrera: 'MEDICINA HUMANA',                                             urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQAMKxxnG3DnQ40-g0wGCwhFAa1wWC00ZsRjsDdQ6h5uAA8?e=LvNsFI', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQBD9UGzAQP8RbG4Mfl764f2AfQOwx2jzQVXSO2pbWOu2Zs?e=WqCdDI' },
+  { facultad: 'FACULTAD DE CIENCIAS DE LA SALUD',                            carrera: 'NUTRICIÓN Y DIETÉTICA',                                       urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQC55pG9S55TQbnBkHeUFdiDAWoRGUAuhGH07axUQAoA2lg?e=NiFHf2', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQCcCg3UA2GDQI3kC2DtNOy4AZK2dcat-eOmg1A-bmwts_A?e=ytDONC' },
+  { facultad: 'FACULTAD DE CIENCIAS DE LA SALUD',                            carrera: 'PSICOLOGÍA',                                                  urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQAGPcL2ZC51R5E7avdgCP_IAW2mPUQ9X32JfN7xnVWW-os?e=2kM8V2', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQCqO5Z_Ks-US5L_aNuyMEMLAURDF7Q6UXsbruew_W0wjbM?e=e7UfMR' },
+  { facultad: 'FACULTAD DE CIENCIAS DE LA SALUD',                            carrera: 'TECNOLOGÍA MÉDICA CON TERAPIA FÍSICA Y REHABILITACIÓN',       urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQBLgOK0lEoNTpyLQnKTgAh9AVR5TZB42trFYffjG1p1u6A?e=haH3ve', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQBZmayBzbO2QL3q2JpgAln8AWn_RbjFfdemnzeteyJ3Q2k?e=cDR3qg' },
+  { facultad: 'FACULTAD DE CIENCIAS EMPRESARIALES',                          carrera: 'ADMINISTRACIÓN Y EMPRENDIMIENTO',                             urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQAVSgjzVqssQKhayoFj2f82AT-roWynvixhlpc5rEZe3eY?e=4H8LI1', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDs6OfW7TgmQaXXIyxv2GyiAeD4oOOH4ORCUdylppDdk24?e=zzYKRz' },
+  { facultad: 'FACULTAD DE CIENCIAS EMPRESARIALES',                          carrera: 'ADMINISTRACIÓN Y FINANZAS CORPORATIVAS',                      urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQD8UOXsT8B3QqThfbo1TwMFARMnCEoOm9tX6amW4rn9bnU?e=z9A3Tj', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQBImcFXjA6CTpAm8o-9LHG0AT-q_dztfz7Z0HFEnrAb3Js?e=zZsgc5' },
+  { facultad: 'FACULTAD DE CIENCIAS EMPRESARIALES',                          carrera: 'ADMINISTRACIÓN',                                             urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQAAUNpcpQHZQqCdlmwVR49OATZoGlsH0cIRatIDF812rug?e=ytE3CI', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDZJv84pyLlR7hylb6zgT7bAY0F5CDjhW5YBbSopd-SZkg?e=rf6I6o' },
+  { facultad: 'FACULTAD DE CIENCIAS EMPRESARIALES',                          carrera: 'DIGITAL BUSINESS MANAGEMENT',                                 urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQDM6Bf2xrwQSYADC30aFu5bARQ4GL1L-tljUj2IuM10xa0?e=IUCHmV', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDaMDUdxgxVSbOP9rOvKle1Adiit3lEJ-70_S-7JIXYhxY?e=sdunSz' },
+  { facultad: 'FACULTAD DE CIENCIAS EMPRESARIALES',                          carrera: 'ECONOMÍA Y FINANZAS',                                         urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQDMkyPpeIE3QZOkOyt_XHOpAVkJsq6uNJMNLg2qpYY3a3Y?e=jhsfF2', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDJKsh11EbpTrkQU59z9xvUAYM13cJBA5MC-7b7vOUUV8U?e=QoHQcy' },
+  { facultad: 'FACULTAD DE CIENCIAS EMPRESARIALES',                          carrera: 'ECONOMÍA Y NEGOCIOS INTERNACIONALES',                         urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQD6sa1vctjWRb2FeQKJFmYTARNeD-cpWUtHWXgNbzYyJTY?e=LihtF9', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDMZ4xkSi3JTLnwTW9oJnXiAb9B4OwIZt22tTv-t5H8RLI?e=OhJKoR' },
+  { facultad: 'FACULTAD DE CIENCIAS EMPRESARIALES',                          carrera: 'INTERNATIONAL BUSINESS',                                      urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQDHraIqOzxFQYI1NvL3hlnyAfm9SaQyAgBkGoCILlRbMow?e=s56NJj', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQAVMD4_idsqS6Llx73ODS8oAbvoahPu60hAhkvUYBd6JmQ?e=e7AjUk' },
+  { facultad: 'FACULTAD DE CIENCIAS EMPRESARIALES',                          carrera: 'MARKETING',                                                   urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQAvcfTyliutS4ew6QOMOXLHAQp4n37A3no425hhpJ2jHFU?e=aNtU3g', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDzo0hLIyD9SJBVL5_-uNWwAQV6MQiYOMwGf-HRxAoMb_U?e=Ky1TO4' },
+  { facultad: 'FACULTAD DE DERECHO',                                         carrera: 'DERECHO',                                                     urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQDweJASE0n9Sqvckx-ZfUKWAe69BQ73DbRy-rhmRSSSX6g?e=mF1fUN', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQARTh8T2VOjQrbjMfBK4WBuAarLJUUWtMsS_a4rfPP3eDs?e=KRadZA' },
+  { facultad: 'FACULTAD DE DERECHO',                                         carrera: 'RELACIONES INTERNACIONALES',                                  urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQDx0WtvNyXlQb5-GjO59xxSAUc1CN6wBDDCVVYafwvqMVc?e=MmZCWX', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQBC6UFVm3B1S4JEkrjj9f0dAXMurVxWYda1DYW6HcvRU7o?e=k5abs0' },
+  { facultad: 'FACULTAD DE EDUCACIÓN',                                       carrera: 'EDUCACIÓN INICIAL',                                           urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQDcPtSCsGWjRb3zmUU9G62eAdRvU432CiYnQNWHVI_joZw?e=pnnqRk', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDe8hAl8iKTRJqF93UoONy5AcRW9IzhhZjLjFgNZpqnMwg?e=idK3hH' },
+  { facultad: 'FACULTAD DE EDUCACIÓN',                                       carrera: 'EDUCACIÓN SECUNDARIA CON ESPECIALIDAD EN INGLÉS',             urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQCVX0LrNLolSaMcBfC2jYi1AV7IKAZK54OSTQia0ZcsBCE?e=Tacgix', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQByV167S94nS4M7ql5L9YkNAQzvofnM1qaT6KkOnwqrC6U?e=Yw50uQ' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'CIENCIA DE DATOS',                                            urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQCzrWvKVWeURbm5GmVdojsYATOrws1qvRhYKHaHBG5rcCk?e=DxhOTL', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQAkFBo1VxH1QIfBu0JaQB8ZAYn2c3TR2b0dCD4PsDJoPZU?e=5zLjUa' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERÍA AGROINDUSTRIAL',                                   urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQDcnqbSuBIaSLt4MOOGoBFnAVritBLvzh6d-2YOklSmIJY?e=cckwJq', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDf7nnqkPzZSZLrGxg3YWlcAWwX9JflgCfZNFfgm12KtlU?e=il6x30' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERÍA AMBIENTAL',                                        urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQA_pcam2XRMQpcQEw_rK8sSAUwRS5PrNPdIJJA4zryxyvc?e=WOmhbA', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQBGGCsVDm7EQouo5C5xQ_UOAZQZVrGKoh8-R427cmzUIWI?e=xKFXo6' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERÍA BIOMÉDICA',                                        urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQC-xEjBR_qjR5z2O1yKLDusAfFSpYOwxPbairElw2rwyUs?e=Sr1EEC', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQCOz0YZWGoPRoxY45qI8I2SAeKikJDQzc6fR7bFyRveuwc?e=06bcbO' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERÍA CIVIL',                                            urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQCJa7gQLguHSprYMpFb5aTJAapOE_D4i7diNS3VOJ0RX1I?e=UKwn8Q', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQAScTM1wN4MSIghS0VlEAojAVX7OOtSPbquww9dlpjE9G0?e=rCtdje' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERIA DE SISTEMAS DE INFORMACIÓN',                       urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQDDYP1QmbkERY-Htej9UtLqAQi8w2uoN4wkCTmI8Hmzb2c?e=4DdViB', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQC1NY7fW8gBTrOWMWe8VmOfAZl8w_Vz3tv7_f5nPNjmsKM?e=7v7NqA' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERÍA DE SOFTWARE',                                      urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQCP7qz2-NZDTIuRU8sLffLzARbwJfe4uLjdnrKb3tHSmiw?e=pjwm4j', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQBDacRNq3EHTbQqcWVglTZlAZvSx-8jWfmZSalcjygwYh0?e=wabhv5' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERÍA EMPRESARIAL',                                      urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQByE1vjs01HRrTlYa7eC38sAQL06EcJOCW_n8kGJNV3ZCs?e=g80IY8', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQBFQWrwcHudT5AgBj43Pu-8AYth3ssN7svWGNXoit7-qcQ?e=zPtBLa' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERÍA EN CIBERSEGURIDAD',                                urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQA__BqD2o2rTpkMrjORZ3d6AS1DcBFSZ_gd7n8Q5C8SIqI?e=ZucGCi', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDWOk2zBwjgR7Qx0lDhy13NAXJb2FWqpELmJrZGIFu01r8?e=sQvNhP' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERÍA EN INDUSTRIAS ALIMENTARIAS',                       urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQBPZDHoybgDTLLfbNrao9TsAXlR329EQ728H8DipSHDqbQ?e=tNVPVe', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQB0UIsxMdgoQ4ySFCMaAOMyAX7Qdd5GXVVCpjmGWtec1DY?e=CnKT5c' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERÍA INDUSTRIAL Y COMERCIAL',                           urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQBa8a5o4iQbTaZUmlNuRf7EAa36O84RW8rgkLML7FlCPOg?e=LUhCfU', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQBp92D7CPEdTrTG2qGb64VfAQGuCHpb6oYVWCKOKKbwmlA?e=By9KJK' },
+  { facultad: 'FACULTAD DE INGENIERÍA E INTELIGENCIA ARTIFICIAL',            carrera: 'INGENIERÍA MECATRÓNICA',                                      urlInformeCompleto: 'https://usiloffice365.sharepoint.com/:w:/s/ALUMNI475/IQBtE662uhlmRbU6Zei1Kr96AciEOtX1v2Xo3iiE1mWHhtw?e=klRbCM', urlInfografia: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQDlf9RgglSdQpBi5RZOm_jrAZoXvP_PJxXWHTAerTLHnWQ?e=UDgh6Z' },
+];
+
+function normalizeKey(s: string): string {
+  return s.trim().toUpperCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+function findInformeLaboralEntry(facultad: string, carrera: string): InformeLaboralEntry | null {
+  const nFac = normalizeKey(facultad);
+  const nCar = normalizeKey(carrera);
+  return INFORMES_LABORALES.find(
+    e => normalizeKey(e.facultad) === nFac && normalizeKey(e.carrera) === nCar
+  ) ?? null;
+}
 
 interface MercadoLaboralViewProps {
   themeColors: ThemeColors;
@@ -250,6 +316,65 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
   const [error, setError] = useState<string | null>(null);
   const isDark = themeColors.bg?.includes('950') || themeColors.bg?.includes('slate-900') || false;
 
+  // Export dropdown
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const exportBtnRef = useRef<HTMLDivElement>(null);
+  const informeRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar dropdown al hacer click fuera
+  useEffect(() => {
+    if (!exportOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (exportBtnRef.current && !exportBtnRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [exportOpen]);
+
+  const handleExport = async (tipo: 'imagen' | 'infografia' | 'informe_completo') => {
+    setExportOpen(false);
+    setExportMsg(null);
+
+    if (!facultad || !carrera) {
+      setExportMsg('Seleccione una facultad y carrera para exportar el informe.');
+      return;
+    }
+
+    if (tipo === 'imagen') {
+      if (!informeRef.current) return;
+      setExporting(true);
+      try {
+        const canvas = await html2canvas(informeRef.current, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#f8fafc',
+        });
+        const link = document.createElement('a');
+        link.download = `Informe_Mercado_Laboral_${carrera.replace(/\s+/g,'_')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch {
+        setExportMsg('Error al generar la imagen. Intente de nuevo.');
+      } finally {
+        setExporting(false);
+      }
+      return;
+    }
+
+    const entry = findInformeLaboralEntry(facultad, carrera);
+    if (!entry) {
+      setExportMsg('No se encontró un enlace para esta carrera.');
+      return;
+    }
+
+    const url = tipo === 'infografia' ? entry.urlInfografia : entry.urlInformeCompleto;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   useEffect(() => {
     let alive = true;
     Promise.all([
@@ -378,12 +503,43 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
                         {carreras.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </label>
-                    {informe?.informe.documentoInformeUrl && (
-                      <a href={informe.informe.documentoInformeUrl} target="_blank" rel="noreferrer"
-                        className="inline-flex h-11 items-center justify-center rounded-lg bg-[#002D72] px-4 text-sm font-black text-white">
-                        Exportar informe
-                      </a>
-                    )}
+
+                    {/* Botón Exportar informe con dropdown */}
+                    <div className="flex flex-col gap-1">
+                      <div ref={exportBtnRef} className="relative">
+                        <button
+                          onClick={() => { setExportMsg(null); setExportOpen(o => !o); }}
+                          disabled={exporting}
+                          className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#002D72] px-4 text-sm font-black text-white hover:bg-[#001f55] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {exporting
+                            ? <><Loader2 className="h-4 w-4 animate-spin" /> Exportando…</>
+                            : <><Download className="h-4 w-4" /> Exportar informe <ChevronDown className="h-3 w-3" /></>
+                          }
+                        </button>
+
+                        {exportOpen && (
+                          <div className="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+                            {[
+                              { tipo: 'imagen' as const,          icon: <Image className="h-4 w-4" />,    label: 'Imagen' },
+                              { tipo: 'infografia' as const,      icon: <FileText className="h-4 w-4" />, label: 'Infografía' },
+                              { tipo: 'informe_completo' as const, icon: <BookOpen className="h-4 w-4" />, label: 'Informe completo' },
+                            ].map(({ tipo, icon, label }) => (
+                              <button key={tipo}
+                                onClick={() => handleExport(tipo)}
+                                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+                                <span className="text-[#002D72]">{icon}</span>
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {exportMsg && (
+                        <p className="text-[11px] font-semibold text-amber-600 max-w-[200px] leading-snug">{exportMsg}</p>
+                      )}
+                    </div>
                   </div>
                 </section>
               </>
@@ -409,7 +565,7 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
                 </div>
               </div>
             ) : (
-              <>
+              <div ref={informeRef}>
                 <div className="grid gap-4 xl:grid-cols-4 xl:items-start">
                   <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <SectionTitle n={1} title="Top 5 de puestos mas frecuentes" />
@@ -504,7 +660,7 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
                     </div>
                   </aside>
                 </div>
-              </>
+              </div>
             )}
           </>
         )}
