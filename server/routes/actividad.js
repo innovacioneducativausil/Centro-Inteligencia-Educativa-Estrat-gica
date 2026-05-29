@@ -91,16 +91,19 @@ router.get('/actividad', async (req, res) => {
 });
 
 // ── GET /api/actividad/usuarios ────────────────────────────
-// Lista de correos únicos registrados. Solo para correos autorizados.
+// Lista todos los usuarios de la BD (para el filtro). Solo para correos autorizados.
 router.get('/actividad/usuarios', async (req, res) => {
   if (!MONITOR_CORREOS.has(req.user.correo)) {
     return res.status(403).json({ error: 'Acceso denegado.' });
   }
   try {
     const [rows] = await db.query(
-      `SELECT DISTINCT correo FROM actividad_usuario ORDER BY correo ASC`
+      `SELECT correo_usuario AS correo, nombre_usuario AS nombre, rol
+       FROM usuario
+       WHERE activo = 1
+       ORDER BY correo_usuario ASC`
     );
-    res.json({ data: rows.map(r => r.correo) });
+    res.json({ data: rows });
   } catch (err) {
     console.error('[GET /actividad/usuarios]', err);
     res.status(500).json({ error: 'Error interno.' });

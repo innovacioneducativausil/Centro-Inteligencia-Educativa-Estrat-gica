@@ -61,7 +61,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors }) => {
   const [eventoFilter, setEventoFilter] = useState('');
   const [desdeFilter,  setDesdeFilter]  = useState('');
   const [hastaFilter,  setHastaFilter]  = useState('');
-  const [correosList,  setCorreosList]  = useState<string[]>([]);
+  const [correosList,  setCorreosList]  = useState<{ correo: string; nombre: string; rol: string }[]>([]);
   const [eventosList,  setEventosList]  = useState<string[]>([]);
 
   // Cargar listas de correos y eventos una vez
@@ -70,6 +70,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors }) => {
       .then(r => r.ok ? r.json() : { data: [] })
       .then(j => setCorreosList(j.data || []))
       .catch(() => {});
+
     fetch('/api/actividad/eventos', { credentials: 'include' })
       .then(r => r.ok ? r.json() : { data: [] })
       .then(j => setEventosList(j.data || []))
@@ -143,7 +144,11 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors }) => {
           style={{ minWidth: 200 }}
         >
           <option value="">Todos los usuarios</option>
-          {correosList.map(c => <option key={c} value={c}>{c}</option>)}
+          {correosList.map(u => (
+            <option key={u.correo} value={u.correo}>
+              {u.nombre} — {u.correo} ({u.rol})
+            </option>
+          ))}
         </select>
 
         <select
