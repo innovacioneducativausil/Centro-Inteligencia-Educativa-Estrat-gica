@@ -687,74 +687,163 @@ interface Filtros {
   años: number[]; facultades: string[]; carreras: string[];
   programas: string[]; ciclos: { codigo: string; anio: number }[];
 }
-// ── Componente: Descarga de Informes ─────────────────────────────────────────
-interface InformeDescarga {
-  id: number; nombre: string; anio: number; unidad: string;
-  facultad: string; url_descarga: string | null; tipo_acceso: 'descarga' | 'sharepoint';
-}
-interface DescargaCatalogos { años: number[]; unidades: string[]; facultades: string[]; }
+// ─── Directorio histórico de informes de empleabilidad (Excel) ───────────────
+interface InformeEmplEntry { año: number; unidad: string; facultad: string; link: string; }
+const INFORMES_EMPL: InformeEmplEntry[] = [
+  // 2023
+  { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Arquitectura',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBFhtdqSfZOT4qkWvtcuk3CAXUvWSPenII77LVFsPVC0rk?e=zigQcc' },
+  { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Artes y Humanidades',   link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQC2ZC09UGnOQKJetH0qMI6WAUaSfGcUydqzVJQrGatblJw?e=UQkcGl' },
+  { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Ciencias de la Salud',  link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQALqw814DlKR7kUtZNW0ezhAXJIiUiGiNkY8kgrhbWo_d0?e=MXuYbk' },
+  { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Ciencias Empresariales',link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAXYpg06DNVTZcVRIRtktYSAejpuzi-sAYZQ8La6GFFsHk?e=3Ldl4n' },
+  { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Comunicación',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAJr9UZ6Mi1S7aG7TCncSE-AWV_M51JA3w4UwhGvrgBVE4?e=DYRJx5' },
+  { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Derecho',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQDpUaUtIdLWQLQv7GC37js8AduIUVkG3qkBx4K9kyHbb0E?e=QLQ9Dw' },
+  { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Educación',             link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAAUuByzbeOQKOJsms97RFaAXt3NCsval6AQ70xdcg7130?e=M0g6SO' },
+  { año: 2023, unidad: 'Pregrado Regular',          facultad: 'HTG',                   link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBWPfbKRL7-Q692Mk-qS6T4AZPNkbsCKnOFUujGPCeFZbs?e=Znzau7' },
+  { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Ingeniería',            link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAKwjPUQRhER6yD-gw4j87hAeP3u0_7nVBKLKvrdolhGFo?e=pUjJfZ' },
+  { año: 2023, unidad: 'Pregrado Ejecutivo',        facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQB0eWnKw0KlQYbk_ef_b-_FAXAaudNbTTXJF9KciSYw7bQ?e=4fnRBG' },
+  { año: 2023, unidad: 'Doble Grado',               facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAI2y7tXO7cQpWZghJbyswDATMuq3QLrHzko6WX68UKL80?e=Y1HIvh' },
+  { año: 2023, unidad: 'Escuela de Postgrado',      facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQD4wVbnTpv1TbTCFO8gUmmGAR7K42e6tqoEnxjysLQUy2A?e=ZEVQBn' },
+  { año: 2023, unidad: 'Instituto de Emprendedores',facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAzmHJfCur4QYwFShn3hb3JAT7xpwL9rIIASuRQev6oJf8?e=DyiQuL' },
+  // 2024
+  { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Arquitectura',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBAfOnLT025T4Jwf3FyDUqcAbSj8NyscXbLv3Rj9n5DNMo?e=70jMi0' },
+  { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Artes y Humanidades',   link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAHOdapeFGlRqaRYZ1ZrMO2AcHHFPyg1AGPAvFudjboMtM?e=Pezvha' },
+  { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Ciencias de la Salud',  link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAK01_2fyDSR4up1e54t-jfATtruv__LdbJgEdys-bWyx8?e=YoIRgE' },
+  { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Ciencias Empresariales',link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBKAPuQEnu7RqDjBmj44iiYATg8FmeIuIW-LCb0pkfiAio?e=clMRNA' },
+  { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Comunicación',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAXoyDq860sQL3Mss375fugAeo92lv4zc8Zt1_Sl-HYQjY?e=HraWCQ' },
+  { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Derecho',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQDeWMkwlyk8T75dTU5CusD2AZM0pGPc_zISw6bopJoZuCE?e=SUIpXW' },
+  { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Educación',             link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQCiD43OOcwKSo6MtaQCI4ejARG_3ppiL3CImYZ2WB_ojlQ?e=WG9gWp' },
+  { año: 2024, unidad: 'Pregrado Regular',          facultad: 'HTG',                   link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQD7a-aWHLgcTb8dYm0s1FyJAVmOjpkWQchLMF7Df5DclNI?e=npU0Qv' },
+  { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Ingeniería',            link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBOUNfvnrmORLGpx5yKCLmAAREbS6XrtpqpvqNzEl6mbkA?e=PHpZEs' },
+  { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Todas',                 link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQDc6R_jA1M3QKYRXFmeyrq3AXkh2Vp4zl2SdhaJK9Qqx0o?e=NoY76l' },
+  { año: 2024, unidad: 'Pregrado Ejecutivo',        facultad: 'Ciencias Empresariales',link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQCFsN627KwQSLPrbNRrVc26Acj6mZPnpvEaZ2uZPZJ5Q9w?e=EkMbVg' },
+  { año: 2024, unidad: 'Pregrado Ejecutivo',        facultad: 'Comunicación',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQDR-yVN2r3gT6cX3Uv_w-4RAT_tGMwobOkPu7QDogwcgS8?e=tsQshA' },
+  { año: 2024, unidad: 'Pregrado Ejecutivo',        facultad: 'Ingeniería',            link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQB0HetECZ94RrPSAefsCx44AZt0qAmhslNQmfRocJFo8Ms?e=j9fYHS' },
+  { año: 2024, unidad: 'Pregrado Ejecutivo',        facultad: 'Todas',                 link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAyT4oO-8UATqC_LR1pGvoaATcC3SKKIHAWzMv-id4zm_0?e=OHPqjC' },
+  { año: 2024, unidad: 'Doble Grado',               facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQCDvacZfL62SY3BVmUlJNTxASTGdn8tl249E3fuWF6o5Q4?e=UbCly3' },
+  { año: 2024, unidad: 'Escuela de Postgrado',      facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAu2lW1o_esTIsqfEHAFRbsAWVL_Ztdo-NEF__9OUKVIgc?e=xaLbq0' },
+  { año: 2024, unidad: 'Instituto de Emprendedores',facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBXxAx8KdkARKtqbrdWTYlmAcUWd4WT4o4voaJpa5zfiaY?e=x8SEAn' },
+  { año: 2024, unidad: 'Global',                    facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQDMfuZsF7PKT7pJBoCiJu9YAaRQQHHwkALoSLiapGwurv0?e=hbeUcY' },
+  // 2025
+  { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Arquitectura',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQCzTXwLcnckS6RKO7kGEeAXAXZgheK9jo76GWqPbYE8K4Y?e=MpSYqc' },
+  { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Artes y Humanidades',   link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQC7J9IC1_K9T5rpYBPl5_L3AYWZgQLO-CRIIfWR_NO4q7I?e=jQuWZe' },
+  { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Ciencias de la Salud',  link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQC5MYDjkr68Q4IaDaUja0IRAfx6O8D3qXf-cUk6I57yQtw?e=PpX0F1' },
+  { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Ciencias Empresariales',link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQC1tpqzDFstQLLkP-iXedB_Ad8xqburEbyN6jYqBGD4hsw?e=TMYmRZ' },
+  { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Comunicación',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAV0b5Qi2CdS41VZGD373CtATEu3zbWvujpRcVBh5mE4Ww?e=mWtUdY' },
+  { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Derecho',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQDSuVlo5HuxTIzNLCAaXCQRASdy0fmoG5MIjBMzAGEODcA?e=NpR69S' },
+  { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Educación',             link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQCLsTECmlxpQphVVRuw6rxMAUi-l4ZIWWo3sPEL9ntoI7c?e=36diOu' },
+  { año: 2025, unidad: 'Pregrado Regular',          facultad: 'HTG',                   link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQDGjlzWacoAS4R5SCC1_9d4AaMNNJAdG8jQ3JdiA99cxHg?e=Jm716P' },
+  { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Ingeniería',            link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQCVHPJfpFtESqyGbsUaJKnXAee2iFdeVvWBVDWVQ3NV1Ao?e=9ogbu1' },
+  { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Todas',                 link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQD4f0m_O98hSqJ0tG8CNkizARsOvdF8Flwaq39vHf3Rlas?e=CjYLEY' },
+  { año: 2025, unidad: 'Pregrado Ejecutivo',        facultad: 'Ciencias Empresariales',link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBd56Wqat-QQoQ3rEyXtnBuAdHD21_cE3S94gdE1Bp1L30?e=nS4I7D' },
+  { año: 2025, unidad: 'Pregrado Ejecutivo',        facultad: 'Comunicación',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBRdfzzgDRjTbigY3OcoI3nAdWEyfqRSRVqGPSIIfPopOs?e=RxWFJs' },
+  { año: 2025, unidad: 'Pregrado Ejecutivo',        facultad: 'Ingeniería',            link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQB4x9fLphV4TZ7h76kp0xNIAYBhTvEJ2T9SVS6RC2QuFG8?e=znD6zD' },
+  { año: 2025, unidad: 'Pregrado Ejecutivo',        facultad: 'Todas',                 link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQACqnuShysHRpLSQjoe6Vw0Afh-x5Zn5zMCAfxZf5oTdlo?e=vxypR3' },
+  { año: 2025, unidad: 'Doble Grado',               facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQC2ac1YCyNASqDtr-5AdT22ASnNkALw-DstJKf3edZYU1I?e=idkbZg' },
+  { año: 2025, unidad: 'Escuela de Postgrado',      facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQCAY8GTfzcJRpzaLxC-z0mSAYCxud5YKjq_9XjgfiAdwhw?e=KwgIJo' },
+  { año: 2025, unidad: 'Instituto de Emprendedores',facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBKQd2BGu5eQZZAtBmhtG4YAZN7wOhTPT91wiZ1YDBXtjo?e=712pup' },
+];
 
-function DescargaInformes({ card, text, muted, border, isDark, selAños, selFacultad }: {
+function DescargaInformes({ card, text, muted, border, isDark }: {
   card: string; text: string; muted: string; border: string; isDark: boolean;
-  selAños: string[]; selFacultad: string;
 }) {
-  const ACCENT_DL = '#0F766E';
-  const [informes, setInformes] = useState<InformeDescarga[]>([]);
-  const [loading,  setLoading]  = useState(true);
+  const DL = '#0F766E';
+  const [dlAnio,     setDlAnio]     = useState('Todos');
+  const [dlUnidad,   setDlUnidad]   = useState('Todas');
+  const [dlFacultad, setDlFacultad] = useState('Todas');
 
-  const fetchInformes = React.useCallback(async () => {
-    setLoading(true);
-    const p = new URLSearchParams();
-    if (selAños.length === 1)          p.set('anio',     selAños[0]);
-    else if (selAños.length > 1)       p.set('anios',    selAños.join(','));
-    if (selFacultad && selFacultad !== 'Todas') p.set('facultad', selFacultad);
-    try {
-      const r = await fetch(`/api/empleabilidad/informes?${p}`, { credentials: 'include' });
-      const d = await r.json();
-      if (!d.error) setInformes(d.data || []);
-    } catch { /* silencioso */ }
-    setLoading(false);
-  }, [selAños, selFacultad]);
+  const dl_años     = ['Todos', ...[...new Set(INFORMES_EMPL.map(r => String(r.año)))].sort()];
+  const dl_unidades = ['Todas', ...[...new Set(INFORMES_EMPL.map(r => r.unidad))].sort()];
 
-  useEffect(() => { fetchInformes(); }, [fetchInformes]);
+  const preFiltered = INFORMES_EMPL
+    .filter(r => dlAnio   === 'Todos' || r.año    === Number(dlAnio))
+    .filter(r => dlUnidad === 'Todas' || r.unidad === dlUnidad);
 
-  const handleDescargar = (inf: InformeDescarga) => {
-    if (!inf.url_descarga) { alert('Este informe aún no tiene archivo disponible. Contacta al administrador.'); return; }
-    if (inf.tipo_acceso === 'sharepoint') { window.open(inf.url_descarga, '_blank'); return; }
-    const a = document.createElement('a');
-    a.href = inf.url_descarga;
-    a.download = inf.nombre + '.pdf';
-    a.target = '_blank';
-    a.click();
+  const dl_facultades = ['Todas', ...[...new Set(
+    preFiltered.map(r => r.facultad).filter(f => f !== 'General')
+  )].sort()];
+
+  const results = preFiltered
+    .filter(r => dlFacultad === 'Todas' || r.facultad === dlFacultad);
+
+  const getName = (r: InformeEmplEntry) => {
+    const fac = r.facultad === 'General' ? '' : r.facultad === 'Todas' ? ' Todas las Facultades' : ` ${r.facultad}`;
+    return `Estudio de Empleabilidad ${r.unidad}${fac} ${r.año}`;
   };
 
-  const cardStyle: React.CSSProperties = {
+  const selStyle: React.CSSProperties = {
+    fontSize: 12, padding: '6px 10px', borderRadius: 6, fontWeight: 600,
+    border: `1.5px solid ${border}`, background: card, color: text, cursor: 'pointer',
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px',
+    color: muted, display: 'block', marginBottom: 4,
+  };
+  const cardBase: React.CSSProperties = {
     background: card, borderRadius: 12, border: `1px solid ${border}`,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: '14px 16px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-      {/* Tabla */}
-      <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-        {/* Cabecera tabla */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${border}` }}>
+      {/* Tarjeta de filtros propios */}
+      <div style={{ ...cardBase, padding: '14px 18px' }}>
+        <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: DL, marginBottom: 14 }}>
+          Filtros
+        </div>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+
+          <div>
+            <span style={labelStyle}>Año</span>
+            <select value={dlAnio}
+              onChange={e => { setDlAnio(e.target.value); setDlFacultad('Todas'); }}
+              style={{ ...selStyle, minWidth: 130 }}>
+              {dl_años.map(a => <option key={a} value={a}>{a === 'Todos' ? 'Todos' : a}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <span style={labelStyle}>Unidad</span>
+            <select value={dlUnidad}
+              onChange={e => { setDlUnidad(e.target.value); setDlFacultad('Todas'); }}
+              style={{ ...selStyle, minWidth: 200 }}>
+              {dl_unidades.map(u => <option key={u} value={u}>{u === 'Todas' ? 'Todas' : u}</option>)}
+            </select>
+          </div>
+
+          {dl_facultades.length > 1 && (
+            <div>
+              <span style={labelStyle}>Facultad</span>
+              <select value={dlFacultad} onChange={e => setDlFacultad(e.target.value)}
+                style={{ ...selStyle, minWidth: 200 }}>
+                {dl_facultades.map(f => <option key={f} value={f}>{f === 'Todas' ? 'Todas' : f}</option>)}
+              </select>
+            </div>
+          )}
+
+          <button onClick={() => { setDlAnio('Todos'); setDlUnidad('Todas'); setDlFacultad('Todas'); }}
+            style={{ padding: '6px 14px', borderRadius: 6, border: `1.5px solid ${border}`,
+              background: 'transparent', color: muted, fontSize: 11, fontWeight: 700,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>filter_alt_off</span>
+            Limpiar filtros
+          </button>
+        </div>
+      </div>
+
+      {/* Tabla de informes */}
+      <div style={{ ...cardBase, padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: `1px solid ${border}` }}>
           <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted }}>
             Informes disponibles
           </span>
           <span style={{ fontSize: 11, fontWeight: 700, color: muted }}>
             Informes encontrados:&nbsp;
-            <span style={{ fontWeight: 900, color: ACCENT_DL, fontSize: 14 }}>{loading ? '…' : informes.length}</span>
+            <span style={{ fontWeight: 900, color: DL, fontSize: 14 }}>{results.length}</span>
           </span>
         </div>
 
-        {loading ? (
-          <div style={{ padding: '40px 16px', textAlign: 'center', color: muted, fontSize: 12 }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 28, display: 'block', marginBottom: 8, opacity: 0.4 }}>hourglass_empty</span>
-            Cargando informes…
-          </div>
-        ) : informes.length === 0 ? (
+        {results.length === 0 ? (
           <div style={{ padding: '40px 16px', textAlign: 'center', color: muted, fontSize: 12 }}>
             <span className="material-symbols-outlined" style={{ fontSize: 28, display: 'block', marginBottom: 8, opacity: 0.4 }}>folder_off</span>
             No hay informes con los filtros seleccionados.
@@ -764,38 +853,36 @@ function DescargaInformes({ card, text, muted, border, isDark, selAños, selFacu
             <thead>
               <tr style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#f8fafc' }}>
                 {['Estudio de empleabilidad', 'Año', 'Unidad', 'Facultad', 'Acción'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: muted, borderBottom: `1px solid ${border}` }}>
+                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 9, fontWeight: 800,
+                    textTransform: 'uppercase', letterSpacing: '0.8px', color: muted,
+                    borderBottom: `1px solid ${border}` }}>
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {informes.map((inf, idx) => (
-                <tr key={inf.id} style={{ borderBottom: idx < informes.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.15s' }}
+              {results.map((r, i) => (
+                <tr key={i}
+                  style={{ borderBottom: i < results.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.15s' }}
                   onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.015)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: text }}>{inf.nombre}</td>
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: text }}>{inf.anio}</td>
-                  <td style={{ padding: '12px 14px', fontSize: 12, color: muted }}>{inf.unidad}</td>
-                  <td style={{ padding: '12px 14px', fontSize: 12, color: muted }}>{inf.facultad}</td>
-                  <td style={{ padding: '12px 14px' }}>
-                    {inf.tipo_acceso === 'sharepoint' ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <button onClick={() => handleDescargar(inf)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: `1px solid ${border}`, background: card, color: text, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
-                          Ir a SharePoint
-                        </button>
-                        <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 5, background: '#E0F2FE', color: '#0369A1' }}>SharePoint</span>
-                      </div>
-                    ) : (
-                      <button onClick={() => handleDescargar(inf)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', borderRadius: 7, border: 'none', background: ACCENT_DL, color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span>
-                        Descargar
-                      </button>
-                    )}
+                  <td style={{ padding: '11px 14px', fontSize: 12, fontWeight: 600, color: text }}>{getName(r)}</td>
+                  <td style={{ padding: '11px 14px', fontSize: 12, fontWeight: 800, color: DL, whiteSpace: 'nowrap' }}>{r.año}</td>
+                  <td style={{ padding: '11px 14px', fontSize: 11, color: text, whiteSpace: 'nowrap' }}>{r.unidad}</td>
+                  <td style={{ padding: '11px 14px', fontSize: 11, color: muted, whiteSpace: 'nowrap' }}>
+                    {r.facultad === 'General' ? 'General' : r.facultad}
+                  </td>
+                  <td style={{ padding: '11px 14px' }}>
+                    <a href={r.link.trim()} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 14px',
+                        borderRadius: 7, background: DL, color: '#fff', fontSize: 11, fontWeight: 700,
+                        textDecoration: 'none', transition: 'opacity .15s' }}
+                      onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+                      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
+                      Abrir informe
+                    </a>
                   </td>
                 </tr>
               ))}
@@ -1038,8 +1125,8 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
         })}
       </div>
 
-      {/* FILA DE FILTROS — cada grupo en su propio recuadro */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+      {/* FILA DE FILTROS — oculta en Descarga de informes */}
+      {activeTab !== 'descarga' && <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
 
         {programasList.length > 0 && (
           <div style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '7px 12px', background: card }}>
@@ -1109,7 +1196,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
             {filtros.carreras.map(c => <option key={c}>{c}</option>)}
           </select>
         </div>
-      </div>
+      </div>}
 
       {/* ═══ TAB RESUMEN — Dashboard ════════════════════════════════════════════ */}
       {activeTab === 'resumen' && (
@@ -1278,7 +1365,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
       )}
 
       {/* ═══ TAB DESCARGA DE INFORMES ══════════════════════════════════════════ */}
-      {activeTab === 'descarga' && <DescargaInformes card={card} text={text} muted={muted} border={border} isDark={isDark} selAños={selAños} selFacultad={selFacultad} />}
+      {activeTab === 'descarga' && <DescargaInformes card={card} text={text} muted={muted} border={border} isDark={isDark} />}
 
       {/* ═══ TABS EGRESADOS — Dashboards ═══════════════════════════════════════ */}
       {activeTab !== 'resumen' && activeTab !== 'descarga' && (() => {
