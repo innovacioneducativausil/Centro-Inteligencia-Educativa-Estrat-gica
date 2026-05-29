@@ -90,6 +90,55 @@ router.post('/ai/generate', async (req, res) => {
 });
 
 /**
+ * POST /api/ai/escenarios
+ * Matriz de Escenarios Futuros 2x2 — token HF_API_KEY_ESCENARIOS (cuota independiente)
+ * Body: { prompt: string, maxTokens?: number }
+ */
+router.post('/ai/escenarios', async (req, res) => {
+  const apiKey = process.env.HF_API_KEY_ESCENARIOS || process.env.HF_API_KEY;
+  if (!apiKey || apiKey === 'hf_TU_TOKEN_AQUI') {
+    return res.status(503).json({ error: 'HF_API_KEY_ESCENARIOS no configurado en .env del servidor.' });
+  }
+
+  const { prompt, maxTokens = 1200 } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Falta el campo “prompt”.' });
+  if (typeof prompt !== 'string' || prompt.length > 20000) {
+    return res.status(400).json({ error: 'El prompt debe ser texto y no superar 20000 caracteres.' });
+  }
+  const safeMaxTokens = Math.min(2000, Math.max(50, Number.parseInt(maxTokens, 10) || 1200));
+
+  try {
+    const hfRes = await fetchWithRetry(HF_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: HF_MODEL_HEAVY,
+        messages: [
+          { role: 'system', content: RADAR_SYSTEM },
+          { role: 'user',   content: prompt },
+        ],
+        max_tokens: safeMaxTokens,
+        temperature: 0.5,
+      }),
+    });
+
+    if (!hfRes.ok) {
+      const err = await hfRes.json().catch(() => ({}));
+      const msg = err?.error?.message || err?.error || `HuggingFace error ${hfRes.status}`;
+      return res.status(hfRes.status).json({ error: String(msg) });
+    }
+
+    const data = await hfRes.json();
+    const text = data.choices?.[0]?.message?.content?.trim() || '';
+    res.json({ text });
+
+  } catch (err) {
+    console.error('[POST /ai/escenarios]', err);
+    serverError(res, err);
+  }
+});
+
+/**
  * POST /api/ai/metrics
  * Usa Qwen 1.5B â€” ligero y rÃ¡pido, cuota separada del 7B, ideal para JSON corto (impact/urgency)
  * Body: { prompt: string, maxTokens?: number }

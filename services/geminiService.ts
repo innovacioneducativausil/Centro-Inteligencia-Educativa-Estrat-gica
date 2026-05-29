@@ -5,7 +5,7 @@ import type { Signal } from '../types';
 
 const AUTH = () => ({ 'Content-Type': 'application/json' });
 
-// Modelo pesado (Qwen 7B) â€” anÃ¡lisis largos, deep dive, escenarios
+// Análisis de Disrupción — token HF_API_KEY
 async function callHF(prompt: string, maxTokens = 600): Promise<string> {
   const res = await fetch('/api/ai/generate', { method: 'POST', headers: AUTH(), body: JSON.stringify({ prompt, maxTokens }) });
   if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error || `Error ${res.status}`); }
@@ -13,12 +13,20 @@ async function callHF(prompt: string, maxTokens = 600): Promise<string> {
   return data.text || 'No se obtuvo respuesta.';
 }
 
-// Modelo ligero (Qwen 1.5B) â€” JSON corto, mÃ©tricas rÃ¡pidas (cuota separada del 7B)
+// Métricas — token HF_API_KEY_METRICS (cuota independiente)
 async function callMetrics(prompt: string, maxTokens = 120): Promise<string> {
   const res = await fetch('/api/ai/metrics', { method: 'POST', headers: AUTH(), body: JSON.stringify({ prompt, maxTokens }) });
   if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error || `Error ${res.status}`); }
   const data = await res.json();
   return data.text || '';
+}
+
+// Matriz de Escenarios Futuros — token HF_API_KEY_ESCENARIOS (cuota independiente)
+async function callEscenarios(prompt: string, maxTokens = 1200): Promise<string> {
+  const res = await fetch('/api/ai/escenarios', { method: 'POST', headers: AUTH(), body: JSON.stringify({ prompt, maxTokens }) });
+  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error || `Error ${res.status}`); }
+  const data = await res.json();
+  return data.text || 'No se obtuvo respuesta.';
 }
 
 // â”€â”€ Definiciones metodolÃ³gicas WEF (inyectadas en cada prompt) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -310,7 +318,7 @@ Responde SOLO con JSON vÃ¡lido (sin markdown, sin bloques de cÃ³digo):
 {"driver1":"<eje horizontal, 3-5 palabras>","driver2":"<eje vertical, 3-5 palabras>","topRight":{"title":"<4-6 palabras>","description":"<pÃ¡rrafo de 4-5 oraciones>"},"topLeft":{"title":"<4-6 palabras>","description":"<pÃ¡rrafo de 4-5 oraciones>"},"bottomRight":{"title":"<4-6 palabras>","description":"<pÃ¡rrafo de 4-5 oraciones>"},"bottomLeft":{"title":"<4-6 palabras>","description":"<pÃ¡rrafo de 4-5 oraciones>"}}
 `.trim();
 
-  const raw = await callHF(prompt, 1200);
+  const raw = await callEscenarios(prompt, 1200);
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('La IA no devolviÃ³ JSON vÃ¡lido para la matriz');
   return JSON.parse(match[0]);
@@ -359,7 +367,7 @@ Genera un anÃ¡lisis en espaÃ±ol con exactamente estas 4 secciones (usa los t
 - [acciÃ³n concreta a tomar hoy]
 `.trim();
 
-  return callHF(prompt, 600);
+  return callEscenarios(prompt, 600);
 }
 
 // â”€â”€ Tipos enriquecidos para importaciÃ³n de artÃ­culos â”€â”€â”€â”€â”€â”€â”€â”€
