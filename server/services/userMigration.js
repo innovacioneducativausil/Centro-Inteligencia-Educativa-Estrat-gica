@@ -27,6 +27,14 @@ export async function runUserMigration() {
     console.warn('[USER MIGRATION] Paso 1 (ALTER):', e.message);
   }
 
+  // Paso 1b: Asegurar que password_hash sea VARCHAR(255) para evitar truncado de bcrypt
+  try {
+    await db.query(`ALTER TABLE usuario MODIFY password_hash VARCHAR(255) NOT NULL`);
+    console.log('[USER MIGRATION] Paso 1b: password_hash → VARCHAR(255) OK');
+  } catch (e) {
+    console.warn('[USER MIGRATION] Paso 1b (ALTER password_hash):', e.message);
+  }
+
   // Paso 2: Poner acastroh como admin
   try {
     const [r] = await db.query(
@@ -49,11 +57,11 @@ export async function runUserMigration() {
     console.log('[USER MIGRATION] Paso 4: admin@usil.edu eliminado');
   } catch (e) { console.warn('[USER MIGRATION] Paso 4:', e.message); }
 
-  // Paso 5: Crear usuarios nuevos si no existen
+  // Paso 5: Crear usuarios nuevos o corregir su hash si ya existen
   for (const u of USUARIOS_NUEVOS) {
     try {
       const [[existe]] = await db.query(
-        'SELECT id_usuario FROM usuario WHERE correo_usuario = ?',
+        'SELECT id_usuario, CHAR_LENGTH(password_hash) as hash_len FROM usuario WHERE correo_usuario = ?',
         [u.correo]
       );
       if (!existe) {
@@ -64,6 +72,13 @@ export async function runUserMigration() {
           [u.id, u.nombre, u.corto, u.correo, HASH_USUARIO2026]
         );
         console.log(`[USER MIGRATION] Paso 5: creado ${u.correo}`);
+      } else if (existe.hash_len < 60) {
+        // Hash truncado (columna era VARCHAR<60) — corregir
+        await db.query(
+          'UPDATE usuario SET password_hash = ? WHERE correo_usuario = ?',
+          [HASH_USUARIO2026, u.correo]
+        );
+        console.log(`[USER MIGRATION] Paso 5: hash corregido para ${u.correo}`);
       }
     } catch (e) {
       console.warn(`[USER MIGRATION] Paso 5 (${u.correo}):`, e.message);
