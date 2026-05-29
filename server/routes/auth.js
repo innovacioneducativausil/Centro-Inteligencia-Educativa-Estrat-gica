@@ -96,6 +96,7 @@ router.post('/auth/login', async (req, res) => {
     logActividad(db, user.id_usuario, user.correo_usuario, 'login', loginIp);
 
     res.json({
+      token,
       user: {
         id:          payload.id,
         nombre:      payload.nombre,
