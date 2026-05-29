@@ -2,6 +2,7 @@ import { Router } from 'express';
 import db from '../db_empl.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { mercadoLaboralSeed, metodologiaMercadoLaboralSeed } from '../data/mercadoLaboralSeed.js';
+import { CARRERAS_FALTANTES } from '../data/mercadoCarrerasFaltantes.js';
 
 const router = Router();
 
@@ -12,9 +13,42 @@ export async function ensureMercadoLaboralReady() {
     bootPromise = (async () => {
       await ensureSchema();
       await seedIfEmpty();
+      await seedMissingCareers();
     })();
   }
   return bootPromise;
+}
+
+async function seedMissingCareers() {
+  for (const carrera of CARRERAS_FALTANTES) {
+    const [[exists]] = await db.query(
+      'SELECT id_informe FROM mercado_informe WHERE nombre_carrera = ? LIMIT 1',
+      [carrera.nombre_carrera]
+    );
+    if (exists) continue;
+
+    const [result] = await db.query(
+      `INSERT INTO mercado_informe
+        (nombre_facultad, nombre_carrera, periodo, titulo_header, descripcion_header,
+         insight_header, descripcion, objetivo_final)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        carrera.nombre_facultad, carrera.nombre_carrera, carrera.periodo,
+        carrera.titulo_header, carrera.descripcion_header,
+        carrera.insight_header, carrera.descripcion, carrera.objetivo_final,
+      ]
+    );
+    const idInforme = result.insertId;
+    await seedChildren(idInforme, {
+      puestos:                  carrera.puestos,
+      habilidades:              carrera.habilidades,
+      herramientas:             carrera.herramientas,
+      tendencias:               carrera.tendencias,
+      recomendacionesDocentes:  carrera.recomendacionesDocentes,
+      recomendacionesCurriculares: carrera.recomendacionesCurriculares,
+    });
+    console.log(`[MERCADO] Carrera insertada: ${carrera.nombre_carrera}`);
+  }
 }
 
 async function ensureSchema() {
