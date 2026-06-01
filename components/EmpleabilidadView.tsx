@@ -685,10 +685,14 @@ interface NivelItem  { nivel: string; total: number; pct: number; }
 interface SatisfItem { nivel: string; total: number; pct: number; }
 interface Filtros {
   años: number[]; facultades: string[]; carreras: string[];
-  programas: string[]; ciclos: { codigo: string; anio: number }[];
+  programas: string[]; ciclos: { codigo: string; label?: string; anio: number; codigos?: string[] }[];
 }
 // ─── Directorio histórico de informes de empleabilidad (Excel) ───────────────
 interface InformeEmplEntry { año: number; unidad: string; facultad: string; link: string; }
+const FACULTAD_ALL_VALUE = '__all__';
+const FACULTAD_CONSOLIDADO_VALUE = '__consolidado__';
+const CONSOLIDATED_FACULTIES = new Set(['todas', 'global', 'consolidado', 'consolidada', 'general']);
+const isConsolidatedFaculty = (facultad: string) => CONSOLIDATED_FACULTIES.has(String(facultad || '').trim().toLowerCase());
 const INFORMES_EMPL: InformeEmplEntry[] = [
   // 2023
   { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Arquitectura',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBFhtdqSfZOT4qkWvtcuk3CAXUvWSPenII77LVFsPVC0rk?e=zigQcc' },
@@ -749,7 +753,7 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
   const DL = '#0F766E';
   const [dlAnio,     setDlAnio]     = useState('Todos');
   const [dlUnidad,   setDlUnidad]   = useState('Todas');
-  const [dlFacultad, setDlFacultad] = useState('Todas');
+  const [dlFacultad, setDlFacultad] = useState(FACULTAD_ALL_VALUE);
 
   const dl_años     = ['Todos', ...[...new Set(INFORMES_EMPL.map(r => String(r.año)))].sort()];
   const dl_unidades = ['Todas', ...[...new Set(INFORMES_EMPL.map(r => r.unidad))].sort()];
@@ -758,15 +762,21 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
     .filter(r => dlAnio   === 'Todos' || r.año    === Number(dlAnio))
     .filter(r => dlUnidad === 'Todas' || r.unidad === dlUnidad);
 
-  const dl_facultades = ['Todas', ...[...new Set(
-    preFiltered.map(r => r.facultad).filter(f => f !== 'General')
-  )].sort()];
+  const hasConsolidated = preFiltered.some(r => isConsolidatedFaculty(r.facultad));
+  const dl_facultades = [
+    { value: FACULTAD_ALL_VALUE, label: 'Todas las facultades' },
+    ...(hasConsolidated ? [{ value: FACULTAD_CONSOLIDADO_VALUE, label: 'Estudios consolidados' }] : []),
+    ...[...new Set(preFiltered.map(r => r.facultad).filter(f => !isConsolidatedFaculty(f)))]
+      .sort()
+      .map(f => ({ value: f, label: f })),
+  ];
 
   const results = preFiltered
-    .filter(r => dlFacultad === 'Todas' || r.facultad === dlFacultad);
+    .filter(r => dlFacultad === FACULTAD_ALL_VALUE
+      || (dlFacultad === FACULTAD_CONSOLIDADO_VALUE ? isConsolidatedFaculty(r.facultad) : r.facultad === dlFacultad));
 
   const getName = (r: InformeEmplEntry) => {
-    const fac = r.facultad === 'General' ? '' : r.facultad === 'Todas' ? ' Todas las Facultades' : ` ${r.facultad}`;
+    const fac = isConsolidatedFaculty(r.facultad) ? ' Estudios consolidados' : ` ${r.facultad}`;
     return `Estudio de Empleabilidad ${r.unidad}${fac} ${r.año}`;
   };
 
@@ -796,7 +806,7 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
           <div>
             <span style={labelStyle}>Año</span>
             <select value={dlAnio}
-              onChange={e => { setDlAnio(e.target.value); setDlFacultad('Todas'); }}
+              onChange={e => { setDlAnio(e.target.value); setDlFacultad(FACULTAD_ALL_VALUE); }}
               style={{ ...selStyle, minWidth: 130 }}>
               {dl_años.map(a => <option key={a} value={a}>{a === 'Todos' ? 'Todos' : a}</option>)}
             </select>
@@ -805,7 +815,7 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
           <div>
             <span style={labelStyle}>Unidad</span>
             <select value={dlUnidad}
-              onChange={e => { setDlUnidad(e.target.value); setDlFacultad('Todas'); }}
+              onChange={e => { setDlUnidad(e.target.value); setDlFacultad(FACULTAD_ALL_VALUE); }}
               style={{ ...selStyle, minWidth: 200 }}>
               {dl_unidades.map(u => <option key={u} value={u}>{u === 'Todas' ? 'Todas' : u}</option>)}
             </select>
@@ -816,12 +826,12 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
               <span style={labelStyle}>Facultad</span>
               <select value={dlFacultad} onChange={e => setDlFacultad(e.target.value)}
                 style={{ ...selStyle, minWidth: 200 }}>
-                {dl_facultades.map(f => <option key={f} value={f}>{f === 'Todas' ? 'Todas' : f}</option>)}
+                {dl_facultades.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
             </div>
           )}
 
-          <button onClick={() => { setDlAnio('Todos'); setDlUnidad('Todas'); setDlFacultad('Todas'); }}
+          <button onClick={() => { setDlAnio('Todos'); setDlUnidad('Todas'); setDlFacultad(FACULTAD_ALL_VALUE); }}
             style={{ padding: '6px 14px', borderRadius: 6, border: `1.5px solid ${border}`,
               background: 'transparent', color: muted, fontSize: 11, fontWeight: 700,
               cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -871,7 +881,7 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
                   <td style={{ padding: '11px 14px', fontSize: 12, fontWeight: 800, color: DL, whiteSpace: 'nowrap' }}>{r.año}</td>
                   <td style={{ padding: '11px 14px', fontSize: 11, color: text, whiteSpace: 'nowrap' }}>{r.unidad}</td>
                   <td style={{ padding: '11px 14px', fontSize: 11, color: muted, whiteSpace: 'nowrap' }}>
-                    {r.facultad === 'General' ? 'General' : r.facultad}
+                    {isConsolidatedFaculty(r.facultad) ? 'Estudios consolidados' : r.facultad}
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     <a href={r.link.trim()} target="_blank" rel="noopener noreferrer"
@@ -982,6 +992,24 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (selAños.length === 1) p.set('anio', selAños[0]);
+    if (selProgramas.length === 1) p.set('programa', selProgramas[0]);
+    if (selFacultad !== 'Todas') p.set('facultad', selFacultad);
+    if (selCarrera !== 'Todas') p.set('carrera', selCarrera);
+    fetch(`/api/empleabilidad/filtros${p.toString() ? '?' + p.toString() : ''}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.error) {
+          setFiltros(d);
+          const validCiclos = new Set((d.ciclos || []).map((c: { codigo: string }) => c.codigo));
+          setSelCiclos(prev => prev.filter(c => validCiclos.has(c)));
+        }
+      })
+      .catch(() => {});
+  }, [selAños, selProgramas, selFacultad, selCarrera]);
 
   // Fetch estadísticas para dashboards de los 3 tabs de detalle
   const fetchTabStats = useCallback(async (tipo: string) => {
@@ -1172,7 +1200,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                       border: `1.5px solid ${active ? ACCENT : '#d1d5db'}`,
                       background: active ? ACCENT : 'transparent',
                       color: active ? '#fff' : text, transition: 'all .15s' }}>
-                    {c.codigo}
+                    {c.label || c.codigo}
                   </button>
                 );
               })}

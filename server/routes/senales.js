@@ -160,6 +160,7 @@ router.get('/senales/:uuid', async (req, res) => {
       sectores:       row.sectores     ? row.sectores.split('||')     : [],
       sectorSlugs:    row.sector_slugs ? row.sector_slugs.split('||') : [],
       publishedAt:    row.fecha_publicacion,
+      articleDate:    row.fecha_senal_articulo || null,
     });
   } catch (err) {
     console.error('[GET /senales/:uuid]', err);

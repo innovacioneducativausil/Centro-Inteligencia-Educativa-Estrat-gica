@@ -84,6 +84,7 @@ interface FormState {
   imagenUrl:            string;
   videoUrl:             string;
   autor:                string;
+  fechaArticulo:        string;
   estadoId:  string;    // '1'|'2'|'3'
 }
 
@@ -93,7 +94,7 @@ const FORM_EMPTY: FormState = {
   descCorta: '', descLarga: '',
   logica: '',
   fuente: '', urlFuente: '', urlFuentesEscenario: [''], imagenUrl: '', videoUrl: '',
-  autor: '',
+  autor: '', fechaArticulo: '',
   estadoId: '3',
 };
 
@@ -533,6 +534,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         imagenUrl: d.imagenUrl || '',
         videoUrl:  d.videoUrl  || '',
         autor:     d.autor     || '',
+        fechaArticulo: d.fechaArticulo || '',
         estadoId:  d.estadoId  || '3',
       });
       setTimeout(() => {
@@ -633,6 +635,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
           autor:       createForm.autor.trim() || undefined,
           id_estado:   Number(createForm.estadoId),
           ...(activeTab === 'senales' && {
+            fechaArticulo: createForm.fechaArticulo || undefined,
             tendenciasRel: tendenciasRel.map(r => r.uuid),
             escenariosRel: escenariosRel.map(r => r.uuid),
           }),
@@ -745,7 +748,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
             {/* ── Bloque 1: Datos de Control ── */}
             <div className={`pb-6 border-b ${themeColors.cardBorder}`}>
               <SectionTitle icon="lock" title="Datos de Control" />
-              <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+              <div className={`grid gap-4 grid-cols-2 md:grid-cols-3 ${activeTab === 'senales' ? 'lg:grid-cols-7' : 'lg:grid-cols-6'}`}>
                 <div>
                   <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>id {tabSingular.toLowerCase()}</label>
                   <input disabled value={editMode && editId ? editId.split('-')[0].toUpperCase() : 'AUTO-GEN'}
@@ -778,6 +781,14 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   <input disabled value={editMode && editDates ? editDates.actualizacion : '—'}
                     className={`w-full px-3 py-1.5 text-xs rounded-lg border cursor-not-allowed ${themeColors.inputBg} ${themeColors.inputBorder}`} style={{ color: '#9ca3af' }} />
                 </div>
+                {activeTab === 'senales' && (
+                  <div>
+                    <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>fecha del artículo</label>
+                    <input type="date" value={createForm.fechaArticulo}
+                      onChange={e => setCreateForm(f => ({ ...f, fechaArticulo: e.target.value }))}
+                      className={`w-full px-3 py-1.5 text-xs rounded-lg border ${themeColors.inputBg} ${themeColors.inputBorder} ${themeColors.inputText}`} />
+                  </div>
+                )}
               </div>
             </div>
 

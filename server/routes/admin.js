@@ -562,6 +562,7 @@ router.get('/admin/senales/:uuid', adminOnly, async (req, res) => {
       paisOrigen: row.pais_origen || null,
       topico: row.topico_nombre || null,
       autor: row.autor || null,
+      fechaArticulo: fmtDate(row.fecha_senal_articulo),
       fechaSeñalArticulo: fmtDate(row.fecha_senal_articulo),
       fechaCreacion: fmt(row.fecha_creacion),
       fechaPublicacion: fmt(row.fecha_publicacion),
@@ -578,7 +579,7 @@ router.put('/admin/senales/:uuid', adminOnly, async (req, res) => {
     const { uuid } = req.params;
     const { nombre, tituloDes, descCorta, descLarga, razonCambio, fuente, urlFuente,
             imagenUrl, videoUrl, pestelId, pestelIds, sectorId, sectorIds,
-            tendenciasRel, escenariosRel, id_estado, autor } = req.body;
+            tendenciasRel, escenariosRel, id_estado, autor, fechaArticulo } = req.body;
     const sids = Array.isArray(sectorIds)&&sectorIds.length ? sectorIds : (sectorId?[sectorId]:[]);
     const errs = validateCreate({ nombre, sectorId: sids[0], pestelId: pestelId || pestelIds?.[0], descCorta });
     if (errs.length) return res.status(400).json({ error: errs[0], errors: errs });
@@ -594,6 +595,7 @@ router.put('/admin/senales/:uuid', adminOnly, async (req, res) => {
          fuente_senal=?, url_fuente=?,
          url_imagen_senal=?, url_video_senal=?,
          autor=?,
+         fecha_senal_articulo=?,
          id_estado=?, id_usuario_actualizador=?,
          fecha_publicacion=IF(?=1 AND fecha_publicacion IS NULL, NOW(), fecha_publicacion),
          fecha_actualizacion=NOW()
@@ -603,6 +605,7 @@ router.put('/admin/senales/:uuid', adminOnly, async (req, res) => {
        fuente?.trim()||'', urlFuente?.trim()||'',
        imagenUrl?.trim()||null, videoUrl?.trim()||null,
        autor?.trim()||null,
+       fechaArticulo || null,
        idEstado, req.user.id, idEstado, uuid]);
     await db.query('DELETE FROM senal_pestel WHERE id_senal = ?', [uuid]);
     const pids = Array.isArray(pestelIds)&&pestelIds.length ? pestelIds : (pestelId?[pestelId]:[]);
@@ -857,7 +860,7 @@ router.post('/admin/senales', adminOnly, async (req, res) => {
       fuente, urlFuente, imagenUrl, videoUrl,
       pestelId, pestelIds, sectorId, sectorIds,
       tendenciasRel, escenariosRel,
-      id_estado = 3, autor,
+      id_estado = 3, autor, fechaArticulo,
     } = req.body;
 
     const sids = Array.isArray(sectorIds)&&sectorIds.length ? sectorIds : (sectorId?[sectorId]:[]);
@@ -877,8 +880,8 @@ router.post('/admin/senales', adminOnly, async (req, res) => {
           desc_corta_senal, desc_larga_senal, razon_cambio,
           fuente_senal, url_fuente,
           url_imagen_senal, url_video_senal,
-          autor, id_estado, id_usuario_creador, fecha_publicacion)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          autor, fecha_senal_articulo, id_estado, id_usuario_creador, fecha_publicacion)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newId,
         tituloFin,
@@ -891,6 +894,7 @@ router.post('/admin/senales', adminOnly, async (req, res) => {
         imagenUrl?.trim()  || null,
         videoUrl?.trim()   || null,
         autor?.trim()      || null,
+        fechaArticulo || null,
         idEstado,
         usuarioId,
         idEstado === 1 ? new Date() : null,

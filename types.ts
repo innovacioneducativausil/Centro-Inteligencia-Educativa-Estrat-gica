@@ -63,6 +63,7 @@ export interface Signal {
   topico?: string | null;
   topicosRelacionados?: string[];
   publishedAt?: string | null;
+  articleDate?: string | null;
   nombreTendencia?: string | null;
   probability?: number;
   autor?: string | null;

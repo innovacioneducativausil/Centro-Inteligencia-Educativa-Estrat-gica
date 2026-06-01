@@ -17,6 +17,7 @@ async function ensureColumn(table, column, definition) {
 
 export async function ensureRadarSchemaSupport() {
   await ensureColumn('senal', 'autor', 'VARCHAR(160) NULL');
+  await ensureColumn('senal', 'fecha_senal_articulo', 'DATE NULL');
   await ensureColumn('tendencia', 'autor', 'VARCHAR(160) NULL');
   await ensureColumn('escenario', 'autor', 'VARCHAR(160) NULL');
 }

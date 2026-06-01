@@ -231,6 +231,51 @@ function normalizeCiclo(s) {
   return s.replace(/^(\d{4})-(\d)$/, '$1-0$2');
 }
 
+function parseCicloParts(value) {
+  const raw = String(value || '').trim().replace(/\s+/g, ' ');
+  const m = raw.match(/^(CPEL\s*)?(20\d{2})(?:-(\d{1,2}))?$/i);
+  if (!m) return null;
+  const prefix = m[1] ? 'CPEL ' : '';
+  const year = m[2];
+  const period = m[3] == null ? '00' : String(Number(m[3])).padStart(2, '0');
+  return { prefix, year, period };
+}
+
+function canonicalCiclo(value) {
+  const parts = parseCicloParts(value);
+  if (!parts) {
+    const raw = String(value || '').trim().replace(/\s+/g, ' ');
+    return { code: raw, label: raw, sort: raw };
+  }
+  const code = `${parts.prefix}${parts.year}-${parts.period}`;
+  return { code, label: code, sort: `${parts.year}-${parts.period}-${parts.prefix || 'A'}` };
+}
+
+function cicloVariants(value) {
+  const parts = parseCicloParts(value);
+  if (!parts) return [String(value || '').trim()].filter(Boolean);
+  const base = `${parts.prefix}${parts.year}`;
+  const n = String(Number(parts.period));
+  const variants = new Set([
+    `${base}-${parts.period}`,
+    `${base}-${n}`,
+  ]);
+  if (parts.period === '00') variants.add(base);
+  return [...variants];
+}
+
+function addCicloFilter(where, params, ciclo) {
+  if (!ciclo) return;
+  const variants = cicloVariants(ciclo);
+  if (variants.length === 1) {
+    where.push('ce.codigo_ciclo = ?');
+    params.push(variants[0]);
+    return;
+  }
+  where.push(`ce.codigo_ciclo IN (${variants.map(() => '?').join(',')})`);
+  params.push(...variants);
+}
+
 /** Obtiene o crea un registro devolviendo su ID */
 async function upsertGet(table, whereObj, insertObj = {}) {
   const conds = Object.entries(whereObj);
@@ -1222,7 +1267,7 @@ router.get('/empleabilidad/resumen', async (req, res) => {
     if (facultad)  { where.push('f.nombre_facultad = ?');    params.push(facultad); }
     if (carrera)   { where.push('c.nombre_carrera = ?');     params.push(carrera); }
     if (programa)  { where.push('tp.descripcion = ?');       params.push(programa); }
-    if (ciclo)     { where.push('ce.codigo_ciclo = ?');      params.push(ciclo); }
+    addCicloFilter(where, params, ciclo);
 
     const [rows] = await db.query(`
       SELECT
@@ -1291,7 +1336,7 @@ router.get('/empleabilidad/rangos', async (req, res) => {
     if (facultad) { where.push('f.nombre_facultad=?');  params.push(facultad); }
     if (carrera)  { where.push('c.nombre_carrera=?');   params.push(carrera); }
     if (programa) { where.push('tp.descripcion = ?');   params.push(programa); }
-    if (ciclo)    { where.push('ce.codigo_ciclo = ?');  params.push(ciclo); }
+    addCicloFilter(where, params, ciclo);
 
     const [rows] = await db.query(`
       SELECT cs.rango_estandar, COUNT(*) AS total, MIN(cs.rango_min_soles) AS orden
@@ -1423,7 +1468,7 @@ router.get('/empleabilidad/nivel-puesto', async (req, res) => {
     if (facultad) { where.push('f.nombre_facultad=?');  params.push(facultad); }
     if (carrera)  { where.push('c.nombre_carrera=?');   params.push(carrera); }
     if (programa) { where.push('tp.descripcion = ?');   params.push(programa); }
-    if (ciclo)    { where.push('ce.codigo_ciclo = ?');  params.push(ciclo); }
+    addCicloFilter(where, params, ciclo);
 
     const [rows] = await db.query(`
       SELECT ea.nivel_puesto, COUNT(*) AS total
@@ -1457,7 +1502,7 @@ router.get('/empleabilidad/satisfaccion', async (req, res) => {
     if (facultad) { where.push('f.nombre_facultad=?');  params.push(facultad); }
     if (carrera)  { where.push('c.nombre_carrera=?');   params.push(carrera); }
     if (programa) { where.push('tp.descripcion = ?');   params.push(programa); }
-    if (ciclo)    { where.push('ce.codigo_ciclo = ?');  params.push(ciclo); }
+    addCicloFilter(where, params, ciclo);
 
     const [rows] = await db.query(`
       SELECT ea.satisfaccion_usil AS nivel, COUNT(*) AS total
@@ -1484,6 +1529,13 @@ router.get('/empleabilidad/satisfaccion', async (req, res) => {
 // ─── GET /api/empleabilidad/filtros ──────────────────────────────────────────
 router.get('/empleabilidad/filtros', async (req, res) => {
   try {
+    const { anio, anios, facultad, carrera, programa } = req.query;
+    const cicloWhere = ['1=1'];
+    const cicloParams = [];
+    addAnioFilter(cicloWhere, cicloParams, anio, anios);
+    if (facultad) { cicloWhere.push('f.nombre_facultad = ?'); cicloParams.push(facultad); }
+    if (carrera)  { cicloWhere.push('c.nombre_carrera = ?');  cicloParams.push(carrera); }
+    if (programa) { cicloWhere.push('tp.descripcion = ?');    cicloParams.push(programa); }
     const [[años], [facultades], [carreras], [programas], [ciclos]] = await Promise.all([
       db.query('SELECT DISTINCT anio_encuesta AS valor FROM encuesta_anual ORDER BY anio_encuesta'),
       db.query(`SELECT DISTINCT f.nombre_facultad AS valor
@@ -1506,15 +1558,36 @@ router.get('/empleabilidad/filtros', async (req, res) => {
       db.query(`SELECT DISTINCT ce.codigo_ciclo AS valor, ce.anio_egreso
                 FROM ciclo_egreso ce
                 JOIN egresado eg ON eg.id_ciclo_egreso = ce.id_ciclo_egreso
+                JOIN carrera c ON c.id_carrera = eg.id_carrera
+                JOIN facultad f ON f.id_facultad = c.id_facultad
+                JOIN tipo_programa tp ON tp.id_tipo_programa = c.id_tipo_programa
                 JOIN encuesta_anual ea ON ea.id_egresado = eg.id_egresado
-                ORDER BY ce.anio_egreso, ce.codigo_ciclo`),
+                WHERE ${cicloWhere.join(' AND ')}
+                ORDER BY ce.anio_egreso, ce.codigo_ciclo`, cicloParams),
     ]);
+    const cicloMap = new Map();
+    for (const row of ciclos) {
+      const normalized = canonicalCiclo(row.valor);
+      if (!normalized.code) continue;
+      const current = cicloMap.get(normalized.code) || {
+        codigo: normalized.code,
+        label: normalized.label,
+        anio: row.anio_egreso,
+        codigos: [],
+        sort: normalized.sort,
+      };
+      if (!current.codigos.includes(row.valor)) current.codigos.push(row.valor);
+      current.anio = Math.min(Number(current.anio) || Number(row.anio_egreso), Number(row.anio_egreso));
+      cicloMap.set(normalized.code, current);
+    }
+    const ciclosNormalizados = [...cicloMap.values()]
+      .sort((a, b) => String(a.sort).localeCompare(String(b.sort), 'es', { numeric: true }));
     res.json({
       años:      años.map(r => r.valor),
       facultades: facultades.map(r => r.valor),
       carreras:  carreras.map(r => r.valor),
       programas: programas.map(r => r.valor),
-      ciclos:    ciclos.map(r => ({ codigo: r.valor, anio: r.anio_egreso })),
+      ciclos:    ciclosNormalizados.map(({ sort, ...c }) => c),
     });
   } catch (e) { serverError(res, e); }
 });
@@ -1540,7 +1613,7 @@ router.get('/empleabilidad/egresados', async (req, res) => {
     if (facultad) { where.push('f.nombre_facultad = ?');  params.push(facultad); }
     if (carrera)  { where.push('c.nombre_carrera = ?');   params.push(carrera); }
     if (programa) { where.push('tp.descripcion = ?');     params.push(programa); }
-    if (ciclo)    { where.push('ce.codigo_ciclo = ?');    params.push(ciclo); }
+    addCicloFilter(where, params, ciclo);
     if (q) {
       where.push('(eg.apellidos_nombres LIKE ? OR eg.nro_doc LIKE ?)');
       params.push(`%${q}%`, `%${q}%`);
@@ -1606,7 +1679,7 @@ router.get('/empleabilidad/stats-tab', async (req, res) => {
     if (facultad) { where.push('f.nombre_facultad = ?'); params.push(facultad); }
     if (carrera)  { where.push('c.nombre_carrera = ?');  params.push(carrera); }
     if (programa) { where.push('tp.descripcion = ?');    params.push(programa); }
-    if (ciclo)    { where.push('ce.codigo_ciclo = ?');   params.push(ciclo); }
+    addCicloFilter(where, params, ciclo);
 
     const W = where.join(' AND ');
     const JOINS = `

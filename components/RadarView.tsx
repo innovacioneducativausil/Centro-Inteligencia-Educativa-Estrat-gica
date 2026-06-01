@@ -115,7 +115,7 @@ const unifyScenario = (s: ApiScenario): UnifiedItem => ({ uuid: s.uuid, title: s
 
 // ── Adapters for modal (unchanged) ────────────────────────
 function toSignal(s: ApiSignal): Signal {
-  return { id: s.id, emoji: s.emoji, title: s.title, category: s.category, sector: (s.sector as Sector) || Sector.Educacion, youtubeId: s.youtubeId ?? undefined, imageUrl: s.imageUrl ?? null, signalText: s.signalText, implicationText: s.implicationText, reasonText: s.reasonText, source: s.source ?? '', link: s.sourceUrl ?? '', color: s.color, topico: s.topico ?? null, publishedAt: s.publishedAt };
+  return { id: s.id, emoji: s.emoji, title: s.title, category: s.category, sector: (s.sector as Sector) || Sector.Educacion, youtubeId: s.youtubeId ?? undefined, imageUrl: s.imageUrl ?? null, signalText: s.signalText, implicationText: s.implicationText, reasonText: s.reasonText, source: s.source ?? '', link: s.sourceUrl ?? '', color: s.color, topico: s.topico ?? null, publishedAt: s.publishedAt, articleDate: s.articleDate };
 }
 function toTrend(t: ApiTrend): Signal {
   return { id: t.id, emoji: t.emoji, title: t.name, category: t.category, sector: (t.sector as Sector) || Sector.Educacion, youtubeId: t.youtubeId ?? undefined, imageUrl: t.imageUrl ?? null, signalText: t.fullDescription || t.description || '', implicationText: t.fullDescription || t.description || '', reasonText: t.reasonText || '', source: t.source ?? '', link: t.sourceUrl ?? '', color: t.color, topico: t.topico ?? null, topicosRelacionados: t.topicosRelacionados ?? [], nombreTendencia: t.nombreTendencia ?? null, autor: t.autor ?? null };
