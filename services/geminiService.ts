@@ -564,6 +564,131 @@ function normalizeScenarioSectors(base: string[], scenarioText: string, official
   return Array.from(sectors);
 }
 
+function repairMojibake(value: any): string {
+  const text = String(value || '');
+  if (!/[ÃÂâ]/.test(text)) return text.replace(/\s+/g, ' ').trim();
+  try {
+    const bytes = Uint8Array.from(Array.from(text).map(ch => ch.charCodeAt(0) & 0xff));
+    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+    if ((decoded.match(/[ÃÂâ]/g) || []).length < (text.match(/[ÃÂâ]/g) || []).length) {
+      return decoded.replace(/\s+/g, ' ').trim();
+    }
+  } catch {
+    // Fallback below handles the common mojibake produced by PDF text extraction.
+  }
+  return text
+    .replace(/\u00c3\u00a1/g, 'á').replace(/\u00c3\u00a9/g, 'é')
+    .replace(/\u00c3\u00ad/g, 'í').replace(/\u00c3\u00b3/g, 'ó')
+    .replace(/\u00c3\u00ba/g, 'ú').replace(/\u00c3\u00b1/g, 'ñ')
+    .replace(/\u00c3\u0081/g, 'Á').replace(/\u00c3\u0089/g, 'É')
+    .replace(/\u00c3\u008d/g, 'Í').replace(/\u00c3\u0093/g, 'Ó')
+    .replace(/\u00c3\u009a/g, 'Ú').replace(/\u00c3\u0091/g, 'Ñ')
+    .replace(/\u00c2/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeScenarioArray(values: any[]): string[] {
+  return uniqueStrings((values || []).map(repairMojibake).filter(Boolean));
+}
+
+function translateKnownScenarioTitle(title: string): string {
+  const clean = repairMojibake(title);
+  const norm = clean.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (/consumer electronics makers launch bezel-?less and screenless form factors/.test(norm)) {
+    return 'Fabricantes de electrónica de consumo lanzan formatos sin bisel y sin pantalla mediante nuevos materiales y cadenas de suministro fotónicas';
+  }
+  if (/manufacturers will accelerate adoption of edge-to-edge and non-display interaction devices/.test(norm)) {
+    return 'Fabricantes aceleran la adopción de dispositivos de borde a borde e interacción sin pantalla';
+  }
+  return clean;
+}
+
+function looksEnglish(text: string): boolean {
+  return /\b(the|and|will|through|with|without|makers|manufacturers|supply|chains|devices|form factors|launch)\b/i.test(text);
+}
+
+function isBadScenarioSubtitle(text: string): boolean {
+  return /manufacturers will accelerate adoption of edge-to-edge and non-display interaction devices/i.test(text);
+}
+
+function chooseScenarioTitle(extractedTitle: string, aiTitle: string): string {
+  const extracted = repairMojibake(extractedTitle);
+  const translatedExtracted = translateKnownScenarioTitle(extracted);
+  if (translatedExtracted && translatedExtracted !== extracted) return translatedExtracted;
+
+  const ai = repairMojibake(aiTitle);
+  if (ai && !isBadScenarioSubtitle(ai) && !looksEnglish(ai)) return ai;
+  return translatedExtracted || ai;
+}
+
+function makeScenarioName(title: string, fallback: string): string {
+  const clean = repairMojibake(title || fallback).toLowerCase();
+  if (/sin bisel|sin pantalla|bisel/.test(clean)) return 'electrónica sin bisel y sin pantalla';
+  const stop = new Set(['los', 'las', 'una', 'uno', 'unos', 'unas', 'del', 'para', 'por', 'con', 'mediante', 'nuevos', 'nuevas']);
+  const words = clean
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9ñáéíóúü\s-]/gi, ' ')
+    .split(/\s+/)
+    .map(w => w.trim())
+    .filter(w => w.length > 2 && !stop.has(w));
+  return uniqueStrings(words).slice(0, 5).join(' ').slice(0, 55);
+}
+
+function extractScenarioTitlesFromSection(section: string): string[] {
+  const labels: number[] = [];
+  const rx = /(?:Probabilidad|Probability):/gi;
+  let m: RegExpExecArray | null;
+  while ((m = rx.exec(section)) !== null) labels.push(m.index);
+  let start = 0;
+  return labels.map(labelIndex => {
+    const rawBlock = section.slice(start, labelIndex);
+    const cleanedBlock = (rawBlock.split(/(?:Referencias|References):/i).pop() || rawBlock)
+      .replace(/\[Links p(?:Ã¡|á)g\.\d+:[^\]]+\]/gi, ' ')
+      .replace(/\[(?:Ã¢â€ â€™|â†’|→)https?:[^\]]+\]/g, ' ')
+      .replace(/https?:\/\/\S+/g, ' ')
+      .trim();
+    const lines = cleanedBlock
+      .split(/\n+/)
+      .map(s => repairMojibake(s).replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    const lineCandidates: string[] = [];
+    for (let idx = 0; idx < lines.length; idx += 1) {
+      const line = lines[idx];
+      if (/^(?:2\.1|previsiones|escenarios|en este|describimos|referencias|references|probabilidad|probability)/i.test(line)) continue;
+      if (line.length < 25 || line.length > 190) continue;
+      if (/\b(?:will accelerate adoption|requiring precision|supply chains will|retail positioning will|enabling)\b/i.test(line)) continue;
+      const next = lines[idx + 1] || '';
+      const combined = next &&
+        !/[.!?:]$/.test(line) &&
+        !/[.!?:]$/.test(next) &&
+        !/^(?:probabilidad|probability|referencias|references)/i.test(next) &&
+        !/\b(?:will accelerate adoption|requiring precision|supply chains will|retail positioning will|enabling)\b/i.test(next) &&
+        `${line} ${next}`.length <= 220
+          ? `${line} ${next}`
+          : line;
+      lineCandidates.push(combined);
+    }
+    const block = cleanedBlock
+      .replace(/\s+/g, ' ')
+      .trim();
+    const sentences = block
+      .split(/(?<=[.!?])\s+|\n+/)
+      .map(s => repairMojibake(s).trim())
+      .filter(s =>
+        s.length >= 35 &&
+        s.length <= 220 &&
+        !/^(?:2\.1|previsiones|escenarios|en este|describimos|referencias|references)/i.test(s)
+      );
+    const title = lineCandidates[0]
+      || sentences.find(s => !/\b(?:will|requiring|supply chains will|retail positioning will|enabling)\b/i.test(s.slice(80)))
+      || sentences[0]
+      || '';
+    start = labelIndex + 1;
+    return translateKnownScenarioTitle(title);
+  });
+}
+
 type LinkEntrada = {
   id: string;
   url: string;
@@ -1665,14 +1790,15 @@ Devuelve SOLO JSON vÃ¡lido, sin markdown, sin comentarios y sin texto adiciona
 
   const ts  = Date.now();
   const referenceUrlsByScenario = extractReferenceUrlsByScenario(seccionEscenariosProc);
+  const titlesByScenario = extractScenarioTitlesFromSection(seccionEscenariosProc);
   return arr.map((p: any, i: number): PropuestaImportacion => {
     const pNombres: string[] = Array.isArray(p.pestelNombres)
-      ? p.pestelNombres.map(String).filter(Boolean)
-      : String(p.pestelNombre || p.pestelLetra || '').split(';').map((s: string) => s.trim()).filter(Boolean);
+      ? p.pestelNombres.map(repairMojibake).filter(Boolean)
+      : repairMojibake(p.pestelNombre || p.pestelLetra || '').split(';').map((s: string) => s.trim()).filter(Boolean);
     const pNombre = pNombres.join('; ');
     const sNombres: string[] = Array.isArray(p.sectorNombres)
-      ? p.sectorNombres.map(String).filter(Boolean)
-      : String(p.sectorNombre || p.id_sector || '').split(';').map((s: string) => s.trim()).filter(Boolean);
+      ? p.sectorNombres.map(repairMojibake).filter(Boolean)
+      : repairMojibake(p.sectorNombre || p.id_sector || '').split(';').map((s: string) => s.trim()).filter(Boolean);
     const scenarioText = [
       p.titulo,
       p.nombre,
@@ -1690,14 +1816,17 @@ Devuelve SOLO JSON vÃ¡lido, sin markdown, sin comentarios y sin texto adiciona
     const scenarioUrls = referenceUrls.length > 0
       ? referenceUrls
       : uniqueStrings([aiUrlFuente, ...aiUrlsFuente].filter((u: string) => u.startsWith('http')));
+    const scenarioTitle = chooseScenarioTitle(titlesByScenario[i] || '', p.titulo || '');
+    const scenarioDescCorta = repairMojibake(p.descCorta || '').slice(0, 200);
+    const scenarioDescLarga = repairMojibake(p.descLarga || '');
     return {
       id:                  `esc-${i}-${ts}`,
       tipo:                'escenario',
-      titulo:              String(p.titulo || '').slice(0, 180),
-      nombre:              String(p.nombre || p.titulo || '').replace(/_/g, ' ').slice(0, 55),
-      descCorta:           String(p.descCorta || '').slice(0, 200),
-      descLarga:           String(p.descLarga || ''),
-      fuente:              String(p.fuente || fuenteDoc),
+      titulo:              scenarioTitle.slice(0, 180),
+      nombre:              makeScenarioName(scenarioTitle, p.nombre || p.titulo || '').slice(0, 55),
+      descCorta:           scenarioDescCorta,
+      descLarga:           scenarioDescLarga,
+      fuente:              repairMojibake(p.fuente || fuenteDoc),
       urlFuente:           scenarioUrls[0] || '',
       urlsFuente:          scenarioUrls,
       urlImagen:           '',
@@ -1715,9 +1844,9 @@ Devuelve SOLO JSON vÃ¡lido, sin markdown, sin comentarios y sin texto adiciona
       pestelNombre:        pNombre,
       pestelLetra:         pestelToLetra(pNombre),
       sectorNombre:        sectorNombres.join('; '),
-      fragmento:           String(p.fragmento    || '').slice(0, 200),
-      razonClasificacion:  String(p.razonClasificacion || ''),
-      nivelEvidencia:      String(p.nivelEvidencia || ''),
+      fragmento:           repairMojibake(p.fragmento || '').slice(0, 200),
+      razonClasificacion:  repairMojibake(p.razonClasificacion || ''),
+      nivelEvidencia:      repairMojibake(p.nivelEvidencia || ''),
       paisOrigen:          '',
       fechaArticulo:       '',
       actorPrincipal:      '',
@@ -1730,12 +1859,12 @@ Devuelve SOLO JSON vÃ¡lido, sin markdown, sin comentarios y sin texto adiciona
       fundamentoAnalitico: '',
       senalesSoporte:      [],
       nivel:               '',
-      horizonteTemporal:   p.horizonteTemporal ? String(p.horizonteTemporal) : null,
-      tendenciasSoporte:   Array.isArray(p.tendenciasSoporte) ? p.tendenciasSoporte.map(String) : [],
-      topico:              String(p.topico || ''),
+      horizonteTemporal:   p.horizonteTemporal ? repairMojibake(p.horizonteTemporal) : null,
+      tendenciasSoporte:   Array.isArray(p.tendenciasSoporte) ? normalizeScenarioArray(p.tendenciasSoporte) : [],
+      topico:              repairMojibake(p.topico || ''),
       referencias:         referenceUrls.length > 0
         ? referenceUrls
-        : (Array.isArray(p.referencias) ? uniqueStrings(p.referencias) : []),
+        : (Array.isArray(p.referencias) ? normalizeScenarioArray(p.referencias) : []),
     };
   });
 }
