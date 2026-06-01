@@ -237,7 +237,7 @@ function parseCicloParts(value) {
   if (!m) return null;
   const prefix = m[1] ? 'CPEL ' : '';
   const year = m[2];
-  const period = m[3] == null ? '00' : String(Number(m[3])).padStart(2, '0');
+  const period = m[3] == null ? null : String(Number(m[3])).padStart(2, '0');
   return { prefix, year, period };
 }
 
@@ -247,21 +247,17 @@ function canonicalCiclo(value) {
     const raw = String(value || '').trim().replace(/\s+/g, ' ');
     return { code: raw, label: raw, sort: raw };
   }
-  const code = `${parts.prefix}${parts.year}-${parts.period}`;
-  return { code, label: code, sort: `${parts.year}-${parts.period}-${parts.prefix || 'A'}` };
+  const code = parts.period == null ? `${parts.prefix}${parts.year}` : `${parts.prefix}${parts.year}-${parts.period}`;
+  const sortPeriod = parts.period == null ? '01-base' : `${parts.period}-explicit`;
+  return { code, label: code, sort: `${parts.year}-${sortPeriod}-${parts.prefix || 'A'}` };
 }
 
 function cicloVariants(value) {
   const parts = parseCicloParts(value);
   if (!parts) return [String(value || '').trim()].filter(Boolean);
+  if (parts.period == null) return [`${parts.prefix}${parts.year}`];
   const base = `${parts.prefix}${parts.year}`;
-  const n = String(Number(parts.period));
-  const variants = new Set([
-    `${base}-${parts.period}`,
-    `${base}-${n}`,
-  ]);
-  if (parts.period === '00') variants.add(base);
-  return [...variants];
+  return [...new Set([`${base}-${parts.period}`, `${base}-${String(Number(parts.period))}`])];
 }
 
 function addCicloFilter(where, params, ciclo) {

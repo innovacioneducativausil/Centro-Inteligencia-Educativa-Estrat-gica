@@ -573,7 +573,7 @@ function DonutChart({ segments, size = 120, stroke = 22, centerText, centerColor
   segments: DSeg[]; size?: number; stroke?: number; centerText?: string; centerColor?: string; showExtLabel?: boolean; extLabelAll?: boolean;
 }) {
   // pad reducido a 18 para que el SVG no crezca demasiado y los cards queden compactos
-  const pad   = showExtLabel ? 18 : 0;
+  const pad   = showExtLabel || extLabelAll ? 24 : 0;
   const cx    = size / 2 + pad;
   const cy    = size / 2 + pad;
   const r     = (size - stroke) / 2 - 2;
@@ -644,11 +644,10 @@ const normalizeProg = (p: string): string =>
 function TopBar({ label, pct, total, color, textColor }: {
   label: string; pct: number; total: number; color: string; textColor: string;
 }) {
-  const short = label.length > 38 ? label.slice(0, 36) + '…' : label;
   return (
     <div style={{ marginBottom: 9 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3, gap: 6 }}>
-        <span style={{ fontSize: 10, fontWeight: 600, color: textColor, lineHeight: 1.3, flex: 1 }} title={label}>{short}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 3, gap: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 600, color: textColor, lineHeight: 1.25, flex: 1, minWidth: 0, overflowWrap: 'anywhere' }} title={label}>{label}</span>
         <span style={{ fontSize: 10, fontWeight: 800, color, whiteSpace: 'nowrap' }}>{total.toLocaleString()} · {pct}%</span>
       </div>
       <div style={{ background: 'rgba(128,128,128,0.12)', borderRadius: 4, height: 7, overflow: 'hidden' }}>
@@ -1324,18 +1323,18 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                   {/* Leyenda: cuadrado + texto + porcentaje inline (pegado al texto) */}
-                  <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+                  <div style={{ flex: '1 1 220px', minWidth: 220 }}>
                     {rangosVis.map((r, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 7 }}>
                         <div style={{ width: 11, height: 11, borderRadius: 3, background: SALARY_COLORS[i % SALARY_COLORS.length], flexShrink: 0 }} />
-                        <span style={{ fontSize: 11, color: text, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>{r.rango}</span>
+                        <span style={{ fontSize: 11, color: text, lineHeight: 1.25, flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{r.rango}</span>
                         <span style={{ fontSize: 11, fontWeight: 800, color: SALARY_COLORS[i % SALARY_COLORS.length], flexShrink: 0 }}>{r.pct}%</span>
                       </div>
                     ))}
                   </div>
                   {/* Donut */}
                   <div style={{ flexShrink: 0 }}>
-                    <DonutChart segments={rangoSegs} size={148} stroke={30} />
+                    <DonutChart segments={rangoSegs} size={132} stroke={28} extLabelAll />
                   </div>
                 </div>
               )}
@@ -1439,14 +1438,14 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
           return (
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
               <div style={{ flexShrink: 0 }}>
-                <DonutChart segments={segs} size={90} stroke={20} centerColor={C1} />
+                <DonutChart segments={segs} size={84} stroke={18} centerColor={C1} extLabelAll />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 {items.map((it, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                     <div style={{ width: 8, height: 8, borderRadius: 2, background: SALARY_COLORS[i] || '#94a3b8', flexShrink: 0 }} />
-                    <span style={{ fontSize: 10, color: text, flex: 1, minWidth: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</span>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: SALARY_COLORS[i] || '#94a3b8' }}>{it.pct}%</span>
+                    <span style={{ fontSize: 10, color: text, flex: 1, minWidth: 0, lineHeight: 1.25, overflowWrap: 'anywhere' }}>{it.label}</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: SALARY_COLORS[i] || '#94a3b8', whiteSpace: 'nowrap' }}>{it.pct}%</span>
                   </div>
                 ))}
               </div>
