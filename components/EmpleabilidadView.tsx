@@ -1321,7 +1321,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               {rangosVis.length === 0 ? (
                 <div style={{ color: muted, fontSize: 12, textAlign: 'center', padding: 16 }}>Sin datos</div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 28, minWidth: 0 }}>
                   {/* Leyenda: cuadrado + texto + porcentaje inline (pegado al texto) */}
                   <div style={{ flex: '1 1 220px', minWidth: 220 }}>
                     {rangosVis.map((r, i) => (
@@ -1333,7 +1333,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                     ))}
                   </div>
                   {/* Donut */}
-                  <div style={{ flexShrink: 0 }}>
+                  <div style={{ flexShrink: 0, marginLeft: 8 }}>
                     <DonutChart segments={rangoSegs} size={132} stroke={28} extLabelAll />
                   </div>
                 </div>
@@ -1436,8 +1436,8 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
         const MiniDonut = ({ items }: { items: StatItem[] }) => {
           const segs = items.map((it, i) => ({ pct: it.pct, color: SALARY_COLORS[i] || '#94a3b8' }));
           return (
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
-              <div style={{ flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 28, alignItems: 'center', minWidth: 0 }}>
+              <div style={{ flexShrink: 0, marginRight: 8 }}>
                 <DonutChart segments={segs} size={84} stroke={18} centerColor={C1} extLabelAll />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
