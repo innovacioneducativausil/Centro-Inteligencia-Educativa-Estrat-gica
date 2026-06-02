@@ -409,6 +409,19 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     if (!pdfTexto || pdfTexto.trim().length < 100) { setAiError('Primero sube el PDF del artículo.'); return; }
 
     setAiError(null);
+    if (!syncMode) {
+      try {
+        const existsRes = await fetch(`/api/importar/topico-existe?topico=${encodeURIComponent(topico.trim())}`, { headers: authH() });
+        const existsData = await existsRes.json();
+        if (existsRes.ok && existsData.exists) {
+          setAiError('Este tópico ya existe en la BD. Para corregir o completar información, selecciona "Revisar topico existente" / actualizar artículo.');
+          return;
+        }
+      } catch {
+        setAiError('No se pudo validar si el tópico ya existe. Intenta nuevamente.');
+        return;
+      }
+    }
     setStep('procesando');
     const fuenteDoc = (fuente || topico).trim();
     const all: PropuestaImportacion[] = [];

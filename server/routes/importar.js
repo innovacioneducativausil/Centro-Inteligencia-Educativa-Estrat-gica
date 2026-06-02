@@ -146,6 +146,26 @@ async function loadExistingByTopic(topicoNombre) {
 }
 
 /** Encuentra o crea un tópico por nombre. Devuelve id_topico (int). */
+router.get('/importar/topico-existe', adminOnly, async (req, res) => {
+  try {
+    const topico = String(req.query.topico || '').trim();
+    if (!topico) return res.json({ exists: false, counts: { senal: 0, tendencia: 0, escenario: 0 } });
+
+    const existing = await loadExistingByTopic(topico);
+    const counts = {
+      senal: existing.senal?.length || 0,
+      tendencia: existing.tendencia?.length || 0,
+      escenario: existing.escenario?.length || 0,
+    };
+    res.json({
+      exists: Boolean(counts.senal || counts.tendencia || counts.escenario),
+      counts,
+    });
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
 async function findOrCreateTopico(nombre) {
   if (!nombre?.trim()) return null;
   const n = nombre.trim();
