@@ -688,7 +688,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
   // ── Vista de monitoreo (tab monitoreo, solo correos autorizados) ──
   if (activeTab === 'monitoreo') {
-    return <MonitoreoView themeColors={themeColors} />;
+    return <MonitoreoView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
   }
 
   // ── Vista de importación (tab importar) ──────────────────

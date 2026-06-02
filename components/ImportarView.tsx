@@ -20,11 +20,18 @@ interface ImportarViewProps { themeColors: ThemeColors; onVolver: () => void; }
 type Step         = 'fuente' | 'procesando' | 'revision' | 'confirmado';
 type TabRevision  = 'senales' | 'tendencias' | 'escenarios' | 'relaciones';
 type ProgresoStep = 'idle' | 'loading' | 'done' | 'error';
+type SyncAction = 'crear' | 'actualizar' | 'ignorar';
+type SyncStatus = 'faltante' | 'diferente' | 'existente';
 
 interface PdfInfo { pages: number; chars: number; links: number; }
 
 interface PropuestaLocal extends PropuestaImportacion {
   decision:      'pendiente' | 'aprobada' | 'rechazada';
+  syncAction?:   SyncAction;
+  syncStatus?:   SyncStatus;
+  syncMessage?:  string;
+  existingId?:   string;
+  existingTitle?: string;
   pestelIds:     string[];   // múltiples PESTEL
   sectorIds:     string[];   // múltiples sectores
   editTitulo:    string;
@@ -178,6 +185,8 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
   const [saveError,  setSaveError]  = useState<string | null>(null);
   const [saving,     setSaving]     = useState(false);
   const [resultado,  setResultado]  = useState<any>(null);
+  const [syncMode,   setSyncMode]   = useState(false);
+  const [syncSummary, setSyncSummary] = useState<Record<string, number> | null>(null);
 
   // Metadatos
   const [topico,    setTopico]    = useState('');
@@ -431,7 +440,50 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
       upd('relaciones', 'done');
     } catch { upd('relaciones', 'error'); }
 
-    setPropuestas(all.map(toLocal));
+    let localItems = all.map(toLocal);
+    setSyncSummary(null);
+    if (syncMode) {
+      try {
+        const r = await fetch('/api/importar/revisar', {
+          method: 'POST',
+          headers: authH(),
+          body: JSON.stringify({
+            topico: topico.trim(),
+            propuestas: all.map(item => ({
+              id: item.id,
+              tipo: item.tipo,
+              titulo: item.titulo,
+              nombre: item.nombre,
+              descCorta: item.descCorta,
+              urlFuente: item.urlFuente,
+              urlsFuente: item.urlsFuente,
+            })),
+          }),
+        });
+        const d = await r.json();
+        if (r.ok && Array.isArray(d.items)) {
+          const byId = new Map(d.items.map((item: any) => [item.localId, item]));
+          localItems = localItems.map(item => {
+            const meta: any = byId.get(item.id);
+            if (!meta) return item;
+            return {
+              ...item,
+              syncAction: meta.accion,
+              syncStatus: meta.estado,
+              syncMessage: meta.mensaje,
+              existingId: meta.existing?.id,
+              existingTitle: meta.existing?.titulo,
+              decision: meta.accion === 'ignorar' ? 'rechazada' : 'aprobada',
+            };
+          });
+          setSyncSummary(d.resumen || null);
+        }
+      } catch {
+        setAiError('No se pudo comparar con la BD. Puedes revisar manualmente las propuestas.');
+      }
+    }
+
+    setPropuestas(localItems);
     const nSen  = all.filter(p => p.tipo === 'senal').length;
     const nTend = all.filter(p => p.tipo === 'tendencia').length;
     const nEsc  = all.filter(p => p.tipo === 'escenario').length;
@@ -441,7 +493,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
 
   // ── Confirmar aprobadas ─────────────────────────────────────
   const handleConfirmar = async () => {
-    const aprobadas = propuestas.filter(p => p.decision === 'aprobada');
+    const aprobadas = propuestas.filter(p => p.decision === 'aprobada' && p.syncAction !== 'ignorar');
     if (aprobadas.length === 0) { setSaveError('Aprueba al menos una propuesta.'); return; }
     const sinCampos = aprobadas.filter(p => p.pestelIds.length === 0 || p.sectorIds.length === 0);
     if (sinCampos.length) { setSaveError('Todas las aprobadas necesitan al menos un PESTEL y un Sector.'); return; }
@@ -457,6 +509,8 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
           propuestas: aprobadas.map(p => ({
             id:                p.id,
             tipo:              p.tipo,
+            syncAction:        p.syncAction || 'crear',
+            existingId:        p.existingId,
             titulo:            (p.editTitulo || p.titulo).trim(),
             nombre:            (p.editNombre || p.nombre || p.editTitulo || p.titulo).trim().slice(0, 55),
             descCorta:         (p.editDescCorta || p.descCorta).trim(),
@@ -500,6 +554,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     setPdfFile(null); setPdfTexto(''); setPdfInfo(null); setPdfError(null);
     setPreviewOpen(false);
     setPropuestas([]); setRelaciones([]);
+    setSyncSummary(null);
     setAiError(null); setSaveError(null); setResultado(null);
     setProgreso({ senales: 'idle', tendencias: 'idle', escenarios: 'idle', relaciones: 'idle' });
   };
@@ -513,7 +568,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
   const nTend = propuestas.filter(p => p.tipo === 'tendencia').length;
   const nEsc  = propuestas.filter(p => p.tipo === 'escenario').length;
   const nRel  = relaciones.length;
-  const nApr  = propuestas.filter(p => p.decision === 'aprobada').length;
+  const nApr  = propuestas.filter(p => p.decision === 'aprobada' && p.syncAction !== 'ignorar').length;
 
   const STEPS       = ['fuente', 'procesando', 'revision', 'confirmado'];
   const STEP_LABELS = ['1. Fuente', '2. Análisis IA', '3. Revisión', '4. Guardado'];
@@ -555,6 +610,15 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: ts.bg, color: ts.text }}>
                 {ts.label}
               </span>
+              {syncMode && prop.syncStatus && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: prop.syncStatus === 'faltante' ? '#dcfce7' : prop.syncStatus === 'diferente' ? '#fef3c7' : '#e2e8f0',
+                    color: prop.syncStatus === 'faltante' ? '#15803d' : prop.syncStatus === 'diferente' ? '#92400e' : '#475569',
+                  }}>
+                  {prop.syncStatus === 'faltante' ? 'Falta en BD' : prop.syncStatus === 'diferente' ? 'Actualizar existente' : 'Ya existe'}
+                </span>
+              )}
               {prop.pestelIds.length > 0
                 ? prop.pestelIds.map(pid => {
                     const p = pestels.find(x => x.id_pestel === pid);
@@ -612,6 +676,11 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
               style={{ color: '#9ca3af' }}
               placeholder="nombre-corto (3-5 palabras)"
             />
+            {syncMode && prop.syncMessage && (
+              <p className="text-[11px] mt-1" style={{ color: prop.syncStatus === 'diferente' ? '#f59e0b' : prop.syncStatus === 'faltante' ? '#16a34a' : '#94a3b8' }}>
+                {prop.syncMessage}{prop.existingTitle ? `: ${prop.existingTitle}` : ''}
+              </p>
+            )}
             {/* Desc corta */}
             <textarea
               value={prop.editDescCorta} maxLength={200} rows={2}
@@ -622,13 +691,33 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
             />
           </div>
           <div className="flex flex-col gap-1.5 flex-shrink-0">
-            <button type="button" onClick={() => updateProp(prop.id, { decision: isAp ? 'pendiente' : 'aprobada' })}
+            {syncMode && prop.syncStatus && (
+              <select
+                value={prop.syncAction || 'crear'}
+                onChange={e => {
+                  const action = e.target.value as SyncAction;
+                  updateProp(prop.id, {
+                    syncAction: action,
+                    decision: action === 'ignorar' ? 'rechazada' : 'aprobada',
+                  });
+                }}
+                className="px-2 py-1 rounded-lg text-[11px] font-semibold border outline-none"
+                style={{ backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#0f172a', borderColor: isDark ? '#334155' : '#d1d5db' }}>
+                <option value="crear">Crear</option>
+                {prop.existingId && <option value="actualizar">Actualizar</option>}
+                <option value="ignorar">Ignorar</option>
+              </select>
+            )}
+            <button type="button" onClick={() => updateProp(prop.id, {
+              decision: isAp ? 'pendiente' : 'aprobada',
+              syncAction: !isAp && prop.syncAction === 'ignorar' ? (prop.existingId ? 'actualizar' : 'crear') : prop.syncAction,
+            })}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
               style={{ backgroundColor: isAp ? '#22c55e' : (isDark ? '#1e293b' : '#f0fdf4'), color: isAp ? '#fff' : '#16a34a', border: `1px solid ${isAp ? '#22c55e' : '#bbf7d0'}` }}>
               <span className="material-symbols-outlined" style={{ fontSize: 13 }}>{isAp ? 'check_circle' : 'check'}</span>
               {isAp ? 'Aprobada' : 'Aprobar'}
             </button>
-            <button type="button" onClick={() => updateProp(prop.id, { decision: isRe ? 'pendiente' : 'rechazada' })}
+            <button type="button" onClick={() => updateProp(prop.id, { decision: isRe ? 'pendiente' : 'rechazada', syncAction: isRe ? prop.syncAction : 'ignorar' })}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
               style={{ backgroundColor: isRe ? '#ef4444' : (isDark ? '#1e293b' : '#fef2f2'), color: isRe ? '#fff' : '#dc2626', border: `1px solid ${isRe ? '#ef4444' : '#fecaca'}` }}>
               <span className="material-symbols-outlined" style={{ fontSize: 13 }}>close</span>
@@ -875,6 +964,13 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
         <button onClick={onVolver} className="hover:underline" style={{ color: '#1978e5' }}>Gestión</button>
         <span className="material-symbols-outlined" style={{ fontSize: 14 }}>chevron_right</span>
         <span className={themeColors.headerText}>Importar Artículo</span>
+        <button
+          type="button"
+          onClick={onVolver}
+          className="ml-auto px-3 py-1.5 rounded-lg border text-xs font-semibold"
+          style={{ borderColor: isDark ? '#334155' : '#cbd5e1', color: isDark ? '#e2e8f0' : '#334155' }}>
+          Volver a Gestion
+        </button>
       </nav>
 
       {/* Stepper */}
@@ -906,6 +1002,26 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
             <p className="text-xs" style={{ color: '#6b7280' }}>
               El sistema extrae todo el texto e hipervínculos del PDF, luego la IA clasifica señales, tendencias y escenarios con metodología WEF.
             </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              { value: false, title: 'Importar articulo nuevo', desc: 'Crea los elementos aprobados como publicados.' },
+              { value: true, title: 'Revisar topico existente', desc: 'Compara con la BD y propone crear faltantes o actualizar diferencias.' },
+            ].map(opt => (
+              <button
+                key={String(opt.value)}
+                type="button"
+                onClick={() => setSyncMode(opt.value)}
+                className="text-left rounded-xl border px-4 py-3 transition-all"
+                style={{
+                  borderColor: syncMode === opt.value ? '#1978e5' : (isDark ? '#334155' : '#e2e8f0'),
+                  backgroundColor: syncMode === opt.value ? (isDark ? '#102a43' : '#eff6ff') : (isDark ? '#0f172a' : '#fff'),
+                }}>
+                <p className="text-sm font-bold" style={{ color: syncMode === opt.value ? '#1978e5' : (isDark ? '#e2e8f0' : '#0f172a') }}>{opt.title}</p>
+                <p className="text-xs mt-1" style={{ color: '#94a3b8' }}>{opt.desc}</p>
+              </button>
+            ))}
           </div>
 
           {/* Zona de carga del PDF */}
@@ -1087,6 +1203,15 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
             </div>
           </div>
 
+          {syncMode && syncSummary && (
+            <div className={`${cardCls} px-5 py-3 flex flex-wrap items-center gap-3 text-xs`}>
+              <span className="font-bold" style={{ color: isDark ? '#e2e8f0' : '#0f172a' }}>RevisiÃ³n contra BD:</span>
+              <span style={{ color: '#16a34a' }}>{syncSummary.faltante || 0} faltantes para crear</span>
+              <span style={{ color: '#f59e0b' }}>{syncSummary.diferente || 0} con diferencias para actualizar</span>
+              <span style={{ color: '#64748b' }}>{syncSummary.existente || 0} ya existentes sin cambios principales</span>
+            </div>
+          )}
+
           <div className={`inline-flex p-1 rounded-xl border ${themeColors.cardBg} ${themeColors.cardBorder}`}>
             {([ ['senales','SEÑALES',nSen], ['tendencias','TENDENCIAS',nTend], ['escenarios','ESCENARIOS',nEsc], ['relaciones','RELACIONES',nRel] ] as [TabRevision, string, number][]).map(([key, label, count]) => (
               <button key={key} onClick={() => setTabRev(key)}
@@ -1105,7 +1230,11 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
                   (tabRev === 'senales' && p.tipo === 'senal') ||
                   (tabRev === 'tendencias' && p.tipo === 'tendencia') ||
                   (tabRev === 'escenarios' && p.tipo === 'escenario')
-                    ? { ...p, decision: 'aprobada' } : p
+                    ? {
+                        ...p,
+                        decision: p.syncAction === 'ignorar' ? 'rechazada' : 'aprobada',
+                        syncAction: p.syncAction === 'ignorar' ? 'ignorar' : (p.syncAction || 'crear'),
+                      } : p
                 ))}
                 className="text-xs font-semibold px-3 py-1 rounded-full border" style={{ borderColor: '#22c55e', color: '#16a34a' }}>
                 Aprobar todas
@@ -1185,7 +1314,9 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
           </div>
           <div>
             <h2 className={`text-xl font-bold mb-2 ${themeColors.headerText}`}>
-              {resultado.creados > 0 ? `${resultado.creados} elemento${resultado.creados !== 1 ? 's' : ''} guardados como publicado${resultado.creados !== 1 ? 's' : ''}` : 'Sin elementos guardados'}
+              {(resultado.procesados ?? resultado.creados) > 0
+                ? `${resultado.procesados ?? resultado.creados} elemento${(resultado.procesados ?? resultado.creados) !== 1 ? 's' : ''} procesado${(resultado.procesados ?? resultado.creados) !== 1 ? 's' : ''}`
+                : 'Sin elementos guardados'}
             </h2>
             {resultado.topicoNombre && (
               <p className="text-sm mb-1" style={{ color: '#6b7280' }}>
@@ -1195,6 +1326,11 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
             {resultado.relaciones > 0 && (
               <p className="text-sm" style={{ color: '#6b7280' }}>
                 + {resultado.relaciones} relación{resultado.relaciones !== 1 ? 'es' : ''} creada{resultado.relaciones !== 1 ? 's' : ''}
+              </p>
+            )}
+            {typeof resultado.actualizados === 'number' && resultado.actualizados > 0 && (
+              <p className="text-sm" style={{ color: '#6b7280' }}>
+                {resultado.creados || 0} creados - {resultado.actualizados} actualizados
               </p>
             )}
             <p className="text-xs mt-2" style={{ color: '#9ca3af' }}>

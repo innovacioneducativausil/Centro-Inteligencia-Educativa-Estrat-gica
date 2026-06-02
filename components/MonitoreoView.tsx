@@ -4,6 +4,7 @@ import { ThemeColors } from '../types';
 
 interface MonitoreoViewProps {
   themeColors: ThemeColors;
+  onVolver?: () => void;
 }
 
 interface ActividadRow {
@@ -46,7 +47,7 @@ function fmtFecha(s: string) {
 
 const PAGE_LIMIT = 50;
 
-const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors }) => {
+const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) => {
   const isDark = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
 
   const [rows, setRows]         = useState<ActividadRow[]>([]);
@@ -118,14 +119,24 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors }) => {
     <div style={{ padding: '32px 32px 0' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#e2e8f0' : '#0F2A3F', marginBottom: 4 }}>
-          Monitoreo de Actividad
-        </h2>
-        <p style={{ fontSize: 12, color: '#94a3b8' }}>
-          Registro de acciones de usuarios en el sistema.{' '}
-          <span style={{ fontWeight: 600, color: '#0D9488' }}>{total.toLocaleString()}</span> eventos registrados.
-        </p>
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#e2e8f0' : '#0F2A3F', marginBottom: 4 }}>
+            Monitoreo de Actividad
+          </h2>
+          <p style={{ fontSize: 12, color: '#94a3b8' }}>
+            Registro de acciones de usuarios en el sistema.{' '}
+            <span style={{ fontWeight: 600, color: '#0D9488' }}>{total.toLocaleString()}</span> eventos registrados.
+          </p>
+        </div>
+        {onVolver && (
+          <button
+            type="button"
+            onClick={onVolver}
+            style={{ border: '1px solid #cbd5e1', background: isDark ? '#0f172a' : '#fff', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+            Volver a GestiÃ³n
+          </button>
+        )}
       </div>
 
       {/* Filtros */}
