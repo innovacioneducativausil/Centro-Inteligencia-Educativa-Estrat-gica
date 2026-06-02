@@ -134,7 +134,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
             type="button"
             onClick={onVolver}
             style={{ border: '1px solid #cbd5e1', background: isDark ? '#0f172a' : '#fff', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-            Volver a GestiÃ³n
+            Volver a Gestión
           </button>
         )}
       </div>
