@@ -567,6 +567,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
           topico:    topico.trim(),
           fuente:    (fuente || topico).trim(),
           urlFuente: urlFuente.trim(),
+          modoRevision: syncMode,
           propuestas: aprobadas.map(p => ({
             id:                p.id,
             tipo:              p.tipo,

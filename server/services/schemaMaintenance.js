@@ -1,6 +1,6 @@
 import db from '../db.js';
 
-async function ensureColumn(table, column, definition) {
+export async function ensureColumn(table, column, definition) {
   const [rows] = await db.query(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, [column]);
   if (rows.length) return;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -20,4 +20,5 @@ export async function ensureRadarSchemaSupport() {
   await ensureColumn('senal', 'fecha_senal_articulo', 'DATE NULL');
   await ensureColumn('tendencia', 'autor', 'VARCHAR(160) NULL');
   await ensureColumn('escenario', 'autor', 'VARCHAR(160) NULL');
+  await ensureColumn('escenario', 'referencias_escenario', 'TEXT NULL DEFAULT NULL');
 }

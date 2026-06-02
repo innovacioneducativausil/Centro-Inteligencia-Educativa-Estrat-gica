@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import db             from '../db.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { sanitizeRichHtml } from '../utils/security.js';
+import { ensureRadarSchemaSupport } from '../services/schemaMaintenance.js';
 
 const router = Router();
 
@@ -256,15 +257,17 @@ router.post('/importar/revisar', adminOnly, async (req, res) => {
  * Respuesta: { creados, ids, relaciones, errores, topicoId, topicoNombre }
  */
 router.post('/importar/confirmar', adminOnly, async (req, res) => {
-  const { topico = '', fuente = '', urlFuente = '', propuestas, relaciones = [] } = req.body;
+  const { topico = '', fuente = '', urlFuente = '', propuestas, relaciones = [], modoRevision = false } = req.body;
 
   if (!Array.isArray(propuestas) || propuestas.length === 0) {
     return res.status(400).json({ error: 'No hay propuestas para confirmar.' });
   }
+  await ensureRadarSchemaSupport();
 
   const usuarioId    = req.user.id;
   const creados      = [];  // { localId, realId, tipo, titulo }
   const errores      = [];
+  const omitidos      = [];
 
   // 1. Crear/encontrar tópico del artículo (ancla de trazabilidad)
   // Prioridad: topico del formulario (nivel documento) — lo pasamos al loop
@@ -424,6 +427,11 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
         // Anti-colisión por título o nombre
         const dup = await findDuplicateTitleOrName('senal', tituloFin, nombreFin);
         if (dup) {
+          if (modoRevision) {
+            localToReal.set(localId, { realId: dup.id, tipo });
+            omitidos.push({ localId, realId: dup.id, tipo, titulo: tituloFin, motivo: 'Ya existia una senal con ese titulo o nombre.' });
+            continue;
+          }
           errores.push({ id: localId, titulo: tituloFin, error: `Ya existe una señal con ese ${dup.field} (duplicado omitido).` });
           continue;
         }
@@ -458,6 +466,11 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
         // Anti-colisión por título o nombre
         const dup = await findDuplicateTitleOrName('tendencia', tituloFin, nombreFin);
         if (dup) {
+          if (modoRevision) {
+            localToReal.set(localId, { realId: dup.id, tipo });
+            omitidos.push({ localId, realId: dup.id, tipo, titulo: tituloFin, motivo: 'Ya existia una tendencia con ese titulo o nombre.' });
+            continue;
+          }
           errores.push({ id: localId, titulo: tituloFin, error: `Ya existe una tendencia con ese ${dup.field} (duplicado omitido).` });
           continue;
         }
@@ -500,6 +513,11 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
         // Anti-colisión por título o nombre
         const dup = await findDuplicateTitleOrName('escenario', tituloFin, nombreFin);
         if (dup) {
+          if (modoRevision) {
+            localToReal.set(localId, { realId: dup.id, tipo });
+            omitidos.push({ localId, realId: dup.id, tipo, titulo: tituloFin, motivo: 'Ya existia un escenario con ese titulo o nombre.' });
+            continue;
+          }
           errores.push({ id: localId, titulo: tituloFin, error: `Ya existe un escenario con ese ${dup.field} (duplicado omitido).` });
           continue;
         }
@@ -625,6 +643,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
     actualizados: creados.filter(x => x.accion === 'actualizado').length,
     procesados:   creados.length,
     ids:          creados,
+    omitidos,
     relaciones:   relacionesCreadas,
     errores,
     topicoId,
