@@ -1,5 +1,5 @@
 // server/routes/importar.js — Importación de artículos con clasificación IA
-// POST /api/importar/confirmar — Guarda propuestas aprobadas como borradores
+// POST /api/importar/confirmar — Guarda propuestas aprobadas como publicadas
 import { Router }     from 'express';
 import { randomUUID } from 'crypto';
 import db             from '../db.js';
@@ -204,7 +204,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
               url_imagen_senal, url_video_senal,
               pais_origen, fecha_senal_articulo,
               id_topico, id_estado, id_usuario_creador, fecha_publicacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 3, ?, NULL)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())`,
           [newId, tituloFin, nombreFin, descCortaFin, descLargaFin,
            razonCambioFin, fuenteFin, urlFuenteFin,
            urlImagenFin, urlVideoFin,
@@ -231,7 +231,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
               fuente_tendencia, url_fuente,
               url_imagen_tendencia, url_video_tendencia,
               autor, id_topico, id_estado, id_usuario_creador, fecha_publicacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 3, ?, NULL)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())`,
           [newId, tituloFin, nombreFin, descCortaFin, descLargaFin,
            razonCambioFin, fuenteFin, urlFuenteFin,
            urlImagen?.trim() || null, urlVideo?.trim() || null,
@@ -297,7 +297,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
               referencias_escenario,
               horizonte_escenario, probabilidad,
               autor, id_topico, id_estado, id_usuario_creador, fecha_publicacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 3, ?, NULL)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())`,
           [newId, tituloFin, nombreFin, descCortaFin, descLargaFin,
            razonCambioFin, fuenteFin, urlFuenteStored,
            urlImagen?.trim() || null, urlVideo?.trim() || null,

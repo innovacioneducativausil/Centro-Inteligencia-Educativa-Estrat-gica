@@ -341,4 +341,120 @@ router.get('/ai/og-image', async (req, res) => {
   }
 });
 
+function htmlAttrDecode(value = '') {
+  return String(value)
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+}
+
+function toDateOnly(value) {
+  if (!value) return null;
+  const raw = htmlAttrDecode(String(value));
+  const iso = raw.match(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/);
+  if (iso) {
+    const y = iso[1];
+    const m = iso[2].padStart(2, '0');
+    const d = iso[3].padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const parsed = Date.parse(raw);
+  if (Number.isNaN(parsed)) return null;
+  return new Date(parsed).toISOString().slice(0, 10);
+}
+
+function pickMeta(html, ...names) {
+  for (const name of names) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const patterns = [
+      new RegExp(`<meta[^>]+(?:property|name|itemprop)=["']${escaped}["'][^>]+content=["']([^"']+)["']`, 'i'),
+      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name|itemprop)=["']${escaped}["']`, 'i'),
+    ];
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) return htmlAttrDecode(match[1]);
+    }
+  }
+  return null;
+}
+
+function pickArticleDate(html) {
+  const direct = pickMeta(
+    html,
+    'article:published_time',
+    'article:modified_time',
+    'datePublished',
+    'datepublished',
+    'date',
+    'pubdate',
+    'publishdate',
+    'publish_date',
+    'DC.date.issued',
+    'parsely-pub-date',
+    'sailthru.date'
+  );
+  const fromMeta = toDateOnly(direct);
+  if (fromMeta) return fromMeta;
+
+  const jsonLdMatches = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+  for (const script of jsonLdMatches) {
+    const body = script.replace(/^<script[^>]*>/i, '').replace(/<\/script>$/i, '').trim();
+    const dateMatch = body.match(/"datePublished"\s*:\s*"([^"]+)"/i)
+      || body.match(/"dateCreated"\s*:\s*"([^"]+)"/i)
+      || body.match(/"dateModified"\s*:\s*"([^"]+)"/i);
+    const parsed = toDateOnly(dateMatch?.[1]);
+    if (parsed) return parsed;
+  }
+
+  const timeMatch = html.match(/<time[^>]+datetime=["']([^"']+)["']/i);
+  return toDateOnly(timeMatch?.[1]);
+}
+
+function pickArticleImage(html, baseUrl) {
+  const image = pickMeta(
+    html,
+    'og:image:secure_url',
+    'og:image',
+    'twitter:image:src',
+    'twitter:image',
+    'image'
+  ) || html.match(/<img[^>]+(?:data-src|src)=["']([^"']+\.(?:jpg|jpeg|png|webp)(?:\?[^"']*)?)["']/i)?.[1];
+  if (!image) return null;
+  try { return new URL(htmlAttrDecode(image), baseUrl).href; } catch { return null; }
+}
+
+/**
+ * GET /api/ai/article-metadata?url=https://...
+ * Extracts publication date and image from source article metadata.
+ */
+router.get('/ai/article-metadata', async (req, res) => {
+  const { url } = req.query;
+  if (!url || typeof url !== 'string' || !(await isSafePublicHttpUrl(url))) {
+    return res.json({ image: null, articleDate: null });
+  }
+
+  try {
+    const response = await fetch(url, {
+      redirect: 'manual',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; RADAR-Scraper/1.0)',
+        Accept: 'text/html,application/xhtml+xml',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return res.json({ image: null, articleDate: null });
+
+    const html = await response.text();
+    return res.json({
+      image: pickArticleImage(html, url),
+      articleDate: pickArticleDate(html),
+    });
+  } catch {
+    return res.json({ image: null, articleDate: null });
+  }
+});
+
 export default router;

@@ -511,6 +511,54 @@ function extractSection(texto: string, keywords: string[], maxChars = 8000, minP
   return texto.slice(minPos, minPos + maxChars);
 }
 
+type NumberedSectionBlock = {
+  number: number;
+  label: string;
+  title: string;
+  text: string;
+};
+
+function extractNumberedSectionBlocks(texto: string, sectionNumber: number, minBlockChars = 450): NumberedSectionBlock[] {
+  const rx = new RegExp(`(?:^|\\n)\\s*${sectionNumber}\\.(\\d{1,2})\\s+([^\\n]{3,160})`, 'g');
+  const matches: { number: number; start: number; label: string; title: string }[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = rx.exec(texto)) !== null) {
+    const number = Number.parseInt(match[1], 10);
+    const title = repairMojibake(match[2])
+      .replace(/\s+\d{1,3}\s*$/, '')
+      .trim();
+    if (!number || !title || /^referencias$/i.test(title)) continue;
+    matches.push({
+      number,
+      start: match.index + (match[0].startsWith('\n') ? 1 : 0),
+      label: `${sectionNumber}.${number}`,
+      title,
+    });
+  }
+
+  const bestByNumber = new Map<number, NumberedSectionBlock>();
+  for (let i = 0; i < matches.length; i++) {
+    const current = matches[i];
+    const next = matches[i + 1];
+    let blockText = texto.slice(current.start, next ? next.start : texto.length);
+    blockText = blockText.split(/\n\s*(?:Referencias|Sobre Inteligencia Estrategica|Sobre Inteligencia Estratégica|Colaboradores|Agradecimientos)\b/i)[0].trim();
+    if (blockText.length < minBlockChars) continue;
+
+    const existing = bestByNumber.get(current.number);
+    if (!existing || blockText.length > existing.text.length) {
+      bestByNumber.set(current.number, {
+        number: current.number,
+        label: current.label,
+        title: current.title,
+        text: blockText,
+      });
+    }
+  }
+
+  return Array.from(bestByNumber.values()).sort((a, b) => a.number - b.number);
+}
+
 /** Convierte nombre PESTEL completo a letra cÃ³digo (P/E/S/T/A/L) */
 const PESTEL_LETRA: Record<string, string> = {
   'polÃ­tico': 'P', 'politico': 'P',
@@ -1144,13 +1192,136 @@ export async function extraerTendencias(
     ? sectors.join('\n')
     : 'Salud\nLogÃ­stica\nFinanzas\nEducaciÃ³n\nEnergÃ­a\nAeroespacial\nIndustria\nTecnologÃ­a de la InformaciÃ³n\nMinerÃ­a y Recursos Naturales\nAgroindustria\nConstrucciÃ³n e Infraestructura\nBiotecnologÃ­a y Ciencias de la Vida\nTurismo y HotelerÃ­a\nTelecomunicaciones\nMedioambiente y Sostenibilidad\nComercio y E-commerce\nGobierno y Sector PÃºblico\nMedios, ComunicaciÃ³n y Entretenimiento\nDefensa y Seguridad';
 
-  // Buscar secciÃ³n "Contexto estratÃ©gico" donde estÃ¡n las tendencias (5 subsecciones 3.1-3.5).
-  // Limitado para cubrir las 5 subsecciones sin arrastrar anexos completos.
+  const toTrendProposals = (arr: any[], temasByIndex: string[][] = []): PropuestaImportacion[] => {
+    const ts = Date.now();
+    return arr.map((p: any, i: number): PropuestaImportacion => {
+      const pNombres: string[] = Array.isArray(p.pestelNombres)
+        ? p.pestelNombres.map(String).filter(Boolean)
+        : String(p.pestelNombre || p.pestelLetra || '').split(';').map((s: string) => s.trim()).filter(Boolean);
+      const pNombre = pNombres.join('; ');
+      const sNombres: string[] = Array.isArray(p.sectorNombres)
+        ? p.sectorNombres.map(String).filter(Boolean)
+        : String(p.sectorNombre || p.id_sector || '').split(';').map((s: string) => s.trim()).filter(Boolean);
+      const temasRelacionados = temasByIndex[i]?.length
+        ? temasByIndex[i]
+        : (Array.isArray(p.temasRelacionados)
+          ? p.temasRelacionados.map(String).filter(Boolean)
+          : String(p.temasRelacionados || '').split(';').map((s: string) => s.trim()).filter(Boolean));
+      return {
+        id:                  `ten-${i}-${ts}`,
+        tipo:                'tendencia',
+        titulo:              String(p.titulo    || '').slice(0, 90),
+        nombre:              String(p.nombre    || p.titulo || '').replace(/_/g, ' ').slice(0, 55),
+        descCorta:           String(p.descCorta || '').slice(0, 200),
+        descLarga:           String(p.descLarga || ''),
+        fuente:              String(p.fuente || fuenteDoc),
+        urlFuente:           String(p.urlFuente || ''),
+        urlsFuente:          Array.isArray(p.urlsFuente)
+          ? uniqueStrings(p.urlsFuente.filter((u: any) => typeof u === 'string' && u.startsWith('http') && u !== String(p.urlFuente || '')))
+          : [],
+        urlImagen:           '',
+        urlVideo:            String(p.urlVideo  || ''),
+        probabilidad:        null,
+        temasRelacionados,
+        pestelNombre:        pNombre,
+        pestelLetra:         pestelToLetra(pNombre),
+        sectorNombre:        sNombres.join('; '),
+        fragmento:           String(p.fragmento    || '').slice(0, 200),
+        razonClasificacion:  String(p.razonClasificacion || ''),
+        nivelEvidencia:      String(p.nivelEvidencia || ''),
+        paisOrigen:          '',
+        fechaArticulo:       '',
+        actorPrincipal:      '',
+        accionDetectada:     '',
+        lugar:               null,
+        fechaMencionada:     null,
+        cifrasClave:         [],
+        tecnologiaOTema:     '',
+        definicionOperativa: String(p.definicionOperativa || ''),
+        fundamentoAnalitico: String(p.fundamentoAnalitico || ''),
+        senalesSoporte:      Array.isArray(p.senalesSoporte) ? p.senalesSoporte.map(String) : [],
+        nivel:               String(p.nivel || ''),
+        horizonteTemporal:   null,
+        tendenciasSoporte:   [],
+        topico:              '',
+        referencias:         [],
+      };
+    });
+  };
+
+  const trendBlocks = extractNumberedSectionBlocks(texto, 3);
+  if (trendBlocks.length > 0) {
+    const parsed: any[] = [];
+    const temasByIndex: string[][] = [];
+
+    for (const block of trendBlocks) {
+      const temas = extractTrendRelatedTopics(block.text)[0] || [];
+      const prompt = `
+Eres un asistente para registrar UNA tendencia en una base de datos de un Radar de innovacion.
+Idioma de salida: espanol. No uses fuentes externas ni inventes datos.
+
+Extrae solo la tendencia del bloque ${block.label}.
+
+Reglas:
+- titulo = encabezado del bloque, sin numeracion.
+- descCorta = linea breve inmediatamente debajo del titulo, si existe.
+- descLarga = cuerpo completo del bloque, sin incluir "Temas relacionados".
+- temasRelacionados = solo los temas de la linea "Temas relacionados:" del bloque.
+- fuente/urlFuente/urlImagen/urlVideo vacios si no aparecen explicitamente en el bloque.
+- pestelNombres debe usar solo: ["Social","Tecnologico","Economico","Ecologico","Politico","Legal"].
+- sectorNombres debe usar solo sectores de esta lista:
+${sectorList}
+- Si el bloque trata de un tema amplio del documento, clasifica con el sector mas cercano de la lista oficial.
+
+TEMAS RELACIONADOS PRE-EXTRAIDOS:
+${JSON.stringify(temas)}
+
+BLOQUE:
+${block.text}
+
+Devuelve SOLO JSON valido:
+{
+  "tendencias": [
+    {
+      "titulo": "",
+      "nombre": "",
+      "descCorta": "",
+      "descLarga": "",
+      "logica": "",
+      "fuente": "",
+      "urlFuente": "",
+      "urlImagen": "",
+      "urlVideo": "",
+      "pestelNombres": [],
+      "sectorNombres": [],
+      "paisOrigen": "",
+      "temasRelacionados": [],
+      "fragmento": ""
+    }
+  ]
+}
+`.trim();
+
+      const raw = await callImport(prompt, 2200);
+      const item = parseJSON<any>(raw, 'tendencias')[0];
+      if (item) {
+        parsed.push({
+          ...item,
+          titulo: item.titulo || block.title,
+          temasRelacionados: temas.length ? temas : item.temasRelacionados,
+        });
+        temasByIndex.push(temas);
+      }
+    }
+
+    if (parsed.length > 0) return toTrendProposals(parsed, temasByIndex);
+  }
+
+  // Fallback para PDFs sin encabezados 3.N reconocibles.
   const seccionTendencias = extractSection(texto, [
-    '3.1 navegar la revoluci\u00f3n digital', '3.1 navegar la revolucion digital',
     '3 contexto estratÃ©gico', 'contexto estratÃ©gico', 'contexto estrategico',
-    'contexto', 'tendencias estratÃ©gicas',
-  ], 18000, 3000);
+    'tendencias estratÃ©gicas',
+  ], 35000, 3000);
 
   // Pre-extraer "Temas relacionados:" con regex para no depender del AI.
   // Esto preserva todos los topicos secundarios del PDF, incluso cuando vienen compactados.
@@ -1174,10 +1345,9 @@ REGLAS CRÃTICAS
 - NO inventar datos.
 - Trabaja SOLO con el contenido del PDF proporcionado.
 - Si un campo no puede determinarse con evidencia suficiente, dejarlo vacÃ­o ("") o [] segÃºn corresponda.
-- NO crear mÃ¡s de 5 tendencias.
-- NO crear menos de 5 tendencias.
-- Debes extraer EXACTAMENTE las 5 tendencias de la secciÃ³n "3 Contexto estratÃ©gico":
-  3.1, 3.2, 3.3, 3.4 y 3.5.
+- NO crear un nÃºmero fijo artificial de tendencias.
+- Extrae todas las tendencias reales de la secciÃ³n "3 Contexto estratÃ©gico".
+- La cantidad depende del documento: puede ser 5, 7 u otro nÃºmero segÃºn las subsecciones 3.N presentes.
 
 ================================
 ALCANCE OBLIGATORIO
@@ -1198,11 +1368,7 @@ Ignora completamente:
 REGLA DE EXTRACCIÃ“N
 ================================
 Cada tendencia corresponde a una subsecciÃ³n numerada:
-- 3.1
-- 3.2
-- 3.3
-- 3.4
-- 3.5
+- 3.N
 
 Para cada una:
 - \`titulo\` = texto del encabezado de la subsecciÃ³n, SIN la numeraciÃ³n
@@ -1345,7 +1511,7 @@ REGLAS DE CONSISTENCIA
 - \`temasRelacionados\` debe salir de la lÃ­nea textual del bloque, no del grÃ¡fico
 - \`urlFuente\`, \`urlImagen\`, \`urlVideo\` deben ir vacÃ­os si el texto no los contiene explÃ­citamente
 - No inventar links
-- Debes devolver exactamente 5 objetos en \`tendencias\`
+- Debes devolver un objeto por cada subsecciÃ³n 3.N real encontrada en la secciÃ³n
 
 ================================
 CRITERIOS DE CLASIFICACIÃ“N MÃNIMA
@@ -1402,60 +1568,7 @@ Devuelve SOLO JSON vÃ¡lido, sin markdown y sin texto adicional.
 
   const raw = await callImport(prompt, 5000);
   const arr = parseJSON<any>(raw, 'tendencias');
-  const ts  = Date.now();
-  return arr.map((p: any, i: number): PropuestaImportacion => {
-    const pNombres: string[] = Array.isArray(p.pestelNombres)
-      ? p.pestelNombres.map(String).filter(Boolean)
-      : String(p.pestelNombre || p.pestelLetra || '').split(';').map((s: string) => s.trim()).filter(Boolean);
-    const pNombre = pNombres.join('; ');
-    const sNombres: string[] = Array.isArray(p.sectorNombres)
-      ? p.sectorNombres.map(String).filter(Boolean)
-      : String(p.sectorNombre || p.id_sector || '').split(';').map((s: string) => s.trim()).filter(Boolean);
-    const temasRelacionados = temasExtraidos[i]?.length
-      ? temasExtraidos[i]
-      : (Array.isArray(p.temasRelacionados)
-        ? p.temasRelacionados.map(String).filter(Boolean)
-        : String(p.temasRelacionados || '').split(';').map((s: string) => s.trim()).filter(Boolean));
-    return {
-      id:                  `ten-${i}-${ts}`,
-      tipo:                'tendencia',
-      titulo:              String(p.titulo    || '').slice(0, 90),
-      nombre:              String(p.nombre    || p.titulo || '').replace(/_/g, ' ').slice(0, 55),
-      descCorta:           String(p.descCorta || '').slice(0, 200),
-      descLarga:           String(p.descLarga || ''),
-      fuente:              String(p.fuente || fuenteDoc),
-      urlFuente:           String(p.urlFuente || ''),
-      urlsFuente:          Array.isArray(p.urlsFuente)
-        ? uniqueStrings(p.urlsFuente.filter((u: any) => typeof u === 'string' && u.startsWith('http') && u !== String(p.urlFuente || '')))
-        : [],
-      urlImagen:           '',
-      urlVideo:            String(p.urlVideo  || ''),
-      probabilidad:        null,
-      temasRelacionados,
-      pestelNombre:        pNombre,
-      pestelLetra:         pestelToLetra(pNombre),
-      sectorNombre:        sNombres.join('; '),
-      fragmento:           String(p.fragmento    || '').slice(0, 200),
-      razonClasificacion:  String(p.razonClasificacion || ''),
-      nivelEvidencia:      String(p.nivelEvidencia || ''),
-      paisOrigen:          '',
-      fechaArticulo:       '',
-      actorPrincipal:      '',
-      accionDetectada:     '',
-      lugar:               null,
-      fechaMencionada:     null,
-      cifrasClave:         [],
-      tecnologiaOTema:     '',
-      definicionOperativa: String(p.definicionOperativa || ''),
-      fundamentoAnalitico: String(p.fundamentoAnalitico || ''),
-      senalesSoporte:      Array.isArray(p.senalesSoporte) ? p.senalesSoporte.map(String) : [],
-      nivel:               String(p.nivel || ''),
-      horizonteTemporal:   null,
-      tendenciasSoporte:   [],
-      topico:              '',
-      referencias:         [],
-    };
-  });
+  return toTrendProposals(arr, temasExtraidos);
 }
 
 /**

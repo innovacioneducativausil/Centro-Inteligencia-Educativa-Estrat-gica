@@ -413,9 +413,13 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
         .filter(item => item.tipo === 'senal' && item.urlFuente)
         .map(async item => {
           try {
-            const r = await fetch(`/api/ai/og-image?url=${encodeURIComponent(item.urlFuente)}`, { headers: authH() });
+            const r = await fetch(`/api/ai/article-metadata?url=${encodeURIComponent(item.urlFuente)}`, { headers: authH() });
             const d = await r.json();
             if (d.image) item.urlImagen = d.image;
+            if (d.articleDate) {
+              item.fechaArticulo = d.articleDate;
+              item.fechaMencionada = d.articleDate;
+            }
           } catch { /* silencioso */ }
         })
     );
@@ -1167,7 +1171,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
               onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = '#16a34a'; }}
               onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#22c55e'; }}>
               {saving ? <Loader2 size={15} className="animate-spin" /> : <span className="material-symbols-outlined" style={{ fontSize: 17 }}>save</span>}
-              {saving ? 'Guardando…' : `Guardar ${nApr} elemento${nApr !== 1 ? 's' : ''} como borrador`}
+              {saving ? 'Guardando…' : `Guardar ${nApr} elemento${nApr !== 1 ? 's' : ''} como publicado${nApr !== 1 ? 's' : ''}`}
             </button>
           </div>
         </div>
@@ -1181,7 +1185,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
           </div>
           <div>
             <h2 className={`text-xl font-bold mb-2 ${themeColors.headerText}`}>
-              {resultado.creados > 0 ? `${resultado.creados} elemento${resultado.creados !== 1 ? 's' : ''} guardados como borrador` : 'Sin elementos guardados'}
+              {resultado.creados > 0 ? `${resultado.creados} elemento${resultado.creados !== 1 ? 's' : ''} guardados como publicado${resultado.creados !== 1 ? 's' : ''}` : 'Sin elementos guardados'}
             </h2>
             {resultado.topicoNombre && (
               <p className="text-sm mb-1" style={{ color: '#6b7280' }}>
@@ -1194,7 +1198,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
               </p>
             )}
             <p className="text-xs mt-2" style={{ color: '#9ca3af' }}>
-              Aparecerán en Señales / Tendencias / Escenarios con estado "Borrador". Edítalos y publícalos desde allí.
+              Aparecerán en Señales / Tendencias / Escenarios con estado "Publicado".
             </p>
           </div>
           {resultado.errores?.length > 0 && (
