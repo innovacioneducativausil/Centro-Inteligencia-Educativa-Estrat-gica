@@ -319,6 +319,40 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
   };
 
   // ── Seleccionar / cambiar PDF ────────────────────────────────
+  const resolveTaxonomyIds = (p: PropuestaLocal): PropuestaLocal => {
+    const norm = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const pestelIds = [...p.pestelIds];
+    if (pestelIds.length === 0) {
+      for (const raw of (p.pestelNombre || p.pestelLetra || '').split(';').map(s => s.trim()).filter(Boolean)) {
+        const rl = norm(raw);
+        const found = pestels.find(x =>
+          norm(x.nombre_pestel) === rl ||
+          norm(x.nombre_pestel).includes(rl) ||
+          rl.includes(norm(x.nombre_pestel)) ||
+          x.letra_codigo.toLowerCase() === rl
+        );
+        if (found && !pestelIds.includes(found.id_pestel)) pestelIds.push(found.id_pestel);
+      }
+    }
+
+    const sectorIds = [...p.sectorIds];
+    if (sectorIds.length === 0) {
+      for (const raw of (p.sectorNombre || '').split(';').map(s => s.trim()).filter(Boolean)) {
+        const rl = norm(raw);
+        const found = sectors.find(x =>
+          norm(x.nombre_sector) === rl ||
+          norm(x.nombre_sector).includes(rl) ||
+          rl.includes(norm(x.nombre_sector))
+        );
+        if (found && !sectorIds.includes(found.id_sector)) sectorIds.push(found.id_sector);
+      }
+    }
+
+    return { ...p, pestelIds, sectorIds };
+  };
+
   const handlePdfSelect = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       setPdfError('Solo se aceptan archivos PDF.');
@@ -493,10 +527,24 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
 
   // ── Confirmar aprobadas ─────────────────────────────────────
   const handleConfirmar = async () => {
-    const aprobadas = propuestas.filter(p => p.decision === 'aprobada' && p.syncAction !== 'ignorar');
+    const aprobadas = propuestas
+      .filter(p => p.decision === 'aprobada' && p.syncAction !== 'ignorar')
+      .map(resolveTaxonomyIds);
     if (aprobadas.length === 0) { setSaveError('Aprueba al menos una propuesta.'); return; }
     const sinCampos = aprobadas.filter(p => p.pestelIds.length === 0 || p.sectorIds.length === 0);
-    if (sinCampos.length) { setSaveError('Todas las aprobadas necesitan al menos un PESTEL y un Sector.'); return; }
+    if (sinCampos.length) {
+      const detalle = sinCampos
+        .slice(0, 4)
+        .map(p => `${p.tipo}: ${(p.editTitulo || p.titulo || '(sin titulo)').slice(0, 70)}${p.pestelIds.length === 0 ? ' [sin PESTEL]' : ''}${p.sectorIds.length === 0 ? ' [sin Sector]' : ''}`)
+        .join(' | ');
+      setSaveError(`Faltan campos en ${sinCampos.length} elemento${sinCampos.length !== 1 ? 's' : ''}: ${detalle}`);
+      return;
+    }
+
+    setPropuestas(prev => prev.map(p => {
+      const resolved = aprobadas.find(a => a.id === p.id);
+      return resolved ? resolved : p;
+    }));
 
     setSaveError(null); setSaving(true);
     try {
