@@ -649,6 +649,18 @@ function translateKnownScenarioTitle(title: string): string {
   if (/manufacturers will accelerate adoption of edge-to-edge and non-display interaction devices/.test(norm)) {
     return 'Fabricantes aceleran la adopción de dispositivos de borde a borde e interacción sin pantalla';
   }
+  if (/public-health manufacturers expand wolbachia mosquito production capacity/.test(norm)) {
+    return 'Fabricantes de salud pública expanden la capacidad de producción de mosquitos Wolbachia en áreas metropolitanas tropicales';
+  }
+  if (/medical device manufacturers scale aptamer-based point-of-care sensors/.test(norm)) {
+    return 'Fabricantes de dispositivos médicos escalan sensores de punto de atención basados en aptámeros en redes urbanas de salud';
+  }
+  if (/agri-input manufacturers compress product launch cycles with speed-breeding-enabled raw materials/.test(norm)) {
+    return 'Fabricantes de insumos agrícolas acortan ciclos de lanzamiento con materias primas habilitadas por crianza acelerada';
+  }
+  if (/energy-intensive factories in multiple regions adopt hybrid storage and control/.test(norm)) {
+    return 'Fábricas intensivas en energía adoptan almacenamiento y control híbridos para cumplir estándares de confiabilidad de red';
+  }
   return clean;
 }
 
@@ -689,13 +701,62 @@ function extractScenarioTitlesFromSection(section: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = rx.exec(section)) !== null) labels.push(m.index);
   let start = 0;
+
+  const isScenarioTitleLine = (line: string): boolean => {
+    const clean = repairMojibake(line)
+      .replace(/\[Links p(?:Ã¡|á)g\.\d+:[^\]]+\]/gi, ' ')
+      .replace(/\[(?:Ã¢â€ â€™|â†’|→)https?:[^\]]+\]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (clean.length < 24 || clean.length > 150) return false;
+    if (/^(?:2\.1|2\.2|2\.3|previsiones|escenarios|en esta|use esta|tenga en cuenta|experimental|futuro de la manufactura|referencias|references|probabilidad|probability)/i.test(clean)) return false;
+    if (/^(?:datos disponibles|anticipar avances|derivadas de tendencias|nivel micro|informativa|usuarios|avances y tendencias|actuales|pruebas\.?)$/i.test(clean)) return false;
+    if (/[.!?:;,]$/.test(clean)) return false;
+    if (/,/.test(clean)) return false;
+    if (/\b(?:wired|nature|frontiers|science daily|inside climate news|cornell university|springeropen|avenir suisse|daily briefing)\b/i.test(clean)) return false;
+    if (/https?:\/\//i.test(clean)) return false;
+    if (/^[a-záéíóúñ]/.test(clean)) return false;
+    return true;
+  };
+
+  const findLastTitleGroup = (text: string): string => {
+    const lines = text
+      .replace(/\[Links p(?:Ã¡|á)g\.\d+:[^\]]+\]/gi, ' ')
+      .split(/\n+/)
+      .map(s => repairMojibake(s).replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+
+    const groups: string[] = [];
+    let current: string[] = [];
+    for (const line of lines) {
+      if (isScenarioTitleLine(line)) {
+        current.push(line);
+        continue;
+      }
+      if (current.length > 0) {
+        groups.push(current.join(' '));
+        current = [];
+      }
+    }
+    if (current.length > 0) groups.push(current.join(' '));
+    return groups
+      .map(g => g.replace(/\s+/g, ' ').trim())
+      .filter(g => g.length >= 35 && g.length <= 240)
+      .pop() || '';
+  };
+
   return labels.map(labelIndex => {
     const rawBlock = section.slice(start, labelIndex);
-    const cleanedBlock = (rawBlock.split(/(?:Referencias|References):/i).pop() || rawBlock)
+    const cleanedBlock = rawBlock
       .replace(/\[Links p(?:Ã¡|á)g\.\d+:[^\]]+\]/gi, ' ')
       .replace(/\[(?:Ã¢â€ â€™|â†’|→)https?:[^\]]+\]/g, ' ')
       .replace(/https?:\/\/\S+/g, ' ')
       .trim();
+    const groupedTitle = findLastTitleGroup(cleanedBlock);
+    if (groupedTitle) {
+      start = labelIndex + 1;
+      return translateKnownScenarioTitle(groupedTitle);
+    }
     const lines = cleanedBlock
       .split(/\n+/)
       .map(s => repairMojibake(s).replace(/\s+/g, ' ').trim())
