@@ -6,7 +6,7 @@ export interface AuthUser {
   nombre: string;
   nombreCompleto: string;
   correo: string;
-  rol: 'admin' | 'editor' | 'analista' | 'lector';
+  rol: 'admin' | 'usuario' | 'editor' | 'analista' | 'lector';
   rolLabel: string;
   iniciales: string;
 }
@@ -16,6 +16,7 @@ interface LoginViewProps {
 }
 
 type View   = 'login' | 'forgot' | 'verify' | 'reset' | 'success';
+type OtpContext = 'login' | 'reset';
 type Strength = 'weak' | 'medium' | 'strong';
 
 const RADAR_RINGS = [100, 80, 60, 40, 20];
@@ -224,6 +225,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [otpTimer,          setOtpTimer]          = useState(0);
   const [otpResendCooldown, setOtpResendCooldown] = useState(0);
   const [otpResendLoading,  setOtpResendLoading]  = useState(false);
+  const [otpContext,        setOtpContext]        = useState<OtpContext>('reset');
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // ── Reset ─────────────────────────────────────────────────
@@ -331,6 +333,17 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       });
       const data = await res.json();
       if (!res.ok) { setLoginError(data.error || 'Error al iniciar sesión.'); return; }
+      if (data.requiresOtp) {
+        setFpCorreo(data.correo || correo.trim());
+        setOtpContext('login');
+        setOtpDigits(['','','','','','']);
+        setOtpError(null);
+        setOtpTimer(300);
+        setOtpResendCooldown(60);
+        setView('verify');
+        setTimeout(() => otpRefs.current[0]?.focus(), 50);
+        return;
+      }
       if (remember) localStorage.setItem('radar_remember', '1');
       onLogin(data.user);
     } catch {
@@ -348,6 +361,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setFpLoading(true);
     try {
       await postForgotPassword(fpCorreo);
+      setOtpContext('reset');
       setOtpDigits(['','','','','','']);
       setOtpError(null);
       setOtpTimer(300);
@@ -416,20 +430,29 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const otp = otpDigits.join('');
-    if (otp.length < 6) { setOtpError('Ingresa los 6 dígitos del código.'); return; }
+    if (otp.length < 6) { setOtpError('Ingresa los 6 digitos del codigo.'); return; }
     setOtpError(null); setOtpLoading(true);
     try {
-      const res  = await fetch('/api/auth/verify-otp', {
+      const endpoint = otpContext === 'login' ? '/api/auth/login/verify-otp' : '/api/auth/verify-otp';
+      const res  = await fetch(endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correo: fpCorreo, otp }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setOtpError(data.error || 'Código incorrecto.');
+        setOtpError(data.error || 'Codigo incorrecto.');
         setOtpDigits(['','','','','','']);
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
         return;
       }
+
+      if (otpContext === 'login') {
+        if (remember) localStorage.setItem('radar_remember', '1');
+        setPassword('');
+        onLogin(data.user);
+        return;
+      }
+
       setResetToken(data.token);
       setNewPassword(''); setConfirmPassword(''); setResetError(null);
       setView('reset');
@@ -441,7 +464,16 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const handleOtpResend = async () => {
     setOtpResendLoading(true);
     try {
-      await postForgotPassword(fpCorreo);
+      if (otpContext === 'login') {
+        const res = await fetch('/api/auth/login/resend-otp', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ correo: fpCorreo }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'No se pudo reenviar el codigo.');
+      } else {
+        await postForgotPassword(fpCorreo);
+      }
       setOtpDigits(['','','','','','']);
       setOtpError(null);
       setOtpTimer(300);
@@ -644,7 +676,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                       Verificación de Seguridad
                     </h1>
                     <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                      Hemos enviado un código de 6 dígitos a tu correo institucional. Ingrésalo para continuar.
+                      Hemos enviado un codigo de 6 digitos a tu correo institucional. Ingresalo para {otpContext === 'login' ? 'entrar a la plataforma' : 'continuar'}.
                     </p>
                   </div>
 
@@ -706,7 +738,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                       onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#0045ad'; }}>
                       {otpLoading
                         ? <><Loader2 size={18} className="animate-spin" /><span>Validando...</span></>
-                        : <span>Validar Código y Continuar</span>}
+                        : <span>{otpContext === 'login' ? 'Validar Codigo e Ingresar' : 'Validar Codigo y Continuar'}</span>}
                     </button>
 
                     {/* Reenviar */}

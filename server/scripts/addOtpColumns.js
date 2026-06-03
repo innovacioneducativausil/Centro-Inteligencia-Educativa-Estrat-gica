@@ -21,6 +21,7 @@ async function run() {
   if (!existing.includes('otp_hash'))     toAdd.push('ADD COLUMN otp_hash VARCHAR(64) NULL');
   if (!existing.includes('otp_expires'))  toAdd.push('ADD COLUMN otp_expires DATETIME NULL');
   if (!existing.includes('otp_attempts')) toAdd.push('ADD COLUMN otp_attempts TINYINT NOT NULL DEFAULT 0');
+  if (!existing.includes('otp_purpose'))  toAdd.push('ADD COLUMN otp_purpose VARCHAR(20) NULL');
 
   if (toAdd.length === 0) {
     console.log('✅ Columnas OTP ya existen, nada que hacer.');

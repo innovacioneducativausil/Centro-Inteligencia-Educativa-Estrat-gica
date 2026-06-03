@@ -11,6 +11,7 @@ const JWT_SECRET  = process.env.JWT_SECRET;   // falla en startup si no está (v
 const JWT_EXPIRES = process.env.JWT_EXPIRES || '8h';
 const AUTH_COOKIE = 'radar_token';
 const COOKIE_MAX_AGE_MS = 8 * 60 * 60 * 1000;
+const OTP_EXPIRES_MS = 5 * 60 * 1000;
 
 function authCookieOptions() {
   return {
@@ -38,6 +39,57 @@ async function logActividad(db, idUsuario, correo, evento, ip) {
   } catch { /* silencioso — no bloquear login/logout */ }
 }
 
+function buildAuthUser(user) {
+  const nombre = user.nombre_corto || user.nombre_usuario;
+  return {
+    id:          user.id_usuario,
+    nombre,
+    nombreCompleto: user.nombre_usuario,
+    correo:      user.correo_usuario,
+    rol:         user.rol,
+    rolLabel:    ROL_LABELS[user.rol] || user.rol,
+    iniciales:   nombre
+      .split(' ')
+      .slice(0, 2)
+      .map(w => w[0])
+      .join('')
+      .toUpperCase(),
+  };
+}
+
+function signAuthToken(user) {
+  const payload = {
+    id:     user.id_usuario,
+    nombre: user.nombre_corto || user.nombre_usuario,
+    correo: user.correo_usuario,
+    rol:    user.rol,
+  };
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+}
+
+async function createOtpForUser(user, purpose) {
+  const otp     = crypto.randomInt(100000, 999999).toString();
+  const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+  const expires = new Date(Date.now() + OTP_EXPIRES_MS);
+
+  await db.query(
+    `UPDATE usuario
+     SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = ?
+     WHERE id_usuario = ?`,
+    [otpHash, expires, purpose, user.id_usuario]
+  );
+
+  await sendOtpEmail({
+    to: user.correo_usuario,
+    nombre: user.nombre_corto || user.nombre_usuario,
+    otp,
+  });
+}
+
+function getClientIp(req) {
+  return (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null;
+}
+
 /**
  * POST /api/auth/login
  * body: { correo: string, password: string }
@@ -47,10 +99,9 @@ router.post('/auth/login', async (req, res) => {
     const { correo, password } = req.body;
 
     if (!correo || !password) {
-      return res.status(400).json({ error: 'Correo y contraseña son requeridos.' });
+      return res.status(400).json({ error: 'Correo y contrasena son requeridos.' });
     }
 
-    // Buscar usuario por correo
     const [[user]] = await db.query(
       `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario,
               password_hash, rol, activo, email_verificado
@@ -65,55 +116,136 @@ router.post('/auth/login', async (req, res) => {
     }
 
     if (!user.activo) {
-      return res.status(403).json({ error: 'Tu cuenta está desactivada. Contacta al administrador.' });
+      return res.status(403).json({ error: 'Tu cuenta esta desactivada. Contacta al administrador.' });
     }
 
-    // Verificar contraseña
     const passwordOk = await bcrypt.compare(password, user.password_hash);
     if (!passwordOk) {
       return res.status(401).json({ error: 'Credenciales incorrectas.' });
     }
 
-    // Actualizar último acceso
-    await db.query(
-      'UPDATE usuario SET ultimo_acceso = NOW() WHERE id_usuario = ?',
-      [user.id_usuario]
-    );
-
-    // Crear JWT
-    const payload = {
-      id:     user.id_usuario,
-      nombre: user.nombre_corto || user.nombre_usuario,
-      correo: user.correo_usuario,
-      rol:    user.rol,
-    };
-
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
-    res.cookie(AUTH_COOKIE, token, authCookieOptions());
-
-    // Log de actividad (fire-and-forget)
-    const loginIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null;
-    logActividad(db, user.id_usuario, user.correo_usuario, 'login', loginIp);
+    await createOtpForUser(user, 'login');
 
     res.json({
-      token,
-      user: {
-        id:          payload.id,
-        nombre:      payload.nombre,
-        nombreCompleto: user.nombre_usuario,
-        correo:      payload.correo,
-        rol:         payload.rol,
-        rolLabel:    ROL_LABELS[payload.rol] || payload.rol,
-        iniciales:   payload.nombre
-          .split(' ')
-          .slice(0, 2)
-          .map(w => w[0])
-          .join('')
-          .toUpperCase(),
-      },
+      requiresOtp: true,
+      correo: user.correo_usuario,
+      message: 'Hemos enviado un codigo de verificacion a tu correo institucional.',
     });
   } catch (err) {
     console.error('[POST /auth/login]', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
+
+/**
+ * POST /api/auth/login/verify-otp
+ * body: { correo: string, otp: string }
+ * Valida el OTP de login. Solo entonces emite la cookie/JWT de sesion.
+ */
+router.post('/auth/login/verify-otp', async (req, res) => {
+  try {
+    const { correo, otp } = req.body;
+
+    if (!correo || !otp) {
+      return res.status(400).json({ error: 'Correo y codigo son requeridos.' });
+    }
+    if (!/^\d{6}$/.test(otp)) {
+      return res.status(400).json({ error: 'El codigo debe ser de 6 digitos numericos.' });
+    }
+
+    const [[user]] = await db.query(
+      `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
+              otp_hash, otp_expires, otp_attempts, otp_purpose
+       FROM usuario
+       WHERE correo_usuario = ? AND activo = 1
+       LIMIT 1`,
+      [correo.trim().toLowerCase()]
+    );
+
+    if (!user || !user.otp_hash || user.otp_purpose !== 'login') {
+      return res.status(400).json({ error: 'Solicita un nuevo codigo de verificacion.' });
+    }
+
+    if (user.otp_attempts >= 5) {
+      return res.status(429).json({
+        error: 'Demasiados intentos fallidos. Solicita un nuevo codigo de verificacion.',
+        blocked: true,
+      });
+    }
+
+    if (new Date() > new Date(user.otp_expires)) {
+      return res.status(400).json({
+        error: 'El codigo ha expirado. Solicita uno nuevo.',
+        expired: true,
+      });
+    }
+
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    if (otpHash !== user.otp_hash) {
+      await db.query(
+        'UPDATE usuario SET otp_attempts = otp_attempts + 1 WHERE id_usuario = ?',
+        [user.id_usuario]
+      );
+      const remaining = 4 - user.otp_attempts;
+      return res.status(400).json({
+        error: remaining > 0
+          ? `Codigo incorrecto. Te quedan ${remaining} intento${remaining !== 1 ? 's' : ''}.`
+          : 'Codigo incorrecto. Has agotado los intentos. Solicita un nuevo codigo.',
+        remaining,
+      });
+    }
+
+    await db.query(
+      `UPDATE usuario
+       SET otp_hash = NULL, otp_expires = NULL, otp_attempts = 0,
+           otp_purpose = NULL, ultimo_acceso = NOW()
+       WHERE id_usuario = ?`,
+      [user.id_usuario]
+    );
+
+    const token = signAuthToken(user);
+    res.cookie(AUTH_COOKIE, token, authCookieOptions());
+
+    logActividad(db, user.id_usuario, user.correo_usuario, 'login', getClientIp(req));
+
+    res.json({
+      token,
+      user: buildAuthUser(user),
+    });
+  } catch (err) {
+    console.error('[POST /auth/login/verify-otp]', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
+
+/**
+ * POST /api/auth/login/resend-otp
+ * body: { correo: string }
+ * Reenvia el OTP solo si existe un login pendiente para ese correo.
+ */
+router.post('/auth/login/resend-otp', async (req, res) => {
+  try {
+    const { correo } = req.body;
+    if (!correo) {
+      return res.status(400).json({ error: 'El correo es requerido.' });
+    }
+
+    const [[user]] = await db.query(
+      `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, activo, otp_purpose
+       FROM usuario
+       WHERE correo_usuario = ? AND activo = 1
+       LIMIT 1`,
+      [correo.trim().toLowerCase()]
+    );
+
+    if (!user || user.otp_purpose !== 'login') {
+      return res.status(400).json({ error: 'Inicia sesion nuevamente para solicitar otro codigo.' });
+    }
+
+    await createOtpForUser(user, 'login');
+    res.json({ message: 'Hemos enviado un nuevo codigo de verificacion a tu correo institucional.' });
+  } catch (err) {
+    console.error('[POST /auth/login/resend-otp]', err);
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
 });
@@ -213,12 +345,12 @@ router.post('/auth/forgot-password', async (req, res) => {
     // Generar OTP de 6 dígitos criptográficamente seguro
     const otp     = crypto.randomInt(100000, 999999).toString();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
-    const expires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutos
+    const expires = new Date(Date.now() + OTP_EXPIRES_MS); // 5 minutos
 
     // Guardar hash del OTP, invalidar token anterior
     await db.query(
       `UPDATE usuario
-       SET otp_hash = ?, otp_expires = ?, otp_attempts = 0,
+       SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = 'reset',
            reset_token = NULL, reset_token_expires = NULL
        WHERE id_usuario = ?`,
       [otpHash, expires, user.id_usuario]
@@ -253,7 +385,7 @@ router.post('/auth/verify-otp', async (req, res) => {
     }
 
     const [[user]] = await db.query(
-      `SELECT id_usuario, otp_hash, otp_expires, otp_attempts
+      `SELECT id_usuario, otp_hash, otp_expires, otp_attempts, otp_purpose
        FROM usuario
        WHERE correo_usuario = ? AND activo = 1
        LIMIT 1`,
@@ -261,7 +393,7 @@ router.post('/auth/verify-otp', async (req, res) => {
     );
 
     // Respuesta genérica si no existe OTP (sin revelar info)
-    if (!user || !user.otp_hash) {
+    if (!user || !user.otp_hash || user.otp_purpose !== 'reset') {
       return res.status(400).json({ error: 'Solicita un nuevo código de verificación.' });
     }
 
@@ -305,7 +437,7 @@ router.post('/auth/verify-otp', async (req, res) => {
 
     await db.query(
       `UPDATE usuario
-       SET otp_hash = NULL, otp_expires = NULL, otp_attempts = 0,
+       SET otp_hash = NULL, otp_expires = NULL, otp_attempts = 0, otp_purpose = NULL,
            reset_token = ?, reset_token_expires = ?
        WHERE id_usuario = ?`,
       [resetToken, resetExpires, user.id_usuario]

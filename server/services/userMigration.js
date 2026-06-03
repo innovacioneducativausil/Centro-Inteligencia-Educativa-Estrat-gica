@@ -14,6 +14,11 @@ const USUARIOS_NUEVOS = [
   { id: 'e3bba2ff-c54c-4139-a2fc-cf0fa8acc6fa', nombre: 'Angela Jimenez Salas',      corto: 'Angela',   correo: 'ajimenezs@usil.edu.pe' },
 ];
 
+const USUARIOS_ADMIN = [
+  { nombre: 'Krios Valverde', corto: 'Krios', correo: 'kriosv@usil.edu.pe' },
+  { nombre: 'Willy Campos',   corto: 'Willy', correo: 'wcampos@usil.edu.pe' },
+];
+
 export async function runUserMigration() {
   console.log('[USER MIGRATION] Iniciando...');
 
@@ -33,6 +38,27 @@ export async function runUserMigration() {
     console.log('[USER MIGRATION] Paso 1b: password_hash → VARCHAR(255) OK');
   } catch (e) {
     console.warn('[USER MIGRATION] Paso 1b (ALTER password_hash):', e.message);
+  }
+
+  // Paso 1c: Asegurar columnas OTP usadas por login y recuperacion
+  try {
+    const [columns] = await db.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario'`
+    );
+    const existing = new Set(columns.map(c => c.COLUMN_NAME));
+    const toAdd = [];
+    if (!existing.has('otp_hash'))     toAdd.push('ADD COLUMN otp_hash VARCHAR(64) NULL');
+    if (!existing.has('otp_expires'))  toAdd.push('ADD COLUMN otp_expires DATETIME NULL');
+    if (!existing.has('otp_attempts')) toAdd.push('ADD COLUMN otp_attempts TINYINT NOT NULL DEFAULT 0');
+    if (!existing.has('otp_purpose'))  toAdd.push('ADD COLUMN otp_purpose VARCHAR(20) NULL');
+
+    if (toAdd.length) {
+      await db.query(`ALTER TABLE usuario ${toAdd.join(', ')}`);
+      console.log(`[USER MIGRATION] Paso 1c: columnas OTP agregadas (${toAdd.length})`);
+    }
+  } catch (e) {
+    console.warn('[USER MIGRATION] Paso 1c (OTP columns):', e.message);
   }
 
   // Paso 2: Poner acastroh como admin
@@ -82,6 +108,37 @@ export async function runUserMigration() {
       }
     } catch (e) {
       console.warn(`[USER MIGRATION] Paso 5 (${u.correo}):`, e.message);
+    }
+  }
+
+  // Paso 6: Crear o actualizar administradores solicitados
+  for (const u of USUARIOS_ADMIN) {
+    try {
+      const [[existe]] = await db.query(
+        'SELECT id_usuario, CHAR_LENGTH(password_hash) as hash_len, rol FROM usuario WHERE correo_usuario = ?',
+        [u.correo]
+      );
+
+      if (!existe) {
+        await db.query(
+          `INSERT INTO usuario
+             (id_usuario,nombre_usuario,nombre_corto,correo_usuario,password_hash,rol,activo,email_verificado,fecha_creacion,fecha_actualizacion)
+           VALUES (UUID(),?,?,?,?,'admin',1,1,NOW(),NOW())`,
+          [u.nombre, u.corto, u.correo, HASH_USUARIO2026]
+        );
+        console.log(`[USER MIGRATION] Paso 6: admin creado ${u.correo}`);
+      } else {
+        const updates = ['rol = ?', 'password_hash = ?', 'activo = 1', 'email_verificado = 1', 'fecha_actualizacion = NOW()'];
+        const params = ['admin', HASH_USUARIO2026];
+        params.push(u.correo);
+        const [r] = await db.query(
+          `UPDATE usuario SET ${updates.join(', ')} WHERE correo_usuario = ?`,
+          params
+        );
+        if (r.affectedRows) console.log(`[USER MIGRATION] Paso 6: admin actualizado ${u.correo}`);
+      }
+    } catch (e) {
+      console.warn(`[USER MIGRATION] Paso 6 (${u.correo}):`, e.message);
     }
   }
 
