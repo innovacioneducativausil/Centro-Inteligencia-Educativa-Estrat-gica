@@ -16,6 +16,9 @@ function createTransporter() {
     host:   process.env.SMTP_HOST || 'smtp.gmail.com',
     port:   parseInt(process.env.SMTP_PORT || '587'),
     secure: false,
+    connectionTimeout: 10000,
+    greetingTimeout:   10000,
+    socketTimeout:     15000,
     auth: { user, pass },
   });
 }
@@ -125,13 +128,19 @@ export async function sendOtpEmail({ to, nombre, otp }) {
   </body>
   </html>`;
 
-  await transporter.sendMail({
-    from:    `"USIL Radar de Prospección" <${process.env.SMTP_USER}>`,
-    to,
-    subject: '🔐 Código de verificación — USIL Radar',
-    html,
-    text: `Hola ${nombre},\n\nTu código de verificación es: ${otp}\n\nExpira en 5 minutos.\n\nSi no solicitaste este código, ignora este mensaje.\n\n© 2024 USIL`,
-  });
+  try {
+    await transporter.sendMail({
+      from:    `"USIL Radar de Prospección" <${process.env.SMTP_USER}>`,
+      to,
+      subject: '🔐 Código de verificación — USIL Radar',
+      html,
+      text: `Hola ${nombre},\n\nTu código de verificación es: ${otp}\n\nExpira en 5 minutos.\n\nSi no solicitaste este código, ignora este mensaje.\n\n© 2024 USIL`,
+    });
+
+  } catch (err) {
+    console.error(`[MAILER] No se pudo enviar OTP a ${to}:`, err.message);
+    throw new Error('No se pudo enviar el codigo OTP. Verifica la configuracion SMTP.');
+  }
 
   console.log(`[MAILER] ✉️  OTP enviado a: ${to}`);
 }
