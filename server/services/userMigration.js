@@ -22,6 +22,43 @@ const USUARIOS_ADMIN = [
 export async function runUserMigration() {
   console.log('[USER MIGRATION] Iniciando...');
 
+  // Paso 0: Crear tabla usuario si la BD de despliegue aun no la tiene
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS usuario (
+        id_usuario CHAR(36) NOT NULL,
+        nombre_usuario VARCHAR(100) NOT NULL,
+        nombre_corto VARCHAR(50) NULL,
+        correo_usuario VARCHAR(200) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        rol ENUM('admin','usuario') NOT NULL DEFAULT 'usuario',
+        permisos_extra JSON NULL,
+        activo TINYINT(1) NOT NULL DEFAULT 1,
+        ultimo_acceso TIMESTAMP NULL DEFAULT NULL,
+        email_verificado TINYINT(1) NOT NULL DEFAULT 0,
+        token_verificacion VARCHAR(255) NULL,
+        token_expiracion TIMESTAMP NULL DEFAULT NULL,
+        actualizado_por CHAR(36) NULL,
+        fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        fecha_actualizacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        reset_token VARCHAR(64) NULL,
+        reset_token_expires DATETIME NULL,
+        otp_hash VARCHAR(64) NULL,
+        otp_expires DATETIME NULL,
+        otp_attempts TINYINT NOT NULL DEFAULT 0,
+        otp_purpose VARCHAR(20) NULL,
+        PRIMARY KEY (id_usuario),
+        UNIQUE KEY uq_usuario_correo (correo_usuario),
+        KEY idx_usuario_rol (rol),
+        KEY idx_usuario_activo (activo),
+        KEY idx_usuario_actualizado_por (actualizado_por)
+      )
+    `);
+    console.log('[USER MIGRATION] Paso 0: tabla usuario lista');
+  } catch (e) {
+    console.warn('[USER MIGRATION] Paso 0 (CREATE usuario):', e.message);
+  }
+
   // Paso 1: Convertir columna rol de ENUM a VARCHAR(50)
   // Esto permite insertar 'usuario' sin importar el ENUM previo
   try {
