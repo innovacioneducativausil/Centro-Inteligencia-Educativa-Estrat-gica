@@ -12,13 +12,17 @@ function createTransporter() {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if (!user || !pass) return null;
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '587');
   return nodemailer.createTransport({
-    host:   process.env.SMTP_HOST || 'smtp.gmail.com',
-    port:   parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
+    host,
+    port,
+    secure: port === 465,
+    family: 4,
     connectionTimeout: 10000,
     greetingTimeout:   10000,
     socketTimeout:     15000,
+    tls: { servername: host },
     auth: { user, pass },
   });
 }
