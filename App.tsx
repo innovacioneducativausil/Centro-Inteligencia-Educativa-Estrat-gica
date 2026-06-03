@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import RadarView from './components/RadarView';
@@ -13,6 +13,7 @@ import { THEMES } from './constants';
 import { logActividad } from './services/actividadService';
 
 type PendingNotif = { uuid: string; tipo: 'senal' | 'tendencia' | 'escenario' } | null;
+const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState('inicio');
@@ -39,12 +40,34 @@ const App: React.FC = () => {
     // El backend ya registra el login en actividad_usuario al autenticar
   };
 
-  const handleLogout = () => {
-    // Log antes de limpiar la cookie (el backend también registra en logout)
-    logActividad('logout');
+  const handleLogout = useCallback((reason: 'manual' | 'inactivity' = 'manual') => {
+    // Log antes de limpiar la cookie (el backend tambien registra en logout)
+    logActividad(reason === 'inactivity' ? 'logout_inactividad' : 'logout');
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
     setUser(null);
-  };
+    setActiveView('inicio');
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const resetTimer = () => {
+      window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => handleLogout('inactivity'), INACTIVITY_TIMEOUT_MS);
+    };
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+
+    resetTimer();
+    activityEvents.forEach(eventName => {
+      window.addEventListener(eventName, resetTimer, { passive: true });
+    });
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      activityEvents.forEach(eventName => window.removeEventListener(eventName, resetTimer));
+    };
+  }, [user, handleLogout]);
 
   const handleNavigate = (view: string) => {
     // Bloquear Gestión para usuarios no-admin (frontend + guard)

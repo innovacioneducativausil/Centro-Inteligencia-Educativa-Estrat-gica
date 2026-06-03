@@ -329,6 +329,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     try {
       const res  = await fetch('/api/auth/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ correo: correo.trim(), password }),
       });
       const data = await res.json();
@@ -436,6 +437,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       const endpoint = otpContext === 'login' ? '/api/auth/login/verify-otp' : '/api/auth/verify-otp';
       const res  = await fetch(endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ correo: fpCorreo, otp }),
       });
       const data = await res.json();
@@ -467,6 +469,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       if (otpContext === 'login') {
         const res = await fetch('/api/auth/login/resend-otp', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ correo: fpCorreo }),
         });
         const data = await res.json();
