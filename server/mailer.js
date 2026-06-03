@@ -27,6 +27,39 @@ function createTransporter() {
   });
 }
 
+async function sendWithResend({ to, html, text }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return false;
+
+  const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.SMTP_USER;
+  if (!fromEmail) {
+    throw new Error('RESEND_FROM_EMAIL o SMTP_USER debe estar configurado para enviar OTP.');
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: `USIL Radar <${fromEmail}>`,
+      to,
+      subject: 'Codigo de verificacion - USIL Radar',
+      html,
+      text,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Resend rechazo el correo OTP (${response.status}): ${body}`);
+  }
+
+  console.log(`[MAILER] OTP enviado por Resend a: ${to}`);
+  return true;
+}
+
 /**
  * Envía el correo con el código OTP de 6 dígitos.
  * Si SMTP no está configurado, imprime el código en consola (modo desarrollo).
@@ -132,13 +165,18 @@ export async function sendOtpEmail({ to, nombre, otp }) {
   </body>
   </html>`;
 
+  const text = `Hola ${nombre},\n\nTu codigo de verificacion es: ${otp}\n\nExpira en 5 minutos.\n\nSi no solicitaste este codigo, ignora este mensaje.\n\nUSIL`;
+
   try {
+    const sentByResend = await sendWithResend({ to, html, text });
+    if (sentByResend) return;
+
     await transporter.sendMail({
-      from:    `"USIL Radar de Prospección" <${process.env.SMTP_USER}>`,
+      from:    `"USIL Radar de Prospeccion" <${process.env.SMTP_USER}>`,
       to,
-      subject: '🔐 Código de verificación — USIL Radar',
+      subject: 'Codigo de verificacion - USIL Radar',
       html,
-      text: `Hola ${nombre},\n\nTu código de verificación es: ${otp}\n\nExpira en 5 minutos.\n\nSi no solicitaste este código, ignora este mensaje.\n\n© 2024 USIL`,
+      text,
     });
 
   } catch (err) {
