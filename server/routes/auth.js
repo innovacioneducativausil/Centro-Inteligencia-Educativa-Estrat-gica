@@ -124,19 +124,11 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales incorrectas.' });
     }
 
-    await db.query(
-      'UPDATE usuario SET ultimo_acceso = NOW() WHERE id_usuario = ?',
-      [user.id_usuario]
-    );
-
-    const token = signAuthToken(user);
-    res.cookie(AUTH_COOKIE, token, authCookieOptions());
-
-    logActividad(db, user.id_usuario, user.correo_usuario, 'login', getClientIp(req));
+    await createOtpForUser(user, 'login');
 
     res.json({
-      token,
-      user: buildAuthUser(user),
+      requiresOtp: true,
+      correo: user.correo_usuario,
     });
   } catch (err) {
     console.error('[POST /auth/login]', err);
