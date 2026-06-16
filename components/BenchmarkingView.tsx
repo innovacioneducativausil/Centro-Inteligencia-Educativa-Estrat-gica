@@ -7,7 +7,7 @@ interface BenchmarkingViewProps {
   userRole?: string;
 }
 
-type TipoBenchmark = 'competencia_directa' | 'referente_internacional';
+type TipoBenchmark = 'competencia_directa' | 'referente_nacional' | 'referente_internacional' | 'referente_tecnologico';
 
 interface Universidad {
   id_universidad_benchmark: number;
@@ -35,6 +35,9 @@ interface Programa {
   pais: string;
   total_competencias?: number;
   total_cursos?: number;
+  total_fuentes?: number;
+  fuentes_validadas?: number;
+  fuentes_pendientes?: number;
 }
 
 interface Competencia {
@@ -51,12 +54,24 @@ interface FiltroCarrera {
   nombre_facultad: string;
 }
 
+interface CoberturaCarrera extends FiltroCarrera {
+  benchmarking: Partial<Record<TipoBenchmark, {
+    total_programas: number;
+    total_fuentes: number;
+    fuentes_validadas: number;
+    fuentes_pendientes: number;
+    ultima_revision: string | null;
+  }>>;
+}
+
 const USIL = '#002855';
 const CYAN = '#00A3E0';
 
 const TIPO_LABELS: Record<TipoBenchmark, string> = {
   competencia_directa:     'Competencia Directa',
+  referente_nacional:      'Referentes Nacionales',
   referente_internacional: 'Referentes Internacionales',
+  referente_tecnologico:   'Referentes Tecnológicos',
 };
 
 const ESTADO_BADGE: Record<string, { bg: string; text: string; label: string }> = {
@@ -80,13 +95,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const text     = isDark ? '#f1f5f9' : '#1e293b';
   const muted    = isDark ? '#94a3b8' : '#64748b';
   const border   = isDark ? 'rgba(148,163,184,0.15)' : '#e2e8f0';
-  const canEdit  = userRole === 'admin' || userRole === 'analista';
+  const canEdit  = userRole === 'admin';
 
   const [tipo, setTipo]             = useState<TipoBenchmark>('competencia_directa');
   const [universidades, setUniversidades] = useState<Universidad[]>([]);
   const [programas, setProgramas]   = useState<Programa[]>([]);
   const [competencias, setCompetencias] = useState<Competencia[]>([]);
   const [carreras, setCarreras]     = useState<FiltroCarrera[]>([]);
+  const [cobertura, setCobertura]   = useState<CoberturaCarrera[]>([]);
   const [selectedCarrera, setSelectedCarrera] = useState<number | ''>('');
   const [selectedPrograma, setSelectedPrograma] = useState<number | null>(null);
   const [loadingUnivs, setLoadingUnivs] = useState(false);
@@ -107,6 +123,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     fetch('/api/curricular/filtros', { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (!d.error && d.carreras) setCarreras(d.carreras); })
+      .catch(() => {});
+    fetch('/api/mercado-laboral/benchmarking/cobertura', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setCobertura(d); })
       .catch(() => {});
   }, []);
 
@@ -213,6 +233,17 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     } catch (e: any) { setError(e.message); }
   };
 
+  const handleSeedInicial = async () => {
+    setError(null);
+    try {
+      await apiFetch('/api/mercado-laboral/benchmarking/seed-inicial', { method: 'POST' });
+      const d = await fetch('/api/mercado-laboral/benchmarking/cobertura', { credentials: 'include' }).then(r => r.json());
+      if (Array.isArray(d)) setCobertura(d);
+      loadUniversidades();
+      loadProgramas();
+    } catch (e: any) { setError(e.message); }
+  };
+
   const competenciasUnicas = [...new Set(competencias.map(c => c.nombre_competencia))];
   const universidadesConPrograma = [...new Set(programas.map(p => p.nombre_universidad))];
 
@@ -220,7 +251,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     <div style={{ padding: 0, color: text }}>
       {/* Sub-tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {(['competencia_directa', 'referente_internacional'] as TipoBenchmark[]).map(t => (
+        {(['competencia_directa', 'referente_nacional', 'referente_internacional', 'referente_tecnologico'] as TipoBenchmark[]).map(t => (
           <button key={t} onClick={() => setTipo(t)}
             style={{
               padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
@@ -231,12 +262,68 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             {TIPO_LABELS[t]}
           </button>
         ))}
+        {canEdit && (
+          <button onClick={handleSeedInicial}
+            style={{ marginLeft: 'auto', padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`,
+              background: card, color: USIL, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>
+            Configurar benchmarking base
+          </button>
+        )}
       </div>
 
       {error && (
         <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8,
           padding: '10px 14px', marginBottom: 12, color: '#991b1b', fontSize: 12 }}>
           {error}
+        </div>
+      )}
+
+      {!selectedCarrera && cobertura.length > 0 && (
+        <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden', marginBottom: 12 }}>
+          <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+            borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+              Cobertura de benchmarking por carrera
+            </span>
+            <span style={{ fontSize: 10, color: muted }}>
+              Selecciona una carrera para ver programas y fuentes
+            </span>
+          </div>
+          <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+              <thead style={{ position: 'sticky', top: 0 }}>
+                <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
+                  {['Facultad', 'Carrera', 'Directa', 'Nacional', 'Internacional', 'Tecnológica', 'Validadas', 'Pendientes'].map(h => (
+                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
+                      color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cobertura.map(c => {
+                  const tipos = c.benchmarking || {};
+                  const total = (t: TipoBenchmark, key: 'total_programas' | 'fuentes_validadas' | 'fuentes_pendientes') => tipos[t]?.[key] ?? 0;
+                  const validadas = (Object.keys(tipos) as TipoBenchmark[]).reduce((acc, t) => acc + (tipos[t]?.fuentes_validadas ?? 0), 0);
+                  const pendientes = (Object.keys(tipos) as TipoBenchmark[]).reduce((acc, t) => acc + (tipos[t]?.fuentes_pendientes ?? 0), 0);
+                  return (
+                    <tr key={c.id_carrera} onClick={() => setSelectedCarrera(c.id_carrera)}
+                      style={{ borderBottom: `1px solid ${border}`, cursor: 'pointer' }}>
+                      <td style={{ padding: '8px 10px', color: muted }}>{c.nombre_facultad}</td>
+                      <td style={{ padding: '8px 10px', fontWeight: 700 }}>{c.nombre_carrera}</td>
+                      <td style={{ padding: '8px 10px' }}>{total('competencia_directa', 'total_programas')}</td>
+                      <td style={{ padding: '8px 10px' }}>{total('referente_nacional', 'total_programas')}</td>
+                      <td style={{ padding: '8px 10px' }}>{total('referente_internacional', 'total_programas')}</td>
+                      <td style={{ padding: '8px 10px' }}>{total('referente_tecnologico', 'total_programas')}</td>
+                      <td style={{ padding: '8px 10px', color: '#166534', fontWeight: 800 }}>{validadas}</td>
+                      <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>{pendientes}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -334,7 +421,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
                       <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                        {['Universidad', 'País', 'Programa', 'Estado', 'Competencias', 'Captura', 'Acciones'].map(h => (
+                        {['Universidad', 'País', 'Programa', 'Estado', 'Fuentes', 'Competencias', 'Captura', 'Acciones'].map(h => (
                           <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
                             color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                             {h}
@@ -370,6 +457,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                   {p.observaciones.substring(0, 40)}
                                 </div>
                               )}
+                            </td>
+                            <td style={{ padding: '8px 10px', fontSize: 10, whiteSpace: 'nowrap' }}>
+                              <div style={{ fontWeight: 800, color: USIL }}>{p.total_fuentes ?? 0} links</div>
+                              <div style={{ color: '#166534' }}>{p.fuentes_validadas ?? 0} validadas</div>
+                              <div style={{ color: '#854d0e' }}>{p.fuentes_pendientes ?? 0} pendientes</div>
                             </td>
                             <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: USIL }}>
                               {p.total_competencias ?? 0}

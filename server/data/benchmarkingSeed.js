@@ -1,0 +1,73 @@
+export const BENCHMARK_UNIVERSITIES = {
+  UPC: { nombre: 'Universidad Peruana de Ciencias Aplicadas', pais: 'Peru', ciudad: 'Lima', web: 'https://www.upc.edu.pe/' },
+  PUCP: { nombre: 'Pontificia Universidad Catolica del Peru', pais: 'Peru', ciudad: 'Lima', web: 'https://www.pucp.edu.pe/' },
+  ULIMA: { nombre: 'Universidad de Lima', pais: 'Peru', ciudad: 'Lima', web: 'https://www.ulima.edu.pe/' },
+  UP: { nombre: 'Universidad del Pacifico', pais: 'Peru', ciudad: 'Lima', web: 'https://www.up.edu.pe/' },
+  ESAN: { nombre: 'Universidad ESAN', pais: 'Peru', ciudad: 'Lima', web: 'https://www.ue.edu.pe/' },
+  UDEP: { nombre: 'Universidad de Piura', pais: 'Peru', ciudad: 'Piura / Lima', web: 'https://www.udep.edu.pe/' },
+  UTEC: { nombre: 'Universidad de Ingenieria y Tecnologia', pais: 'Peru', ciudad: 'Lima', web: 'https://utec.edu.pe/' },
+  UPN: { nombre: 'Universidad Privada del Norte', pais: 'Peru', ciudad: 'Lima', web: 'https://www.upn.edu.pe/' },
+  UTP: { nombre: 'Universidad Tecnologica del Peru', pais: 'Peru', ciudad: 'Lima', web: 'https://www.utp.edu.pe/' },
+  UCSUR: { nombre: 'Universidad Cientifica del Sur', pais: 'Peru', ciudad: 'Lima', web: 'https://www.cientifica.edu.pe/' },
+  UPCH: { nombre: 'Universidad Peruana Cayetano Heredia', pais: 'Peru', ciudad: 'Lima', web: 'https://www.cayetano.edu.pe/' },
+  USMP: { nombre: 'Universidad de San Martin de Porres', pais: 'Peru', ciudad: 'Lima', web: 'https://www.usmp.edu.pe/' },
+  UNMSM: { nombre: 'Universidad Nacional Mayor de San Marcos', pais: 'Peru', ciudad: 'Lima', web: 'https://www.unmsm.edu.pe/' },
+  UNI: { nombre: 'Universidad Nacional de Ingenieria', pais: 'Peru', ciudad: 'Lima', web: 'https://www.uni.edu.pe/' },
+  URP: { nombre: 'Universidad Ricardo Palma', pais: 'Peru', ciudad: 'Lima', web: 'https://www.urp.edu.pe/' },
+  UCV: { nombre: 'Universidad Cesar Vallejo', pais: 'Peru', ciudad: 'Lima', web: 'https://www.ucv.edu.pe/' },
+  USFQ: { nombre: 'Universidad San Francisco de Quito', pais: 'Ecuador', ciudad: 'Quito', web: 'https://www.usfq.edu.ec/' },
+  TEC: { nombre: 'Tecnologico de Monterrey', pais: 'Mexico', ciudad: 'Monterrey', web: 'https://tec.mx/' },
+  MIT: { nombre: 'Massachusetts Institute of Technology', pais: 'Estados Unidos', ciudad: 'Cambridge', web: 'https://www.mit.edu/' },
+  STANFORD: { nombre: 'Stanford University', pais: 'Estados Unidos', ciudad: 'Stanford', web: 'https://www.stanford.edu/' },
+  HARVARD: { nombre: 'Harvard University', pais: 'Estados Unidos', ciudad: 'Cambridge', web: 'https://www.harvard.edu/' },
+  CALTECH: { nombre: 'California Institute of Technology', pais: 'Estados Unidos', ciudad: 'Pasadena', web: 'https://www.caltech.edu/' },
+};
+
+const directBusiness = ['UPC', 'ULIMA', 'UP', 'ESAN', 'UDEP'];
+const directEngineering = ['UPC', 'UTEC', 'PUCP', 'ULIMA', 'UPN', 'UTP'];
+const directHealth = ['UPCH', 'UCSUR', 'UPC', 'USMP', 'UNMSM'];
+const directHospitality = ['UPC', 'ULIMA', 'UDEP', 'UTP'];
+const directHumanities = ['PUCP', 'ULIMA', 'UPC', 'UDEP'];
+const internationalCore = ['TEC', 'USFQ'];
+const internationalTech = ['MIT', 'STANFORD', 'CALTECH'];
+
+export const BENCHMARK_SEED_BY_CAREER = {
+  'ADMINISTRACION': { direct: directBusiness, international: internationalCore },
+  'ADMINISTRACION Y EMPRENDIMIENTO': { direct: directBusiness, international: internationalCore },
+  'ADMINISTRACION Y FINANZAS CORPORATIVAS': { direct: ['UP', 'ULIMA', 'UPC', 'ESAN', 'UDEP'], international: internationalCore },
+  'DIGITAL BUSINESS MANAGEMENT': { direct: ['UPC', 'ULIMA', 'ESAN', 'UTEC', 'UP'], international: ['TEC', 'MIT', 'STANFORD'] },
+  'ECONOMIA Y FINANZAS': { direct: ['UP', 'PUCP', 'ULIMA', 'UPC', 'UDEP'], international: internationalCore },
+  'ECONOMIA Y NEGOCIOS INTERNACIONALES': { direct: ['UP', 'ULIMA', 'UPC', 'ESAN', 'UDEP'], international: internationalCore },
+  'INTERNATIONAL BUSINESS': { direct: ['ULIMA', 'UPC', 'ESAN', 'UP', 'UDEP'], international: internationalCore },
+  'MARKETING': { direct: ['ULIMA', 'UPC', 'UP', 'ESAN', 'UDEP'], international: internationalCore },
+  'ADMINISTRACION HOTELERA': { direct: directHospitality, international: internationalCore },
+  'ADMINISTRACION EN TURISMO': { direct: directHospitality, international: internationalCore },
+  'ARTE CULINARIO': { direct: ['UPC', 'ULIMA', 'UTP', 'UDEP'], international: internationalCore },
+  'GESTION E INNOVACION EN GASTRONOMIA': { direct: ['UPC', 'ULIMA', 'UTP', 'UDEP'], international: internationalCore },
+  'ARQUITECTURA, URBANISMO Y TERRITORIO': { direct: ['UPC', 'PUCP', 'ULIMA', 'URP', 'UNI', 'UPN', 'UTP', 'UCSUR'], international: ['MIT', 'HARVARD', 'TEC'] },
+  'ARTE Y DISENO EMPRESARIAL': { direct: ['PUCP', 'ULIMA', 'UPC', 'UDEP'], international: internationalCore },
+  'MUSICA': { direct: ['PUCP', 'ULIMA', 'UPC'], international: internationalCore },
+  'CIENCIAS DE LA ACTIVIDAD FISICA Y DEL DEPORTE': { direct: ['UPC', 'UCSUR', 'UPCH', 'UNMSM'], international: internationalCore },
+  'ENFERMERIA': { direct: directHealth, international: internationalCore },
+  'MEDICINA HUMANA': { direct: directHealth, international: ['HARVARD', 'STANFORD', 'TEC'] },
+  'NUTRICION Y DIETETICA': { direct: directHealth, international: internationalCore },
+  'PSICOLOGIA': { direct: ['PUCP', 'ULIMA', 'UPC', 'UPCH', 'UCSUR'], international: internationalCore },
+  'TECNOLOGIA MEDICA EN TERAPIA FISICA Y REHABILITACION': { direct: ['UPCH', 'UCSUR', 'UPC', 'UNMSM'], international: internationalCore },
+  'COMUNICACIONES': { direct: directHumanities, international: internationalCore },
+  'DERECHO': { direct: ['PUCP', 'ULIMA', 'UPC', 'UP', 'UDEP'], international: internationalCore },
+  'RELACIONES INTERNACIONALES': { direct: ['PUCP', 'ULIMA', 'UPC', 'UP'], international: internationalCore },
+  'EDUCACION INICIAL': { direct: ['PUCP', 'ULIMA', 'UPC', 'UDEP'], international: internationalCore },
+  'EDUCACION SECUNDARIA CON ESPECIALIDAD EN INGLES': { direct: ['PUCP', 'ULIMA', 'UPC', 'UDEP'], international: internationalCore },
+  'CIENCIA DE DATOS': { direct: ['UTEC', 'UPC', 'PUCP', 'ULIMA', 'UTP'], international: internationalTech },
+  'INGENIERIA AGROINDUSTRIAL': { direct: ['UNMSM', 'UNI', 'UPN', 'UTP', 'UCSUR'], international: ['TEC', 'MIT'] },
+  'INGENIERIA AMBIENTAL': { direct: directEngineering, international: ['TEC', 'MIT'] },
+  'INGENIERIA BIOMEDICA': { direct: ['PUCP', 'UTEC', 'UPC', 'UPCH', 'UTP'], international: internationalTech },
+  'INGENIERIA CIVIL': { direct: directEngineering, international: ['MIT', 'TEC', 'STANFORD'] },
+  'INGENIERIA DE SISTEMAS DE INFORMACION': { direct: directEngineering, international: internationalTech },
+  'INGENIERIA DE SOFTWARE': { direct: directEngineering, international: internationalTech },
+  'INGENIERIA EMPRESARIAL': { direct: ['ULIMA', 'UPC', 'PUCP', 'UTEC', 'UTP'], international: internationalTech },
+  'INGENIERIA EN CIBERSEGURIDAD': { direct: ['UTEC', 'UPC', 'UTP', 'PUCP'], international: internationalTech },
+  'INGENIERIA EN INDUSTRIAS ALIMENTARIAS': { direct: ['UNMSM', 'UNI', 'UPN', 'UTP', 'UCSUR'], international: ['TEC', 'MIT'] },
+  'INGENIERIA INDUSTRIAL Y COMERCIAL': { direct: directEngineering, international: internationalTech },
+  'INGENIERIA MECATRONICA': { direct: directEngineering, international: internationalTech },
+};

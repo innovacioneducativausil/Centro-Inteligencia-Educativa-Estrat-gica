@@ -5,14 +5,28 @@
 
 import { Router } from 'express';
 import db from '../db_empl.js';
-import { adminOrAnalyst } from '../middleware/roles.js';
+import dbCurricular from '../db_curricular.js';
+import { adminOnly } from '../middleware/roles.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { scraperBatch, cargarTextoManual } from '../services/scrapingService.js';
 import { normalizarPrograma } from '../services/normalizacionIAService.js';
+import { BENCHMARK_SEED_BY_CAREER, BENCHMARK_UNIVERSITIES } from '../data/benchmarkingSeed.js';
 
 const router = Router();
 
 let schemaReady = null;
+const TIPOS_BENCHMARK = ['competencia_directa','referente_nacional','referente_internacional','referente_tecnologico'];
+
+function normalizeName(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/Ñ/g, 'N')
+    .replace(/ñ/g, 'n')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
 
 async function ensureBenchmarkingSchema() {
   if (schemaReady) return schemaReady;
@@ -23,13 +37,15 @@ async function ensureBenchmarkingSchema() {
         nombre_universidad VARCHAR(220) NOT NULL,
         pais VARCHAR(100) NOT NULL DEFAULT 'Peru',
         ciudad VARCHAR(120) NULL,
-        tipo_benchmark ENUM('competencia_directa','referente_internacional') NOT NULL,
+        tipo_benchmark ENUM('competencia_directa','referente_nacional','referente_internacional','referente_tecnologico') NOT NULL,
         sitio_web VARCHAR(500) NULL,
         activo TINYINT(1) NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         KEY idx_tipo_benchmark (tipo_benchmark)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `ALTER TABLE universidad_benchmark
+        MODIFY tipo_benchmark ENUM('competencia_directa','referente_nacional','referente_internacional','referente_tecnologico') NOT NULL`,
       `CREATE TABLE IF NOT EXISTS programa_benchmark (
         id_programa_benchmark    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         id_universidad_benchmark INT UNSIGNED NOT NULL,
@@ -43,12 +59,39 @@ async function ensureBenchmarkingSchema() {
         fuente_texto_original    MEDIUMTEXT NULL,
         fecha_captura            DATETIME NULL,
         estado_extraccion        ENUM('pendiente','procesado','error','verificado') NOT NULL DEFAULT 'pendiente',
+        estado_validacion        ENUM('registrado','pendiente_extraccion','extraido','pendiente_validacion','validado','rechazado','desactualizado','reemplazado') NOT NULL DEFAULT 'registrado',
         observaciones            TEXT NULL,
         created_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         KEY idx_pb_univ (id_universidad_benchmark),
         CONSTRAINT fk_pb_univ FOREIGN KEY (id_universidad_benchmark)
           REFERENCES universidad_benchmark(id_universidad_benchmark) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS benchmark_source (
+        id_benchmark_source       INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        id_programa_benchmark     INT UNSIGNED NOT NULL,
+        tipo_fuente               ENUM('pagina_programa','malla_curricular','plan_estudios','perfil_egreso','competencias','campo_laboral','acreditacion','brochure_pdf','actualizacion_curricular','repositorio','otra') NOT NULL DEFAULT 'pagina_programa',
+        titulo                    VARCHAR(300) NOT NULL,
+        url                       VARCHAR(1200) NOT NULL,
+        estado                    ENUM('registrado','pendiente_extraccion','extraido','pendiente_validacion','validado','rechazado','desactualizado','reemplazado') NOT NULL DEFAULT 'registrado',
+        es_fuente_principal       TINYINT(1) NOT NULL DEFAULT 0,
+        fecha_captura             DATETIME NULL,
+        fecha_validacion          DATETIME NULL,
+        validado_por              VARCHAR(160) NULL,
+        extractor                 VARCHAR(80) NULL,
+        extractor_version         VARCHAR(40) NULL,
+        evidencia_resumen         TEXT NULL,
+        observaciones             TEXT NULL,
+        snapshot_hash             VARCHAR(128) NULL,
+        activo                    TINYINT(1) NOT NULL DEFAULT 1,
+        created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_benchmark_source_url (id_programa_benchmark, url(255)),
+        KEY idx_bs_programa (id_programa_benchmark),
+        KEY idx_bs_estado (estado),
+        KEY idx_bs_tipo (tipo_fuente),
+        CONSTRAINT fk_bs_programa FOREIGN KEY (id_programa_benchmark)
+          REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS curso_benchmark (
         id_curso_benchmark          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -81,7 +124,26 @@ async function ensureBenchmarkingSchema() {
           REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     ];
-    for (const sql of stmts) await db.query(sql);
+    for (const sql of stmts) {
+      try {
+        await db.query(sql);
+      } catch (e) {
+        if (!/Duplicate column|check that column\/key exists|syntax/i.test(e.message)) throw e;
+      }
+    }
+    const [cols] = await db.query(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'programa_benchmark'
+         AND COLUMN_NAME = 'estado_validacion'`
+    );
+    if (!cols.length) {
+      await db.query(
+        `ALTER TABLE programa_benchmark
+         ADD COLUMN estado_validacion ENUM('registrado','pendiente_extraccion','extraido','pendiente_validacion','validado','rechazado','desactualizado','reemplazado') NOT NULL DEFAULT 'registrado' AFTER estado_extraccion`
+      );
+    }
     console.log('✅ Schema benchmarking listo en empleabilidad_usil');
   })();
   return schemaReady;
@@ -97,7 +159,7 @@ router.get('/mercado-laboral/benchmarking/universidades', async (req, res) => {
     const { tipo } = req.query;
     const where  = ['activo = 1'];
     const params = [];
-    if (tipo && ['competencia_directa','referente_internacional'].includes(tipo)) {
+    if (tipo && TIPOS_BENCHMARK.includes(tipo)) {
       where.push('tipo_benchmark = ?'); params.push(tipo);
     }
     const [rows] = await db.query(
@@ -109,11 +171,11 @@ router.get('/mercado-laboral/benchmarking/universidades', async (req, res) => {
 });
 
 // ── POST /api/mercado-laboral/benchmarking/universidades ────────────────────
-router.post('/mercado-laboral/benchmarking/universidades', adminOrAnalyst, async (req, res) => {
+router.post('/mercado-laboral/benchmarking/universidades', adminOnly, async (req, res) => {
   try {
     const { nombre_universidad, pais = 'Peru', ciudad, tipo_benchmark, sitio_web } = req.body;
     if (!nombre_universidad?.trim()) return res.status(400).json({ error: 'nombre_universidad es requerido' });
-    if (!['competencia_directa','referente_internacional'].includes(tipo_benchmark)) {
+    if (!TIPOS_BENCHMARK.includes(tipo_benchmark)) {
       return res.status(400).json({ error: 'tipo_benchmark inválido' });
     }
     const [r] = await db.query(
@@ -125,7 +187,7 @@ router.post('/mercado-laboral/benchmarking/universidades', adminOrAnalyst, async
 });
 
 // ── PUT /api/mercado-laboral/benchmarking/universidades/:id ─────────────────
-router.put('/mercado-laboral/benchmarking/universidades/:id', adminOrAnalyst, async (req, res) => {
+router.put('/mercado-laboral/benchmarking/universidades/:id', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre_universidad, pais, ciudad, tipo_benchmark, sitio_web, activo } = req.body;
@@ -144,7 +206,7 @@ router.put('/mercado-laboral/benchmarking/universidades/:id', adminOrAnalyst, as
 });
 
 // ── DELETE /api/mercado-laboral/benchmarking/universidades/:id ──────────────
-router.delete('/mercado-laboral/benchmarking/universidades/:id', adminOrAnalyst, async (req, res) => {
+router.delete('/mercado-laboral/benchmarking/universidades/:id', adminOnly, async (req, res) => {
   try {
     await db.query('UPDATE universidad_benchmark SET activo=0 WHERE id_universidad_benchmark=?', [req.params.id]);
     res.json({ ok: true });
@@ -172,8 +234,148 @@ router.get('/mercado-laboral/benchmarking/programas', async (req, res) => {
   } catch (e) { serverError(res, e, 'GET /benchmarking/programas'); }
 });
 
+// ── GET /api/mercado-laboral/benchmarking/cobertura ───────────────────────
+router.get('/mercado-laboral/benchmarking/cobertura', async (_req, res) => {
+  try {
+    const [carreras] = await dbCurricular.query(
+      `SELECT ca.id_carrera, ca.nombre_carrera, f.nombre_facultad
+       FROM carrera ca
+       JOIN facultad f ON f.id_facultad = ca.id_facultad
+       ORDER BY f.nombre_facultad, ca.nombre_carrera`
+    );
+
+    const [rows] = await db.query(
+      `SELECT pb.carrera_equivalente_id AS id_carrera,
+              ub.tipo_benchmark,
+              COUNT(DISTINCT pb.id_programa_benchmark) AS total_programas,
+              COUNT(DISTINCT bs.id_benchmark_source) AS total_fuentes,
+              COUNT(DISTINCT CASE WHEN bs.estado='validado' THEN bs.id_benchmark_source END) AS fuentes_validadas,
+              COUNT(DISTINCT CASE WHEN bs.estado IN ('registrado','pendiente_extraccion','extraido','pendiente_validacion') THEN bs.id_benchmark_source END) AS fuentes_pendientes,
+              MAX(COALESCE(bs.fecha_validacion, bs.fecha_captura, bs.updated_at, pb.updated_at)) AS ultima_revision
+       FROM programa_benchmark pb
+       JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
+       LEFT JOIN benchmark_source bs ON bs.id_programa_benchmark = pb.id_programa_benchmark AND bs.activo = 1
+       WHERE ub.activo = 1 AND pb.carrera_equivalente_id IS NOT NULL
+       GROUP BY pb.carrera_equivalente_id, ub.tipo_benchmark`
+    );
+
+    const byCareer = new Map();
+    for (const row of rows) {
+      if (!byCareer.has(Number(row.id_carrera))) byCareer.set(Number(row.id_carrera), {});
+      byCareer.get(Number(row.id_carrera))[row.tipo_benchmark] = {
+        total_programas: Number(row.total_programas) || 0,
+        total_fuentes: Number(row.total_fuentes) || 0,
+        fuentes_validadas: Number(row.fuentes_validadas) || 0,
+        fuentes_pendientes: Number(row.fuentes_pendientes) || 0,
+        ultima_revision: row.ultima_revision,
+      };
+    }
+
+    res.json(carreras.map(c => ({
+      ...c,
+      benchmarking: byCareer.get(Number(c.id_carrera)) || {},
+    })));
+  } catch (e) { serverError(res, e, 'GET /benchmarking/cobertura'); }
+});
+
+// ── POST /api/mercado-laboral/benchmarking/seed-inicial ────────────────────
+router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req, res) => {
+  try {
+    const [carreras] = await dbCurricular.query(
+      `SELECT ca.id_carrera, ca.nombre_carrera
+       FROM carrera ca
+       ORDER BY ca.nombre_carrera`
+    );
+
+    let carrerasMapeadas = 0;
+    let universidadesCreadas = 0;
+    let programasCreados = 0;
+    let fuentesCreadas = 0;
+
+    for (const carrera of carreras) {
+      const seed = BENCHMARK_SEED_BY_CAREER[normalizeName(carrera.nombre_carrera)];
+      if (!seed) continue;
+      carrerasMapeadas++;
+
+      const entries = [
+        ...(seed.direct || []).map(code => ({ code, tipo: 'competencia_directa' })),
+        ...(seed.international || []).map(code => ({ code, tipo: code === 'CALTECH' ? 'referente_tecnologico' : 'referente_internacional' })),
+      ];
+
+      for (const entry of entries) {
+        const univ = BENCHMARK_UNIVERSITIES[entry.code];
+        if (!univ) continue;
+
+        const [existingUniv] = await db.query(
+          `SELECT id_universidad_benchmark
+           FROM universidad_benchmark
+           WHERE nombre_universidad=? AND tipo_benchmark=?
+           LIMIT 1`,
+          [univ.nombre, entry.tipo]
+        );
+        let idUniv = existingUniv[0]?.id_universidad_benchmark;
+        if (!idUniv) {
+          const [rUniv] = await db.query(
+            `INSERT INTO universidad_benchmark
+             (nombre_universidad, pais, ciudad, tipo_benchmark, sitio_web)
+             VALUES (?,?,?,?,?)`,
+            [univ.nombre, univ.pais, univ.ciudad, entry.tipo, univ.web]
+          );
+          idUniv = rUniv.insertId;
+          universidadesCreadas++;
+        }
+
+        const nombrePrograma = `${carrera.nombre_carrera} / programa equivalente`;
+        const [existingProg] = await db.query(
+          `SELECT id_programa_benchmark
+           FROM programa_benchmark
+           WHERE id_universidad_benchmark=? AND carrera_equivalente_id=? AND nombre_programa=?
+           LIMIT 1`,
+          [idUniv, carrera.id_carrera, nombrePrograma]
+        );
+        let idProg = existingProg[0]?.id_programa_benchmark;
+        if (!idProg) {
+          const [rProg] = await db.query(
+            `INSERT INTO programa_benchmark
+             (id_universidad_benchmark, nombre_programa, url_programa, carrera_equivalente_id, estado_validacion, observaciones)
+             VALUES (?,?,?,?,?,?)`,
+            [
+              idUniv,
+              nombrePrograma,
+              univ.web,
+              carrera.id_carrera,
+              'registrado',
+              'Semilla inicial. Requiere que admin reemplace o complemente con URL oficial especifica de carrera, malla, perfil o plan de estudios.',
+            ]
+          );
+          idProg = rProg.insertId;
+          programasCreados++;
+        }
+
+        const [rSource] = await db.query(
+          `INSERT IGNORE INTO benchmark_source
+           (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, observaciones)
+           VALUES (?,?,?,?,?,?,?)`,
+          [
+            idProg,
+            'pagina_programa',
+            'Sitio oficial institucional para curaduria inicial',
+            univ.web,
+            'registrado',
+            1,
+            'Fuente institucional base. No equivale a malla validada hasta que admin registre el link especifico del programa.',
+          ]
+        );
+        if (rSource.affectedRows) fuentesCreadas++;
+      }
+    }
+
+    res.json({ ok: true, carrerasMapeadas, universidadesCreadas, programasCreados, fuentesCreadas });
+  } catch (e) { serverError(res, e, 'POST /benchmarking/seed-inicial'); }
+});
+
 // ── POST /api/mercado-laboral/benchmarking/programas ────────────────────────
-router.post('/mercado-laboral/benchmarking/programas', adminOrAnalyst, async (req, res) => {
+router.post('/mercado-laboral/benchmarking/programas', adminOnly, async (req, res) => {
   try {
     const { id_universidad_benchmark, nombre_programa, url_programa, carrera_equivalente_id, modalidad, duracion } = req.body;
     if (!id_universidad_benchmark || !nombre_programa?.trim()) {
@@ -208,12 +410,82 @@ router.get('/mercado-laboral/benchmarking/programas/:id', async (req, res) => {
       'SELECT * FROM curso_benchmark WHERE id_programa_benchmark=? ORDER BY ciclo, nombre_curso',
       [req.params.id]
     );
-    res.json({ programa: prog, competencias, cursos });
+    const [fuentes] = await db.query(
+      `SELECT * FROM benchmark_source
+       WHERE id_programa_benchmark=? AND activo=1
+       ORDER BY es_fuente_principal DESC, tipo_fuente, titulo`,
+      [req.params.id]
+    );
+    res.json({ programa: prog, competencias, cursos, fuentes });
   } catch (e) { serverError(res, e, 'GET /benchmarking/programas/:id'); }
 });
 
+// ── GET /api/mercado-laboral/benchmarking/programas/:id/fuentes ───────────
+router.get('/mercado-laboral/benchmarking/programas/:id/fuentes', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT * FROM benchmark_source
+       WHERE id_programa_benchmark=? AND activo=1
+       ORDER BY es_fuente_principal DESC, tipo_fuente, titulo`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (e) { serverError(res, e, 'GET /benchmarking/programas/:id/fuentes'); }
+});
+
+// ── POST /api/mercado-laboral/benchmarking/programas/:id/fuentes ──────────
+router.post('/mercado-laboral/benchmarking/programas/:id/fuentes', adminOnly, async (req, res) => {
+  try {
+    const {
+      tipo_fuente = 'pagina_programa',
+      titulo,
+      url,
+      estado = 'registrado',
+      es_fuente_principal = false,
+      evidencia_resumen,
+      observaciones,
+    } = req.body;
+    if (!titulo?.trim() || !url?.trim()) return res.status(400).json({ error: 'titulo y url son requeridos' });
+    const [r] = await db.query(
+      `INSERT INTO benchmark_source
+       (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, evidencia_resumen, observaciones)
+       VALUES (?,?,?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE
+         tipo_fuente=VALUES(tipo_fuente),
+         titulo=VALUES(titulo),
+         estado=VALUES(estado),
+         es_fuente_principal=VALUES(es_fuente_principal),
+         evidencia_resumen=VALUES(evidencia_resumen),
+         observaciones=VALUES(observaciones),
+         activo=1`,
+      [req.params.id, tipo_fuente, titulo.trim(), url.trim(), estado, es_fuente_principal ? 1 : 0,
+       evidencia_resumen ?? null, observaciones ?? null]
+    );
+    res.status(201).json({ id: r.insertId || null, ok: true });
+  } catch (e) { serverError(res, e, 'POST /benchmarking/programas/:id/fuentes'); }
+});
+
+// ── PUT /api/mercado-laboral/benchmarking/fuentes/:id ─────────────────────
+router.put('/mercado-laboral/benchmarking/fuentes/:id', adminOnly, async (req, res) => {
+  try {
+    const allowed = ['tipo_fuente','titulo','url','estado','es_fuente_principal','fecha_captura','fecha_validacion','validado_por','extractor','extractor_version','evidencia_resumen','observaciones','activo'];
+    const sets = [];
+    const params = [];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        sets.push(`${key}=?`);
+        params.push(key === 'es_fuente_principal' || key === 'activo' ? (req.body[key] ? 1 : 0) : req.body[key]);
+      }
+    }
+    if (!sets.length) return res.status(400).json({ error: 'Sin campos para actualizar' });
+    params.push(req.params.id);
+    await db.query(`UPDATE benchmark_source SET ${sets.join(', ')} WHERE id_benchmark_source=?`, params);
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e, 'PUT /benchmarking/fuentes/:id'); }
+});
+
 // ── POST /api/mercado-laboral/benchmarking/scraping ─────────────────────────
-router.post('/mercado-laboral/benchmarking/scraping', adminOrAnalyst, async (req, res) => {
+router.post('/mercado-laboral/benchmarking/scraping', adminOnly, async (req, res) => {
   try {
     const { ids, texto_manual, url_origen, id_programa } = req.body;
 
@@ -233,7 +505,7 @@ router.post('/mercado-laboral/benchmarking/scraping', adminOrAnalyst, async (req
 });
 
 // ── POST /api/mercado-laboral/benchmarking/normalizar-ia ────────────────────
-router.post('/mercado-laboral/benchmarking/normalizar-ia', adminOrAnalyst, async (req, res) => {
+router.post('/mercado-laboral/benchmarking/normalizar-ia', adminOnly, async (req, res) => {
   try {
     const { id_programa } = req.body;
     if (!id_programa) return res.status(400).json({ error: 'id_programa es requerido' });
@@ -276,7 +548,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera', async (req, res)
 router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', async (req, res) => {
   try {
     const { idCarrera, tipoBenchmark } = req.params;
-    if (!['competencia_directa','referente_internacional'].includes(tipoBenchmark)) {
+    if (!TIPOS_BENCHMARK.includes(tipoBenchmark)) {
       return res.status(400).json({ error: 'tipoBenchmark inválido' });
     }
     const [competencias] = await db.query(
@@ -293,16 +565,21 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
     const [programas] = await db.query(
       `SELECT pb.id_programa_benchmark, pb.nombre_programa, pb.url_programa,
               pb.estado_extraccion, pb.fecha_captura, pb.duracion, pb.modalidad,
+              pb.estado_validacion,
               ub.nombre_universidad, ub.pais, ub.tipo_benchmark,
               COUNT(cb.id_competencia_benchmark) AS total_competencias,
-              COUNT(DISTINCT cu.id_curso_benchmark) AS total_cursos
+              COUNT(DISTINCT cu.id_curso_benchmark) AS total_cursos,
+              COUNT(DISTINCT bs.id_benchmark_source) AS total_fuentes,
+              COUNT(DISTINCT CASE WHEN bs.estado='validado' THEN bs.id_benchmark_source END) AS fuentes_validadas,
+              COUNT(DISTINCT CASE WHEN bs.estado IN ('registrado','pendiente_extraccion','extraido','pendiente_validacion') THEN bs.id_benchmark_source END) AS fuentes_pendientes
        FROM programa_benchmark pb
        JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
        LEFT JOIN competencia_benchmark cb ON cb.id_programa_benchmark = pb.id_programa_benchmark
        LEFT JOIN curso_benchmark cu ON cu.id_programa_benchmark = pb.id_programa_benchmark
+       LEFT JOIN benchmark_source bs ON bs.id_programa_benchmark = pb.id_programa_benchmark AND bs.activo = 1
        WHERE pb.carrera_equivalente_id = ? AND ub.tipo_benchmark = ? AND ub.activo = 1
        GROUP BY pb.id_programa_benchmark, pb.nombre_programa, pb.url_programa,
-                pb.estado_extraccion, pb.fecha_captura, pb.duracion, pb.modalidad,
+                pb.estado_extraccion, pb.fecha_captura, pb.duracion, pb.modalidad, pb.estado_validacion,
                 ub.nombre_universidad, ub.pais, ub.tipo_benchmark
        ORDER BY ub.nombre_universidad`,
       [idCarrera, tipoBenchmark]
