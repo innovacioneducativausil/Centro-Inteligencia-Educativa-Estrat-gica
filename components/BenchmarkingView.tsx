@@ -110,6 +110,8 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const [loadingComp, setLoadingComp]   = useState(false);
   const [actionLoading, setActionLoading] = useState<Record<number, string>>({});
   const [error, setError]           = useState<string | null>(null);
+  const [notice, setNotice]         = useState<string | null>(null);
+  const [seeding, setSeeding]       = useState(false);
   const [showAddUniv, setShowAddUniv] = useState(false);
   const [showAddProg, setShowAddProg] = useState(false);
   const [showManualText, setShowManualText] = useState<number | null>(null);
@@ -235,13 +237,23 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 
   const handleSeedInicial = async () => {
     setError(null);
+    setNotice(null);
+    setSeeding(true);
     try {
-      await apiFetch('/api/mercado-laboral/benchmarking/seed-inicial', { method: 'POST' });
+      const result = await apiFetch<{
+        carrerasLeidas: number;
+        carrerasMapeadas: number;
+        universidadesCreadas: number;
+        programasCreados: number;
+        fuentesCreadas: number;
+      }>('/api/mercado-laboral/benchmarking/seed-inicial', { method: 'POST' });
       const d = await fetch('/api/mercado-laboral/benchmarking/cobertura', { credentials: 'include' }).then(r => r.json());
       if (Array.isArray(d)) setCobertura(d);
       loadUniversidades();
       loadProgramas();
+      setNotice(`Benchmarking base configurado: ${result.carrerasMapeadas}/${result.carrerasLeidas} carreras, ${result.programasCreados} programas nuevos y ${result.fuentesCreadas} fuentes nuevas.`);
     } catch (e: any) { setError(e.message); }
+    finally { setSeeding(false); }
   };
 
   const competenciasUnicas = [...new Set(competencias.map(c => c.nombre_competencia))];
@@ -263,10 +275,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           </button>
         ))}
         {canEdit && (
-          <button onClick={handleSeedInicial}
+          <button onClick={handleSeedInicial} disabled={seeding}
             style={{ marginLeft: 'auto', padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`,
-              background: card, color: USIL, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>
-            Configurar benchmarking base
+              background: card, color: seeding ? muted : USIL, fontWeight: 800, fontSize: 12,
+              cursor: seeding ? 'not-allowed' : 'pointer' }}>
+            {seeding ? 'Configurando...' : 'Configurar benchmarking base'}
           </button>
         )}
       </div>
@@ -275,6 +288,13 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8,
           padding: '10px 14px', marginBottom: 12, color: '#991b1b', fontSize: 12 }}>
           {error}
+        </div>
+      )}
+
+      {notice && (
+        <div style={{ background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 8,
+          padding: '10px 14px', marginBottom: 12, color: '#166534', fontSize: 12, fontWeight: 700 }}>
+          {notice}
         </div>
       )}
 

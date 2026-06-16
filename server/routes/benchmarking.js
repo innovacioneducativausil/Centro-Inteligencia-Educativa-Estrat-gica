@@ -28,6 +28,34 @@ function normalizeName(value = '') {
     .toUpperCase();
 }
 
+function resolveBenchmarkSeed(careerName = '') {
+  const name = normalizeName(careerName);
+  const exact = BENCHMARK_SEED_BY_CAREER[name];
+  if (exact) return { seed: exact, match: 'exacto' };
+
+  const has = (...terms) => terms.some(term => name.includes(term));
+  if (has('MEDICINA', 'ENFERMERIA', 'NUTRICION', 'PSICOLOGIA', 'TECNOLOGIA MEDICA', 'TERAPIA FISICA')) {
+    return { seed: { direct: ['UPCH', 'UCSUR', 'UPC', 'USMP', 'UNMSM'], international: ['HARVARD', 'STANFORD', 'TEC'] }, match: 'area_salud' };
+  }
+  if (has('INGENIERIA', 'CIENCIA DE DATOS', 'CIBERSEGURIDAD', 'SOFTWARE', 'SISTEMAS', 'MECATRONICA')) {
+    return { seed: { direct: ['UPC', 'UTEC', 'PUCP', 'ULIMA', 'UPN', 'UTP'], international: ['MIT', 'STANFORD', 'CALTECH'] }, match: 'area_ingenieria' };
+  }
+  if (has('ADMINISTRACION', 'BUSINESS', 'MARKETING', 'ECONOMIA', 'FINANZAS', 'NEGOCIOS')) {
+    return { seed: { direct: ['UPC', 'ULIMA', 'UP', 'ESAN', 'UDEP'], international: ['TEC', 'USFQ'] }, match: 'area_negocios' };
+  }
+  if (has('TURISMO', 'HOTELERA', 'GASTRONOMIA', 'CULINARIO')) {
+    return { seed: { direct: ['UPC', 'ULIMA', 'UDEP', 'UTP'], international: ['TEC', 'USFQ'] }, match: 'area_hospitalidad' };
+  }
+  if (has('ARQUITECTURA')) {
+    return { seed: { direct: ['UPC', 'PUCP', 'ULIMA', 'URP', 'UNI', 'UPN', 'UTP', 'UCSUR'], international: ['MIT', 'HARVARD', 'TEC'] }, match: 'area_arquitectura' };
+  }
+  if (has('DERECHO', 'COMUNICACIONES', 'RELACIONES INTERNACIONALES', 'EDUCACION', 'MUSICA', 'ARTE')) {
+    return { seed: { direct: ['PUCP', 'ULIMA', 'UPC', 'UDEP'], international: ['TEC', 'USFQ'] }, match: 'area_humanidades' };
+  }
+
+  return { seed: { direct: ['UPC', 'ULIMA', 'PUCP', 'UDEP'], international: ['TEC', 'USFQ'] }, match: 'fallback_general' };
+}
+
 async function ensureBenchmarkingSchema() {
   if (schemaReady) return schemaReady;
   schemaReady = (async () => {
@@ -291,11 +319,12 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
     let universidadesCreadas = 0;
     let programasCreados = 0;
     let fuentesCreadas = 0;
+    const mapeos = {};
 
     for (const carrera of carreras) {
-      const seed = BENCHMARK_SEED_BY_CAREER[normalizeName(carrera.nombre_carrera)];
-      if (!seed) continue;
+      const { seed, match } = resolveBenchmarkSeed(carrera.nombre_carrera);
       carrerasMapeadas++;
+      mapeos[match] = (mapeos[match] || 0) + 1;
 
       const entries = [
         ...(seed.direct || []).map(code => ({ code, tipo: 'competencia_directa' })),
@@ -370,7 +399,15 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
       }
     }
 
-    res.json({ ok: true, carrerasMapeadas, universidadesCreadas, programasCreados, fuentesCreadas });
+    res.json({
+      ok: true,
+      carrerasLeidas: carreras.length,
+      carrerasMapeadas,
+      universidadesCreadas,
+      programasCreados,
+      fuentesCreadas,
+      mapeos,
+    });
   } catch (e) { serverError(res, e, 'POST /benchmarking/seed-inicial'); }
 });
 
