@@ -309,6 +309,15 @@ router.get('/mercado-laboral/benchmarking/cobertura', async (_req, res) => {
 // ── POST /api/mercado-laboral/benchmarking/seed-inicial ────────────────────
 router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req, res) => {
   try {
+    await db.query(`UPDATE universidad_benchmark SET tipo_benchmark='referente_internacional' WHERE tipo_benchmark='referente_tecnologico'`);
+    await db.query(`UPDATE universidad_benchmark SET tipo_benchmark='competencia_directa' WHERE tipo_benchmark='referente_nacional'`);
+    await db.query(
+      `UPDATE programa_benchmark
+       SET estado_extraccion='pendiente', fecha_captura=NULL
+       WHERE estado_extraccion='error'
+         AND nombre_programa LIKE '%/ programa equivalente'`
+    );
+
     const [carreras] = await dbCurricular.query(
       `SELECT ca.id_carrera, ca.nombre_carrera
        FROM carrera ca
@@ -328,7 +337,7 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
 
       const entries = [
         ...(seed.direct || []).map(code => ({ code, tipo: 'competencia_directa' })),
-        ...(seed.international || []).map(code => ({ code, tipo: code === 'CALTECH' ? 'referente_tecnologico' : 'referente_internacional' })),
+        ...(seed.international || []).map(code => ({ code, tipo: 'referente_internacional' })),
       ];
 
       for (const entry of entries) {
@@ -371,7 +380,7 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
             [
               idUniv,
               nombrePrograma,
-              univ.web,
+              null,
               carrera.id_carrera,
               'registrado',
               'Semilla inicial. Requiere que admin reemplace o complemente con URL oficial especifica de carrera, malla, perfil o plan de estudios.',
@@ -388,11 +397,11 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
           [
             idProg,
             'pagina_programa',
-            'Sitio oficial institucional para curaduria inicial',
+            'Fuente exacta pendiente de curaduria',
             univ.web,
             'registrado',
             1,
-            'Fuente institucional base. No equivale a malla validada hasta que admin registre el link especifico del programa.',
+            'URL institucional base. No equivale a fuente curricular exacta hasta registrar pagina de carrera, malla, perfil o plan de estudios.',
           ]
         );
         if (rSource.affectedRows) fuentesCreadas++;

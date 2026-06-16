@@ -1,4 +1,4 @@
-// components/BenchmarkingView.tsx
+﻿// components/BenchmarkingView.tsx
 import React, { useCallback, useEffect, useState } from 'react';
 import { ThemeColors } from '../types';
 
@@ -71,8 +71,10 @@ const TIPO_LABELS: Record<TipoBenchmark, string> = {
   competencia_directa:     'Competencia Directa',
   referente_nacional:      'Referentes Nacionales',
   referente_internacional: 'Referentes Internacionales',
-  referente_tecnologico:   'Referentes Tecnológicos',
+  referente_tecnologico:   'Referentes TecnolÃ³gicos',
 };
+
+const TIPOS_VISIBLES: TipoBenchmark[] = ['competencia_directa', 'referente_internacional'];
 
 const ESTADO_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   pendiente:   { bg: '#fef9c3', text: '#854d0e', label: 'Pendiente' },
@@ -86,6 +88,16 @@ async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((data as any).error || `Error ${r.status}`);
   return data as T;
+}
+
+function isGenericInstitutionUrl(url?: string | null) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return !parsed.pathname || parsed.pathname === '/';
+  } catch {
+    return false;
+  }
 }
 
 const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRole }) => {
@@ -251,19 +263,20 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       if (Array.isArray(d)) setCobertura(d);
       loadUniversidades();
       loadProgramas();
-      setNotice(`Benchmarking base configurado: ${result.carrerasMapeadas}/${result.carrerasLeidas} carreras, ${result.programasCreados} programas nuevos y ${result.fuentesCreadas} fuentes nuevas.`);
+      setNotice(`RebÃºsqueda completada: ${result.carrerasMapeadas}/${result.carrerasLeidas} carreras, ${result.programasCreados} programas nuevos y ${result.fuentesCreadas} fuentes nuevas.`);
     } catch (e: any) { setError(e.message); }
     finally { setSeeding(false); }
   };
 
   const competenciasUnicas = [...new Set(competencias.map(c => c.nombre_competencia))];
   const universidadesConPrograma = [...new Set(programas.map(p => p.nombre_universidad))];
+  const carreraSeleccionada = cobertura.find(c => c.id_carrera === selectedCarrera) || carreras.find(c => c.id_carrera === selectedCarrera);
 
   return (
     <div style={{ padding: 0, color: text }}>
       {/* Sub-tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {(['competencia_directa', 'referente_nacional', 'referente_internacional', 'referente_tecnologico'] as TipoBenchmark[]).map(t => (
+        {TIPOS_VISIBLES.map(t => (
           <button key={t} onClick={() => setTipo(t)}
             style={{
               padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
@@ -279,7 +292,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             style={{ marginLeft: 'auto', padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`,
               background: card, color: seeding ? muted : USIL, fontWeight: 800, fontSize: 12,
               cursor: seeding ? 'not-allowed' : 'pointer' }}>
-            {seeding ? 'Configurando...' : 'Configurar benchmarking base'}
+            {seeding ? 'Rebuscando...' : 'Rebuscar fuentes'}
           </button>
         )}
       </div>
@@ -298,7 +311,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         </div>
       )}
 
-      {!selectedCarrera && cobertura.length > 0 && (
+      {cobertura.length > 0 && (
         <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden', marginBottom: 12 }}>
           <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
             borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -313,7 +326,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <thead style={{ position: 'sticky', top: 0 }}>
                 <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                  {['Facultad', 'Carrera', 'Directa', 'Nacional', 'Internacional', 'Tecnológica', 'Validadas', 'Pendientes'].map(h => (
+                  {['Facultad', 'Carrera', 'Competencia directa', 'Competencia internacional', 'Validadas', 'Pendientes'].map(h => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
                       color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                       {h}
@@ -325,17 +338,16 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 {cobertura.map(c => {
                   const tipos = c.benchmarking || {};
                   const total = (t: TipoBenchmark, key: 'total_programas' | 'fuentes_validadas' | 'fuentes_pendientes') => tipos[t]?.[key] ?? 0;
-                  const validadas = (Object.keys(tipos) as TipoBenchmark[]).reduce((acc, t) => acc + (tipos[t]?.fuentes_validadas ?? 0), 0);
-                  const pendientes = (Object.keys(tipos) as TipoBenchmark[]).reduce((acc, t) => acc + (tipos[t]?.fuentes_pendientes ?? 0), 0);
+                  const validadas = TIPOS_VISIBLES.reduce((acc, t) => acc + (tipos[t]?.fuentes_validadas ?? 0), 0);
+                  const pendientes = TIPOS_VISIBLES.reduce((acc, t) => acc + (tipos[t]?.fuentes_pendientes ?? 0), 0);
+                  const isSelected = selectedCarrera === c.id_carrera;
                   return (
                     <tr key={c.id_carrera} onClick={() => setSelectedCarrera(c.id_carrera)}
-                      style={{ borderBottom: `1px solid ${border}`, cursor: 'pointer' }}>
+                      style={{ borderBottom: `1px solid ${border}`, cursor: 'pointer', background: isSelected ? '#eff6ff' : 'transparent' }}>
                       <td style={{ padding: '8px 10px', color: muted }}>{c.nombre_facultad}</td>
                       <td style={{ padding: '8px 10px', fontWeight: 700 }}>{c.nombre_carrera}</td>
                       <td style={{ padding: '8px 10px' }}>{total('competencia_directa', 'total_programas')}</td>
-                      <td style={{ padding: '8px 10px' }}>{total('referente_nacional', 'total_programas')}</td>
                       <td style={{ padding: '8px 10px' }}>{total('referente_internacional', 'total_programas')}</td>
-                      <td style={{ padding: '8px 10px' }}>{total('referente_tecnologico', 'total_programas')}</td>
                       <td style={{ padding: '8px 10px', color: '#166534', fontWeight: 800 }}>{validadas}</td>
                       <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>{pendientes}</td>
                     </tr>
@@ -376,7 +388,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 style={{ padding: '10px 14px', borderBottom: `1px solid ${border}`,
                   fontSize: 12, fontWeight: 600 }}>
                 <div style={{ color: text }}>{u.nombre_universidad}</div>
-                <div style={{ color: muted, fontSize: 10, marginTop: 2 }}>{u.pais}{u.ciudad ? ` · ${u.ciudad}` : ''}</div>
+                <div style={{ color: muted, fontSize: 10, marginTop: 2 }}>{u.pais}{u.ciudad ? ` Â· ${u.ciudad}` : ''}</div>
                 {u.sitio_web && (
                   <a href={u.sitio_web} target="_blank" rel="noreferrer"
                     style={{ color: CYAN, fontSize: 10, textDecoration: 'none' }}>
@@ -391,26 +403,19 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         {/* Panel derecho: Carrera + Programas + Comparativa */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* Selector de carrera */}
-          <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: '12px 16px' }}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted,
-                  marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                  Carrera propia a comparar
-                </label>
-                <select value={selectedCarrera} onChange={e => setSelectedCarrera(e.target.value ? Number(e.target.value) : '')}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                    background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, fontWeight: 600 }}>
-                  <option value="">— Seleccionar carrera —</option>
-                  {carreras.map(c => (
-                    <option key={c.id_carrera} value={c.id_carrera}>
-                      {c.nombre_carrera} ({c.nombre_facultad})
-                    </option>
-                  ))}
-                </select>
+          {selectedCarrera && (
+            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: '12px 16px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                  Carrera seleccionada
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: text, marginTop: 2 }}>
+                  {carreraSeleccionada?.nombre_carrera || 'Carrera seleccionada'}
+                  {carreraSeleccionada?.nombre_facultad ? ` (${carreraSeleccionada.nombre_facultad})` : ''}
+                </div>
               </div>
-              {canEdit && selectedCarrera && (
+              {canEdit && (
                 <button onClick={() => setShowAddProg(true)}
                   style={{ padding: '8px 14px', borderRadius: 8, border: 'none',
                     background: USIL, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
@@ -418,7 +423,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 </button>
               )}
             </div>
-          </div>
+          )}
 
           {/* Tabla de programas */}
           {selectedCarrera && (
@@ -441,7 +446,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
                       <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                        {['Universidad', 'País', 'Programa', 'Estado', 'Fuentes', 'Competencias', 'Captura', 'Acciones'].map(h => (
+                        {['Universidad', 'PaÃ­s', 'Programa', 'Estado', 'Fuentes', 'Competencias', 'Captura', 'Acciones'].map(h => (
                           <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
                             color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                             {h}
@@ -459,11 +464,15 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                             <td style={{ padding: '8px 10px', color: muted }}>{p.pais}</td>
                             <td style={{ padding: '8px 10px', maxWidth: 180 }}>
                               <div style={{ fontWeight: 600 }}>{p.nombre_programa}</div>
-                              {p.url_programa && (
+                              {p.url_programa && !isGenericInstitutionUrl(p.url_programa) ? (
                                 <a href={p.url_programa} target="_blank" rel="noreferrer"
                                   style={{ color: CYAN, fontSize: 10, textDecoration: 'none' }}>
-                                  Ver URL
+                                  Ver fuente
                                 </a>
+                              ) : (
+                                <div style={{ color: '#854d0e', fontSize: 10, marginTop: 2 }}>
+                                  Fuente exacta pendiente
+                                </div>
                               )}
                             </td>
                             <td style={{ padding: '8px 10px' }}>
@@ -487,7 +496,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                               {p.total_competencias ?? 0}
                             </td>
                             <td style={{ padding: '8px 10px', color: muted, fontSize: 10 }}>
-                              {p.fecha_captura ? new Date(p.fecha_captura).toLocaleDateString('es-PE') : '—'}
+                              {p.fecha_captura ? new Date(p.fecha_captura).toLocaleDateString('es-PE') : 'â€”'}
                             </td>
                             <td style={{ padding: '8px 10px' }}>
                               {canEdit && (
@@ -495,28 +504,28 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                   <button
                                     onClick={() => handleScraping(p.id_programa_benchmark)}
                                     disabled={isBusy}
-                                    title="Ejecutar scraping automático"
+                                    title="Extraer texto desde la fuente exacta registrada"
                                     style={{ padding: '3px 7px', borderRadius: 4, border: 'none',
                                       background: isBusy && actionLoading[p.id_programa_benchmark] === 'scraping' ? '#94a3b8' : USIL,
                                       color: '#fff', fontWeight: 700, fontSize: 9, cursor: isBusy ? 'not-allowed' : 'pointer' }}>
-                                    {actionLoading[p.id_programa_benchmark] === 'scraping' ? '...' : 'Scraping'}
+                                    {actionLoading[p.id_programa_benchmark] === 'scraping' ? '...' : 'Extraer'}
                                   </button>
                                   <button
                                     onClick={() => { setShowManualText(p.id_programa_benchmark); setManualUrl(p.url_programa ?? ''); }}
-                                    title="Cargar texto fuente manualmente"
+                                    title="Pegar manualmente texto de malla, perfil o plan de estudios"
                                     style={{ padding: '3px 7px', borderRadius: 4, border: `1px solid ${border}`,
                                       background: 'transparent', color: text, fontWeight: 700, fontSize: 9, cursor: 'pointer' }}>
-                                    Manual
+                                    Pegar fuente
                                   </button>
-                                  {p.estado_extraccion !== 'pendiente' && (
+                                  {['procesado', 'verificado'].includes(p.estado_extraccion) && (
                                     <button
                                       onClick={() => handleNormalizarIA(p.id_programa_benchmark)}
                                       disabled={isBusy}
-                                      title="Normalizar con IA"
+                                      title="Normalizar cursos y competencias desde texto extraido"
                                       style={{ padding: '3px 7px', borderRadius: 4, border: 'none',
                                         background: isBusy && actionLoading[p.id_programa_benchmark] === 'ia' ? '#94a3b8' : CYAN,
                                         color: '#fff', fontWeight: 700, fontSize: 9, cursor: isBusy ? 'not-allowed' : 'pointer' }}>
-                                      {actionLoading[p.id_programa_benchmark] === 'ia' ? '...' : 'IA'}
+                                      {actionLoading[p.id_programa_benchmark] === 'ia' ? '...' : 'Normalizar'}
                                     </button>
                                   )}
                                 </div>
@@ -541,14 +550,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   Competencias detectadas en benchmarking ({competencias.length})
                 </span>
                 <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
-                  {universidadesConPrograma.length} universidades · {competenciasUnicas.length} competencias únicas
+                  {universidadesConPrograma.length} universidades Â· {competenciasUnicas.length} competencias Ãºnicas
                 </div>
               </div>
               <div style={{ maxHeight: 280, overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead style={{ position: 'sticky', top: 0 }}>
                     <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                      {['Universidad', 'País', 'Programa', 'Competencia', 'Tipo'].map(h => (
+                      {['Universidad', 'PaÃ­s', 'Programa', 'Competencia', 'Tipo'].map(h => (
                         <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700,
                           color: muted, borderBottom: `1px solid ${border}` }}>
                           {h}
@@ -587,11 +596,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           <div style={{ background: card, borderRadius: 12, padding: '24px 28px', width: 420,
             maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', color: text }}>
             <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 800, color: USIL }}>
-              Agregar Universidad — {TIPO_LABELS[tipo]}
+              Agregar Universidad â€” {TIPO_LABELS[tipo]}
             </h3>
             {[
               { key: 'nombre_universidad', label: 'Nombre de la Universidad *', ph: 'Ej. Universidad de Lima' },
-              { key: 'pais', label: 'País', ph: 'Peru' },
+              { key: 'pais', label: 'PaÃ­s', ph: 'Peru' },
               { key: 'ciudad', label: 'Ciudad', ph: 'Lima' },
               { key: 'sitio_web', label: 'Sitio web', ph: 'https://...' },
             ].map(f => (
@@ -644,7 +653,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 onChange={e => setSelectedUnivForProg(e.target.value ? Number(e.target.value) : '')}
                 style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`,
                   background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}>
-                <option value="">— Seleccionar —</option>
+                <option value="">â€” Seleccionar â€”</option>
                 {universidades.map(u => (
                   <option key={u.id_universidad_benchmark} value={u.id_universidad_benchmark}>
                     {u.nombre_universidad}
@@ -653,10 +662,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               </select>
             </div>
             {[
-              { key: 'nombre_programa', label: 'Nombre del Programa *', ph: 'Ej. Ingeniería de Software' },
+              { key: 'nombre_programa', label: 'Nombre del Programa *', ph: 'Ej. IngenierÃ­a de Software' },
               { key: 'url_programa', label: 'URL del programa', ph: 'https://...' },
-              { key: 'modalidad', label: 'Modalidad', ph: 'Presencial, Virtual, Híbrido' },
-              { key: 'duracion', label: 'Duración', ph: '5 años, 10 ciclos...' },
+              { key: 'modalidad', label: 'Modalidad', ph: 'Presencial, Virtual, HÃ­brido' },
+              { key: 'duracion', label: 'DuraciÃ³n', ph: '5 aÃ±os, 10 ciclos...' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom: 12 }}>
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase' }}>
@@ -700,7 +709,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               Carga Manual de Texto Fuente
             </h3>
             <p style={{ fontSize: 11, color: muted, marginBottom: 14 }}>
-              Si el scraping automático está bloqueado, copia y pega aquí el texto del plan de estudios o perfil de egreso de la página.
+              Si el scraping automÃ¡tico estÃ¡ bloqueado, copia y pega aquÃ­ el texto del plan de estudios o perfil de egreso de la pÃ¡gina.
             </p>
             <div style={{ marginBottom: 10 }}>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase' }}>
@@ -712,10 +721,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase' }}>
-                Texto fuente * (mínimo 20 caracteres)
+                Texto fuente * (mÃ­nimo 20 caracteres)
               </label>
               <textarea value={manualText} onChange={e => setManualText(e.target.value)}
-                rows={8} placeholder="Pega aquí el texto del plan de estudios, perfil de egreso, cursos, etc."
+                rows={8} placeholder="Pega aquÃ­ el texto del plan de estudios, perfil de egreso, cursos, etc."
                 style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`,
                   background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12,
                   boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
