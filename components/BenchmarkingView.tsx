@@ -7,7 +7,7 @@ interface BenchmarkingViewProps {
   userRole?: string;
 }
 
-type TipoBenchmark = 'competencia_directa' | 'referente_nacional' | 'referente_internacional' | 'referente_tecnologico';
+type TipoBenchmark = 'competencia_directa' | 'referente_nacional' | 'competencia_internacional' | 'referente_internacional' | 'referente_tecnologico';
 
 interface Universidad {
   id_universidad_benchmark: number;
@@ -70,11 +70,12 @@ const CYAN = '#00A3E0';
 const TIPO_LABELS: Record<TipoBenchmark, string> = {
   competencia_directa:     'Competencia Directa',
   referente_nacional:      'Referentes Nacionales',
+  competencia_internacional: 'Competencia Internacional',
   referente_internacional: 'Referentes Internacionales',
   referente_tecnologico:   'Referentes TecnolÃ³gicos',
 };
 
-const TIPOS_VISIBLES: TipoBenchmark[] = ['competencia_directa', 'referente_internacional'];
+const TIPOS_VISIBLES: TipoBenchmark[] = ['competencia_directa', 'referente_nacional', 'competencia_internacional', 'referente_internacional'];
 
 const ESTADO_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   pendiente:   { bg: '#fef9c3', text: '#854d0e', label: 'Pendiente' },
@@ -272,6 +273,17 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const universidadesConPrograma = [...new Set(programas.map(p => p.nombre_universidad))];
   const carreraSeleccionada = cobertura.find(c => c.id_carrera === selectedCarrera) || carreras.find(c => c.id_carrera === selectedCarrera);
 
+  if (!canEdit) {
+    return (
+      <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: 24, color: text }}>
+        <div style={{ fontWeight: 800, color: USIL, marginBottom: 6 }}>Benchmarking curricular</div>
+        <div style={{ color: muted, fontSize: 13 }}>
+          Este módulo es de uso administrativo. Las fuentes, comparaciones y propuestas curriculares requieren curaduría y validación antes de mostrarse al resto de usuarios.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 0, color: text }}>
       {/* Sub-tabs */}
@@ -322,11 +334,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               Selecciona una carrera para ver programas y fuentes
             </span>
           </div>
-          <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+          <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <thead style={{ position: 'sticky', top: 0 }}>
                 <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                  {['Facultad', 'Carrera', 'Competencia directa', 'Competencia internacional', 'Validadas', 'Pendientes'].map(h => (
+                  {['Facultad', 'Carrera', 'Competencia directa', 'Referentes nacionales', 'Competencia internacional', 'Referentes internacionales', 'Validadas', 'Pendientes'].map(h => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
                       color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                       {h}
@@ -347,6 +359,8 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                       <td style={{ padding: '8px 10px', color: muted }}>{c.nombre_facultad}</td>
                       <td style={{ padding: '8px 10px', fontWeight: 700 }}>{c.nombre_carrera}</td>
                       <td style={{ padding: '8px 10px' }}>{total('competencia_directa', 'total_programas')}</td>
+                      <td style={{ padding: '8px 10px' }}>{total('referente_nacional', 'total_programas')}</td>
+                      <td style={{ padding: '8px 10px' }}>{total('competencia_internacional', 'total_programas')}</td>
                       <td style={{ padding: '8px 10px' }}>{total('referente_internacional', 'total_programas')}</td>
                       <td style={{ padding: '8px 10px', color: '#166534', fontWeight: 800 }}>{validadas}</td>
                       <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>{pendientes}</td>
@@ -359,10 +373,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 12, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, alignItems: 'start' }}>
 
         {/* Panel izquierdo: Universidades */}
-        <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+        <div style={{ display: 'none' }}>
           <div style={{ background: USIL, color: '#fff', padding: '10px 14px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -425,6 +439,29 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
           )}
 
+          {selectedCarrera && (
+            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: '12px 16px' }}>
+              <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase', marginBottom: 10 }}>
+                Flujo de comparación curricular
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(140px, 1fr))', gap: 8 }}>
+                {[
+                  ['1', 'Fuente oficial', 'Registrar link exacto de malla, perfil, plan o competencias.'],
+                  ['2', 'Extracción', 'Usar extracción automática solo si la URL es específica; si falla, pegar fuente.'],
+                  ['3', 'Normalización IA', 'Detectar cursos, competencias, tecnologías y evidencias sin marcarlas como validadas.'],
+                  ['4', 'Comparación', 'Cruzar lo extraído contra malla y sílabos de la carrera seleccionada.'],
+                  ['5', 'Propuesta', 'Generar brecha y propuesta curricular para revisión humana, nunca aplicar automático.'],
+                ].map(([n, title, desc]) => (
+                  <div key={n} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: 10, background: isDark ? '#0f172a' : '#f8fafc' }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: CYAN }}>Paso {n}</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: text, marginTop: 3 }}>{title}</div>
+                    <div style={{ fontSize: 10, color: muted, marginTop: 4, lineHeight: 1.35 }}>{desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Tabla de programas */}
           {selectedCarrera && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
@@ -439,7 +476,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 
               {programas.length === 0 && !loadingProgs ? (
                 <div style={{ padding: 24, textAlign: 'center', color: muted, fontSize: 12 }}>
-                  No hay programas cargados para esta carrera y tipo. Agrega programas y ejecuta el scraping.
+                  No hay programas cargados para esta carrera y tipo. Agrega programas y registra fuentes oficiales de malla, perfil, plan de estudios o competencias.
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
@@ -458,6 +495,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                       {programas.map(p => {
                         const est = ESTADO_BADGE[p.estado_extraccion] ?? ESTADO_BADGE.pendiente;
                         const isBusy = !!actionLoading[p.id_programa_benchmark];
+                        const hasExactSource = !!p.url_programa && !isGenericInstitutionUrl(p.url_programa);
                         return (
                           <tr key={p.id_programa_benchmark} style={{ borderBottom: `1px solid ${border}` }}>
                             <td style={{ padding: '8px 10px', fontWeight: 600 }}>{p.nombre_universidad}</td>
@@ -503,11 +541,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                   <button
                                     onClick={() => handleScraping(p.id_programa_benchmark)}
-                                    disabled={isBusy}
+                                    disabled={isBusy || !hasExactSource}
                                     title="Extraer texto desde la fuente exacta registrada"
                                     style={{ padding: '3px 7px', borderRadius: 4, border: 'none',
-                                      background: isBusy && actionLoading[p.id_programa_benchmark] === 'scraping' ? '#94a3b8' : USIL,
-                                      color: '#fff', fontWeight: 700, fontSize: 9, cursor: isBusy ? 'not-allowed' : 'pointer' }}>
+                                      background: isBusy || !hasExactSource ? '#94a3b8' : USIL,
+                                      color: '#fff', fontWeight: 700, fontSize: 9, cursor: isBusy || !hasExactSource ? 'not-allowed' : 'pointer' }}>
                                     {actionLoading[p.id_programa_benchmark] === 'scraping' ? '...' : 'Extraer'}
                                   </button>
                                   <button

@@ -15,7 +15,7 @@ import { BENCHMARK_SEED_BY_CAREER, BENCHMARK_UNIVERSITIES } from '../data/benchm
 const router = Router();
 
 let schemaReady = null;
-const TIPOS_BENCHMARK = ['competencia_directa','referente_nacional','referente_internacional','referente_tecnologico'];
+const TIPOS_BENCHMARK = ['competencia_directa','referente_nacional','competencia_internacional','referente_internacional','referente_tecnologico'];
 
 function normalizeName(value = '') {
   return String(value)
@@ -65,7 +65,7 @@ async function ensureBenchmarkingSchema() {
         nombre_universidad VARCHAR(220) NOT NULL,
         pais VARCHAR(100) NOT NULL DEFAULT 'Peru',
         ciudad VARCHAR(120) NULL,
-        tipo_benchmark ENUM('competencia_directa','referente_nacional','referente_internacional','referente_tecnologico') NOT NULL,
+        tipo_benchmark ENUM('competencia_directa','referente_nacional','competencia_internacional','referente_internacional','referente_tecnologico') NOT NULL,
         sitio_web VARCHAR(500) NULL,
         activo TINYINT(1) NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -73,7 +73,7 @@ async function ensureBenchmarkingSchema() {
         KEY idx_tipo_benchmark (tipo_benchmark)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `ALTER TABLE universidad_benchmark
-        MODIFY tipo_benchmark ENUM('competencia_directa','referente_nacional','referente_internacional','referente_tecnologico') NOT NULL`,
+        MODIFY tipo_benchmark ENUM('competencia_directa','referente_nacional','competencia_internacional','referente_internacional','referente_tecnologico') NOT NULL`,
       `CREATE TABLE IF NOT EXISTS programa_benchmark (
         id_programa_benchmark    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         id_universidad_benchmark INT UNSIGNED NOT NULL,
@@ -309,8 +309,14 @@ router.get('/mercado-laboral/benchmarking/cobertura', async (_req, res) => {
 // ── POST /api/mercado-laboral/benchmarking/seed-inicial ────────────────────
 router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req, res) => {
   try {
-    await db.query(`UPDATE universidad_benchmark SET tipo_benchmark='referente_internacional' WHERE tipo_benchmark='referente_tecnologico'`);
-    await db.query(`UPDATE universidad_benchmark SET tipo_benchmark='competencia_directa' WHERE tipo_benchmark='referente_nacional'`);
+    await db.query(`UPDATE universidad_benchmark SET tipo_benchmark='competencia_internacional' WHERE tipo_benchmark='referente_tecnologico'`);
+    await db.query(
+      `UPDATE universidad_benchmark ub
+       JOIN programa_benchmark pb ON pb.id_universidad_benchmark = ub.id_universidad_benchmark
+       SET ub.tipo_benchmark='competencia_internacional'
+       WHERE ub.tipo_benchmark='referente_internacional'
+         AND pb.nombre_programa LIKE '%/ programa equivalente'`
+    );
     await db.query(
       `UPDATE programa_benchmark
        SET estado_extraccion='pendiente', fecha_captura=NULL
@@ -337,7 +343,7 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
 
       const entries = [
         ...(seed.direct || []).map(code => ({ code, tipo: 'competencia_directa' })),
-        ...(seed.international || []).map(code => ({ code, tipo: 'referente_internacional' })),
+        ...(seed.international || []).map(code => ({ code, tipo: 'competencia_internacional' })),
       ];
 
       for (const entry of entries) {
