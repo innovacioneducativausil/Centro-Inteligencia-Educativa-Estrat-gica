@@ -77,6 +77,14 @@ const TIPO_LABELS: Record<TipoBenchmark, string> = {
 
 const TIPOS_VISIBLES: TipoBenchmark[] = ['competencia_directa', 'referente_nacional', 'competencia_internacional', 'referente_internacional'];
 
+const TIPO_DESCRIPCION: Record<TipoBenchmark, string> = {
+  competencia_directa: 'Universidades nacionales con carreras equivalentes y fuentes curriculares oficiales.',
+  referente_nacional: 'Universidades nacionales agregadas como referencia académica, no necesariamente competencia directa.',
+  competencia_internacional: 'Universidades extranjeras con programas equivalentes para comparar estructura curricular.',
+  referente_internacional: 'Referentes globales agregados por el equipo académico para observar estándares, enfoques o tendencias.',
+  referente_tecnologico: 'Referentes tecnológicos heredados. Se migran a competencia internacional en la rebúsqueda.',
+};
+
 const ESTADO_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   pendiente:   { bg: '#fef9c3', text: '#854d0e', label: 'Pendiente' },
   procesado:   { bg: '#dbeafe', text: '#1d4ed8', label: 'Procesado' },
@@ -272,6 +280,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const competenciasUnicas = [...new Set(competencias.map(c => c.nombre_competencia))];
   const universidadesConPrograma = [...new Set(programas.map(p => p.nombre_universidad))];
   const carreraSeleccionada = cobertura.find(c => c.id_carrera === selectedCarrera) || carreras.find(c => c.id_carrera === selectedCarrera);
+  const coberturaTipoTotal = cobertura.reduce((acc, c) => acc + (c.benchmarking?.[tipo]?.total_programas ?? 0), 0);
 
   if (!canEdit) {
     return (
@@ -299,7 +308,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             {TIPO_LABELS[t]}
           </button>
         ))}
-        {canEdit && (
+        {canEdit && ['competencia_directa', 'competencia_internacional'].includes(tipo) && (
           <button onClick={handleSeedInicial} disabled={seeding}
             style={{ marginLeft: 'auto', padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`,
               background: card, color: seeding ? muted : USIL, fontWeight: 800, fontSize: 12,
@@ -307,6 +316,13 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             {seeding ? 'Rebuscando...' : 'Rebuscar fuentes'}
           </button>
         )}
+      </div>
+
+      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: USIL }}>{TIPO_LABELS[tipo]}</div>
+        <div style={{ fontSize: 11, color: muted, marginTop: 3 }}>
+          {TIPO_DESCRIPCION[tipo]} Total configurado en esta vista: <strong>{coberturaTipoTotal}</strong> programas.
+        </div>
       </div>
 
       {error && (
@@ -328,7 +344,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
             borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
-              Cobertura de benchmarking por carrera
+              Cobertura de {TIPO_LABELS[tipo].toLowerCase()} por carrera
             </span>
             <span style={{ fontSize: 10, color: muted }}>
               Selecciona una carrera para ver programas y fuentes
@@ -338,7 +354,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <thead style={{ position: 'sticky', top: 0 }}>
                 <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                  {['Facultad', 'Carrera', 'Competencia directa', 'Referentes nacionales', 'Competencia internacional', 'Referentes internacionales', 'Validadas', 'Pendientes'].map(h => (
+                  {['Facultad', 'Carrera', TIPO_LABELS[tipo], 'Fuentes', 'Validadas', 'Pendientes', 'Última revisión'].map(h => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
                       color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                       {h}
@@ -350,20 +366,22 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 {cobertura.map(c => {
                   const tipos = c.benchmarking || {};
                   const total = (t: TipoBenchmark, key: 'total_programas' | 'fuentes_validadas' | 'fuentes_pendientes') => tipos[t]?.[key] ?? 0;
-                  const validadas = TIPOS_VISIBLES.reduce((acc, t) => acc + (tipos[t]?.fuentes_validadas ?? 0), 0);
-                  const pendientes = TIPOS_VISIBLES.reduce((acc, t) => acc + (tipos[t]?.fuentes_pendientes ?? 0), 0);
+                  const datosTipo = tipos[tipo];
+                  const validadas = datosTipo?.fuentes_validadas ?? 0;
+                  const pendientes = datosTipo?.fuentes_pendientes ?? 0;
                   const isSelected = selectedCarrera === c.id_carrera;
                   return (
                     <tr key={c.id_carrera} onClick={() => setSelectedCarrera(c.id_carrera)}
                       style={{ borderBottom: `1px solid ${border}`, cursor: 'pointer', background: isSelected ? '#eff6ff' : 'transparent' }}>
                       <td style={{ padding: '8px 10px', color: muted }}>{c.nombre_facultad}</td>
                       <td style={{ padding: '8px 10px', fontWeight: 700 }}>{c.nombre_carrera}</td>
-                      <td style={{ padding: '8px 10px' }}>{total('competencia_directa', 'total_programas')}</td>
-                      <td style={{ padding: '8px 10px' }}>{total('referente_nacional', 'total_programas')}</td>
-                      <td style={{ padding: '8px 10px' }}>{total('competencia_internacional', 'total_programas')}</td>
-                      <td style={{ padding: '8px 10px' }}>{total('referente_internacional', 'total_programas')}</td>
+                      <td style={{ padding: '8px 10px', fontWeight: 800 }}>{total(tipo, 'total_programas')}</td>
+                      <td style={{ padding: '8px 10px' }}>{datosTipo?.total_fuentes ?? 0}</td>
                       <td style={{ padding: '8px 10px', color: '#166534', fontWeight: 800 }}>{validadas}</td>
                       <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>{pendientes}</td>
+                      <td style={{ padding: '8px 10px', color: muted }}>
+                        {datosTipo?.ultima_revision ? new Date(datosTipo.ultima_revision).toLocaleDateString('es-PE') : '-'}
+                      </td>
                     </tr>
                   );
                 })}
@@ -462,6 +480,63 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
           )}
 
+          {selectedCarrera && programas.length > 0 && (
+            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+              <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+                borderBottom: `1px solid ${border}` }}>
+                <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+                  Comparador de malla
+                </div>
+                <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
+                  La comparación usa fuentes validadas o texto oficial pegado. La IA solo normaliza y sugiere brechas; la propuesta queda en revisión humana.
+                </div>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
+                      {['Programa externo', 'Entrada requerida', 'IA', 'Comparación contra USIL', 'Resultado esperado', 'Estado curricular'].map(h => (
+                        <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
+                          color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {programas.map(p => {
+                      const hasExactSource = !!p.url_programa && !isGenericInstitutionUrl(p.url_programa);
+                      const hasEvidence = (p.fuentes_validadas ?? 0) > 0 || ['procesado', 'verificado'].includes(p.estado_extraccion);
+                      return (
+                        <tr key={`cmp-${p.id_programa_benchmark}`} style={{ borderBottom: `1px solid ${border}` }}>
+                          <td style={{ padding: '8px 10px', fontWeight: 700 }}>
+                            {p.nombre_universidad}
+                            <div style={{ color: muted, fontWeight: 500, marginTop: 2 }}>{p.nombre_programa}</div>
+                          </td>
+                          <td style={{ padding: '8px 10px', color: hasExactSource ? '#166534' : '#854d0e', fontWeight: 700 }}>
+                            {hasExactSource ? 'Fuente exacta registrada' : 'Falta link exacto o texto oficial'}
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            {hasEvidence ? 'Puede normalizar competencias/cursos' : 'Esperando evidencia'}
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            Cursos, competencias, tecnologías, perfil y créditos contra malla/sílabos USIL.
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            Brechas, coincidencias, cursos afectados y evidencia por fuente.
+                          </td>
+                          <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>
+                            Propuesta en revisión
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Tabla de programas */}
           {selectedCarrera && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
@@ -469,7 +544,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 borderBottom: `1px solid ${border}`,
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
-                  Programas encontrados ({programas.length})
+                  {TIPO_LABELS[tipo]} configurada para la carrera ({programas.length})
                 </span>
                 {loadingProgs && <span style={{ fontSize: 10, color: muted }}>Cargando...</span>}
               </div>
