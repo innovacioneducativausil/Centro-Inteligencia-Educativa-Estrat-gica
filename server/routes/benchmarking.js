@@ -8,7 +8,7 @@ import db from '../db_empl.js';
 import dbCurricular from '../db_curricular.js';
 import { adminOnly } from '../middleware/roles.js';
 import { serverError } from '../middleware/errorHandler.js';
-import { scraperBatch, cargarTextoManual } from '../services/scrapingService.js';
+import { scraperBatch, cargarTextoManual, discoverOfficialSources } from '../services/scrapingService.js';
 import { normalizarPrograma } from '../services/normalizacionIAService.js';
 import { BENCHMARK_SEED_BY_CAREER, BENCHMARK_UNIVERSITIES } from '../data/benchmarkingSeed.js';
 
@@ -554,6 +554,23 @@ router.post('/mercado-laboral/benchmarking/scraping', adminOnly, async (req, res
     const results = await scraperBatch(ids);
     res.json({ results });
   } catch (e) { serverError(res, e, 'POST /benchmarking/scraping'); }
+});
+
+// ── POST /api/mercado-laboral/benchmarking/descubrir-fuentes ───────────────
+router.post('/mercado-laboral/benchmarking/descubrir-fuentes', adminOnly, async (req, res) => {
+  try {
+    const { id_programa, ids } = req.body;
+    const targetIds = Array.isArray(ids) && ids.length ? ids : (id_programa ? [id_programa] : []);
+    if (!targetIds.length) return res.status(400).json({ error: 'id_programa o ids es requerido' });
+    if (targetIds.length > 10) return res.status(400).json({ error: 'Maximo 10 programas por busqueda' });
+
+    const results = [];
+    for (const id of targetIds) {
+      const result = await discoverOfficialSources(id);
+      results.push({ id, ...result });
+    }
+    res.json({ results });
+  } catch (e) { serverError(res, e, 'POST /benchmarking/descubrir-fuentes'); }
 });
 
 // ── POST /api/mercado-laboral/benchmarking/normalizar-ia ────────────────────

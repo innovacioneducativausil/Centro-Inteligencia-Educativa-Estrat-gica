@@ -72,7 +72,7 @@ const TIPO_LABELS: Record<TipoBenchmark, string> = {
   referente_nacional:      'Referentes Nacionales',
   competencia_internacional: 'Competencia Internacional',
   referente_internacional: 'Referentes Internacionales',
-  referente_tecnologico:   'Referentes TecnolÃ³gicos',
+  referente_tecnologico:   'Referentes Tecnologicos',
 };
 
 const TIPOS_VISIBLES: TipoBenchmark[] = ['competencia_directa', 'referente_nacional', 'competencia_internacional', 'referente_internacional'];
@@ -193,6 +193,27 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     setActionLoading(p => ({ ...p, [idPrograma]: '' }));
   };
 
+  const handleDescubrirFuente = async (ids: number | number[]) => {
+    const list = Array.isArray(ids) ? ids : [ids];
+    const loadingKey = list.length === 1 ? list[0] : -1;
+    setActionLoading(p => ({ ...p, [loadingKey]: 'discover' }));
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await apiFetch<{ results: Array<{ ok: boolean }> }>('/api/mercado-laboral/benchmarking/descubrir-fuentes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(list.length === 1 ? { id_programa: list[0] } : { ids: list }),
+      });
+      const found = result.results.filter(r => r.ok).length;
+      setNotice(`Busqueda completada: ${found}/${result.results.length} fuentes exactas sugeridas. Valida cada fuente antes de usarla como evidencia.`);
+      loadProgramas();
+    } catch (e: any) {
+      setError(e.message);
+    }
+    setActionLoading(p => ({ ...p, [loadingKey]: '' }));
+  };
+
   const handleNormalizarIA = async (idPrograma: number) => {
     setActionLoading(p => ({ ...p, [idPrograma]: 'ia' }));
     setError(null);
@@ -272,7 +293,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       if (Array.isArray(d)) setCobertura(d);
       loadUniversidades();
       loadProgramas();
-      setNotice(`RebÃºsqueda completada: ${result.carrerasMapeadas}/${result.carrerasLeidas} carreras, ${result.programasCreados} programas nuevos y ${result.fuentesCreadas} fuentes nuevas.`);
+      setNotice(`Rebusqueda completada: ${result.carrerasMapeadas}/${result.carrerasLeidas} carreras, ${result.programasCreados} programas nuevos y ${result.fuentesCreadas} fuentes nuevas.`);
     } catch (e: any) { setError(e.message); }
     finally { setSeeding(false); }
   };
@@ -420,7 +441,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 style={{ padding: '10px 14px', borderBottom: `1px solid ${border}`,
                   fontSize: 12, fontWeight: 600 }}>
                 <div style={{ color: text }}>{u.nombre_universidad}</div>
-                <div style={{ color: muted, fontSize: 10, marginTop: 2 }}>{u.pais}{u.ciudad ? ` Â· ${u.ciudad}` : ''}</div>
+                <div style={{ color: muted, fontSize: 10, marginTop: 2 }}>{u.pais}{u.ciudad ? ` - ${u.ciudad}` : ''}</div>
                 {u.sitio_web && (
                   <a href={u.sitio_web} target="_blank" rel="noreferrer"
                     style={{ color: CYAN, fontSize: 10, textDecoration: 'none' }}>
@@ -448,11 +469,22 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 </div>
               </div>
               {canEdit && (
-                <button onClick={() => setShowAddProg(true)}
-                  style={{ padding: '8px 14px', borderRadius: 8, border: 'none',
-                    background: USIL, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                  + Agregar programa
-                </button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {programas.length > 0 && (
+                    <button onClick={() => handleDescubrirFuente(programas.map(p => p.id_programa_benchmark).slice(0, 10))}
+                      disabled={!!actionLoading[-1]}
+                      style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`,
+                        background: card, color: actionLoading[-1] ? muted : USIL, fontWeight: 700, fontSize: 12,
+                        cursor: actionLoading[-1] ? 'not-allowed' : 'pointer' }}>
+                      {actionLoading[-1] ? 'Buscando...' : 'Buscar fuentes de la carrera'}
+                    </button>
+                  )}
+                  <button onClick={() => setShowAddProg(true)}
+                    style={{ padding: '8px 14px', borderRadius: 8, border: 'none',
+                      background: USIL, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    + Agregar programa
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -558,7 +590,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
                       <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                        {['Universidad', 'PaÃ­s', 'Programa', 'Estado', 'Fuentes', 'Competencias', 'Captura', 'Acciones'].map(h => (
+                        {['Universidad', 'Pais', 'Programa', 'Estado', 'Fuentes', 'Competencias', 'Captura', 'Acciones'].map(h => (
                           <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
                             color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                             {h}
@@ -609,11 +641,20 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                               {p.total_competencias ?? 0}
                             </td>
                             <td style={{ padding: '8px 10px', color: muted, fontSize: 10 }}>
-                              {p.fecha_captura ? new Date(p.fecha_captura).toLocaleDateString('es-PE') : 'â€”'}
+                              {p.fecha_captura ? new Date(p.fecha_captura).toLocaleDateString('es-PE') : '-'}
                             </td>
                             <td style={{ padding: '8px 10px' }}>
                               {canEdit && (
                                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                  <button
+                                    onClick={() => handleDescubrirFuente(p.id_programa_benchmark)}
+                                    disabled={isBusy}
+                                    title="Buscar automaticamente una pagina oficial especifica de esta carrera"
+                                    style={{ padding: '3px 7px', borderRadius: 4, border: `1px solid ${border}`,
+                                      background: 'transparent', color: text, fontWeight: 700, fontSize: 9,
+                                      cursor: isBusy ? 'not-allowed' : 'pointer' }}>
+                                    {actionLoading[p.id_programa_benchmark] === 'discover' ? '...' : 'Buscar fuente'}
+                                  </button>
                                   <button
                                     onClick={() => handleScraping(p.id_programa_benchmark)}
                                     disabled={isBusy || !hasExactSource}
@@ -663,14 +704,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   Competencias detectadas en benchmarking ({competencias.length})
                 </span>
                 <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
-                  {universidadesConPrograma.length} universidades Â· {competenciasUnicas.length} competencias Ãºnicas
+                  {universidadesConPrograma.length} universidades - {competenciasUnicas.length} competencias unicas
                 </div>
               </div>
               <div style={{ maxHeight: 280, overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead style={{ position: 'sticky', top: 0 }}>
                     <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                      {['Universidad', 'PaÃ­s', 'Programa', 'Competencia', 'Tipo'].map(h => (
+                      {['Universidad', 'Pais', 'Programa', 'Competencia', 'Tipo'].map(h => (
                         <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700,
                           color: muted, borderBottom: `1px solid ${border}` }}>
                           {h}
@@ -709,11 +750,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           <div style={{ background: card, borderRadius: 12, padding: '24px 28px', width: 420,
             maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', color: text }}>
             <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 800, color: USIL }}>
-              Agregar Universidad â€” {TIPO_LABELS[tipo]}
+              Agregar Universidad - {TIPO_LABELS[tipo]}
             </h3>
             {[
               { key: 'nombre_universidad', label: 'Nombre de la Universidad *', ph: 'Ej. Universidad de Lima' },
-              { key: 'pais', label: 'PaÃ­s', ph: 'Peru' },
+              { key: 'pais', label: 'Pais', ph: 'Peru' },
               { key: 'ciudad', label: 'Ciudad', ph: 'Lima' },
               { key: 'sitio_web', label: 'Sitio web', ph: 'https://...' },
             ].map(f => (
@@ -766,7 +807,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 onChange={e => setSelectedUnivForProg(e.target.value ? Number(e.target.value) : '')}
                 style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`,
                   background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}>
-                <option value="">â€” Seleccionar â€”</option>
+                <option value="">- Seleccionar -</option>
                 {universidades.map(u => (
                   <option key={u.id_universidad_benchmark} value={u.id_universidad_benchmark}>
                     {u.nombre_universidad}
@@ -775,10 +816,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               </select>
             </div>
             {[
-              { key: 'nombre_programa', label: 'Nombre del Programa *', ph: 'Ej. IngenierÃ­a de Software' },
+              { key: 'nombre_programa', label: 'Nombre del Programa *', ph: 'Ej. Ingenieria de Software' },
               { key: 'url_programa', label: 'URL del programa', ph: 'https://...' },
-              { key: 'modalidad', label: 'Modalidad', ph: 'Presencial, Virtual, HÃ­brido' },
-              { key: 'duracion', label: 'DuraciÃ³n', ph: '5 aÃ±os, 10 ciclos...' },
+              { key: 'modalidad', label: 'Modalidad', ph: 'Presencial, Virtual, Hibrido' },
+              { key: 'duracion', label: 'Duracion', ph: '5 anos, 10 ciclos...' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom: 12 }}>
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase' }}>
@@ -822,7 +863,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               Carga Manual de Texto Fuente
             </h3>
             <p style={{ fontSize: 11, color: muted, marginBottom: 14 }}>
-              Si el scraping automÃ¡tico estÃ¡ bloqueado, copia y pega aquÃ­ el texto del plan de estudios o perfil de egreso de la pÃ¡gina.
+              Si el scraping automatico esta bloqueado, copia y pega aqui el texto del plan de estudios o perfil de egreso de la pagina.
             </p>
             <div style={{ marginBottom: 10 }}>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase' }}>
@@ -834,10 +875,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase' }}>
-                Texto fuente * (mÃ­nimo 20 caracteres)
+                Texto fuente * (minimo 20 caracteres)
               </label>
               <textarea value={manualText} onChange={e => setManualText(e.target.value)}
-                rows={8} placeholder="Pega aquÃ­ el texto del plan de estudios, perfil de egreso, cursos, etc."
+                rows={8} placeholder="Pega aqui el texto del plan de estudios, perfil de egreso, cursos, etc."
                 style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`,
                   background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12,
                   boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
@@ -864,3 +905,4 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 };
 
 export default BenchmarkingView;
+

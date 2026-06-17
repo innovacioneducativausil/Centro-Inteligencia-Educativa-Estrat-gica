@@ -7,6 +7,209 @@ import db_empl from '../db_empl.js';
 
 const DELAY_BETWEEN_REQUESTS_MS = 3000;
 const PAGE_LOAD_TIMEOUT_MS = 20000;
+const DISCOVERY_TIMEOUT_MS = 12000;
+
+function normalizeText(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function getDomain(url = '') {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    return host;
+  } catch {
+    return '';
+  }
+}
+
+function getProgramBaseName(nombrePrograma = '') {
+  return String(nombrePrograma).replace(/\s*\/\s*programa equivalente\s*$/i, '').trim();
+}
+
+function careerTokens(careerName = '') {
+  return normalizeText(careerName)
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t.length >= 4 && !['para', 'como', 'este', 'esta', 'universidad'].includes(t));
+}
+
+async function fetchText(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DISCOVERY_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'user-agent': 'Mozilla/5.0 (compatible; AcademicBenchmarkBot/1.0; official-source-discovery)',
+        'accept': 'text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5',
+      },
+      redirect: 'follow',
+    });
+    if (!res.ok) return '';
+    const type = res.headers.get('content-type') || '';
+    if (!/text|html|json|pdf/i.test(type)) return '';
+    return String(await res.text()).substring(0, 80000);
+  } catch {
+    return '';
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function extractLinks(html, baseUrl, domain) {
+  const links = new Set();
+  const re = /href=["']([^"'#]+)["']/gi;
+  let match;
+  while ((match = re.exec(html)) !== null) {
+    try {
+      const url = new URL(match[1], baseUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) continue;
+      if (!url.hostname.replace(/^www\./, '').endsWith(domain)) continue;
+      url.hash = '';
+      links.add(url.toString());
+    } catch {
+      // ignore invalid links
+    }
+  }
+  return [...links];
+}
+
+async function searchOfficialLinks(domain, career) {
+  const queries = [
+    `site:${domain} "${career}" "malla curricular"`,
+    `site:${domain} "${career}" "plan de estudios"`,
+    `site:${domain} "${career}" "perfil de egreso"`,
+    `site:${domain} "${career}" pregrado`,
+  ];
+  const links = new Set();
+  for (const q of queries) {
+    const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
+    const html = await fetchText(url);
+    const re = /href=["']([^"']+)["']/gi;
+    let match;
+    while ((match = re.exec(html)) !== null) {
+      let raw = match[1].replace(/&amp;/g, '&');
+      try {
+        const parsed = new URL(raw, 'https://duckduckgo.com');
+        const uddg = parsed.searchParams.get('uddg');
+        if (uddg) raw = decodeURIComponent(uddg);
+        const candidate = new URL(raw);
+        if (candidate.hostname.replace(/^www\./, '').endsWith(domain)) {
+          candidate.hash = '';
+          links.add(candidate.toString());
+        }
+      } catch {
+        // ignore invalid search links
+      }
+    }
+  }
+  return [...links];
+}
+
+function scoreCandidate(url, text, careerName) {
+  const haystack = normalizeText(`${url} ${text}`);
+  const tokens = careerTokens(careerName);
+  const keywords = [
+    'malla', 'curricular', 'plan de estudios', 'perfil de egreso',
+    'competencias', 'carrera', 'pregrado', 'facultad', 'curso', 'cursos',
+    'sumilla', 'brochure', 'silabo', 'sílabo'
+  ];
+  let score = 0;
+  for (const token of tokens) if (haystack.includes(token)) score += 8;
+  for (const keyword of keywords) if (haystack.includes(normalizeText(keyword))) score += 5;
+  if (/malla|plan|perfil|competencia|pregrado|carrera/i.test(url)) score += 12;
+  if (/pdf/i.test(url)) score += 4;
+  if (/blog|noticia|evento|news|admision|postula|contacto|campus/i.test(url)) score -= 10;
+  return score;
+}
+
+async function discoverOfficialSources(idPrograma) {
+  const [[programa]] = await db_empl.query(
+    `SELECT pb.id_programa_benchmark, pb.nombre_programa, pb.url_programa,
+            ub.nombre_universidad, ub.sitio_web
+     FROM programa_benchmark pb
+     JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
+     WHERE pb.id_programa_benchmark=?`,
+    [idPrograma]
+  );
+  if (!programa) return { ok: false, error: 'Programa no encontrado' };
+
+  const domain = getDomain(programa.sitio_web || programa.url_programa);
+  const home = programa.sitio_web || programa.url_programa;
+  const career = getProgramBaseName(programa.nombre_programa);
+  if (!domain || !home) return { ok: false, error: 'Universidad sin sitio web oficial' };
+
+  const homeText = await fetchText(home);
+  const homeLinks = extractLinks(homeText, home, domain);
+  const terms = careerTokens(career);
+  const filtered = homeLinks
+    .filter(url => {
+      const n = normalizeText(url);
+      return terms.some(t => n.includes(t)) || /pregrado|carrera|malla|plan|perfil|facultad|programa/i.test(n);
+    })
+    .slice(0, 60);
+
+  const slug = terms.join('-');
+  const commonCandidates = [
+    `${home.replace(/\/$/, '')}/pregrado/${slug}/`,
+    `${home.replace(/\/$/, '')}/carrera/${slug}/`,
+    `${home.replace(/\/$/, '')}/carreras/${slug}/`,
+    `${home.replace(/\/$/, '')}/pregrado/carrera/${slug}/`,
+    `${home.replace(/\/$/, '')}/facultad/${slug}/`,
+  ];
+
+  const searchLinks = await searchOfficialLinks(domain, career);
+  const candidates = [...new Set([...searchLinks, ...filtered, ...commonCandidates])].slice(0, 100);
+  const scored = [];
+  for (const url of candidates) {
+    const text = await fetchText(url);
+    if (!text || text.length < 200) continue;
+    const score = scoreCandidate(url, text, career);
+    if (score >= 20) scored.push({ url, score, textLength: text.length });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  const best = scored[0];
+  if (!best) {
+    await db_empl.query(
+      `UPDATE programa_benchmark
+       SET observaciones=?
+       WHERE id_programa_benchmark=?`,
+      [`No se encontro fuente exacta oficial para ${career} en ${domain}.`, idPrograma]
+    );
+    return { ok: false, error: 'No se encontro fuente exacta oficial', candidates: scored.slice(0, 5) };
+  }
+
+  await db_empl.query(
+    `UPDATE programa_benchmark
+     SET url_programa=?, estado_extraccion='pendiente', observaciones=?
+     WHERE id_programa_benchmark=?`,
+    [best.url, `Fuente exacta sugerida automaticamente. Score ${best.score}. Requiere validacion.`, idPrograma]
+  );
+  await db_empl.query(
+    `INSERT INTO benchmark_source
+     (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, evidencia_resumen, observaciones)
+     VALUES (?, 'pagina_programa', ?, ?, 'pendiente_validacion', 1, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       estado='pendiente_validacion',
+       es_fuente_principal=1,
+       evidencia_resumen=VALUES(evidencia_resumen),
+       observaciones=VALUES(observaciones),
+       activo=1`,
+    [
+      idPrograma,
+      `Fuente oficial sugerida para ${career}`,
+      best.url,
+      `Busqueda automatica en dominio oficial ${domain}. Score ${best.score}.`,
+      'Validar que la pagina contenga malla, plan, perfil o competencias antes de usarla como evidencia.',
+    ]
+  );
+
+  return { ok: true, best, candidates: scored.slice(0, 5) };
+}
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -123,4 +326,4 @@ async function cargarTextoManual(idPrograma, textoFuente, urlOrigen) {
   return { ok: true };
 }
 
-export { scrapeProgramaUrl, scraperBatch, cargarTextoManual };
+export { scrapeProgramaUrl, scraperBatch, cargarTextoManual, discoverOfficialSources };
