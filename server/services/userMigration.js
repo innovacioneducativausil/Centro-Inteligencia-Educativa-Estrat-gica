@@ -19,6 +19,12 @@ const USUARIOS_ADMIN = [
   { nombre: 'Willy Campos',   corto: 'Willy', correo: 'wcampos@usil.edu.pe' },
 ];
 
+const USUARIOS_SOLICITADOS = [
+  { nombre: 'R Escobedo', corto: 'R Escobedo', correo: 'rescobedo@usil.edu.pe', rol: 'admin' },
+  { nombre: 'F Garcia',   corto: 'F Garcia',   correo: 'fgarciacr@usil.edu.pe', rol: 'usuario' },
+  { nombre: 'C Chumbes',  corto: 'C Chumbes',  correo: 'cchumbes@usil.edu.pe',  rol: 'usuario' },
+];
+
 export async function runUserMigration() {
   console.log('[USER MIGRATION] Iniciando...');
 
@@ -139,6 +145,37 @@ export async function runUserMigration() {
       }
     } catch (e) {
       console.warn(`[USER MIGRATION] Paso 6 (${u.correo}):`, e.message);
+    }
+  }
+
+  // Paso 7: Crear o actualizar usuarios solicitados
+  for (const u of USUARIOS_SOLICITADOS) {
+    try {
+      const [[existe]] = await db.query(
+        'SELECT id_usuario, rol FROM usuario WHERE correo_usuario = ?',
+        [u.correo]
+      );
+
+      if (!existe) {
+        await db.query(
+          `INSERT INTO usuario
+             (id_usuario,nombre_usuario,nombre_corto,correo_usuario,password_hash,rol,activo,email_verificado,fecha_creacion,fecha_actualizacion)
+           VALUES (UUID(),?,?,?,?,?,1,1,NOW(),NOW())`,
+          [u.nombre, u.corto, u.correo, HASH_USUARIO2026, u.rol]
+        );
+        console.log(`[USER MIGRATION] Paso 7: creado ${u.correo} (${u.rol})`);
+      } else {
+        const [r] = await db.query(
+          `UPDATE usuario
+           SET nombre_usuario = ?, nombre_corto = ?, password_hash = ?, rol = ?,
+               activo = 1, email_verificado = 1, fecha_actualizacion = NOW()
+           WHERE correo_usuario = ?`,
+          [u.nombre, u.corto, HASH_USUARIO2026, u.rol, u.correo]
+        );
+        if (r.affectedRows) console.log(`[USER MIGRATION] Paso 7: actualizado ${u.correo} (${u.rol})`);
+      }
+    } catch (e) {
+      console.warn(`[USER MIGRATION] Paso 7 (${u.correo}):`, e.message);
     }
   }
 
