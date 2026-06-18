@@ -46,7 +46,7 @@ export async function runUserMigration() {
     console.warn('[USER MIGRATION] Paso 1b (ALTER password_hash):', e.message);
   }
 
-  // Paso 1c: Asegurar columnas OTP usadas por login y recuperacion
+  // Paso 1c: Asegurar columnas OTP/reset usadas por login y recuperacion
   try {
     const [columns] = await db.query(
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
@@ -58,13 +58,15 @@ export async function runUserMigration() {
     if (!existing.has('otp_expires'))  toAdd.push('ADD COLUMN otp_expires DATETIME NULL');
     if (!existing.has('otp_attempts')) toAdd.push('ADD COLUMN otp_attempts TINYINT NOT NULL DEFAULT 0');
     if (!existing.has('otp_purpose'))  toAdd.push('ADD COLUMN otp_purpose VARCHAR(20) NULL');
+    if (!existing.has('reset_token'))  toAdd.push('ADD COLUMN reset_token VARCHAR(64) NULL DEFAULT NULL');
+    if (!existing.has('reset_token_expires')) toAdd.push('ADD COLUMN reset_token_expires DATETIME NULL DEFAULT NULL');
 
     if (toAdd.length) {
       await db.query(`ALTER TABLE usuario ${toAdd.join(', ')}`);
-      console.log(`[USER MIGRATION] Paso 1c: columnas OTP agregadas (${toAdd.length})`);
+      console.log(`[USER MIGRATION] Paso 1c: columnas OTP/reset agregadas (${toAdd.length})`);
     }
   } catch (e) {
-    console.warn('[USER MIGRATION] Paso 1c (OTP columns):', e.message);
+    console.warn('[USER MIGRATION] Paso 1c (OTP/reset columns):', e.message);
   }
 
   // Paso 2: Poner acastroh como admin
