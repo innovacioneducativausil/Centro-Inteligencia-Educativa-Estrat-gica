@@ -8,23 +8,63 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, '../.env') });
 
 // Crea el transporter solo si las credenciales están configuradas
-function createTransporter() {
+function getSmtpConfig(portOverride) {
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.replace(/\s+/g, '');
   if (!user || !pass) return null;
   const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
+  const port = portOverride || parseInt(process.env.SMTP_PORT || '587', 10);
+  return { user, pass, host, port };
+}
+
+// Crea el transporter solo si las credenciales estÃ¡n configuradas
+function createTransporter(portOverride) {
+  const config = getSmtpConfig(portOverride);
+  if (!config) return null;
   return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
+    host: config.host,
+    port: config.port,
+    secure: config.port === 465,
     family: 4,
     connectionTimeout: 10000,
     greetingTimeout:   10000,
     socketTimeout:     15000,
-    tls: { servername: host },
-    auth: { user, pass },
+    requireTLS: config.port === 587,
+    tls: { servername: config.host },
+    auth: { user: config.user, pass: config.pass },
   });
+}
+
+async function sendWithSmtp({ to, html, text }) {
+  const primaryConfig = getSmtpConfig();
+  if (!primaryConfig) return false;
+
+  const ports = [primaryConfig.port];
+  if (primaryConfig.host === 'smtp.gmail.com') {
+    const fallbackPort = primaryConfig.port === 465 ? 587 : 465;
+    ports.push(fallbackPort);
+  }
+
+  let lastErr;
+  for (const port of [...new Set(ports)]) {
+    try {
+      const transporter = createTransporter(port);
+      await transporter.sendMail({
+        from: `"USIL Radar de Prospeccion" <${primaryConfig.user}>`,
+        to,
+        subject: 'Codigo de verificacion - USIL Radar',
+        html,
+        text,
+      });
+      console.log(`[MAILER] OTP enviado por SMTP a: ${to} (puerto ${port})`);
+      return true;
+    } catch (err) {
+      lastErr = err;
+      console.error(`[MAILER] SMTP fallo en puerto ${port}:`, err.code || err.responseCode || err.message);
+    }
+  }
+
+  throw lastErr || new Error('SMTP no configurado.');
 }
 
 async function sendWithResend({ to, html, text }) {
@@ -67,9 +107,9 @@ async function sendWithResend({ to, html, text }) {
  * @param {{ to: string, nombre: string, otp: string }} opts
  */
 export async function sendOtpEmail({ to, nombre, otp }) {
-  const transporter = createTransporter();
+  const smtpConfigured = Boolean(getSmtpConfig());
 
-  if (!transporter && !process.env.RESEND_API_KEY) {
+  if (!smtpConfigured && !process.env.RESEND_API_KEY) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('No se pudo enviar el codigo OTP. Configura SMTP_USER/SMTP_PASS o RESEND_API_KEY en Railway.');
     }
@@ -174,13 +214,8 @@ export async function sendOtpEmail({ to, nombre, otp }) {
     const sentByResend = await sendWithResend({ to, html, text });
     if (sentByResend) return;
 
-    await transporter.sendMail({
-      from:    `"USIL Radar de Prospeccion" <${process.env.SMTP_USER}>`,
-      to,
-      subject: 'Codigo de verificacion - USIL Radar',
-      html,
-      text,
-    });
+    const sentBySmtp = await sendWithSmtp({ to, html, text });
+    if (sentBySmtp) return;
 
   } catch (err) {
     console.error(`[MAILER] No se pudo enviar OTP a ${to}:`, err.message);
