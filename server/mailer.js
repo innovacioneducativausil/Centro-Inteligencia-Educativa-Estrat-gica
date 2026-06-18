@@ -69,7 +69,10 @@ async function sendWithResend({ to, html, text }) {
 export async function sendOtpEmail({ to, nombre, otp }) {
   const transporter = createTransporter();
 
-  if (!transporter) {
+  if (!transporter && !process.env.RESEND_API_KEY) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('No se pudo enviar el codigo OTP. Configura SMTP_USER/SMTP_PASS o RESEND_API_KEY en Railway.');
+    }
     console.warn('\n⚠️  [MAILER] SMTP no configurado. Configura SMTP_USER y SMTP_PASS en .env');
     console.warn(`   OTP para ${to}: ${otp}\n`);
     return;
