@@ -9,11 +9,11 @@ dotenv.config({ path: join(__dirname, '../.env') });
 
 // Crea el transporter solo si las credenciales están configuradas
 function createTransporter() {
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.replace(/\s+/g, '');
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
   if (!user || !pass) return null;
-  const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '587');
   return nodemailer.createTransport({
     host,
     port,
