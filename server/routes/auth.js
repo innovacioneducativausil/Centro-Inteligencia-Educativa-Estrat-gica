@@ -39,25 +39,6 @@ async function logActividad(db, idUsuario, correo, evento, ip) {
   } catch { /* silencioso — no bloquear login/logout */ }
 }
 
-async function ensureAuthColumns() {
-  const columns = [
-    ['otp_hash', 'VARCHAR(64) NULL'],
-    ['otp_expires', 'DATETIME NULL'],
-    ['otp_attempts', 'TINYINT NOT NULL DEFAULT 0'],
-    ['otp_purpose', 'VARCHAR(20) NULL'],
-    ['reset_token', 'VARCHAR(64) NULL DEFAULT NULL'],
-    ['reset_token_expires', 'DATETIME NULL DEFAULT NULL'],
-  ];
-
-  for (const [name, definition] of columns) {
-    try {
-      await db.query(`ALTER TABLE usuario ADD COLUMN ${name} ${definition}`);
-    } catch (err) {
-      if (err.code !== 'ER_DUP_FIELDNAME') throw err;
-    }
-  }
-}
-
 function buildAuthUser(user) {
   const nombre = user.nombre_corto || user.nombre_usuario;
   return {
@@ -91,23 +72,12 @@ async function createOtpForUser(user, purpose) {
   const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
   const expires = new Date(Date.now() + OTP_EXPIRES_MS);
 
-  try {
-    await db.query(
-      `UPDATE usuario
-       SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = ?
-       WHERE id_usuario = ?`,
-      [otpHash, expires, purpose, user.id_usuario]
-    );
-  } catch (err) {
-    if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
-    await ensureAuthColumns();
-    await db.query(
-      `UPDATE usuario
-       SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = ?
-       WHERE id_usuario = ?`,
-      [otpHash, expires, purpose, user.id_usuario]
-    );
-  }
+  await db.query(
+    `UPDATE usuario
+     SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = ?
+     WHERE id_usuario = ?`,
+    [otpHash, expires, purpose, user.id_usuario]
+  );
 
   await sendOtpEmail({
     to: user.correo_usuario,
@@ -163,9 +133,6 @@ router.post('/auth/login', async (req, res) => {
     });
   } catch (err) {
     console.error('[POST /auth/login]', err);
-    if (err.message?.includes('codigo OTP')) {
-      return res.status(502).json({ error: err.message });
-    }
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
 });
@@ -381,25 +348,13 @@ router.post('/auth/forgot-password', async (req, res) => {
     const expires = new Date(Date.now() + OTP_EXPIRES_MS); // 5 minutos
 
     // Guardar hash del OTP, invalidar token anterior
-    try {
-      await db.query(
-        `UPDATE usuario
-         SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = 'reset',
-             reset_token = NULL, reset_token_expires = NULL
-         WHERE id_usuario = ?`,
-        [otpHash, expires, user.id_usuario]
-      );
-    } catch (err) {
-      if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
-      await ensureAuthColumns();
-      await db.query(
-        `UPDATE usuario
-         SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = 'reset',
-             reset_token = NULL, reset_token_expires = NULL
-         WHERE id_usuario = ?`,
-        [otpHash, expires, user.id_usuario]
-      );
-    }
+    await db.query(
+      `UPDATE usuario
+       SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = 'reset',
+           reset_token = NULL, reset_token_expires = NULL
+       WHERE id_usuario = ?`,
+      [otpHash, expires, user.id_usuario]
+    );
 
     const nombre = user.nombre_corto || user.nombre_usuario;
     await sendOtpEmail({ to: correo.trim(), nombre, otp });
@@ -409,9 +364,6 @@ router.post('/auth/forgot-password', async (req, res) => {
     });
   } catch (err) {
     console.error('[POST /auth/forgot-password]', err);
-    if (err.message?.includes('codigo OTP')) {
-      return res.status(502).json({ error: err.message });
-    }
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
 });
