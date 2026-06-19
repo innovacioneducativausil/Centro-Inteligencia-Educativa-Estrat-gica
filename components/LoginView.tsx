@@ -345,8 +345,8 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
         return;
       }
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
-      setLoginError('El inicio de sesion requiere codigo OTP. Reinicia la API y vuelve a intentarlo.');
+      if (remember) localStorage.setItem('radar_remember', '1');
+      onLogin(data.user);
     } catch {
       setLoginError('No se pudo conectar con el servidor. Verifica que la API esté activa.');
     } finally { setLoading(false); }
