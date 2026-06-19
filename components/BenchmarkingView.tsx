@@ -780,7 +780,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
                     <thead>
                       <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
                         {['Estado', 'Tipo', 'Score', 'Titulo / URL', 'Evidencia', 'Acciones'].map(h => (
@@ -798,25 +798,30 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                           : (c.score_detalle_json || {});
                         return (
                           <tr key={c.id_candidate} style={{ borderBottom: `1px solid ${border}` }}>
-                            <td style={{ padding: '8px 10px', fontWeight: 800 }}>{c.estado}</td>
-                            <td style={{ padding: '8px 10px' }}>{c.tipo_fuente_detectado}</td>
-                            <td style={{ padding: '8px 10px', fontWeight: 800, color: c.score_total >= 35 ? '#166534' : '#854d0e' }}>
+                            <td style={{ padding: '8px 10px', fontWeight: 800, width: 90 }}>{c.estado}</td>
+                            <td style={{ padding: '8px 10px', width: 120 }}>{c.tipo_fuente_detectado}</td>
+                            <td style={{ padding: '8px 10px', fontWeight: 800, color: c.score_total >= 35 ? '#166534' : '#854d0e', width: 95 }}>
                               {Number(c.score_total).toFixed(0)}
                               <div style={{ color: muted, fontWeight: 500, fontSize: 9, marginTop: 2 }}>
                                 carrera {detail.carrera ?? 0} / curr {detail.curricular ?? 0} / url {detail.url ?? 0}
                               </div>
                             </td>
-                            <td style={{ padding: '8px 10px', minWidth: 260 }}>
-                              <div style={{ fontWeight: 700 }}>{c.titulo || 'Sin titulo detectado'}</div>
+                            <td style={{ padding: '8px 10px', width: 360 }}>
+                              <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {c.titulo || 'Sin titulo detectado'}
+                              </div>
                               <a href={c.url} target="_blank" rel="noreferrer"
-                                style={{ color: CYAN, fontSize: 10, textDecoration: 'none', wordBreak: 'break-all' }}>
+                                style={{ color: CYAN, fontSize: 10, textDecoration: 'none', wordBreak: 'break-all', display: 'block' }}>
                                 {c.url}
                               </a>
                             </td>
-                            <td style={{ padding: '8px 10px', maxWidth: 360, color: muted }}>
-                              {(c.snippet || c.motivo || '').substring(0, 260)}
+                            <td style={{ padding: '8px 10px', width: 360, color: muted }}>
+                              <div style={{ maxHeight: 54, overflow: 'hidden', lineHeight: 1.35, wordBreak: 'break-word' }}
+                                title={c.snippet || c.motivo || ''}>
+                                {(c.snippet || c.motivo || '').substring(0, 260)}
+                              </div>
                             </td>
-                            <td style={{ padding: '8px 10px' }}>
+                            <td style={{ padding: '8px 10px', width: 150 }}>
                               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                                 {c.estado !== 'aprobado' && (
                                   <button onClick={() => handleAprobarCandidato(c.id_programa_benchmark, c.id_candidate)}

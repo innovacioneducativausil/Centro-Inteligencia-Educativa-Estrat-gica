@@ -23,10 +23,10 @@ export const BENCHMARK_UNIVERSITIES = {
   CALTECH: { nombre: 'California Institute of Technology', pais: 'Estados Unidos', ciudad: 'Pasadena', web: 'https://www.caltech.edu/' },
 };
 
-const directBusiness = ['UPC', 'ULIMA', 'UP', 'ESAN', 'UDEP'];
+const directBusiness = ['PUCP', 'UPC', 'ULIMA', 'UP', 'ESAN', 'UDEP'];
 const directEngineering = ['UPC', 'UTEC', 'PUCP', 'ULIMA', 'UPN', 'UTP'];
 const directHealth = ['UPCH', 'UCSUR', 'UPC', 'USMP', 'UNMSM'];
-const directHospitality = ['UPC', 'ULIMA', 'UDEP', 'UTP'];
+const directHospitality = ['PUCP', 'UPC', 'ULIMA', 'UDEP', 'UTP'];
 const directHumanities = ['PUCP', 'ULIMA', 'UPC', 'UDEP'];
 const internationalCore = ['TEC', 'USFQ'];
 const internationalTech = ['MIT', 'STANFORD', 'CALTECH'];
@@ -34,12 +34,12 @@ const internationalTech = ['MIT', 'STANFORD', 'CALTECH'];
 export const BENCHMARK_SEED_BY_CAREER = {
   'ADMINISTRACION': { direct: directBusiness, international: internationalCore },
   'ADMINISTRACION Y EMPRENDIMIENTO': { direct: directBusiness, international: internationalCore },
-  'ADMINISTRACION Y FINANZAS CORPORATIVAS': { direct: ['UP', 'ULIMA', 'UPC', 'ESAN', 'UDEP'], international: internationalCore },
-  'DIGITAL BUSINESS MANAGEMENT': { direct: ['UPC', 'ULIMA', 'ESAN', 'UTEC', 'UP'], international: ['TEC', 'MIT', 'STANFORD'] },
+  'ADMINISTRACION Y FINANZAS CORPORATIVAS': { direct: ['PUCP', 'UP', 'ULIMA', 'UPC', 'ESAN', 'UDEP'], international: internationalCore },
+  'DIGITAL BUSINESS MANAGEMENT': { direct: ['PUCP', 'UPC', 'ULIMA', 'ESAN', 'UTEC', 'UP'], international: ['TEC', 'MIT', 'STANFORD'] },
   'ECONOMIA Y FINANZAS': { direct: ['UP', 'PUCP', 'ULIMA', 'UPC', 'UDEP'], international: internationalCore },
-  'ECONOMIA Y NEGOCIOS INTERNACIONALES': { direct: ['UP', 'ULIMA', 'UPC', 'ESAN', 'UDEP'], international: internationalCore },
-  'INTERNATIONAL BUSINESS': { direct: ['ULIMA', 'UPC', 'ESAN', 'UP', 'UDEP'], international: internationalCore },
-  'MARKETING': { direct: ['ULIMA', 'UPC', 'UP', 'ESAN', 'UDEP'], international: internationalCore },
+  'ECONOMIA Y NEGOCIOS INTERNACIONALES': { direct: ['PUCP', 'UP', 'ULIMA', 'UPC', 'ESAN', 'UDEP'], international: internationalCore },
+  'INTERNATIONAL BUSINESS': { direct: ['PUCP', 'ULIMA', 'UPC', 'ESAN', 'UP', 'UDEP'], international: internationalCore },
+  'MARKETING': { direct: ['PUCP', 'ULIMA', 'UPC', 'UP', 'ESAN', 'UDEP'], international: internationalCore },
   'ADMINISTRACION HOTELERA': { direct: directHospitality, international: internationalCore },
   'ADMINISTRACION EN TURISMO': { direct: directHospitality, international: internationalCore },
   'ARTE CULINARIO': { direct: ['UPC', 'ULIMA', 'UTP', 'UDEP'], international: internationalCore },

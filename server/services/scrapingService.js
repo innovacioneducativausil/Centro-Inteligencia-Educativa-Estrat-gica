@@ -47,6 +47,34 @@ function careerTokens(careerName = '') {
     .filter(t => t.length >= 4 && !['para', 'como', 'este', 'esta', 'universidad'].includes(t));
 }
 
+function distinctiveCareerTokens(careerName = '') {
+  const generic = new Set([
+    'administracion', 'gestion', 'ciencias', 'ciencia', 'ingenieria', 'tecnologia',
+    'negocios', 'empresarial', 'empresariales', 'internacional', 'internacionales',
+    'comercial', 'educacion', 'humana', 'medica', 'carrera', 'pregrado'
+  ]);
+  return careerTokens(careerName).filter(t => !generic.has(t));
+}
+
+function cleanPageText(html = '') {
+  return String(html)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractPageTitle(html = '') {
+  const titleMatch = String(html).match(/<title[^>]*>([^<]+)<\/title>/i);
+  return titleMatch ? cleanPageText(titleMatch[1]).substring(0, 350) : null;
+}
+
 async function fetchText(url) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DISCOVERY_TIMEOUT_MS);
@@ -120,9 +148,11 @@ async function searchOfficialLinks(domain, career) {
   return [...links];
 }
 
-function scoreCandidate(url, text, careerName) {
-  const haystack = normalizeText(`${url} ${text}`);
+function scoreCandidate(url, text, careerName, title = '') {
+  const urlAndTitle = normalizeText(`${url} ${title}`);
+  const haystack = normalizeText(`${url} ${title} ${text}`);
   const tokens = careerTokens(careerName);
+  const distinctive = distinctiveCareerTokens(careerName);
   const keywords = [
     'malla', 'curricular', 'plan de estudios', 'perfil de egreso',
     'competencias', 'carrera', 'pregrado', 'facultad', 'curso', 'cursos',
@@ -134,12 +164,23 @@ function scoreCandidate(url, text, careerName) {
     url: 0,
     documento: 0,
     ruido: 0,
+    coincidencia_fuerte: 0,
   };
   for (const token of tokens) if (haystack.includes(token)) detail.carrera += 8;
+  for (const token of distinctive) if (urlAndTitle.includes(token)) detail.coincidencia_fuerte += 18;
   for (const keyword of keywords) if (haystack.includes(normalizeText(keyword))) detail.curricular += 5;
   if (/malla|plan|perfil|competencia|pregrado|carrera/i.test(url)) detail.url += 12;
   if (/pdf/i.test(url)) detail.documento += 4;
-  if (/blog|noticia|evento|news|admision|postula|contacto|campus/i.test(url)) detail.ruido -= 10;
+  if (/blog|noticia|evento|news|admision|postula|contacto|campus|psicologia|arquitectura|derecho|economia|mecatronica|ambiental|comunicacion/i.test(url)
+      && distinctive.length
+      && !distinctive.some(t => urlAndTitle.includes(t))) {
+    detail.ruido -= 35;
+  } else if (/blog|noticia|evento|news|admision|postula|contacto|campus/i.test(url)) {
+    detail.ruido -= 10;
+  }
+  if (distinctive.length && !distinctive.some(t => urlAndTitle.includes(t))) {
+    detail.ruido -= 25;
+  }
   const total = Object.values(detail).reduce((sum, value) => sum + value, 0);
   return { total, detail };
 }
@@ -196,14 +237,14 @@ async function discoverOfficialSources(idPrograma) {
   const candidates = [...new Set([...searchLinks, ...filtered, ...commonCandidates])].slice(0, 100);
   const scored = [];
   for (const url of candidates) {
-    const text = await fetchText(url);
-    if (!text || text.length < 200) continue;
-    const score = scoreCandidate(url, text, career);
+    const html = await fetchText(url);
+    if (!html || html.length < 200) continue;
+    const title = extractPageTitle(html);
+    const text = cleanPageText(html);
+    const score = scoreCandidate(url, text, career, title || '');
     const tipo = inferSourceType(url, text);
-    const titleMatch = text.match(/<title[^>]*>([^<]+)<\/title>/i);
-    const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim().substring(0, 350) : null;
-    const snippet = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 500);
-    if (score.total >= 15) scored.push({ url, score: score.total, detail: score.detail, tipo, title, snippet, textLength: text.length });
+    const snippet = text.substring(0, 500);
+    if (score.total >= 25) scored.push({ url, score: score.total, detail: score.detail, tipo, title, snippet, textLength: text.length });
   }
 
   scored.sort((a, b) => b.score - a.score);
