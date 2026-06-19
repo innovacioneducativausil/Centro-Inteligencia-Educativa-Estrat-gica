@@ -384,7 +384,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     const haystack = normalizeText(`${p.url_programa} ${p.nombre_programa}`);
     return terms.some(term => haystack.includes(term));
   };
-  const programasVisibles = programas.filter(p => hasUsableSource(p) || (p.total_candidatos ?? 0) > 0);
+  const programasVisibles = programas.filter(p => hasUsableSource(p));
 
   if (!canEdit) {
     return (

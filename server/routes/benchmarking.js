@@ -895,10 +895,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
           tipo_fuente: source.tipoFuente,
           estado: 'pendiente_validacion',
         }));
-      const fuentes = curated.length
-        ? curated
-        : (fuentesByPrograma.get(programa.id_programa_benchmark) || [])
-          .filter(source => sourceMatchesCareer(source, carreraNombre));
+      const fuentes = curated;
       const candidatosUtiles = (candidatosByPrograma.get(programa.id_programa_benchmark) || [])
         .filter(candidate => sourceMatchesCareer(candidate, carreraNombre));
 
