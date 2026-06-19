@@ -48,6 +48,20 @@ interface Competencia {
   pais: string;
 }
 
+interface FuenteCandidata {
+  id_candidate: number;
+  id_programa_benchmark: number;
+  url: string;
+  titulo: string | null;
+  snippet: string | null;
+  tipo_fuente_detectado: string;
+  score_total: number;
+  score_detalle_json: string | Record<string, number> | null;
+  estado: 'candidato' | 'aprobado' | 'descartado' | 'duplicado' | 'no_oficial';
+  motivo: string | null;
+  buscado_en: string;
+}
+
 interface FiltroCarrera {
   id_carrera: number;
   nombre_carrera: string;
@@ -141,6 +155,8 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const [newUniv, setNewUniv]        = useState({ nombre_universidad: '', pais: 'Peru', ciudad: '', sitio_web: '' });
   const [newProg, setNewProg]        = useState({ nombre_programa: '', url_programa: '', modalidad: '', duracion: '' });
   const [selectedUnivForProg, setSelectedUnivForProg] = useState<number | ''>('');
+  const [showCandidatesFor, setShowCandidatesFor] = useState<number | null>(null);
+  const [candidates, setCandidates] = useState<Record<number, FuenteCandidata[]>>({});
 
   useEffect(() => {
     fetch('/api/curricular/filtros', { credentials: 'include' })
@@ -193,6 +209,16 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     setActionLoading(p => ({ ...p, [idPrograma]: '' }));
   };
 
+  const loadCandidates = async (idPrograma: number) => {
+    try {
+      const rows = await apiFetch<FuenteCandidata[]>(`/api/mercado-laboral/benchmarking/programas/${idPrograma}/candidatos`);
+      setCandidates(prev => ({ ...prev, [idPrograma]: rows }));
+      setShowCandidatesFor(idPrograma);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
   const handleDescubrirFuente = async (ids: number | number[]) => {
     const list = Array.isArray(ids) ? ids : [ids];
     const loadingKey = list.length === 1 ? list[0] : -1;
@@ -206,12 +232,39 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         body: JSON.stringify(list.length === 1 ? { id_programa: list[0] } : { ids: list }),
       });
       const found = result.results.filter(r => r.ok).length;
-      setNotice(`Busqueda completada: ${found}/${result.results.length} fuentes exactas sugeridas. Valida cada fuente antes de usarla como evidencia.`);
+      setNotice(`Busqueda completada: ${found}/${result.results.length} programas con candidatos. Revisa y aprueba una fuente antes de extraer.`);
       loadProgramas();
+      if (list.length === 1) await loadCandidates(list[0]);
     } catch (e: any) {
       setError(e.message);
     }
     setActionLoading(p => ({ ...p, [loadingKey]: '' }));
+  };
+
+  const handleAprobarCandidato = async (idPrograma: number, idCandidate: number) => {
+    setActionLoading(p => ({ ...p, [idCandidate]: 'approve' }));
+    setError(null);
+    try {
+      await apiFetch(`/api/mercado-laboral/benchmarking/candidatos/${idCandidate}/aprobar`, { method: 'POST' });
+      setNotice('Fuente aprobada. Ahora puedes extraer el texto oficial.');
+      await loadCandidates(idPrograma);
+      loadProgramas();
+    } catch (e: any) {
+      setError(e.message);
+    }
+    setActionLoading(p => ({ ...p, [idCandidate]: '' }));
+  };
+
+  const handleDescartarCandidato = async (idPrograma: number, idCandidate: number) => {
+    setActionLoading(p => ({ ...p, [idCandidate]: 'reject' }));
+    setError(null);
+    try {
+      await apiFetch(`/api/mercado-laboral/benchmarking/candidatos/${idCandidate}/descartar`, { method: 'POST' });
+      await loadCandidates(idPrograma);
+    } catch (e: any) {
+      setError(e.message);
+    }
+    setActionLoading(p => ({ ...p, [idCandidate]: '' }));
   };
 
   const handleNormalizarIA = async (idPrograma: number) => {
@@ -656,6 +709,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                     {actionLoading[p.id_programa_benchmark] === 'discover' ? '...' : 'Buscar fuente'}
                                   </button>
                                   <button
+                                    onClick={() => loadCandidates(p.id_programa_benchmark)}
+                                    title="Ver candidatos encontrados y aprobar fuente"
+                                    style={{ padding: '3px 7px', borderRadius: 4, border: `1px solid ${border}`,
+                                      background: showCandidatesFor === p.id_programa_benchmark ? '#eff6ff' : 'transparent',
+                                      color: text, fontWeight: 700, fontSize: 9, cursor: 'pointer' }}>
+                                    Candidatos
+                                  </button>
+                                  <button
                                     onClick={() => handleScraping(p.id_programa_benchmark)}
                                     disabled={isBusy || !hasExactSource}
                                     title="Extraer texto desde la fuente exacta registrada"
@@ -684,6 +745,96 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                   )}
                                 </div>
                               )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {showCandidatesFor && (
+            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+              <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+                borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+                    Candidatos de fuente oficial
+                  </div>
+                  <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
+                    Revisa si la URL corresponde a carrera, malla, perfil, plan o competencias antes de aprobar.
+                  </div>
+                </div>
+                <button onClick={() => setShowCandidatesFor(null)}
+                  style={{ border: `1px solid ${border}`, background: 'transparent', borderRadius: 6, padding: '5px 9px',
+                    fontSize: 11, fontWeight: 700, cursor: 'pointer', color: text }}>
+                  Cerrar
+                </button>
+              </div>
+              {(candidates[showCandidatesFor] || []).length === 0 ? (
+                <div style={{ padding: 18, color: muted, fontSize: 12 }}>
+                  No hay candidatos guardados. Usa Buscar fuente para intentar descubrir URLs oficiales.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                    <thead>
+                      <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
+                        {['Estado', 'Tipo', 'Score', 'Titulo / URL', 'Evidencia', 'Acciones'].map(h => (
+                          <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: muted,
+                            borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(candidates[showCandidatesFor] || []).map(c => {
+                        const detail = typeof c.score_detalle_json === 'string'
+                          ? (() => { try { return JSON.parse(c.score_detalle_json); } catch { return {}; } })()
+                          : (c.score_detalle_json || {});
+                        return (
+                          <tr key={c.id_candidate} style={{ borderBottom: `1px solid ${border}` }}>
+                            <td style={{ padding: '8px 10px', fontWeight: 800 }}>{c.estado}</td>
+                            <td style={{ padding: '8px 10px' }}>{c.tipo_fuente_detectado}</td>
+                            <td style={{ padding: '8px 10px', fontWeight: 800, color: c.score_total >= 35 ? '#166534' : '#854d0e' }}>
+                              {Number(c.score_total).toFixed(0)}
+                              <div style={{ color: muted, fontWeight: 500, fontSize: 9, marginTop: 2 }}>
+                                carrera {detail.carrera ?? 0} / curr {detail.curricular ?? 0} / url {detail.url ?? 0}
+                              </div>
+                            </td>
+                            <td style={{ padding: '8px 10px', minWidth: 260 }}>
+                              <div style={{ fontWeight: 700 }}>{c.titulo || 'Sin titulo detectado'}</div>
+                              <a href={c.url} target="_blank" rel="noreferrer"
+                                style={{ color: CYAN, fontSize: 10, textDecoration: 'none', wordBreak: 'break-all' }}>
+                                {c.url}
+                              </a>
+                            </td>
+                            <td style={{ padding: '8px 10px', maxWidth: 360, color: muted }}>
+                              {(c.snippet || c.motivo || '').substring(0, 260)}
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                                {c.estado !== 'aprobado' && (
+                                  <button onClick={() => handleAprobarCandidato(c.id_programa_benchmark, c.id_candidate)}
+                                    disabled={!!actionLoading[c.id_candidate]}
+                                    style={{ border: 'none', borderRadius: 5, background: '#16a34a', color: '#fff',
+                                      padding: '4px 8px', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>
+                                    Aprobar
+                                  </button>
+                                )}
+                                {c.estado === 'candidato' && (
+                                  <button onClick={() => handleDescartarCandidato(c.id_programa_benchmark, c.id_candidate)}
+                                    disabled={!!actionLoading[c.id_candidate]}
+                                    style={{ border: `1px solid ${border}`, borderRadius: 5, background: 'transparent',
+                                      color: text, padding: '4px 8px', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>
+                                    Descartar
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );

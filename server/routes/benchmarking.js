@@ -121,6 +121,42 @@ async function ensureBenchmarkingSchema() {
         CONSTRAINT fk_bs_programa FOREIGN KEY (id_programa_benchmark)
           REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS benchmark_source_candidate (
+        id_candidate              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        id_programa_benchmark     INT UNSIGNED NOT NULL,
+        url                       VARCHAR(1200) NOT NULL,
+        titulo                    VARCHAR(400) NULL,
+        snippet                   TEXT NULL,
+        tipo_fuente_detectado     ENUM('pagina_programa','malla_curricular','plan_estudios','perfil_egreso','competencias','brochure_pdf','otra') NOT NULL DEFAULT 'otra',
+        score_total               DECIMAL(6,2) NOT NULL DEFAULT 0,
+        score_detalle_json        JSON NULL,
+        estado                    ENUM('candidato','aprobado','descartado','duplicado','no_oficial') NOT NULL DEFAULT 'candidato',
+        motivo                    TEXT NULL,
+        buscado_en                DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        revisado_en               DATETIME NULL,
+        revisado_por              VARCHAR(160) NULL,
+        created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_candidate_program_url (id_programa_benchmark, url(255)),
+        KEY idx_candidate_programa (id_programa_benchmark),
+        KEY idx_candidate_estado (estado),
+        KEY idx_candidate_score (score_total),
+        CONSTRAINT fk_candidate_programa FOREIGN KEY (id_programa_benchmark)
+          REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS benchmark_program_equivalence (
+        id_equivalence            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        id_programa_benchmark     INT UNSIGNED NOT NULL,
+        nombre_oficial_sugerido   VARCHAR(300) NULL,
+        aliases_json              JSON NULL,
+        nivel_equivalencia        ENUM('exacta','parcial','cercana','referente','no_equivalente') NOT NULL DEFAULT 'cercana',
+        observaciones             TEXT NULL,
+        created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_equivalence_programa (id_programa_benchmark),
+        CONSTRAINT fk_equivalence_programa FOREIGN KEY (id_programa_benchmark)
+          REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS curso_benchmark (
         id_curso_benchmark          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         id_programa_benchmark       INT UNSIGNED NOT NULL,
@@ -571,6 +607,104 @@ router.post('/mercado-laboral/benchmarking/descubrir-fuentes', adminOnly, async 
     }
     res.json({ results });
   } catch (e) { serverError(res, e, 'POST /benchmarking/descubrir-fuentes'); }
+});
+
+// ── GET /api/mercado-laboral/benchmarking/programas/:id/candidatos ─────────
+router.get('/mercado-laboral/benchmarking/programas/:id/candidatos', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT *
+       FROM benchmark_source_candidate
+       WHERE id_programa_benchmark=?
+       ORDER BY
+         CASE estado WHEN 'candidato' THEN 0 WHEN 'aprobado' THEN 1 ELSE 2 END,
+         score_total DESC,
+         buscado_en DESC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (e) { serverError(res, e, 'GET /benchmarking/programas/:id/candidatos'); }
+});
+
+// ── POST /api/mercado-laboral/benchmarking/candidatos/:id/aprobar ──────────
+router.post('/mercado-laboral/benchmarking/candidatos/:id/aprobar', adminOnly, async (req, res) => {
+  try {
+    const [[candidate]] = await db.query(
+      `SELECT c.*, pb.id_programa_benchmark, pb.nombre_programa
+       FROM benchmark_source_candidate c
+       JOIN programa_benchmark pb ON pb.id_programa_benchmark = c.id_programa_benchmark
+       WHERE c.id_candidate=?`,
+      [req.params.id]
+    );
+    if (!candidate) return res.status(404).json({ error: 'Candidato no encontrado' });
+
+    await db.query(
+      `UPDATE benchmark_source_candidate
+       SET estado='aprobado', revisado_en=NOW(), revisado_por=?
+       WHERE id_candidate=?`,
+      [req.user?.email || req.user?.nombre || 'admin', req.params.id]
+    );
+    await db.query(
+      `INSERT INTO benchmark_source
+       (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, evidencia_resumen, observaciones)
+       VALUES (?, ?, ?, ?, 'pendiente_validacion', 1, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         tipo_fuente=VALUES(tipo_fuente),
+         titulo=VALUES(titulo),
+         estado='pendiente_validacion',
+         es_fuente_principal=1,
+         evidencia_resumen=VALUES(evidencia_resumen),
+         observaciones=VALUES(observaciones),
+         activo=1`,
+      [
+        candidate.id_programa_benchmark,
+        candidate.tipo_fuente_detectado || 'pagina_programa',
+        candidate.titulo || `Fuente oficial sugerida para ${candidate.nombre_programa}`,
+        candidate.url,
+        `Aprobada desde candidatos. Score ${candidate.score_total}.`,
+        candidate.motivo || null,
+      ]
+    );
+    await db.query(
+      `UPDATE programa_benchmark
+       SET url_programa=?, estado_extraccion='pendiente', observaciones=?
+       WHERE id_programa_benchmark=?`,
+      [candidate.url, `Fuente aprobada por admin desde candidatos. Score ${candidate.score_total}.`, candidate.id_programa_benchmark]
+    );
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e, 'POST /benchmarking/candidatos/:id/aprobar'); }
+});
+
+// ── POST /api/mercado-laboral/benchmarking/candidatos/:id/descartar ────────
+router.post('/mercado-laboral/benchmarking/candidatos/:id/descartar', adminOnly, async (req, res) => {
+  try {
+    await db.query(
+      `UPDATE benchmark_source_candidate
+       SET estado='descartado', motivo=COALESCE(?, motivo), revisado_en=NOW(), revisado_por=?
+       WHERE id_candidate=?`,
+      [req.body?.motivo || null, req.user?.email || req.user?.nombre || 'admin', req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e, 'POST /benchmarking/candidatos/:id/descartar'); }
+});
+
+// ── PUT /api/mercado-laboral/benchmarking/programas/:id/equivalencia ───────
+router.put('/mercado-laboral/benchmarking/programas/:id/equivalencia', adminOnly, async (req, res) => {
+  try {
+    const { nombre_oficial_sugerido, aliases = [], nivel_equivalencia = 'cercana', observaciones } = req.body;
+    await db.query(
+      `INSERT INTO benchmark_program_equivalence
+       (id_programa_benchmark, nombre_oficial_sugerido, aliases_json, nivel_equivalencia, observaciones)
+       VALUES (?, ?, CAST(? AS JSON), ?, ?)
+       ON DUPLICATE KEY UPDATE
+         nombre_oficial_sugerido=VALUES(nombre_oficial_sugerido),
+         aliases_json=VALUES(aliases_json),
+         nivel_equivalencia=VALUES(nivel_equivalencia),
+         observaciones=VALUES(observaciones)`,
+      [req.params.id, nombre_oficial_sugerido || null, JSON.stringify(Array.isArray(aliases) ? aliases : []), nivel_equivalencia, observaciones || null]
+    );
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e, 'PUT /benchmarking/programas/:id/equivalencia'); }
 });
 
 // ── POST /api/mercado-laboral/benchmarking/normalizar-ia ────────────────────

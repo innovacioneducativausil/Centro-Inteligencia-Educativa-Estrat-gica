@@ -29,6 +29,17 @@ function getProgramBaseName(nombrePrograma = '') {
   return String(nombrePrograma).replace(/\s*\/\s*programa equivalente\s*$/i, '').trim();
 }
 
+function inferSourceType(url, text) {
+  const haystack = normalizeText(`${url} ${text}`);
+  if (/\.pdf($|\?)/i.test(url) || haystack.includes('brochure')) return 'brochure_pdf';
+  if (haystack.includes('malla') || haystack.includes('curricular')) return 'malla_curricular';
+  if (haystack.includes('plan de estudios') || haystack.includes('plan curricular')) return 'plan_estudios';
+  if (haystack.includes('perfil de egreso') || haystack.includes('egresado')) return 'perfil_egreso';
+  if (haystack.includes('competencia') || haystack.includes('resultados de aprendizaje')) return 'competencias';
+  if (haystack.includes('pregrado') || haystack.includes('carrera')) return 'pagina_programa';
+  return 'otra';
+}
+
 function careerTokens(careerName = '') {
   return normalizeText(careerName)
     .replace(/[^a-z0-9\s]/g, ' ')
@@ -117,21 +128,30 @@ function scoreCandidate(url, text, careerName) {
     'competencias', 'carrera', 'pregrado', 'facultad', 'curso', 'cursos',
     'sumilla', 'brochure', 'silabo', 'sílabo'
   ];
-  let score = 0;
-  for (const token of tokens) if (haystack.includes(token)) score += 8;
-  for (const keyword of keywords) if (haystack.includes(normalizeText(keyword))) score += 5;
-  if (/malla|plan|perfil|competencia|pregrado|carrera/i.test(url)) score += 12;
-  if (/pdf/i.test(url)) score += 4;
-  if (/blog|noticia|evento|news|admision|postula|contacto|campus/i.test(url)) score -= 10;
-  return score;
+  const detail = {
+    carrera: 0,
+    curricular: 0,
+    url: 0,
+    documento: 0,
+    ruido: 0,
+  };
+  for (const token of tokens) if (haystack.includes(token)) detail.carrera += 8;
+  for (const keyword of keywords) if (haystack.includes(normalizeText(keyword))) detail.curricular += 5;
+  if (/malla|plan|perfil|competencia|pregrado|carrera/i.test(url)) detail.url += 12;
+  if (/pdf/i.test(url)) detail.documento += 4;
+  if (/blog|noticia|evento|news|admision|postula|contacto|campus/i.test(url)) detail.ruido -= 10;
+  const total = Object.values(detail).reduce((sum, value) => sum + value, 0);
+  return { total, detail };
 }
 
 async function discoverOfficialSources(idPrograma) {
   const [[programa]] = await db_empl.query(
     `SELECT pb.id_programa_benchmark, pb.nombre_programa, pb.url_programa,
-            ub.nombre_universidad, ub.sitio_web
+            ub.nombre_universidad, ub.sitio_web,
+            bpe.nombre_oficial_sugerido, bpe.aliases_json
      FROM programa_benchmark pb
      JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
+     LEFT JOIN benchmark_program_equivalence bpe ON bpe.id_programa_benchmark = pb.id_programa_benchmark
      WHERE pb.id_programa_benchmark=?`,
     [idPrograma]
   );
@@ -139,7 +159,13 @@ async function discoverOfficialSources(idPrograma) {
 
   const domain = getDomain(programa.sitio_web || programa.url_programa);
   const home = programa.sitio_web || programa.url_programa;
-  const career = getProgramBaseName(programa.nombre_programa);
+  const career = programa.nombre_oficial_sugerido || getProgramBaseName(programa.nombre_programa);
+  let aliases = [];
+  try {
+    aliases = programa.aliases_json ? JSON.parse(programa.aliases_json) : [];
+  } catch {
+    aliases = [];
+  }
   if (!domain || !home) return { ok: false, error: 'Universidad sin sitio web oficial' };
 
   const homeText = await fetchText(home);
@@ -161,17 +187,61 @@ async function discoverOfficialSources(idPrograma) {
     `${home.replace(/\/$/, '')}/facultad/${slug}/`,
   ];
 
-  const searchLinks = await searchOfficialLinks(domain, career);
+  const searchLinks = [
+    ...(await searchOfficialLinks(domain, career)),
+    ...((Array.isArray(aliases) ? aliases : []).length
+      ? (await Promise.all(aliases.slice(0, 4).map(alias => searchOfficialLinks(domain, alias)))).flat()
+      : []),
+  ];
   const candidates = [...new Set([...searchLinks, ...filtered, ...commonCandidates])].slice(0, 100);
   const scored = [];
   for (const url of candidates) {
     const text = await fetchText(url);
     if (!text || text.length < 200) continue;
     const score = scoreCandidate(url, text, career);
-    if (score >= 20) scored.push({ url, score, textLength: text.length });
+    const tipo = inferSourceType(url, text);
+    const titleMatch = text.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim().substring(0, 350) : null;
+    const snippet = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 500);
+    if (score.total >= 15) scored.push({ url, score: score.total, detail: score.detail, tipo, title, snippet, textLength: text.length });
   }
 
   scored.sort((a, b) => b.score - a.score);
+  await db_empl.query(
+    `UPDATE benchmark_source_candidate
+     SET estado='duplicado'
+     WHERE id_programa_benchmark=? AND estado='candidato'`,
+    [idPrograma]
+  );
+
+  for (const item of scored.slice(0, 12)) {
+    await db_empl.query(
+      `INSERT INTO benchmark_source_candidate
+       (id_programa_benchmark, url, titulo, snippet, tipo_fuente_detectado, score_total, score_detalle_json, estado, motivo)
+       VALUES (?, ?, ?, ?, ?, ?, CAST(? AS JSON), 'candidato', ?)
+       ON DUPLICATE KEY UPDATE
+         titulo=VALUES(titulo),
+         snippet=VALUES(snippet),
+         tipo_fuente_detectado=VALUES(tipo_fuente_detectado),
+         score_total=VALUES(score_total),
+         score_detalle_json=VALUES(score_detalle_json),
+         estado='candidato',
+         motivo=VALUES(motivo),
+         buscado_en=NOW(),
+         updated_at=CURRENT_TIMESTAMP`,
+      [
+        idPrograma,
+        item.url,
+        item.title,
+        item.snippet,
+        item.tipo,
+        item.score,
+        JSON.stringify(item.detail),
+        `Candidato oficial en ${domain}. Tipo detectado: ${item.tipo}. Score ${item.score}.`,
+      ]
+    );
+  }
+
   const best = scored[0];
   if (!best) {
     await db_empl.query(
@@ -180,35 +250,17 @@ async function discoverOfficialSources(idPrograma) {
        WHERE id_programa_benchmark=?`,
       [`No se encontro fuente exacta oficial para ${career} en ${domain}.`, idPrograma]
     );
-    return { ok: false, error: 'No se encontro fuente exacta oficial', candidates: scored.slice(0, 5) };
+    return { ok: false, error: 'No se encontro fuente exacta oficial', candidates: [] };
   }
 
   await db_empl.query(
     `UPDATE programa_benchmark
-     SET url_programa=?, estado_extraccion='pendiente', observaciones=?
+     SET observaciones=?
      WHERE id_programa_benchmark=?`,
-    [best.url, `Fuente exacta sugerida automaticamente. Score ${best.score}. Requiere validacion.`, idPrograma]
-  );
-  await db_empl.query(
-    `INSERT INTO benchmark_source
-     (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, evidencia_resumen, observaciones)
-     VALUES (?, 'pagina_programa', ?, ?, 'pendiente_validacion', 1, ?, ?)
-     ON DUPLICATE KEY UPDATE
-       estado='pendiente_validacion',
-       es_fuente_principal=1,
-       evidencia_resumen=VALUES(evidencia_resumen),
-       observaciones=VALUES(observaciones),
-       activo=1`,
-    [
-      idPrograma,
-      `Fuente oficial sugerida para ${career}`,
-      best.url,
-      `Busqueda automatica en dominio oficial ${domain}. Score ${best.score}.`,
-      'Validar que la pagina contenga malla, plan, perfil o competencias antes de usarla como evidencia.',
-    ]
+    [`${scored.slice(0, 12).length} candidatos encontrados. Requiere aprobacion de fuente.`, idPrograma]
   );
 
-  return { ok: true, best, candidates: scored.slice(0, 5) };
+  return { ok: true, best, candidates: scored.slice(0, 12) };
 }
 
 function sleep(ms) {

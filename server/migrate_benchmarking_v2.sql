@@ -78,3 +78,41 @@ CREATE TABLE IF NOT EXISTS benchmark_source (
   CONSTRAINT fk_bs_programa FOREIGN KEY (id_programa_benchmark)
     REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS benchmark_source_candidate (
+  id_candidate              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_programa_benchmark     INT UNSIGNED NOT NULL,
+  url                       VARCHAR(1200) NOT NULL,
+  titulo                    VARCHAR(400) NULL,
+  snippet                   TEXT NULL,
+  tipo_fuente_detectado     ENUM('pagina_programa','malla_curricular','plan_estudios','perfil_egreso','competencias','brochure_pdf','otra') NOT NULL DEFAULT 'otra',
+  score_total               DECIMAL(6,2) NOT NULL DEFAULT 0,
+  score_detalle_json        JSON NULL,
+  estado                    ENUM('candidato','aprobado','descartado','duplicado','no_oficial') NOT NULL DEFAULT 'candidato',
+  motivo                    TEXT NULL,
+  buscado_en                DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  revisado_en               DATETIME NULL,
+  revisado_por              VARCHAR(160) NULL,
+  created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_candidate_program_url (id_programa_benchmark, url(255)),
+  KEY idx_candidate_programa (id_programa_benchmark),
+  KEY idx_candidate_estado (estado),
+  KEY idx_candidate_score (score_total),
+  CONSTRAINT fk_candidate_programa FOREIGN KEY (id_programa_benchmark)
+    REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS benchmark_program_equivalence (
+  id_equivalence            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_programa_benchmark     INT UNSIGNED NOT NULL,
+  nombre_oficial_sugerido   VARCHAR(300) NULL,
+  aliases_json              JSON NULL,
+  nivel_equivalencia        ENUM('exacta','parcial','cercana','referente','no_equivalente') NOT NULL DEFAULT 'cercana',
+  observaciones             TEXT NULL,
+  created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_equivalence_programa (id_programa_benchmark),
+  CONSTRAINT fk_equivalence_programa FOREIGN KEY (id_programa_benchmark)
+    REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
