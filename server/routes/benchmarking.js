@@ -11,6 +11,7 @@ import { serverError } from '../middleware/errorHandler.js';
 import { scraperBatch, cargarTextoManual, discoverOfficialSources } from '../services/scrapingService.js';
 import { normalizarPrograma } from '../services/normalizacionIAService.js';
 import { BENCHMARK_SEED_BY_CAREER, BENCHMARK_UNIVERSITIES } from '../data/benchmarkingSeed.js';
+import { getCuratedBenchmarkSources } from '../data/benchmarkingCuratedSources.js';
 
 const router = Router();
 
@@ -41,10 +42,10 @@ function resolveBenchmarkSeed(careerName = '') {
     return { seed: { direct: ['UPC', 'UTEC', 'PUCP', 'ULIMA', 'UPN', 'UTP'], international: ['MIT', 'STANFORD', 'CALTECH'] }, match: 'area_ingenieria' };
   }
   if (has('ADMINISTRACION', 'BUSINESS', 'MARKETING', 'ECONOMIA', 'FINANZAS', 'NEGOCIOS')) {
-    return { seed: { direct: ['UPC', 'ULIMA', 'UP', 'ESAN', 'UDEP'], international: ['TEC', 'USFQ'] }, match: 'area_negocios' };
+    return { seed: { direct: ['PUCP', 'UPC', 'ULIMA', 'UP', 'ESAN', 'UDEP'], international: ['TEC', 'USFQ'] }, match: 'area_negocios' };
   }
   if (has('TURISMO', 'HOTELERA', 'GASTRONOMIA', 'CULINARIO')) {
-    return { seed: { direct: ['UPC', 'ULIMA', 'UDEP', 'UTP'], international: ['TEC', 'USFQ'] }, match: 'area_hospitalidad' };
+    return { seed: { direct: ['PUCP', 'UPC', 'ULIMA', 'UDEP', 'UTP'], international: ['TEC', 'USFQ'] }, match: 'area_hospitalidad' };
   }
   if (has('ARQUITECTURA')) {
     return { seed: { direct: ['UPC', 'PUCP', 'ULIMA', 'URP', 'UNI', 'UPN', 'UTP', 'UCSUR'], international: ['MIT', 'HARVARD', 'TEC'] }, match: 'area_arquitectura' };
@@ -432,21 +433,56 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
           programasCreados++;
         }
 
-        const [rSource] = await db.query(
-          `INSERT IGNORE INTO benchmark_source
-           (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, observaciones)
-           VALUES (?,?,?,?,?,?,?)`,
-          [
-            idProg,
-            'pagina_programa',
-            'Fuente exacta pendiente de curaduria',
-            univ.web,
-            'registrado',
-            1,
-            'URL institucional base. No equivale a fuente curricular exacta hasta registrar pagina de carrera, malla, perfil o plan de estudios.',
-          ]
-        );
-        if (rSource.affectedRows) fuentesCreadas++;
+        const curatedSources = getCuratedBenchmarkSources(carrera.nombre_carrera, univ.nombre);
+        if (curatedSources.length) {
+          for (const source of curatedSources) {
+            const [rSource] = await db.query(
+              `INSERT INTO benchmark_source
+               (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, observaciones)
+               VALUES (?,?,?,?,?,?,?)
+               ON DUPLICATE KEY UPDATE
+                 tipo_fuente=VALUES(tipo_fuente),
+                 titulo=VALUES(titulo),
+                 estado=VALUES(estado),
+                 es_fuente_principal=VALUES(es_fuente_principal),
+                 observaciones=VALUES(observaciones),
+                 activo=1`,
+              [
+                idProg,
+                source.tipoFuente,
+                source.titulo,
+                source.url,
+                'pendiente_validacion',
+                1,
+                'Fuente curada desde mapa base de benchmarking. Requiere validacion humana antes de usar como evidencia final.',
+              ]
+            );
+            if (rSource.affectedRows) fuentesCreadas++;
+          }
+          await db.query(
+            `UPDATE programa_benchmark
+             SET url_programa=COALESCE(NULLIF(url_programa, ''), ?),
+                 observaciones='Fuente curricular curada registrada. Requiere validacion humana.'
+             WHERE id_programa_benchmark=?`,
+            [curatedSources[0].url, idProg]
+          );
+        } else {
+          const [rSource] = await db.query(
+            `INSERT IGNORE INTO benchmark_source
+             (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, observaciones)
+             VALUES (?,?,?,?,?,?,?)`,
+            [
+              idProg,
+              'pagina_programa',
+              'Fuente exacta pendiente de curaduria',
+              univ.web,
+              'registrado',
+              1,
+              'URL institucional base. No equivale a fuente curricular exacta hasta registrar pagina de carrera, malla, perfil o plan de estudios.',
+            ]
+          );
+          if (rSource.affectedRows) fuentesCreadas++;
+        }
       }
     }
 
@@ -612,10 +648,12 @@ router.post('/mercado-laboral/benchmarking/descubrir-fuentes', adminOnly, async 
 // ── GET /api/mercado-laboral/benchmarking/programas/:id/candidatos ─────────
 router.get('/mercado-laboral/benchmarking/programas/:id/candidatos', async (req, res) => {
   try {
+    const incluirHistorial = req.query.historial === '1';
     const [rows] = await db.query(
       `SELECT *
        FROM benchmark_source_candidate
        WHERE id_programa_benchmark=?
+         ${incluirHistorial ? '' : "AND estado IN ('candidato','aprobado')"}
        ORDER BY
          CASE estado WHEN 'candidato' THEN 0 WHEN 'aprobado' THEN 1 ELSE 2 END,
          score_total DESC,

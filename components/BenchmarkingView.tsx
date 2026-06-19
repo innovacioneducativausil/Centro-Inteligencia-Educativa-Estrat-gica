@@ -346,7 +346,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       if (Array.isArray(d)) setCobertura(d);
       loadUniversidades();
       loadProgramas();
-      setNotice(`Rebusqueda completada: ${result.carrerasMapeadas}/${result.carrerasLeidas} carreras, ${result.programasCreados} programas nuevos y ${result.fuentesCreadas} fuentes nuevas.`);
+      setNotice(`Rebúsqueda completada: ${result.carrerasMapeadas}/${result.carrerasLeidas} carreras, ${result.programasCreados} programas nuevos y ${result.fuentesCreadas} fuentes nuevas.`);
     } catch (e: any) { setError(e.message); }
     finally { setSeeding(false); }
   };

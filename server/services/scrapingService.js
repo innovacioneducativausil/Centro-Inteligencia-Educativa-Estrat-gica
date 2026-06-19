@@ -4,6 +4,7 @@
 // El ChromeDriver se gestiona automáticamente via Selenium Manager (v4.10+).
 
 import db_empl from '../db_empl.js';
+import { getCuratedBenchmarkSources } from '../data/benchmarkingCuratedSources.js';
 
 const DELAY_BETWEEN_REQUESTS_MS = 3000;
 const PAGE_LOAD_TIMEOUT_MS = 20000;
@@ -185,6 +186,92 @@ function scoreCandidate(url, text, careerName, title = '') {
   return { total, detail };
 }
 
+function hasStrongCareerMatch(url, title, careerName) {
+  const distinctive = distinctiveCareerTokens(careerName);
+  if (!distinctive.length) return true;
+  const urlAndTitle = normalizeText(`${url} ${title || ''}`);
+  return distinctive.some(token => urlAndTitle.includes(token));
+}
+
+async function registerCuratedSources(programa, career) {
+  const curatedSources = getCuratedBenchmarkSources(career, programa.nombre_universidad);
+  if (!curatedSources.length) return [];
+
+  const registered = [];
+  await db_empl.query(
+    `UPDATE benchmark_source_candidate
+     SET estado='duplicado'
+     WHERE id_programa_benchmark=? AND estado='candidato'`,
+    [programa.id_programa_benchmark]
+  );
+
+  for (const source of curatedSources) {
+    await db_empl.query(
+      `INSERT INTO benchmark_source
+       (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, observaciones)
+       VALUES (?, ?, ?, ?, 'pendiente_validacion', 1, ?)
+       ON DUPLICATE KEY UPDATE
+         tipo_fuente=VALUES(tipo_fuente),
+         titulo=VALUES(titulo),
+         estado='pendiente_validacion',
+         es_fuente_principal=1,
+         observaciones=VALUES(observaciones),
+         activo=1`,
+      [
+        programa.id_programa_benchmark,
+        source.tipoFuente,
+        source.titulo,
+        source.url,
+        'Fuente curada desde mapa base de benchmarking. Requiere validacion humana.',
+      ]
+    );
+    await db_empl.query(
+      `INSERT INTO benchmark_source_candidate
+       (id_programa_benchmark, url, titulo, snippet, tipo_fuente_detectado, score_total, score_detalle_json, estado, motivo)
+       VALUES (?, ?, ?, ?, ?, 100, CAST(? AS JSON), 'aprobado', ?)
+       ON DUPLICATE KEY UPDATE
+         titulo=VALUES(titulo),
+         snippet=VALUES(snippet),
+         tipo_fuente_detectado=VALUES(tipo_fuente_detectado),
+         score_total=VALUES(score_total),
+         score_detalle_json=VALUES(score_detalle_json),
+         estado='aprobado',
+         motivo=VALUES(motivo),
+         buscado_en=NOW(),
+         updated_at=CURRENT_TIMESTAMP`,
+      [
+        programa.id_programa_benchmark,
+        source.url,
+        source.titulo,
+        'URL curada desde mapa base de benchmarking; pendiente de validacion academica.',
+        source.tipoFuente,
+        JSON.stringify({ curada: 100, carrera: 0, curricular: 0, url: 0 }),
+        'Coincidencia exacta en mapa base de fuentes oficiales.',
+      ]
+    );
+    registered.push({
+      url: source.url,
+      title: source.titulo,
+      tipo: source.tipoFuente,
+      score: 100,
+      detail: { curada: 100 },
+      snippet: 'URL curada desde mapa base de benchmarking.',
+    });
+  }
+
+  await db_empl.query(
+    `UPDATE programa_benchmark
+     SET url_programa=?, estado_extraccion='pendiente', observaciones=?
+     WHERE id_programa_benchmark=?`,
+    [
+      curatedSources[0].url,
+      `${curatedSources.length} fuente(s) curada(s) registradas. Requiere validacion humana.`,
+      programa.id_programa_benchmark,
+    ]
+  );
+  return registered;
+}
+
 async function discoverOfficialSources(idPrograma) {
   const [[programa]] = await db_empl.query(
     `SELECT pb.id_programa_benchmark, pb.nombre_programa, pb.url_programa,
@@ -208,6 +295,11 @@ async function discoverOfficialSources(idPrograma) {
     aliases = [];
   }
   if (!domain || !home) return { ok: false, error: 'Universidad sin sitio web oficial' };
+
+  const curated = await registerCuratedSources(programa, career);
+  if (curated.length) {
+    return { ok: true, best: curated[0], candidates: curated };
+  }
 
   const homeText = await fetchText(home);
   const homeLinks = extractLinks(homeText, home, domain);
@@ -241,6 +333,7 @@ async function discoverOfficialSources(idPrograma) {
     if (!html || html.length < 200) continue;
     const title = extractPageTitle(html);
     const text = cleanPageText(html);
+    if (!hasStrongCareerMatch(url, title || '', career)) continue;
     const score = scoreCandidate(url, text, career, title || '');
     const tipo = inferSourceType(url, text);
     const snippet = text.substring(0, 500);
