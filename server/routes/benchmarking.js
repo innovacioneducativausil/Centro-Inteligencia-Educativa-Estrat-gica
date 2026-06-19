@@ -57,6 +57,27 @@ function resolveBenchmarkSeed(careerName = '') {
   return { seed: { direct: ['UPC', 'ULIMA', 'PUCP', 'UDEP'], international: ['TEC', 'USFQ'] }, match: 'fallback_general' };
 }
 
+function careerDistinctiveTerms(careerName = '') {
+  const generic = new Set([
+    'administracion', 'gestion', 'ciencias', 'ciencia', 'ingenieria', 'tecnologia',
+    'negocios', 'empresarial', 'empresariales', 'internacional', 'internacionales',
+    'comercial', 'educacion', 'humana', 'medica', 'carrera', 'pregrado', 'programa',
+    'equivalente', 'hotelera', 'gastronomia',
+  ]);
+  return normalizeName(careerName)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t.length >= 4 && !generic.has(t));
+}
+
+function sourceMatchesCareer(source, careerName = '') {
+  const terms = careerDistinctiveTerms(careerName);
+  if (!terms.length) return true;
+  const haystack = normalizeName(`${source?.url || ''} ${source?.titulo || ''}`).toLowerCase();
+  return terms.some(term => haystack.includes(term));
+}
+
 async function ensureBenchmarkingSchema() {
   if (schemaReady) return schemaReady;
   schemaReady = (async () => {
@@ -827,7 +848,71 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
        ORDER BY ub.nombre_universidad`,
       [idCarrera, tipoBenchmark]
     );
-    res.json({ programas, competencias, tipo: tipoBenchmark });
+    const [[carrera]] = await dbCurricular.query(
+      `SELECT nombre_carrera FROM carrera WHERE id_carrera=? LIMIT 1`,
+      [idCarrera]
+    );
+    const carreraNombre = carrera?.nombre_carrera || '';
+    const ids = programas.map(p => p.id_programa_benchmark);
+    let fuentesByPrograma = new Map();
+    let candidatosByPrograma = new Map();
+
+    if (ids.length) {
+      const placeholders = ids.map(() => '?').join(',');
+      const [fuentes] = await db.query(
+        `SELECT id_programa_benchmark, tipo_fuente, titulo, url, estado
+         FROM benchmark_source
+         WHERE activo=1 AND id_programa_benchmark IN (${placeholders})`,
+        ids
+      );
+      const [candidatos] = await db.query(
+        `SELECT id_programa_benchmark, titulo, url, estado
+         FROM benchmark_source_candidate
+         WHERE estado IN ('candidato','aprobado') AND id_programa_benchmark IN (${placeholders})`,
+        ids
+      );
+
+      fuentesByPrograma = fuentes.reduce((map, fuente) => {
+        const list = map.get(fuente.id_programa_benchmark) || [];
+        list.push(fuente);
+        map.set(fuente.id_programa_benchmark, list);
+        return map;
+      }, new Map());
+
+      candidatosByPrograma = candidatos.reduce((map, candidato) => {
+        const list = map.get(candidato.id_programa_benchmark) || [];
+        list.push(candidato);
+        map.set(candidato.id_programa_benchmark, list);
+        return map;
+      }, new Map());
+    }
+
+    const programasDepurados = programas.map(programa => {
+      const curated = getCuratedBenchmarkSources(carreraNombre, programa.nombre_universidad)
+        .map(source => ({
+          titulo: source.titulo,
+          url: source.url,
+          tipo_fuente: source.tipoFuente,
+          estado: 'pendiente_validacion',
+        }));
+      const fuentes = curated.length
+        ? curated
+        : (fuentesByPrograma.get(programa.id_programa_benchmark) || [])
+          .filter(source => sourceMatchesCareer(source, carreraNombre));
+      const candidatosUtiles = (candidatosByPrograma.get(programa.id_programa_benchmark) || [])
+        .filter(candidate => sourceMatchesCareer(candidate, carreraNombre));
+
+      return {
+        ...programa,
+        url_programa: fuentes[0]?.url || null,
+        total_fuentes: fuentes.length,
+        fuentes_validadas: fuentes.filter(f => f.estado === 'validado').length,
+        fuentes_pendientes: fuentes.filter(f => f.estado !== 'validado').length,
+        total_candidatos: candidatosUtiles.length,
+      };
+    });
+
+    res.json({ programas: programasDepurados, competencias, tipo: tipoBenchmark });
   } catch (e) { serverError(res, e, 'GET /benchmarking/comparar/:idCarrera/:tipoBenchmark'); }
 });
 
