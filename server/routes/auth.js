@@ -124,12 +124,14 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales incorrectas.' });
     }
 
-    await createOtpForUser(user, 'login');
+    const token = signAuthToken(user);
+    res.cookie(AUTH_COOKIE, token, authCookieOptions());
+
+    logActividad(db, user.id_usuario, user.correo_usuario, 'login', getClientIp(req));
 
     res.json({
-      requiresOtp: true,
-      correo: user.correo_usuario,
-      message: 'Hemos enviado un codigo de verificacion a tu correo institucional.',
+      token,
+      user: buildAuthUser(user),
     });
   } catch (err) {
     console.error('[POST /auth/login]', err);
