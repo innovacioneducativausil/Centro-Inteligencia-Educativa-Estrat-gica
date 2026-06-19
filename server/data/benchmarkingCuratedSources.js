@@ -66,8 +66,10 @@ const URLS_BY_CAREER = {
     ['UCV', 'pagina_programa', 'Administracion Turismo y Hoteleria UCV', 'https://www.ucv.edu.pe/sube-semipresencial/administracion-turismo-y-hoteleria'],
   ],
   'ADMINISTRACION HOTELERA': [
-    ['UPC', 'malla_curricular', 'Malla curricular Administracion y Hoteleria UPC', 'https://pregrado.upc.edu.pe/carrera-de-administracion-y-hoteleria/malla-curricular/'],
-    ['UPC', 'malla_curricular', 'Malla curricular Administracion y Hoteleria UPC PDF', 'https://www.upc.edu.pe/transparencia-upc/mallas-curriculares/'],
+    ['UPC', 'pagina_programa', 'Hoteleria y Administracion UPC', 'https://pregrado.upc.edu.pe/facultad-de-administracion-en-hoteleria-y-turismo/hoteleria-y-administracion/'],
+    ['UPC', 'malla_curricular', 'Malla curricular Administracion de Hoteleria y Turismo UPC EPE', 'https://epe.upc.edu.pe/carrera/administracion-de-hoteleria-y-turismo/malla-curricular/'],
+    ['UTP', 'malla_curricular', 'Malla curricular Administracion Hotelera y de Turismo UTP PDF', 'https://utp.edu.pe/sites/default/files/mallas/MALLA_Administracion_Hotelera_y_de_Turismo.pdf'],
+    ['UTP', 'malla_curricular', 'Malla curricular Administracion Hotelera y de Turismo UTP PDF alternativo', 'https://utp.edu.pe/sites/default/files/mallas/Administraci%C3%B3n%20Hotelera%20y%20de%20Turismo%20%28malla%29.pdf'],
   ],
   'ARTE CULINARIO': [
     ['UPC', 'malla_curricular', 'Malla curricular Gastronomia y Gestion Culinaria UPC', 'https://pregrado.upc.edu.pe/carrera-de-gastronomia-y-gestion-culinaria/malla-curricular/'],
