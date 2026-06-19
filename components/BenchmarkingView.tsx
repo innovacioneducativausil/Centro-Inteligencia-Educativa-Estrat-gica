@@ -38,6 +38,7 @@ interface Programa {
   total_fuentes?: number;
   fuentes_validadas?: number;
   fuentes_pendientes?: number;
+  total_candidatos?: number;
 }
 
 interface Competencia {
@@ -121,6 +122,26 @@ function isGenericInstitutionUrl(url?: string | null) {
   } catch {
     return false;
   }
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function distinctiveCareerTerms(careerName?: string) {
+  const generic = new Set([
+    'administracion', 'gestion', 'ciencias', 'ciencia', 'ingenieria', 'tecnologia',
+    'negocios', 'empresarial', 'empresariales', 'internacional', 'internacionales',
+    'comercial', 'educacion', 'humana', 'medica', 'carrera', 'pregrado', 'programa',
+    'equivalente', 'hotelera', 'gastronomia',
+  ]);
+  return normalizeText(careerName)
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t.length >= 4 && !generic.has(t));
 }
 
 const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRole }) => {
@@ -355,6 +376,15 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const universidadesConPrograma = [...new Set(programas.map(p => p.nombre_universidad))];
   const carreraSeleccionada = cobertura.find(c => c.id_carrera === selectedCarrera) || carreras.find(c => c.id_carrera === selectedCarrera);
   const coberturaTipoTotal = cobertura.reduce((acc, c) => acc + (c.benchmarking?.[tipo]?.total_programas ?? 0), 0);
+  const selectedCareerName = carreraSeleccionada?.nombre_carrera || '';
+  const hasUsableSource = (p: Programa) => {
+    if (!p.url_programa || isGenericInstitutionUrl(p.url_programa)) return false;
+    const terms = distinctiveCareerTerms(selectedCareerName);
+    if (!terms.length) return true;
+    const haystack = normalizeText(`${p.url_programa} ${p.nombre_programa}`);
+    return terms.some(term => haystack.includes(term));
+  };
+  const programasVisibles = programas.filter(p => hasUsableSource(p) || (p.total_candidatos ?? 0) > 0);
 
   if (!canEdit) {
     return (
@@ -565,63 +595,6 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
           )}
 
-          {selectedCarrera && programas.length > 0 && (
-            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
-              <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
-                borderBottom: `1px solid ${border}` }}>
-                <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
-                  Comparador de malla
-                </div>
-                <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
-                  La comparación usa fuentes validadas o texto oficial pegado. La IA solo normaliza y sugiere brechas; la propuesta queda en revisión humana.
-                </div>
-              </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                  <thead>
-                    <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                      {['Programa externo', 'Entrada requerida', 'IA', 'Comparación contra USIL', 'Resultado esperado', 'Estado curricular'].map(h => (
-                        <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
-                          color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {programas.map(p => {
-                      const hasExactSource = !!p.url_programa && !isGenericInstitutionUrl(p.url_programa);
-                      const hasEvidence = (p.fuentes_validadas ?? 0) > 0 || ['procesado', 'verificado'].includes(p.estado_extraccion);
-                      return (
-                        <tr key={`cmp-${p.id_programa_benchmark}`} style={{ borderBottom: `1px solid ${border}` }}>
-                          <td style={{ padding: '8px 10px', fontWeight: 700 }}>
-                            {p.nombre_universidad}
-                            <div style={{ color: muted, fontWeight: 500, marginTop: 2 }}>{p.nombre_programa}</div>
-                          </td>
-                          <td style={{ padding: '8px 10px', color: hasExactSource ? '#166534' : '#854d0e', fontWeight: 700 }}>
-                            {hasExactSource ? 'Fuente exacta registrada' : 'Falta link exacto o texto oficial'}
-                          </td>
-                          <td style={{ padding: '8px 10px' }}>
-                            {hasEvidence ? 'Puede normalizar competencias/cursos' : 'Esperando evidencia'}
-                          </td>
-                          <td style={{ padding: '8px 10px' }}>
-                            Cursos, competencias, tecnologías, perfil y créditos contra malla/sílabos USIL.
-                          </td>
-                          <td style={{ padding: '8px 10px' }}>
-                            Brechas, coincidencias, cursos afectados y evidencia por fuente.
-                          </td>
-                          <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>
-                            Propuesta en revisión
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
           {/* Tabla de programas */}
           {selectedCarrera && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
@@ -629,14 +602,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 borderBottom: `1px solid ${border}`,
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
-                  {TIPO_LABELS[tipo]} configurada para la carrera ({programas.length})
+                  {TIPO_LABELS[tipo]} configurada para la carrera ({programasVisibles.length})
                 </span>
                 {loadingProgs && <span style={{ fontSize: 10, color: muted }}>Cargando...</span>}
               </div>
 
-              {programas.length === 0 && !loadingProgs ? (
+              {programasVisibles.length === 0 && !loadingProgs ? (
                 <div style={{ padding: 24, textAlign: 'center', color: muted, fontSize: 12 }}>
-                  No hay programas cargados para esta carrera y tipo. Agrega programas y registra fuentes oficiales de malla, perfil, plan de estudios o competencias.
+                  No hay fuentes exactas ni candidatos útiles para esta carrera y tipo. Usa Buscar fuentes de la carrera o agrega una fuente oficial.
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
@@ -652,17 +625,17 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                       </tr>
                     </thead>
                     <tbody>
-                      {programas.map(p => {
+                      {programasVisibles.map(p => {
                         const est = ESTADO_BADGE[p.estado_extraccion] ?? ESTADO_BADGE.pendiente;
                         const isBusy = !!actionLoading[p.id_programa_benchmark];
-                        const hasExactSource = !!p.url_programa && !isGenericInstitutionUrl(p.url_programa);
+                        const hasExactSource = hasUsableSource(p);
                         return (
                           <tr key={p.id_programa_benchmark} style={{ borderBottom: `1px solid ${border}` }}>
                             <td style={{ padding: '8px 10px', fontWeight: 600 }}>{p.nombre_universidad}</td>
                             <td style={{ padding: '8px 10px', color: muted }}>{p.pais}</td>
                             <td style={{ padding: '8px 10px', maxWidth: 180 }}>
                               <div style={{ fontWeight: 600 }}>{p.nombre_programa}</div>
-                              {p.url_programa && !isGenericInstitutionUrl(p.url_programa) ? (
+                              {hasExactSource ? (
                                 <a href={p.url_programa} target="_blank" rel="noreferrer"
                                   style={{ color: CYAN, fontSize: 10, textDecoration: 'none' }}>
                                   Ver fuente
@@ -686,9 +659,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                               )}
                             </td>
                             <td style={{ padding: '8px 10px', fontSize: 10, whiteSpace: 'nowrap' }}>
-                              <div style={{ fontWeight: 800, color: USIL }}>{p.total_fuentes ?? 0} links</div>
+                              <div style={{ fontWeight: 800, color: hasExactSource ? USIL : muted }}>
+                                {hasExactSource ? `${p.total_fuentes ?? 0} links` : 'sin fuente exacta'}
+                              </div>
                               <div style={{ color: '#166534' }}>{p.fuentes_validadas ?? 0} validadas</div>
-                              <div style={{ color: '#854d0e' }}>{p.fuentes_pendientes ?? 0} pendientes</div>
+                              <div style={{ color: '#854d0e' }}>{p.total_candidatos ?? 0} candidatos</div>
                             </td>
                             <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: USIL }}>
                               {p.total_competencias ?? 0}
@@ -783,7 +758,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
                     <thead>
                       <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                        {['Estado', 'Tipo', 'Score', 'Titulo / URL', 'Evidencia', 'Acciones'].map(h => (
+                        {['Estado', 'Tipo', 'Titulo / URL', 'Evidencia', 'Acciones'].map(h => (
                           <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: muted,
                             borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                             {h}
@@ -793,19 +768,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                     </thead>
                     <tbody>
                       {(candidates[showCandidatesFor] || []).map(c => {
-                        const detail = typeof c.score_detalle_json === 'string'
-                          ? (() => { try { return JSON.parse(c.score_detalle_json); } catch { return {}; } })()
-                          : (c.score_detalle_json || {});
                         return (
                           <tr key={c.id_candidate} style={{ borderBottom: `1px solid ${border}` }}>
                             <td style={{ padding: '8px 10px', fontWeight: 800, width: 90 }}>{c.estado}</td>
                             <td style={{ padding: '8px 10px', width: 120 }}>{c.tipo_fuente_detectado}</td>
-                            <td style={{ padding: '8px 10px', fontWeight: 800, color: c.score_total >= 35 ? '#166534' : '#854d0e', width: 95 }}>
-                              {Number(c.score_total).toFixed(0)}
-                              <div style={{ color: muted, fontWeight: 500, fontSize: 9, marginTop: 2 }}>
-                                carrera {detail.carrera ?? 0} / curr {detail.curricular ?? 0} / url {detail.url ?? 0}
-                              </div>
-                            </td>
                             <td style={{ padding: '8px 10px', width: 360 }}>
                               <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {c.titulo || 'Sin titulo detectado'}
@@ -848,6 +814,63 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {selectedCarrera && programasVisibles.length > 0 && (
+            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+              <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+                borderBottom: `1px solid ${border}` }}>
+                <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+                  Comparador de malla
+                </div>
+                <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
+                  La comparación se habilita con fuente exacta, texto oficial extraído o fuente pegada. La propuesta queda siempre en revisión humana.
+                </div>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
+                      {['Programa externo', 'Entrada', 'IA', 'Comparación contra USIL', 'Resultado esperado', 'Estado curricular'].map(h => (
+                        <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
+                          color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {programasVisibles.map(p => {
+                      const hasExactSource = hasUsableSource(p);
+                      const hasEvidence = (p.fuentes_validadas ?? 0) > 0 || ['procesado', 'verificado'].includes(p.estado_extraccion);
+                      return (
+                        <tr key={`cmp-${p.id_programa_benchmark}`} style={{ borderBottom: `1px solid ${border}` }}>
+                          <td style={{ padding: '8px 10px', fontWeight: 700 }}>
+                            {p.nombre_universidad}
+                            <div style={{ color: muted, fontWeight: 500, marginTop: 2 }}>{p.nombre_programa}</div>
+                          </td>
+                          <td style={{ padding: '8px 10px', color: hasExactSource ? '#166534' : '#854d0e', fontWeight: 700 }}>
+                            {hasExactSource ? 'Fuente exacta registrada' : 'Revisar candidato o pegar fuente'}
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            {hasEvidence ? 'Puede normalizar cursos/competencias' : 'Esperando evidencia'}
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            Cursos, competencias, tecnologías, perfil y créditos contra malla/sílabos USIL.
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            Brechas, coincidencias, cursos afectados y evidencia por fuente.
+                          </td>
+                          <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>
+                            Propuesta en revisión
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 

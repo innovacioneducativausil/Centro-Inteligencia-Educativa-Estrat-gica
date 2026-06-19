@@ -461,7 +461,7 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
           }
           await db.query(
             `UPDATE programa_benchmark
-             SET url_programa=COALESCE(NULLIF(url_programa, ''), ?),
+             SET url_programa=?,
                  observaciones='Fuente curricular curada registrada. Requiere validacion humana.'
              WHERE id_programa_benchmark=?`,
             [curatedSources[0].url, idProg]
@@ -812,12 +812,14 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
               COUNT(DISTINCT cu.id_curso_benchmark) AS total_cursos,
               COUNT(DISTINCT bs.id_benchmark_source) AS total_fuentes,
               COUNT(DISTINCT CASE WHEN bs.estado='validado' THEN bs.id_benchmark_source END) AS fuentes_validadas,
-              COUNT(DISTINCT CASE WHEN bs.estado IN ('registrado','pendiente_extraccion','extraido','pendiente_validacion') THEN bs.id_benchmark_source END) AS fuentes_pendientes
+              COUNT(DISTINCT CASE WHEN bs.estado IN ('registrado','pendiente_extraccion','extraido','pendiente_validacion') THEN bs.id_benchmark_source END) AS fuentes_pendientes,
+              COUNT(DISTINCT CASE WHEN bsc.estado IN ('candidato','aprobado') THEN bsc.id_candidate END) AS total_candidatos
        FROM programa_benchmark pb
        JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
        LEFT JOIN competencia_benchmark cb ON cb.id_programa_benchmark = pb.id_programa_benchmark
        LEFT JOIN curso_benchmark cu ON cu.id_programa_benchmark = pb.id_programa_benchmark
        LEFT JOIN benchmark_source bs ON bs.id_programa_benchmark = pb.id_programa_benchmark AND bs.activo = 1
+       LEFT JOIN benchmark_source_candidate bsc ON bsc.id_programa_benchmark = pb.id_programa_benchmark
        WHERE pb.carrera_equivalente_id = ? AND ub.tipo_benchmark = ? AND ub.activo = 1
        GROUP BY pb.id_programa_benchmark, pb.nombre_programa, pb.url_programa,
                 pb.estado_extraccion, pb.fecha_captura, pb.duracion, pb.modalidad, pb.estado_validacion,

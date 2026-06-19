@@ -57,6 +57,20 @@ const URLS_BY_CAREER = {
     ['USMP', 'plan_estudios', 'Plan de estudios Marketing USMP', 'https://www.administracion.usmp.edu.pe/marketing/plan-de-estudios/'],
     ['UPN', 'malla_curricular', 'Malla curricular Administracion y Marketing UPN', 'https://www.upn.edu.pe/sites/default/files/malla-curricular/carrera-ug-administracion-marketing.pdf'],
   ],
+  'ADMINISTRACION EN TURISMO': [
+    ['UPC', 'malla_curricular', 'Malla curricular Administracion y Turismo UPC', 'https://pregrado.upc.edu.pe/carrera-de-administracion-y-turismo/malla-curricular/'],
+    ['UPC', 'malla_curricular', 'Malla curricular Administracion y Turismo UPC PDF', 'https://www.upc.edu.pe/transparencia-upc/mallas-curriculares/'],
+  ],
+  'ADMINISTRACION HOTELERA': [
+    ['UPC', 'malla_curricular', 'Malla curricular Administracion y Hoteleria UPC', 'https://pregrado.upc.edu.pe/carrera-de-administracion-y-hoteleria/malla-curricular/'],
+    ['UPC', 'malla_curricular', 'Malla curricular Administracion y Hoteleria UPC PDF', 'https://www.upc.edu.pe/transparencia-upc/mallas-curriculares/'],
+  ],
+  'ARTE CULINARIO': [
+    ['UPC', 'malla_curricular', 'Malla curricular Gastronomia y Gestion Culinaria UPC', 'https://pregrado.upc.edu.pe/carrera-de-gastronomia-y-gestion-culinaria/malla-curricular/'],
+  ],
+  'GESTION E INNOVACION EN GASTRONOMIA': [
+    ['UPC', 'malla_curricular', 'Malla curricular Gastronomia y Gestion Culinaria UPC', 'https://pregrado.upc.edu.pe/carrera-de-gastronomia-y-gestion-culinaria/malla-curricular/'],
+  ],
   COMUNICACIONES: [
     ['USMP', 'malla_curricular', 'Malla curricular Comunicaciones USMP', 'https://fcctp.usmp.edu.pe/site/programas-academicos/pregrado/comunicaciones/malla-curricular/'],
     ['UPC', 'malla_curricular', 'Malla curricular Comunicacion y Periodismo UPC', 'https://pregrado.upc.edu.pe/carrera-de-comunicacion-y-periodismo/malla-curricular/'],
