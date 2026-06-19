@@ -11,7 +11,7 @@ import { serverError } from '../middleware/errorHandler.js';
 import { scraperBatch, cargarTextoManual, discoverOfficialSources } from '../services/scrapingService.js';
 import { normalizarPrograma } from '../services/normalizacionIAService.js';
 import { BENCHMARK_SEED_BY_CAREER, BENCHMARK_UNIVERSITIES } from '../data/benchmarkingSeed.js';
-import { getCuratedBenchmarkSources } from '../data/benchmarkingCuratedSources.js';
+import { getAllCuratedBenchmarkSources, getCuratedBenchmarkSources, getCuratedUniversityCodesForCareer } from '../data/benchmarkingCuratedSources.js';
 
 const router = Router();
 
@@ -357,10 +357,24 @@ router.get('/mercado-laboral/benchmarking/cobertura', async (_req, res) => {
       };
     }
 
-    res.json(carreras.map(c => ({
-      ...c,
-      benchmarking: byCareer.get(Number(c.id_carrera)) || {},
-    })));
+    res.json(carreras.map(c => {
+      const benchmarking = byCareer.get(Number(c.id_carrera)) || {};
+      const curatedDirect = getAllCuratedBenchmarkSources(c.nombre_carrera)
+        .filter(source => BENCHMARK_UNIVERSITIES[source.code]?.pais === 'Peru');
+      if (curatedDirect.length) {
+        benchmarking.competencia_directa = {
+          total_programas: new Set(curatedDirect.map(source => source.code)).size,
+          total_fuentes: curatedDirect.length,
+          fuentes_validadas: 0,
+          fuentes_pendientes: curatedDirect.length,
+          ultima_revision: new Date().toISOString(),
+        };
+      }
+      return {
+        ...c,
+        benchmarking,
+      };
+    }));
   } catch (e) { serverError(res, e, 'GET /benchmarking/cobertura'); }
 });
 
@@ -399,8 +413,11 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
       carrerasMapeadas++;
       mapeos[match] = (mapeos[match] || 0) + 1;
 
+      const curatedDirectCodes = getCuratedUniversityCodesForCareer(carrera.nombre_carrera)
+        .filter(code => BENCHMARK_UNIVERSITIES[code]?.pais === 'Peru');
+      const directCodes = [...new Set([...(seed.direct || []), ...curatedDirectCodes])];
       const entries = [
-        ...(seed.direct || []).map(code => ({ code, tipo: 'competencia_directa' })),
+        ...directCodes.map(code => ({ code, tipo: 'competencia_directa' })),
         ...(seed.international || []).map(code => ({ code, tipo: 'competencia_internacional' })),
       ];
 

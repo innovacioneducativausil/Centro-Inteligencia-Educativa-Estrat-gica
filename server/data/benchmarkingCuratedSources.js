@@ -199,3 +199,16 @@ export function getCuratedBenchmarkSources(careerName, universityName) {
       url,
     }));
 }
+
+export function getCuratedUniversityCodesForCareer(careerName) {
+  return [...new Set(resolveCareerSources(careerName).map(([code]) => code))];
+}
+
+export function getAllCuratedBenchmarkSources(careerName) {
+  return resolveCareerSources(careerName).map(([code, tipoFuente, titulo, url]) => ({
+    code,
+    tipoFuente,
+    titulo,
+    url,
+  }));
+}

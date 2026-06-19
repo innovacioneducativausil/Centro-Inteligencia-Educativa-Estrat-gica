@@ -378,11 +378,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const coberturaTipoTotal = cobertura.reduce((acc, c) => acc + (c.benchmarking?.[tipo]?.total_programas ?? 0), 0);
   const selectedCareerName = carreraSeleccionada?.nombre_carrera || '';
   const hasUsableSource = (p: Programa) => {
+    if ((p.total_fuentes ?? 0) <= 0) return false;
     if (!p.url_programa || isGenericInstitutionUrl(p.url_programa)) return false;
     const terms = distinctiveCareerTerms(selectedCareerName);
     if (!terms.length) return true;
     const haystack = normalizeText(`${p.url_programa} ${p.nombre_programa}`);
-    return terms.some(term => haystack.includes(term));
+    return terms.some(term => haystack.includes(term)) || (p.total_fuentes ?? 0) > 0;
   };
   const programasVisibles = programas.filter(p => hasUsableSource(p));
 
