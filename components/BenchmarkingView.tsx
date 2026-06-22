@@ -91,6 +91,7 @@ const TIPO_LABELS: Record<TipoBenchmark, string> = {
 };
 
 const TIPOS_VISIBLES: TipoBenchmark[] = ['competencia_directa', 'referente_nacional', 'competencia_internacional', 'referente_internacional'];
+const TIPOS_REFERENCIA: TipoBenchmark[] = ['referente_nacional', 'referente_internacional'];
 
 const TIPO_DESCRIPCION: Record<TipoBenchmark, string> = {
   competencia_directa: 'Universidades nacionales con carreras equivalentes y fuentes curriculares oficiales.',
@@ -186,6 +187,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const [carreras, setCarreras]     = useState<FiltroCarrera[]>([]);
   const [cobertura, setCobertura]   = useState<CoberturaCarrera[]>([]);
   const [selectedCarrera, setSelectedCarrera] = useState<number | ''>('');
+  const [selectedReferenciaUniversidad, setSelectedReferenciaUniversidad] = useState<number | ''>('');
   const [selectedPrograma, setSelectedPrograma] = useState<number | null>(null);
   const [loadingUnivs, setLoadingUnivs] = useState(false);
   const [loadingProgs, setLoadingProgs] = useState(false);
@@ -226,6 +228,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   }, [tipo]);
 
   useEffect(() => { loadUniversidades(); }, [loadUniversidades]);
+
+  useEffect(() => {
+    setSelectedReferenciaUniversidad('');
+    setShowCandidatesFor(null);
+  }, [tipo, selectedCarrera]);
 
   const loadProgramas = useCallback(() => {
     if (!selectedCarrera) { setProgramas([]); setCompetencias([]); return; }
@@ -411,6 +418,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const carreraSeleccionada = cobertura.find(c => c.id_carrera === selectedCarrera) || carreras.find(c => c.id_carrera === selectedCarrera);
   const coberturaTipoTotal = cobertura.reduce((acc, c) => acc + (c.benchmarking?.[tipo]?.total_programas ?? 0), 0);
   const selectedCareerName = carreraSeleccionada?.nombre_carrera || '';
+  const isReferenceView = TIPOS_REFERENCIA.includes(tipo);
   const hasUsableSource = (p: Programa) => {
     if ((p.total_fuentes ?? 0) <= 0) return false;
     if (!p.url_programa || isGenericInstitutionUrl(p.url_programa)) return false;
@@ -418,6 +426,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     return true;
   };
   const programasVisibles = programas.filter(p => hasUsableSource(p));
+  const programasReferencia = programasVisibles.filter(p =>
+    !selectedReferenciaUniversidad || p.id_universidad_benchmark === selectedReferenciaUniversidad
+  );
 
   if (!canEdit) {
     return (
@@ -458,7 +469,8 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: USIL }}>{TIPO_LABELS[tipo]}</div>
         <div style={{ fontSize: 11, color: muted, marginTop: 3 }}>
-          {TIPO_DESCRIPCION[tipo]} Total configurado en esta vista: <strong>{coberturaTipoTotal}</strong> programas.
+          {TIPO_DESCRIPCION[tipo]}
+          {!isReferenceView && <> Total configurado en esta vista: <strong>{coberturaTipoTotal}</strong> programas.</>}
         </div>
       </div>
 
@@ -476,7 +488,49 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         </div>
       )}
 
-      {cobertura.length > 0 && (
+      {isReferenceView && (
+        <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: '14px 16px', marginBottom: 12 }}>
+          <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase', marginBottom: 10 }}>
+            Filtros de comparación de malla
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 1.2fr) minmax(240px, 1fr)', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', marginBottom: 5 }}>
+                Carrera USIL
+              </label>
+              <select value={selectedCarrera}
+                onChange={e => setSelectedCarrera(e.target.value ? Number(e.target.value) : '')}
+                style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
+                  background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}>
+                <option value="">- Selecciona carrera -</option>
+                {carreras.map(c => (
+                  <option key={c.id_carrera} value={c.id_carrera}>
+                    {c.nombre_carrera} {c.nombre_facultad ? `(${c.nombre_facultad})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', marginBottom: 5 }}>
+                Universidad referente
+              </label>
+              <select value={selectedReferenciaUniversidad}
+                onChange={e => setSelectedReferenciaUniversidad(e.target.value ? Number(e.target.value) : '')}
+                style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
+                  background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}>
+                <option value="">- Selecciona universidad -</option>
+                {universidades.map(u => (
+                  <option key={u.id_universidad_benchmark} value={u.id_universidad_benchmark}>
+                    {u.nombre_universidad} ({u.pais})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isReferenceView && cobertura.length > 0 && (
         <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden', marginBottom: 12 }}>
           <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
             borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -572,7 +626,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         {/* Panel derecho: Carrera + Programas + Comparativa */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {selectedCarrera && (
+          {selectedCarrera && !isReferenceView && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: '12px 16px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <div>
@@ -605,7 +659,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
           )}
 
-          {selectedCarrera && (
+          {selectedCarrera && !isReferenceView && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: '12px 16px' }}>
               <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase', marginBottom: 10 }}>
                 Flujo de comparación curricular
@@ -629,7 +683,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           )}
 
           {/* Tabla de programas */}
-          {selectedCarrera && (
+          {selectedCarrera && !isReferenceView && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
               <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
                 borderBottom: `1px solid ${border}`,
@@ -768,7 +822,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
           )}
 
-          {showCandidatesFor && (
+          {showCandidatesFor && !isReferenceView && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
               <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
                 borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -854,7 +908,74 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
           )}
 
-          {selectedCarrera && programasVisibles.length > 0 && (
+          {isReferenceView && (
+            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+              <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+                borderBottom: `1px solid ${border}` }}>
+                <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+                  Comparador de malla USIL vs referente
+                </div>
+                <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
+                  Esta vista no administra fuentes. Solo compara la malla USIL contra una universidad referente cuando ya existe evidencia extraída o pegada.
+                </div>
+              </div>
+              {!selectedCarrera || !selectedReferenciaUniversidad ? (
+                <div style={{ padding: 24, textAlign: 'center', color: muted, fontSize: 12 }}>
+                  Selecciona una carrera USIL y una universidad referente para iniciar la comparación.
+                </div>
+              ) : programasReferencia.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: muted, fontSize: 12 }}>
+                  No hay una malla referente cargada para esta carrera y universidad. Agrega o extrae la fuente desde Competencia Directa o Competencia Internacional.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                    <thead>
+                      <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
+                        {['Universidad referente', 'Malla USIL', 'Malla referente', 'Comparación', 'Brecha / resultado', 'Estado'].map(h => (
+                          <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
+                            color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {programasReferencia.map(p => {
+                        const cursos = p.total_cursos ?? 0;
+                        const hasEvidence = cursos > 0 || ['procesado', 'verificado'].includes(p.estado_extraccion);
+                        return (
+                          <tr key={`ref-${p.id_programa_benchmark}`} style={{ borderBottom: `1px solid ${border}` }}>
+                            <td style={{ padding: '8px 10px', fontWeight: 700 }}>
+                              {p.nombre_universidad}
+                              <div style={{ color: muted, fontWeight: 500, marginTop: 2 }}>{p.nombre_programa}</div>
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              Malla y sílabos USIL de {carreraSeleccionada?.nombre_carrera || 'la carrera seleccionada'}.
+                            </td>
+                            <td style={{ padding: '8px 10px', color: hasEvidence ? '#166534' : '#854d0e', fontWeight: 700 }}>
+                              {cursos > 0 ? `${cursos} cursos externos detectados` : 'Sin cursos externos estructurados'}
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              Coincidencias, cursos no cubiertos, tecnologías y perfil contra USIL.
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              Brechas curriculares sugeridas con evidencia por fuente.
+                            </td>
+                            <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>
+                              {hasEvidence ? 'Listo para análisis' : 'Pendiente de evidencia'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedCarrera && !isReferenceView && programasVisibles.length > 0 && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
               <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
                 borderBottom: `1px solid ${border}` }}>
