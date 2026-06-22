@@ -685,9 +685,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                 {est.label}
                               </span>
                               {p.observaciones && (
-                                <div style={{ fontSize: 9, color: muted, marginTop: 2, maxWidth: 120 }}
+                                <div style={{ fontSize: 9, color: p.estado_extraccion === 'error' ? '#991b1b' : muted,
+                                  marginTop: 2, maxWidth: 260, lineHeight: 1.25, wordBreak: 'break-word' }}
                                   title={p.observaciones}>
-                                  {p.observaciones.substring(0, 40)}
+                                  {p.observaciones.substring(0, 120)}
                                 </div>
                               )}
                             </td>

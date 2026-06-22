@@ -669,6 +669,20 @@ async function extractPageText(driver, url) {
   return { url, finalUrl, title, text: visibleText(String(bodyText || '')).substring(0, 30000) };
 }
 
+async function extractPageTextWithFetch(url) {
+  const html = await fetchText(url);
+  const text = cleanPageText(html);
+  if (!text || text.length < 200) {
+    throw new Error('No se pudo obtener texto suficiente con fetch');
+  }
+  return {
+    url,
+    finalUrl: url,
+    title: extractPageTitle(html) || 'Fuente oficial capturada con fetch',
+    text: visibleText(text).substring(0, 30000),
+  };
+}
+
 async function findOrCreateBenchmarkSource(idPrograma, url, title = null, text = '') {
   const [rows] = await db_empl.query(
     `SELECT id_benchmark_source
@@ -896,6 +910,25 @@ async function scrapeProgramaUrl(idPrograma, url) {
     return { ok: true, textLength: result.text.length, title: result.title };
   } catch (err) {
     const msg = String(err.message || err).substring(0, 500);
+    try {
+      const fallback = await extractPageTextWithFetch(url);
+      return await persistExtraction({
+        idPrograma,
+        url,
+        urlFinal: fallback.finalUrl,
+        title: fallback.title,
+        text: fallback.text,
+      });
+    } catch (fallbackErr) {
+      const fallbackMsg = String(fallbackErr.message || fallbackErr).substring(0, 300);
+      await db_empl.query(
+        `UPDATE programa_benchmark
+         SET estado_extraccion='error', observaciones=?, fecha_captura=NOW()
+         WHERE id_programa_benchmark=?`,
+        [`Error extracción. Selenium: ${msg}. Fetch: ${fallbackMsg}`, idPrograma]
+      );
+      return { ok: false, error: `Selenium: ${msg}. Fetch: ${fallbackMsg}` };
+    }
     await db_empl.query(
       `UPDATE programa_benchmark
        SET estado_extraccion='error', observaciones=?, fecha_captura=NOW()
