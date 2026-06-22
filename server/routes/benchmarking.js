@@ -71,6 +71,18 @@ function careerDistinctiveTerms(careerName = '') {
     .filter(t => t.length >= 4 && !generic.has(t));
 }
 
+function careerFallbackTerms(careerName = '') {
+  return normalizeName(careerName)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t.length >= 4 && !['programa', 'equivalente', 'carrera', 'pregrado'].includes(t));
+}
+
+function getBenchmarkProgramBaseName(nombrePrograma = '') {
+  return String(nombrePrograma).replace(/\s*\/\s*programa equivalente\s*$/i, '').trim();
+}
+
 function sourceTermMatches(haystack = '', term = '') {
   if (haystack.includes(term)) return true;
   const roots = {
@@ -89,9 +101,10 @@ function sourceTermMatches(haystack = '', term = '') {
 
 function sourceMatchesCareer(source, careerName = '') {
   const terms = careerDistinctiveTerms(careerName);
-  if (!terms.length) return true;
+  const matchTerms = terms.length ? terms : careerFallbackTerms(careerName);
+  if (!matchTerms.length) return false;
   const haystack = normalizeName(`${source?.url || ''} ${source?.titulo || ''}`).toLowerCase();
-  return terms.some(term => sourceTermMatches(haystack, term));
+  return matchTerms.some(term => sourceTermMatches(haystack, term));
 }
 
 async function ensureBenchmarkingSchema() {
@@ -960,15 +973,17 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
     }
 
     const programasDepurados = programas.map(programa => {
-      const curated = getCuratedBenchmarkSources(carreraNombre, programa.nombre_universidad)
+      const nombreCarreraParaFiltro = carreraNombre || getBenchmarkProgramBaseName(programa.nombre_programa);
+      const curated = getCuratedBenchmarkSources(nombreCarreraParaFiltro, programa.nombre_universidad)
         .map(source => ({
           titulo: source.titulo,
           url: source.url,
           tipo_fuente: source.tipoFuente,
           estado: 'pendiente_validacion',
-        }));
+        }))
+        .filter(source => sourceMatchesCareer(source, nombreCarreraParaFiltro));
       const dbFuentes = (fuentesByPrograma.get(programa.id_programa_benchmark) || [])
-        .filter(source => sourceMatchesCareer(source, carreraNombre));
+        .filter(source => sourceMatchesCareer(source, nombreCarreraParaFiltro));
       const mergedSources = [...dbFuentes, ...curated].reduce((map, source) => {
         if (!source?.url) return map;
         const key = String(source.url).replace(/\/$/, '').toLowerCase();
@@ -977,7 +992,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
       }, new Map());
       const fuentes = [...mergedSources.values()];
       const candidatosUtiles = (candidatosByPrograma.get(programa.id_programa_benchmark) || [])
-        .filter(candidate => sourceMatchesCareer(candidate, carreraNombre));
+        .filter(candidate => sourceMatchesCareer(candidate, nombreCarreraParaFiltro));
 
       return {
         ...programa,
