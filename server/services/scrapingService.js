@@ -982,4 +982,4 @@ async function cargarTextoManual(idPrograma, textoFuente, urlOrigen) {
   return { ok: true };
 }
 
-export { scrapeProgramaUrl, scraperBatch, cargarTextoManual, discoverOfficialSources };
+export { scrapeProgramaUrl, scraperBatch, cargarTextoManual, discoverOfficialSources, parseCurriculumCourses };

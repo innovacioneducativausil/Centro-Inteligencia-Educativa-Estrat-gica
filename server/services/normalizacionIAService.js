@@ -4,6 +4,7 @@
 // Regla: si el texto fuente no contiene un dato, se marca como "no_identificado".
 
 import db_empl from '../db_empl.js';
+import { parseCurriculumCourses } from './scrapingService.js';
 
 const HF_URL   = 'https://router.huggingface.co/v1/chat/completions';
 const HF_MODEL = 'Qwen/Qwen2.5-7B-Instruct:together';
@@ -107,7 +108,29 @@ async function normalizarPrograma(idPrograma) {
   }
 
   const competencias  = Array.isArray(parsed.competencias) ? parsed.competencias : [];
-  const cursos        = Array.isArray(parsed.cursos_equivalentes) ? parsed.cursos_equivalentes : [];
+  const cursosIA      = Array.isArray(parsed.cursos_equivalentes) ? parsed.cursos_equivalentes : [];
+  const cursosDeterministicos = parseCurriculumCourses(prog.fuente_texto_original, prog.url_programa).courses || [];
+  const cursosMap = new Map();
+  for (const curso of cursosIA) {
+    if (!curso || curso === 'no_identificado') continue;
+    const nombre = String(curso).trim();
+    if (!nombre) continue;
+    cursosMap.set(nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), {
+      nombre,
+      ciclo: null,
+      evidencia: 'Extraído por normalización IA',
+    });
+  }
+  for (const curso of cursosDeterministicos) {
+    const nombre = String(curso.nombreCurso || '').trim();
+    if (!nombre) continue;
+    cursosMap.set(nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), {
+      nombre,
+      ciclo: curso.ciclo || null,
+      evidencia: curso.evidencia || 'Extraído por parser de malla',
+    });
+  }
+  const cursos = Array.from(cursosMap.values());
   const tecnologias   = Array.isArray(parsed.tecnologias) ? parsed.tecnologias : [];
   const habilidadesTec= Array.isArray(parsed.habilidades_tecnicas) ? parsed.habilidades_tecnicas : [];
   const habilidadesBla= Array.isArray(parsed.habilidades_blandas) ? parsed.habilidades_blandas : [];
@@ -116,13 +139,6 @@ async function normalizarPrograma(idPrograma) {
   const conn = await db_empl.getConnection();
   try {
     await conn.beginTransaction();
-
-    await conn.query(
-      `UPDATE programa_benchmark
-       SET perfil_egreso_texto = ?, estado_extraccion = 'verificado', updated_at = NOW()
-       WHERE id_programa_benchmark = ?`,
-      [parsed.perfil_egreso_resumen !== 'no_identificado' ? parsed.perfil_egreso_resumen : prog.fuente_texto_original?.substring(0, 2000), idPrograma]
-    );
 
     await conn.query('DELETE FROM competencia_benchmark WHERE id_programa_benchmark=?', [idPrograma]);
     for (const comp of competencias) {
@@ -150,21 +166,51 @@ async function normalizarPrograma(idPrograma) {
       );
     }
 
-    await conn.query('DELETE FROM curso_benchmark WHERE id_programa_benchmark=?', [idPrograma]);
+    if (cursos.length) {
+      await conn.query('DELETE FROM curso_benchmark WHERE id_programa_benchmark=?', [idPrograma]);
+    }
     for (const curso of cursos) {
-      if (!curso || curso === 'no_identificado') continue;
       await conn.query(
-        `INSERT INTO curso_benchmark (id_programa_benchmark, nombre_curso, area_formacion, competencias_detectadas_json, tecnologias_detectadas_json)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO curso_benchmark
+         (id_programa_benchmark, nombre_curso, ciclo, area_formacion, descripcion_curso, competencias_detectadas_json, tecnologias_detectadas_json, fuente_url)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           idPrograma,
-          String(curso).substring(0, 299),
+          String(curso.nombre).substring(0, 299),
+          curso.ciclo,
           areas[0] ?? null,
+          curso.evidencia,
           JSON.stringify(competencias.filter(c => c !== 'no_identificado')),
           JSON.stringify(tecnologias.filter(t => t !== 'no_identificado')),
+          prog.url_programa,
         ]
       );
     }
+
+    const [[conteo]] = await conn.query(
+      `SELECT
+         (SELECT COUNT(*) FROM curso_benchmark WHERE id_programa_benchmark=?) AS cursos,
+         (SELECT COUNT(*) FROM competencia_benchmark WHERE id_programa_benchmark=?) AS competencias`,
+      [idPrograma, idPrograma]
+    );
+    const tieneEvidenciaEstructurada = Number(conteo?.cursos || 0) > 0 || Number(conteo?.competencias || 0) > 0;
+
+    await conn.query(
+      `UPDATE programa_benchmark
+       SET perfil_egreso_texto = ?,
+           estado_extraccion = ?,
+           observaciones = ?,
+           updated_at = NOW()
+       WHERE id_programa_benchmark = ?`,
+      [
+        parsed.perfil_egreso_resumen !== 'no_identificado' ? parsed.perfil_egreso_resumen : prog.fuente_texto_original?.substring(0, 2000),
+        tieneEvidenciaEstructurada ? 'verificado' : 'procesado',
+        tieneEvidenciaEstructurada
+          ? `Normalización completada. Cursos estructurados: ${Number(conteo?.cursos || 0)}. Competencias estructuradas: ${Number(conteo?.competencias || 0)}.`
+          : 'Normalización sin cursos ni competencias estructuradas. Revisar fuente o pegar malla manualmente.',
+        idPrograma,
+      ]
+    );
 
     await conn.commit();
   } catch (err) {
