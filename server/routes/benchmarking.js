@@ -1027,6 +1027,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
     const ids = programas.map(p => p.id_programa_benchmark);
     let fuentesByPrograma = new Map();
     let candidatosByPrograma = new Map();
+    let cursosByPrograma = new Map();
 
     if (ids.length) {
       const placeholders = ids.map(() => '?').join(',');
@@ -1042,6 +1043,13 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
          WHERE estado IN ('candidato','aprobado') AND id_programa_benchmark IN (${placeholders})`,
         ids
       );
+      const [cursosExternos] = await db.query(
+        `SELECT id_programa_benchmark, nombre_curso, ciclo, area_formacion, descripcion_curso, fuente_url
+         FROM curso_benchmark
+         WHERE id_programa_benchmark IN (${placeholders})
+         ORDER BY CAST(NULLIF(ciclo, '') AS UNSIGNED), nombre_curso`,
+        ids
+      );
 
       fuentesByPrograma = fuentes.reduce((map, fuente) => {
         const list = map.get(fuente.id_programa_benchmark) || [];
@@ -1054,6 +1062,13 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
         const list = map.get(candidato.id_programa_benchmark) || [];
         list.push(candidato);
         map.set(candidato.id_programa_benchmark, list);
+        return map;
+      }, new Map());
+
+      cursosByPrograma = cursosExternos.reduce((map, curso) => {
+        const list = map.get(curso.id_programa_benchmark) || [];
+        list.push(curso);
+        map.set(curso.id_programa_benchmark, list);
         return map;
       }, new Map());
     }
@@ -1087,6 +1102,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
         fuentes_validadas: fuentes.filter(f => f.estado === 'validado').length,
         fuentes_pendientes: fuentes.filter(f => f.estado !== 'validado').length,
         total_candidatos: candidatosUtiles.length,
+        cursos: cursosByPrograma.get(programa.id_programa_benchmark) || [],
       };
     });
 

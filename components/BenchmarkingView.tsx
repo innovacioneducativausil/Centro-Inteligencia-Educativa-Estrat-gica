@@ -39,6 +39,38 @@ interface Programa {
   fuentes_validadas?: number;
   fuentes_pendientes?: number;
   total_candidatos?: number;
+  cursos?: CursoBenchmark[];
+}
+
+interface CursoBenchmark {
+  nombre_curso: string;
+  ciclo: string | null;
+  area_formacion: string | null;
+  descripcion_curso: string | null;
+  fuente_url: string | null;
+}
+
+interface CursoUsil {
+  id: number;
+  nombre: string;
+  codigo: string | null;
+  ciclo: number;
+  creditos: number | null;
+  tipoCurso: string | null;
+}
+
+interface CicloUsil {
+  label: string;
+  numero: number;
+  cursos: CursoUsil[];
+}
+
+interface MallaUsil {
+  id_malla: number;
+  nombre_version: string;
+  anio_inicio: number | null;
+  es_vigente: number;
+  total_cursos: number;
 }
 
 interface Competencia {
@@ -195,6 +227,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const [selectedCarrera, setSelectedCarrera] = useState<number | ''>('');
   const [selectedReferenciaUniversidad, setSelectedReferenciaUniversidad] = useState<number | ''>('');
   const [selectedPrograma, setSelectedPrograma] = useState<number | null>(null);
+  const [mallaUsil, setMallaUsil] = useState<MallaUsil | null>(null);
+  const [ciclosUsil, setCiclosUsil] = useState<CicloUsil[]>([]);
+  const [loadingMallaUsil, setLoadingMallaUsil] = useState(false);
   const [loadingUnivs, setLoadingUnivs] = useState(false);
   const [loadingProgs, setLoadingProgs] = useState(false);
   const [loadingComp, setLoadingComp]   = useState(false);
@@ -467,6 +502,115 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       setSelectedReferenciaUniversidad('');
     }
   }, [selectedReferenciaUniversidad, referenciaUniversidadesKey]);
+
+  useEffect(() => {
+    if (!isReferenceView || !carreraSeleccionada?.nombre_carrera) {
+      setMallaUsil(null);
+      setCiclosUsil([]);
+      return;
+    }
+
+    let cancelled = false;
+    const loadMallaUsil = async () => {
+      setLoadingMallaUsil(true);
+      try {
+        const params = new URLSearchParams({ carrera: carreraSeleccionada.nombre_carrera });
+        if (carreraSeleccionada.nombre_facultad) params.set('facultad', carreraSeleccionada.nombre_facultad);
+        const mallasData = await apiFetch<MallaUsil[]>(`/api/curricular/mallas?${params.toString()}`);
+        const vigente = Array.isArray(mallasData)
+          ? (mallasData.find(m => m.es_vigente === 1) || mallasData[0])
+          : null;
+        if (!vigente) {
+          if (!cancelled) {
+            setMallaUsil(null);
+            setCiclosUsil([]);
+          }
+          return;
+        }
+        const ciclosData = await apiFetch<CicloUsil[]>(`/api/curricular/mapa/${vigente.id_malla}`);
+        if (!cancelled) {
+          setMallaUsil(vigente);
+          setCiclosUsil(Array.isArray(ciclosData) ? ciclosData : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setMallaUsil(null);
+          setCiclosUsil([]);
+        }
+      } finally {
+        if (!cancelled) setLoadingMallaUsil(false);
+      }
+    };
+
+    loadMallaUsil();
+    return () => { cancelled = true; };
+  }, [isReferenceView, carreraSeleccionada?.nombre_carrera, carreraSeleccionada?.nombre_facultad]);
+
+  const cursosUsil = ciclosUsil.flatMap(ciclo =>
+    ciclo.cursos.map(curso => ({
+      ciclo: String(ciclo.numero),
+      nombre: curso.nombre,
+      meta: [curso.codigo, curso.creditos != null ? `${curso.creditos} cr.` : null].filter(Boolean).join(' - '),
+    }))
+  );
+
+  const groupCoursesByCycle = (courses: Array<{ ciclo?: string | number | null; nombre: string; meta?: string | null }>) => {
+    const map = new Map<string, Array<{ nombre: string; meta?: string | null }>>();
+    courses.forEach(course => {
+      const cycle = course.ciclo ? String(course.ciclo) : 'S/C';
+      const list = map.get(cycle) || [];
+      list.push({ nombre: course.nombre, meta: course.meta });
+      map.set(cycle, list);
+    });
+    return Array.from(map.entries()).sort(([a], [b]) => {
+      const na = Number(a);
+      const nb = Number(b);
+      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+      return a.localeCompare(b, 'es');
+    });
+  };
+
+  const courseKey = (name: string) => normalizeText(name).replace(/[^a-z0-9]/g, '');
+
+  const renderMallaBoard = (
+    title: string,
+    subtitle: string,
+    courses: Array<{ ciclo?: string | number | null; nombre: string; meta?: string | null }>,
+    accent: string
+  ) => {
+    const grouped = groupCoursesByCycle(courses);
+    return (
+      <div style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden', background: card }}>
+        <div style={{ padding: '10px 12px', background: isDark ? '#0f172a' : '#f8fafc', borderBottom: `1px solid ${border}` }}>
+          <div style={{ fontWeight: 800, color: accent, fontSize: 12 }}>{title}</div>
+          <div style={{ color: muted, fontSize: 10, marginTop: 2 }}>{subtitle}</div>
+        </div>
+        {grouped.length === 0 ? (
+          <div style={{ padding: 16, color: muted, fontSize: 12 }}>No hay cursos cargados para esta malla.</div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: 10 }}>
+            {grouped.map(([cycle, items]) => (
+              <div key={`${title}-${cycle}`} style={{ minWidth: 170, flex: '0 0 170px' }}>
+                <div style={{ background: accent, color: '#fff', padding: '5px 8px', fontWeight: 800, fontSize: 11, borderRadius: '6px 6px 0 0' }}>
+                  Ciclo {cycle}
+                </div>
+                <div style={{ border: `1px solid ${border}`, borderTop: 'none', borderRadius: '0 0 6px 6px', overflow: 'hidden' }}>
+                  {items.map((course, idx) => (
+                    <div key={`${cycle}-${course.nombre}-${idx}`}
+                      style={{ padding: '7px 8px', borderBottom: idx < items.length - 1 ? `1px solid ${border}` : 'none',
+                        background: isDark ? '#1e293b' : '#fff' }}>
+                      <div style={{ fontWeight: 700, fontSize: 10.5, lineHeight: 1.25 }}>{course.nombre}</div>
+                      {course.meta && <div style={{ color: muted, fontSize: 9, marginTop: 2 }}>{course.meta}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (!canEdit) {
     return (
@@ -980,48 +1124,57 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   No hay cursos de malla extraídos para esta carrera y universidad. Extrae y normaliza la fuente desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'}.
                 </div>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                    <thead>
-                      <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                        {['Universidad referente', 'Malla USIL', 'Malla referente', 'Comparación', 'Brecha / resultado', 'Estado'].map(h => (
-                          <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
-                            color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {programasReferencia.map(p => {
-                        const cursos = p.total_cursos ?? 0;
-                        const hasEvidence = cursos > 0 || ['procesado', 'verificado'].includes(p.estado_extraccion);
-                        return (
-                          <tr key={`ref-${p.id_programa_benchmark}`} style={{ borderBottom: `1px solid ${border}` }}>
-                            <td style={{ padding: '8px 10px', fontWeight: 700 }}>
-                              {p.nombre_universidad}
-                              <div style={{ color: muted, fontWeight: 500, marginTop: 2 }}>{p.nombre_programa}</div>
-                            </td>
-                            <td style={{ padding: '8px 10px' }}>
-                              Malla y sílabos USIL de {carreraSeleccionada?.nombre_carrera || 'la carrera seleccionada'}.
-                            </td>
-                            <td style={{ padding: '8px 10px', color: hasEvidence ? '#166534' : '#854d0e', fontWeight: 700 }}>
-                              {cursos > 0 ? `${cursos} cursos externos detectados` : 'Sin cursos externos estructurados'}
-                            </td>
-                            <td style={{ padding: '8px 10px' }}>
-                              Coincidencias, cursos no cubiertos, tecnologías y perfil contra USIL.
-                            </td>
-                            <td style={{ padding: '8px 10px' }}>
-                              Brechas curriculares sugeridas con evidencia por fuente.
-                            </td>
-                            <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>
-                              {hasEvidence ? 'Listo para análisis' : 'Pendiente de evidencia'}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {programasReferencia.map(p => {
+                    const cursosExternos = (p.cursos || []).map(curso => ({
+                      ciclo: curso.ciclo,
+                      nombre: curso.nombre_curso,
+                      meta: curso.area_formacion || curso.fuente_url || null,
+                    }));
+                    const usilKeys = new Set(cursosUsil.map(c => courseKey(c.nombre)));
+                    const extKeys = new Set(cursosExternos.map(c => courseKey(c.nombre)));
+                    const coincidencias = [...extKeys].filter(k => usilKeys.has(k)).length;
+                    const externosNoCubiertos = cursosExternos.filter(c => !usilKeys.has(courseKey(c.nombre))).length;
+                    const usilNoEncontrados = cursosUsil.filter(c => !extKeys.has(courseKey(c.nombre))).length;
+                    return (
+                      <div key={`ref-${p.id_programa_benchmark}`} style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}>
+                        <div style={{ padding: '10px 12px', background: isDark ? '#0f172a' : '#f8fafc', borderBottom: `1px solid ${border}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: USIL }}>{p.nombre_universidad}</div>
+                              <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>{p.nombre_programa}</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 10, fontWeight: 800 }}>
+                              <span style={{ color: '#166534' }}>{coincidencias} coincidencias</span>
+                              <span style={{ color: '#854d0e' }}>{externosNoCubiertos} externos no cubiertos</span>
+                              <span style={{ color: muted }}>{usilNoEncontrados} USIL sin equivalente exacto</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 12, padding: 12 }}>
+                          {renderMallaBoard(
+                            'Malla USIL',
+                            loadingMallaUsil
+                              ? 'Cargando malla vigente...'
+                              : mallaUsil
+                                ? `${mallaUsil.nombre_version} - ${cursosUsil.length} cursos`
+                                : 'No se encontró malla vigente cargada',
+                            cursosUsil,
+                            USIL
+                          )}
+                          {renderMallaBoard(
+                            `Malla referente - ${p.nombre_universidad}`,
+                            `${cursosExternos.length} cursos extraídos desde fuente oficial`,
+                            cursosExternos,
+                            CYAN
+                          )}
+                        </div>
+                        <div style={{ padding: '0 12px 12px', color: muted, fontSize: 10, lineHeight: 1.45 }}>
+                          La comparación por ahora usa coincidencia exacta normalizada de nombres de cursos. Las brechas curriculares y propuestas deben generarse después con revisión humana.
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
