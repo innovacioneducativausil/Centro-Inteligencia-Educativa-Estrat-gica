@@ -754,7 +754,7 @@ async function createSourceSnapshot({
   cursosDetectados,
   observaciones,
 }) {
-  const safeText = visibleText(text).substring(0, 30000);
+  const safeText = visibleText(text).substring(0, 120000);
   const hash = hashText(safeText);
   const [result] = await db_empl.query(
     `INSERT INTO benchmark_source_snapshot
@@ -819,15 +819,34 @@ async function replaceBenchmarkCourses(idPrograma, url, courses) {
 }
 
 async function persistExtraction({ idPrograma, url, urlFinal, title, text }) {
-  const parsed = parseCurriculumCourses(text, urlFinal || url);
-  const idBenchmarkSource = await findOrCreateBenchmarkSource(idPrograma, url, title, text);
+  let textForStorage = text;
+  let titleForStorage = title;
+  let urlFinalForStorage = urlFinal;
+  let parsed = parseCurriculumCourses(textForStorage, urlFinalForStorage || url);
+
+  if (!parsed.courses.length && url?.startsWith('http')) {
+    try {
+      const fallback = await extractPageTextWithFetch(url);
+      const fallbackParsed = parseCurriculumCourses(fallback.text, fallback.finalUrl || url);
+      if (fallbackParsed.courses.length > parsed.courses.length) {
+        textForStorage = fallback.text;
+        titleForStorage = fallback.title || titleForStorage;
+        urlFinalForStorage = fallback.finalUrl || urlFinalForStorage;
+        parsed = fallbackParsed;
+      }
+    } catch {
+      // Se conserva la captura original si la lectura estatica falla.
+    }
+  }
+
+  const idBenchmarkSource = await findOrCreateBenchmarkSource(idPrograma, url, titleForStorage, textForStorage);
   const snapshot = await createSourceSnapshot({
     idPrograma,
     idBenchmarkSource,
     url,
-    urlFinal,
-    title,
-    text,
+    urlFinal: urlFinalForStorage,
+    title: titleForStorage,
+    text: textForStorage,
     parser: parsed.parser,
     estadoParseo: parsed.status,
     cursosDetectados: parsed.courses.length,
@@ -874,7 +893,7 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text }) {
     [
       snapshot.text,
       url,
-      `${title ? `Titulo: ${title}. ` : ''}Parser: ${parsed.parser}. Cursos detectados: ${parsed.courses.length}.`,
+      `${titleForStorage ? `Titulo: ${titleForStorage}. ` : ''}Parser: ${parsed.parser}. Cursos detectados: ${parsed.courses.length}.`,
       idPrograma,
     ]
   );
@@ -882,7 +901,7 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text }) {
   return {
     ok: true,
     textLength: snapshot.text.length,
-    title,
+    title: titleForStorage,
     parser: parsed.parser,
     estadoParseo: parsed.status,
     cursosDetectados: parsed.courses.length,

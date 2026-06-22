@@ -186,7 +186,7 @@ async function normalizarPrograma(idPrograma) {
           `UPDATE programa_benchmark
            SET fuente_texto_original=?, fecha_captura=NOW()
            WHERE id_programa_benchmark=?`,
-          [textoCurricular.substring(0, 30000), idPrograma]
+          [textoCurricular.substring(0, 120000), idPrograma]
         );
       }
     }
