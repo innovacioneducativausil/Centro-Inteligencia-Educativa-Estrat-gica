@@ -996,7 +996,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
       [idCarrera, tipoBenchmark]
     );
     const [programas] = await db.query(
-      `SELECT pb.id_programa_benchmark, pb.nombre_programa, pb.url_programa,
+      `SELECT pb.id_programa_benchmark, pb.id_universidad_benchmark, pb.nombre_programa, pb.url_programa,
               pb.estado_extraccion, pb.fecha_captura, pb.duracion, pb.modalidad,
               pb.estado_validacion,
               ub.nombre_universidad, ub.pais, ub.tipo_benchmark,
@@ -1013,7 +1013,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
        LEFT JOIN benchmark_source bs ON bs.id_programa_benchmark = pb.id_programa_benchmark AND bs.activo = 1
        LEFT JOIN benchmark_source_candidate bsc ON bsc.id_programa_benchmark = pb.id_programa_benchmark
        WHERE pb.carrera_equivalente_id = ? AND ub.tipo_benchmark = ? AND ub.activo = 1
-       GROUP BY pb.id_programa_benchmark, pb.nombre_programa, pb.url_programa,
+       GROUP BY pb.id_programa_benchmark, pb.id_universidad_benchmark, pb.nombre_programa, pb.url_programa,
                 pb.estado_extraccion, pb.fecha_captura, pb.duracion, pb.modalidad, pb.estado_validacion,
                 ub.nombre_universidad, ub.pais, ub.tipo_benchmark
        ORDER BY ub.nombre_universidad`,

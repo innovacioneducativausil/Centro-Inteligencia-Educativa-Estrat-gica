@@ -479,6 +479,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const referenciaUniversidades = useMemo(() => {
     const byId = new Map<number, { id: number; nombre: string; pais: string; programas: number; cursos: number }>();
     programasComparables.forEach(p => {
+      if (!p.id_universidad_benchmark) return;
       const current = byId.get(p.id_universidad_benchmark);
       byId.set(p.id_universidad_benchmark, {
         id: p.id_universidad_benchmark,
