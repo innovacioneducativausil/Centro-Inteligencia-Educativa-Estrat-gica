@@ -1,5 +1,5 @@
 ﻿// components/BenchmarkingView.tsx
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ThemeColors } from '../types';
 
 interface BenchmarkingViewProps {
@@ -432,9 +432,32 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     return true;
   };
   const programasVisibles = programas.filter(p => hasUsableSource(p));
+  const referenciaUniversidades = useMemo(() => {
+    const byId = new Map<number, { id: number; nombre: string; pais: string; programas: number; cursos: number }>();
+    programasVisibles.forEach(p => {
+      const current = byId.get(p.id_universidad_benchmark);
+      byId.set(p.id_universidad_benchmark, {
+        id: p.id_universidad_benchmark,
+        nombre: p.nombre_universidad,
+        pais: p.pais,
+        programas: (current?.programas ?? 0) + 1,
+        cursos: (current?.cursos ?? 0) + (p.total_cursos ?? 0),
+      });
+    });
+    return Array.from(byId.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }, [programasVisibles]);
+  const referenciaUniversidadesKey = referenciaUniversidades.map(u => u.id).join('|');
   const programasReferencia = programasVisibles.filter(p =>
     !selectedReferenciaUniversidad || p.id_universidad_benchmark === selectedReferenciaUniversidad
   );
+
+  useEffect(() => {
+    if (!selectedReferenciaUniversidad) return;
+    const selectedId = String(selectedReferenciaUniversidad);
+    if (!referenciaUniversidadesKey.split('|').includes(selectedId)) {
+      setSelectedReferenciaUniversidad('');
+    }
+  }, [selectedReferenciaUniversidad, referenciaUniversidadesKey]);
 
   if (!canEdit) {
     return (
@@ -518,21 +541,35 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', marginBottom: 5 }}>
-                Universidad referente
+                Universidad con fuente encontrada
               </label>
               <select value={selectedReferenciaUniversidad}
                 onChange={e => setSelectedReferenciaUniversidad(e.target.value ? Number(e.target.value) : '')}
+                disabled={!selectedCarrera || loadingProgs || referenciaUniversidades.length === 0}
                 style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}>
-                <option value="">- Selecciona universidad -</option>
-                {universidades.map(u => (
-                  <option key={u.id_universidad_benchmark} value={u.id_universidad_benchmark}>
-                    {u.nombre_universidad} ({u.pais})
+                  background: isDark ? '#0f172a' : '#f8fafc', color: !selectedCarrera || referenciaUniversidades.length === 0 ? muted : text, fontSize: 12 }}>
+                <option value="">
+                  {!selectedCarrera
+                    ? 'Primero selecciona una carrera'
+                    : loadingProgs
+                      ? 'Cargando universidades...'
+                      : referenciaUniversidades.length === 0
+                        ? 'Sin universidades con fuente para esta carrera'
+                        : '- Selecciona universidad -'}
+                </option>
+                {referenciaUniversidades.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.nombre} ({u.pais}) - {u.programas} fuente{u.programas === 1 ? '' : 's'}{u.cursos > 0 ? `, ${u.cursos} cursos` : ''}
                   </option>
                 ))}
               </select>
             </div>
           </div>
+          {selectedCarrera && !loadingProgs && referenciaUniversidades.length === 0 && (
+            <div style={{ marginTop: 10, fontSize: 11, color: '#854d0e', lineHeight: 1.4 }}>
+              No hay fuentes exactas extraídas para esta carrera. Primero registra, aprueba o extrae fuentes desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'}.
+            </div>
+          )}
         </div>
       )}
 
