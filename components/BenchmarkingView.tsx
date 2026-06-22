@@ -108,6 +108,12 @@ const ESTADO_BADGE: Record<string, { bg: string; text: string; label: string }> 
   verificado:  { bg: '#dcfce7', text: '#166534', label: 'Verificado' },
 };
 
+function sourceTipoForView(tipo: TipoBenchmark): TipoBenchmark {
+  if (tipo === 'referente_nacional') return 'competencia_directa';
+  if (tipo === 'referente_internacional') return 'competencia_internacional';
+  return tipo;
+}
+
 async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
   const r = await fetch(path, { credentials: 'include', ...opts });
   const data = await r.json().catch(() => ({}));
@@ -221,7 +227,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const loadUniversidades = useCallback(() => {
     setLoadingUnivs(true);
     setError(null);
-    apiFetch<Universidad[]>(`/api/mercado-laboral/benchmarking/universidades?tipo=${tipo}`)
+    apiFetch<Universidad[]>(`/api/mercado-laboral/benchmarking/universidades?tipo=${sourceTipoForView(tipo)}`)
       .then(setUniversidades)
       .catch(e => setError(e.message))
       .finally(() => setLoadingUnivs(false));
@@ -238,7 +244,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     if (!selectedCarrera) { setProgramas([]); setCompetencias([]); return; }
     setLoadingProgs(true);
     apiFetch<{ programas: Programa[]; competencias: Competencia[] }>(
-      `/api/mercado-laboral/benchmarking/comparar/${selectedCarrera}/${tipo}`
+      `/api/mercado-laboral/benchmarking/comparar/${selectedCarrera}/${sourceTipoForView(tipo)}`
     )
       .then(d => { setProgramas(d.programas); setCompetencias(d.competencias); })
       .catch(e => setError(e.message))
@@ -916,7 +922,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   Comparador de malla USIL vs referente
                 </div>
                 <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
-                  Esta vista no administra fuentes. Solo compara la malla USIL contra una universidad referente cuando ya existe evidencia extraída o pegada.
+                  Esta vista no administra fuentes. Usa las mallas ya extraídas desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'} para comparar contra USIL.
                 </div>
               </div>
               {!selectedCarrera || !selectedReferenciaUniversidad ? (
@@ -925,7 +931,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 </div>
               ) : programasReferencia.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center', color: muted, fontSize: 12 }}>
-                  No hay una malla referente cargada para esta carrera y universidad. Agrega o extrae la fuente desde Competencia Directa o Competencia Internacional.
+                  No hay una malla referente cargada para esta carrera y universidad. Agrega o extrae la fuente desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'}.
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
