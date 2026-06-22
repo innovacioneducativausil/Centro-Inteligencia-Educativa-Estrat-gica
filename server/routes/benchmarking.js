@@ -184,7 +184,11 @@ function sourceMatchesCareer(source, careerName = '') {
   const equivalentRoots = careerEquivalentRoots(careerName);
   if (!matchTerms.length && !equivalentRoots.length) return false;
   const haystack = normalizeName(`${source?.url || ''} ${source?.titulo || ''}`).toLowerCase();
+  if (haystack.includes('fuente exacta pendiente') || haystack.includes('url institucional base')) return false;
   if (sourceHasConflictingCareer(haystack, careerName)) return false;
+  if (/academic-programs|undergraduate-programs|degree-charts|fields%20of%20concentration|graduation-requirements-all-options|bulletin\.stanford\.edu\/programs/i.test(source?.url || '')) {
+    return true;
+  }
   return matchTerms.some(term => sourceTermMatches(haystack, term))
     || equivalentRoots.some(root => haystack.includes(root));
 }
