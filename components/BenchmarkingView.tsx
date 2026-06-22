@@ -144,6 +144,32 @@ function distinctiveCareerTerms(careerName?: string) {
     .filter(t => t.length >= 4 && !generic.has(t));
 }
 
+function sourceHasConflictingCareerLabel(sourceText: string, careerName: string) {
+  const selected = normalizeText(careerName);
+  const haystack = normalizeText(sourceText);
+  const groups: Array<[string, string[]]> = [
+    ['psicologia', ['psicolog']],
+    ['derecho', ['derecho']],
+    ['arquitectura', ['arquitect']],
+    ['economia', ['economia', 'economico']],
+    ['comunicacion', ['comunicacion', 'communication']],
+    ['ingenieria ambiental', ['ambiental']],
+    ['ingenieria civil', ['civil']],
+    ['ingenieria mecatronica', ['mecatron']],
+    ['hospitalidad', ['turism', 'turistic', 'hotel', 'gastron', 'culinar']],
+    ['medicina', ['medicina']],
+    ['enfermeria', ['enfermer']],
+    ['nutricion', ['nutric']],
+  ];
+
+  return groups.some(([careerKey, roots]) => {
+    const sourceHasGroup = roots.some(root => haystack.includes(root));
+    if (!sourceHasGroup) return false;
+    const selectedHasGroup = roots.some(root => selected.includes(root)) || selected.includes(careerKey);
+    return !selectedHasGroup;
+  });
+}
+
 const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRole }) => {
   const isDark   = themeColors.bg?.includes('950') || themeColors.bg?.includes('slate-900') || false;
   const bg       = isDark ? '#0f172a' : '#f8fafc';
@@ -388,6 +414,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const hasUsableSource = (p: Programa) => {
     if ((p.total_fuentes ?? 0) <= 0) return false;
     if (!p.url_programa || isGenericInstitutionUrl(p.url_programa)) return false;
+    if (sourceHasConflictingCareerLabel(`${p.url_programa} ${p.nombre_programa}`, selectedCareerName || p.nombre_programa)) return false;
     return true;
   };
   const programasVisibles = programas.filter(p => hasUsableSource(p));

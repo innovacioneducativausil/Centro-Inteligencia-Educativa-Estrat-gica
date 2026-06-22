@@ -99,11 +99,38 @@ function sourceTermMatches(haystack = '', term = '') {
   return (roots[term] || []).some(root => haystack.includes(root));
 }
 
+function sourceHasConflictingCareer(haystack = '', careerName = '') {
+  const selected = normalizeName(careerName).toLowerCase();
+  const groups = [
+    ['psicologia', ['psicolog']],
+    ['derecho', ['derecho']],
+    ['arquitectura', ['arquitect']],
+    ['economia', ['economia', 'económico', 'economico']],
+    ['comunicacion', ['comunicacion', 'communication']],
+    ['ingenieria ambiental', ['ambiental']],
+    ['ingenieria civil', ['civil']],
+    ['ingenieria mecatronica', ['mecatron']],
+    ['hospitalidad', ['turism', 'turistic', 'hotel', 'gastron', 'culinar']],
+    ['medicina', ['medicina']],
+    ['enfermeria', ['enfermer']],
+    ['nutricion', ['nutric']],
+  ];
+
+  for (const [careerKey, roots] of groups) {
+    const sourceHasGroup = roots.some(root => haystack.includes(root));
+    if (!sourceHasGroup) continue;
+    const selectedHasGroup = roots.some(root => selected.includes(root)) || selected.includes(careerKey);
+    if (!selectedHasGroup) return true;
+  }
+  return false;
+}
+
 function sourceMatchesCareer(source, careerName = '') {
   const terms = careerDistinctiveTerms(careerName);
   const matchTerms = terms.length ? terms : careerFallbackTerms(careerName);
   if (!matchTerms.length) return false;
   const haystack = normalizeName(`${source?.url || ''} ${source?.titulo || ''}`).toLowerCase();
+  if (sourceHasConflictingCareer(haystack, careerName)) return false;
   return matchTerms.some(term => sourceTermMatches(haystack, term));
 }
 
