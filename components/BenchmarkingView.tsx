@@ -432,9 +432,16 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     return true;
   };
   const programasVisibles = programas.filter(p => hasUsableSource(p));
+  const hasExtractedCurriculum = (p: Programa) => {
+    if (!hasUsableSource(p)) return false;
+    return (p.total_cursos ?? 0) > 0;
+  };
+  const programasComparables = isReferenceView
+    ? programas.filter(p => hasExtractedCurriculum(p))
+    : programasVisibles;
   const referenciaUniversidades = useMemo(() => {
     const byId = new Map<number, { id: number; nombre: string; pais: string; programas: number; cursos: number }>();
-    programasVisibles.forEach(p => {
+    programasComparables.forEach(p => {
       const current = byId.get(p.id_universidad_benchmark);
       byId.set(p.id_universidad_benchmark, {
         id: p.id_universidad_benchmark,
@@ -445,9 +452,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       });
     });
     return Array.from(byId.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-  }, [programasVisibles]);
+  }, [programasComparables]);
   const referenciaUniversidadesKey = referenciaUniversidades.map(u => u.id).join('|');
-  const programasReferencia = programasVisibles.filter(p =>
+  const programasReferencia = programasComparables.filter(p =>
     !selectedReferenciaUniversidad || p.id_universidad_benchmark === selectedReferenciaUniversidad
   );
 
@@ -541,7 +548,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', marginBottom: 5 }}>
-                Universidad con fuente encontrada
+                Universidad con malla extraída
               </label>
               <select value={selectedReferenciaUniversidad}
                 onChange={e => setSelectedReferenciaUniversidad(e.target.value ? Number(e.target.value) : '')}
@@ -554,12 +561,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                     : loadingProgs
                       ? 'Cargando universidades...'
                       : referenciaUniversidades.length === 0
-                        ? 'Sin universidades con fuente para esta carrera'
+                        ? 'Sin universidades con malla extraída para esta carrera'
                         : '- Selecciona universidad -'}
                 </option>
                 {referenciaUniversidades.map(u => (
                   <option key={u.id} value={u.id}>
-                    {u.nombre} ({u.pais}) - {u.programas} fuente{u.programas === 1 ? '' : 's'}{u.cursos > 0 ? `, ${u.cursos} cursos` : ''}
+                    {u.nombre} ({u.pais}) - {u.cursos} curso{u.cursos === 1 ? '' : 's'} extraído{u.cursos === 1 ? '' : 's'}
                   </option>
                 ))}
               </select>
@@ -567,7 +574,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           </div>
           {selectedCarrera && !loadingProgs && referenciaUniversidades.length === 0 && (
             <div style={{ marginTop: 10, fontSize: 11, color: '#854d0e', lineHeight: 1.4 }}>
-              No hay fuentes exactas extraídas para esta carrera. Primero registra, aprueba o extrae fuentes desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'}.
+              No hay mallas extraídas para esta carrera. Primero extrae y normaliza una fuente curricular desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'}.
             </div>
           )}
         </div>
@@ -968,7 +975,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 </div>
               ) : programasReferencia.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center', color: muted, fontSize: 12 }}>
-                  No hay una malla referente cargada para esta carrera y universidad. Agrega o extrae la fuente desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'}.
+                  No hay cursos de malla extraídos para esta carrera y universidad. Extrae y normaliza la fuente desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'}.
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
