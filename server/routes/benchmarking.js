@@ -79,6 +79,59 @@ function careerFallbackTerms(careerName = '') {
     .filter(t => t.length >= 4 && !['programa', 'equivalente', 'carrera', 'pregrado'].includes(t));
 }
 
+function careerEquivalentRoots(careerName = '') {
+  const selected = normalizeName(careerName).toLowerCase();
+  const groups = [
+    {
+      selected: ['administracion en turismo', 'turismo', 'turistica', 'turistico', 'servicios turisticos'],
+      roots: ['turism', 'turistic', 'hotel'],
+    },
+    {
+      selected: ['administracion hotelera', 'hoteleria', 'hotelera'],
+      roots: ['hotel', 'turism', 'turistic'],
+    },
+    {
+      selected: ['arte culinario', 'gastronomia', 'culinario', 'culinaria'],
+      roots: ['gastron', 'culinar'],
+    },
+    {
+      selected: ['digital business management'],
+      roots: ['digital', 'business', 'marketing', 'administracion', 'management'],
+    },
+    {
+      selected: ['administracion y finanzas corporativas', 'economia y finanzas'],
+      roots: ['finanza', 'economia', 'economics'],
+    },
+    {
+      selected: ['economia y negocios internacionales', 'international business'],
+      roots: ['negocio', 'internacional', 'international', 'business', 'economia'],
+    },
+    {
+      selected: ['ingenieria de sistemas de informacion'],
+      roots: ['sistema', 'informatica', 'informacion', 'systems'],
+    },
+    {
+      selected: ['ingenieria en industrias alimentarias', 'ingenieria agroindustrial'],
+      roots: ['agroindustrial', 'alimentaria', 'alimentos'],
+    },
+    {
+      selected: ['ciencia de datos'],
+      roots: ['datos', 'data', 'computacion', 'computer'],
+    },
+    {
+      selected: ['comunicacion', 'comunicaciones'],
+      roots: ['comunicacion', 'communication', 'periodismo', 'audiovisual'],
+    },
+    {
+      selected: ['educacion secundaria con especialidad en ingles', 'educacion inicial'],
+      roots: ['educacion', 'education', 'aprendizaje', 'secundaria', 'inicial'],
+    },
+  ];
+
+  const match = groups.find(group => group.selected.some(term => selected.includes(term)));
+  return match?.roots || [];
+}
+
 function getBenchmarkProgramBaseName(nombrePrograma = '') {
   return String(nombrePrograma).replace(/\s*\/\s*programa equivalente\s*$/i, '').trim();
 }
@@ -128,10 +181,12 @@ function sourceHasConflictingCareer(haystack = '', careerName = '') {
 function sourceMatchesCareer(source, careerName = '') {
   const terms = careerDistinctiveTerms(careerName);
   const matchTerms = terms.length ? terms : careerFallbackTerms(careerName);
-  if (!matchTerms.length) return false;
+  const equivalentRoots = careerEquivalentRoots(careerName);
+  if (!matchTerms.length && !equivalentRoots.length) return false;
   const haystack = normalizeName(`${source?.url || ''} ${source?.titulo || ''}`).toLowerCase();
   if (sourceHasConflictingCareer(haystack, careerName)) return false;
-  return matchTerms.some(term => sourceTermMatches(haystack, term));
+  return matchTerms.some(term => sourceTermMatches(haystack, term))
+    || equivalentRoots.some(root => haystack.includes(root));
 }
 
 async function ensureBenchmarkingSchema() {
