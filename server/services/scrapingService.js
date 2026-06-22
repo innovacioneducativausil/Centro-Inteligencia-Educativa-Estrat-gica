@@ -661,12 +661,30 @@ async function buildDriver() {
 async function extractPageText(driver, url) {
   await driver.get(url);
   await sleep(2000);
+  await driver.executeScript(`
+    return new Promise(resolve => {
+      let y = 0;
+      const step = Math.max(400, Math.floor(window.innerHeight * 0.8));
+      const timer = setInterval(() => {
+        y += step;
+        window.scrollTo(0, y);
+        if (y >= document.body.scrollHeight) {
+          clearInterval(timer);
+          setTimeout(() => resolve(true), 700);
+        }
+      }, 250);
+    });
+  `).catch(() => null);
   const bodyText = await driver.executeScript(
     'return document.body ? document.body.innerText : ""'
   );
+  const bodyHtml = await driver.executeScript(
+    'return document.documentElement ? document.documentElement.outerHTML : ""'
+  ).catch(() => '');
   const title = await driver.getTitle().catch(() => '');
   const finalUrl = await driver.getCurrentUrl().catch(() => url);
-  return { url, finalUrl, title, text: visibleText(String(bodyText || '')).substring(0, 30000) };
+  const combinedText = `${String(bodyText || '')}\n\n${cleanPageText(String(bodyHtml || ''))}`;
+  return { url, finalUrl, title, text: visibleText(combinedText).substring(0, 120000) };
 }
 
 async function extractPageTextWithFetch(url) {
@@ -679,7 +697,7 @@ async function extractPageTextWithFetch(url) {
     url,
     finalUrl: url,
     title: extractPageTitle(html) || 'Fuente oficial capturada con fetch',
-    text: visibleText(text).substring(0, 30000),
+    text: visibleText(text).substring(0, 120000),
   };
 }
 
@@ -982,4 +1000,4 @@ async function cargarTextoManual(idPrograma, textoFuente, urlOrigen) {
   return { ok: true };
 }
 
-export { scrapeProgramaUrl, scraperBatch, cargarTextoManual, discoverOfficialSources, parseCurriculumCourses };
+export { scrapeProgramaUrl, scraperBatch, cargarTextoManual, discoverOfficialSources, parseCurriculumCourses, extractPageTextWithFetch };

@@ -4,7 +4,7 @@
 // Regla: si el texto fuente no contiene un dato, se marca como "no_identificado".
 
 import db_empl from '../db_empl.js';
-import { parseCurriculumCourses } from './scrapingService.js';
+import { extractPageTextWithFetch, parseCurriculumCourses } from './scrapingService.js';
 
 const HF_URL   = 'https://router.huggingface.co/v1/chat/completions';
 const HF_MODEL = 'Qwen/Qwen2.5-7B-Instruct:together';
@@ -109,7 +109,20 @@ async function normalizarPrograma(idPrograma) {
 
   const competencias  = Array.isArray(parsed.competencias) ? parsed.competencias : [];
   const cursosIA      = Array.isArray(parsed.cursos_equivalentes) ? parsed.cursos_equivalentes : [];
-  const cursosDeterministicos = parseCurriculumCourses(prog.fuente_texto_original, prog.url_programa).courses || [];
+  let textoCurricular = prog.fuente_texto_original;
+  let cursosDeterministicos = parseCurriculumCourses(textoCurricular, prog.url_programa).courses || [];
+  if (!cursosDeterministicos.length && prog.url_programa?.startsWith('http')) {
+    try {
+      const fetched = await extractPageTextWithFetch(prog.url_programa);
+      const fetchedCourses = parseCurriculumCourses(fetched.text, fetched.finalUrl || prog.url_programa).courses || [];
+      if (fetchedCourses.length) {
+        textoCurricular = fetched.text;
+        cursosDeterministicos = fetchedCourses;
+      }
+    } catch {
+      // Si la segunda lectura falla, se continua con el texto ya capturado.
+    }
+  }
   const cursosMap = new Map();
   for (const curso of cursosIA) {
     if (!curso || curso === 'no_identificado') continue;
@@ -168,6 +181,14 @@ async function normalizarPrograma(idPrograma) {
 
     if (cursos.length) {
       await conn.query('DELETE FROM curso_benchmark WHERE id_programa_benchmark=?', [idPrograma]);
+      if (textoCurricular !== prog.fuente_texto_original) {
+        await conn.query(
+          `UPDATE programa_benchmark
+           SET fuente_texto_original=?, fecha_captura=NOW()
+           WHERE id_programa_benchmark=?`,
+          [textoCurricular.substring(0, 30000), idPrograma]
+        );
+      }
     }
     for (const curso of cursos) {
       await conn.query(

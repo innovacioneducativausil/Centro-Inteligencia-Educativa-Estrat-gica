@@ -338,13 +338,15 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const handleNormalizarIA = async (idPrograma: number) => {
     setActionLoading(p => ({ ...p, [idPrograma]: 'ia' }));
     setError(null);
+    setNotice(null);
     try {
-      await apiFetch('/api/mercado-laboral/benchmarking/normalizar-ia', {
+      const result = await apiFetch<{ cursos?: number; competencias?: number; tecnologias?: number }>('/api/mercado-laboral/benchmarking/normalizar-ia', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_programa: idPrograma }),
       });
-      loadProgramas();
+      setNotice(`Normalización completada: ${result.cursos ?? 0} cursos y ${result.competencias ?? 0} competencias estructuradas.`);
+      await loadProgramas();
     } catch (e: any) {
       setError(e.message);
     }
