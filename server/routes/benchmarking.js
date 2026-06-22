@@ -62,7 +62,7 @@ function careerDistinctiveTerms(careerName = '') {
     'administracion', 'gestion', 'ciencias', 'ciencia', 'ingenieria', 'tecnologia',
     'negocios', 'empresarial', 'empresariales', 'internacional', 'internacionales',
     'comercial', 'educacion', 'humana', 'medica', 'carrera', 'pregrado', 'programa',
-    'equivalente', 'hotelera', 'gastronomia',
+    'equivalente',
   ]);
   return normalizeName(careerName)
     .toLowerCase()
@@ -71,11 +71,27 @@ function careerDistinctiveTerms(careerName = '') {
     .filter(t => t.length >= 4 && !generic.has(t));
 }
 
+function sourceTermMatches(haystack = '', term = '') {
+  if (haystack.includes(term)) return true;
+  const roots = {
+    turismo: ['turism', 'turistic'],
+    turistica: ['turism', 'turistic'],
+    turistico: ['turism', 'turistic'],
+    turisticos: ['turism', 'turistic'],
+    hotelera: ['hotel'],
+    hoteleria: ['hotel'],
+    gastronomia: ['gastron'],
+    culinario: ['culinar'],
+    culinaria: ['culinar'],
+  };
+  return (roots[term] || []).some(root => haystack.includes(root));
+}
+
 function sourceMatchesCareer(source, careerName = '') {
   const terms = careerDistinctiveTerms(careerName);
   if (!terms.length) return true;
   const haystack = normalizeName(`${source?.url || ''} ${source?.titulo || ''}`).toLowerCase();
-  return terms.some(term => haystack.includes(term));
+  return terms.some(term => sourceTermMatches(haystack, term));
 }
 
 async function ensureBenchmarkingSchema() {
@@ -194,6 +210,45 @@ async function ensureBenchmarkingSchema() {
         KEY idx_cb_prog (id_programa_benchmark),
         CONSTRAINT fk_cb_prog FOREIGN KEY (id_programa_benchmark)
           REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS benchmark_source_snapshot (
+        id_snapshot              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        id_benchmark_source      INT UNSIGNED NULL,
+        id_programa_benchmark    INT UNSIGNED NOT NULL,
+        url                      VARCHAR(1200) NOT NULL,
+        url_final                VARCHAR(1200) NULL,
+        titulo                   VARCHAR(500) NULL,
+        texto_extraido           MEDIUMTEXT NULL,
+        hash_contenido           VARCHAR(128) NOT NULL,
+        parser_usado             VARCHAR(80) NULL,
+        estado_parseo            ENUM('sin_parsear','parseado','requiere_revision','error') NOT NULL DEFAULT 'sin_parsear',
+        cursos_detectados        INT UNSIGNED NOT NULL DEFAULT 0,
+        observaciones            TEXT NULL,
+        fecha_captura            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_bss_programa (id_programa_benchmark),
+        KEY idx_bss_fuente (id_benchmark_source),
+        KEY idx_bss_hash (hash_contenido),
+        CONSTRAINT fk_bss_programa FOREIGN KEY (id_programa_benchmark)
+          REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE,
+        CONSTRAINT fk_bss_fuente FOREIGN KEY (id_benchmark_source)
+          REFERENCES benchmark_source(id_benchmark_source) ON DELETE SET NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS benchmark_parse_log (
+        id_parse_log            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        id_programa_benchmark   INT UNSIGNED NOT NULL,
+        id_snapshot             INT UNSIGNED NULL,
+        parser_usado            VARCHAR(80) NOT NULL,
+        estado                  ENUM('ok','sin_malla','error','requiere_revision') NOT NULL DEFAULT 'ok',
+        cursos_detectados       INT UNSIGNED NOT NULL DEFAULT 0,
+        detalle                 TEXT NULL,
+        created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_bpl_programa (id_programa_benchmark),
+        KEY idx_bpl_snapshot (id_snapshot),
+        CONSTRAINT fk_bpl_programa FOREIGN KEY (id_programa_benchmark)
+          REFERENCES programa_benchmark(id_programa_benchmark) ON DELETE CASCADE,
+        CONSTRAINT fk_bpl_snapshot FOREIGN KEY (id_snapshot)
+          REFERENCES benchmark_source_snapshot(id_snapshot) ON DELETE SET NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS competencia_benchmark (
         id_competencia_benchmark INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -912,7 +967,15 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
           tipo_fuente: source.tipoFuente,
           estado: 'pendiente_validacion',
         }));
-      const fuentes = curated;
+      const dbFuentes = (fuentesByPrograma.get(programa.id_programa_benchmark) || [])
+        .filter(source => sourceMatchesCareer(source, carreraNombre));
+      const mergedSources = [...dbFuentes, ...curated].reduce((map, source) => {
+        if (!source?.url) return map;
+        const key = String(source.url).replace(/\/$/, '').toLowerCase();
+        if (!map.has(key)) map.set(key, source);
+        return map;
+      }, new Map());
+      const fuentes = [...mergedSources.values()];
       const candidatosUtiles = (candidatosByPrograma.get(programa.id_programa_benchmark) || [])
         .filter(candidate => sourceMatchesCareer(candidate, carreraNombre));
 

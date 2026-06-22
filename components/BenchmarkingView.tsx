@@ -136,7 +136,7 @@ function distinctiveCareerTerms(careerName?: string) {
     'administracion', 'gestion', 'ciencias', 'ciencia', 'ingenieria', 'tecnologia',
     'negocios', 'empresarial', 'empresariales', 'internacional', 'internacionales',
     'comercial', 'educacion', 'humana', 'medica', 'carrera', 'pregrado', 'programa',
-    'equivalente', 'hotelera', 'gastronomia',
+    'equivalente',
   ]);
   return normalizeText(careerName)
     .replace(/[^a-z0-9\s]/g, ' ')
@@ -217,12 +217,20 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const handleScraping = async (idPrograma: number) => {
     setActionLoading(p => ({ ...p, [idPrograma]: 'scraping' }));
     setError(null);
+    setNotice(null);
     try {
-      await apiFetch('/api/mercado-laboral/benchmarking/scraping', {
+      const result = await apiFetch<{ results?: Array<{ ok: boolean; cursosDetectados?: number; parser?: string; error?: string }> }>(
+        '/api/mercado-laboral/benchmarking/scraping',
+        {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [idPrograma] }),
-      });
+        }
+      );
+      const first = result.results?.[0];
+      if (first?.ok) {
+        setNotice(`Extracción completada: ${first.cursosDetectados ?? 0} cursos detectados${first.parser ? ` con ${first.parser}` : ''}. Requiere revisión académica antes de validar.`);
+      }
       loadProgramas();
     } catch (e: any) {
       setError(e.message);
@@ -614,7 +622,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
                       <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
-                        {['Universidad', 'Pais', 'Programa', 'Estado', 'Fuentes', 'Competencias', 'Captura', 'Acciones'].map(h => (
+                        {['Universidad', 'Pais', 'Programa', 'Estado', 'Fuentes', 'Cursos', 'Competencias', 'Captura', 'Acciones'].map(h => (
                           <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
                             color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                             {h}
@@ -664,6 +672,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                               <div style={{ color: '#854d0e' }}>{p.total_candidatos ?? 0} candidatos</div>
                             </td>
                             <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: USIL }}>
+                              {p.total_cursos ?? 0}
+                            </td>
+                            <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: USIL }}>
                               {p.total_competencias ?? 0}
                             </td>
                             <td style={{ padding: '8px 10px', color: muted, fontSize: 10 }}>
@@ -692,7 +703,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                   <button
                                     onClick={() => handleScraping(p.id_programa_benchmark)}
                                     disabled={isBusy || !hasExactSource}
-                                    title="Extraer texto desde la fuente exacta registrada"
+                                    title="Extraer texto, guardar snapshot y detectar cursos de la malla externa"
                                     style={{ padding: '3px 7px', borderRadius: 4, border: 'none',
                                       background: isBusy || !hasExactSource ? '#94a3b8' : USIL,
                                       color: '#fff', fontWeight: 700, fontSize: 9, cursor: isBusy || !hasExactSource ? 'not-allowed' : 'pointer' }}>
@@ -841,7 +852,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   <tbody>
                     {programasVisibles.map(p => {
                       const hasExactSource = hasUsableSource(p);
-                      const hasEvidence = (p.fuentes_validadas ?? 0) > 0 || ['procesado', 'verificado'].includes(p.estado_extraccion);
+                      const hasEvidence = (p.total_cursos ?? 0) > 0 || (p.fuentes_validadas ?? 0) > 0 || ['procesado', 'verificado'].includes(p.estado_extraccion);
                       return (
                         <tr key={`cmp-${p.id_programa_benchmark}`} style={{ borderBottom: `1px solid ${border}` }}>
                           <td style={{ padding: '8px 10px', fontWeight: 700 }}>
