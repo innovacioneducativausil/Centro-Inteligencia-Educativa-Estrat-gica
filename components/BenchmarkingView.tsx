@@ -238,6 +238,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const [error, setError]           = useState<string | null>(null);
   const [notice, setNotice]         = useState<string | null>(null);
   const [programNotice, setProgramNotice] = useState<string | null>(null);
+  const [programError, setProgramError] = useState<string | null>(null);
   const [seeding, setSeeding]       = useState(false);
   const [showAddUniv, setShowAddUniv] = useState(false);
   const [showAddProg, setShowAddProg] = useState(false);
@@ -276,6 +277,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     setSelectedReferenciaUniversidad('');
     setShowCandidatesFor(null);
     setProgramNotice(null);
+    setProgramError(null);
   }, [tipo, selectedCarrera]);
 
   const loadProgramas = useCallback(() => {
@@ -295,6 +297,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     setActionLoading(p => ({ ...p, [idPrograma]: 'scraping' }));
     setError(null);
     setProgramNotice(null);
+    setProgramError(null);
     try {
       const result = await apiFetch<{ results?: Array<{ ok: boolean; cursosDetectados?: number; parser?: string; error?: string }> }>(
         '/api/mercado-laboral/benchmarking/scraping',
@@ -307,21 +310,24 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       const first = result.results?.[0];
       if (first?.ok) {
         setProgramNotice(`Extracción completada: ${first.cursosDetectados ?? 0} cursos detectados${first.parser ? ` con ${first.parser}` : ''}. Requiere revisión académica antes de validar.`);
+      } else if (first) {
+        setProgramError(first.error || 'No se pudo completar la extracción de esta fuente.');
       }
       loadProgramas();
     } catch (e: any) {
-      setError(e.message);
+      setProgramError(e.message);
     }
     setActionLoading(p => ({ ...p, [idPrograma]: '' }));
   };
 
   const loadCandidates = async (idPrograma: number) => {
     try {
+      setProgramError(null);
       const rows = await apiFetch<FuenteCandidata[]>(`/api/mercado-laboral/benchmarking/programas/${idPrograma}/candidatos`);
       setCandidates(prev => ({ ...prev, [idPrograma]: rows }));
       setShowCandidatesFor(idPrograma);
     } catch (e: any) {
-      setError(e.message);
+      setProgramError(e.message);
     }
   };
 
@@ -350,13 +356,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const handleAprobarCandidato = async (idPrograma: number, idCandidate: number) => {
     setActionLoading(p => ({ ...p, [idCandidate]: 'approve' }));
     setError(null);
+    setProgramError(null);
     try {
       await apiFetch(`/api/mercado-laboral/benchmarking/candidatos/${idCandidate}/aprobar`, { method: 'POST' });
-      setProgramNotice('Fuente aprobada. Ahora puedes extraer el texto oficial.');
+      setProgramNotice('Fuente elegida como principal. Ahora puedes extraer el texto oficial.');
       await loadCandidates(idPrograma);
       loadProgramas();
     } catch (e: any) {
-      setError(e.message);
+      setProgramError(e.message);
     }
     setActionLoading(p => ({ ...p, [idCandidate]: '' }));
   };
@@ -364,11 +371,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const handleDescartarCandidato = async (idPrograma: number, idCandidate: number) => {
     setActionLoading(p => ({ ...p, [idCandidate]: 'reject' }));
     setError(null);
+    setProgramError(null);
     try {
       await apiFetch(`/api/mercado-laboral/benchmarking/candidatos/${idCandidate}/descartar`, { method: 'POST' });
       await loadCandidates(idPrograma);
     } catch (e: any) {
-      setError(e.message);
+      setProgramError(e.message);
     }
     setActionLoading(p => ({ ...p, [idCandidate]: '' }));
   };
@@ -377,6 +385,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     setActionLoading(p => ({ ...p, [idPrograma]: 'ia' }));
     setError(null);
     setProgramNotice(null);
+    setProgramError(null);
     try {
       const result = await apiFetch<{ cursos?: number; competencias?: number; tecnologias?: number }>('/api/mercado-laboral/benchmarking/normalizar-ia', {
         method: 'POST',
@@ -386,7 +395,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       setProgramNotice(`Normalización completada: ${result.cursos ?? 0} cursos y ${result.competencias ?? 0} competencias estructuradas.`);
       await loadProgramas();
     } catch (e: any) {
-      setError(e.message);
+      setProgramError(e.message);
     }
     setActionLoading(p => ({ ...p, [idPrograma]: '' }));
   };
@@ -394,6 +403,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const handleCargarManual = async (idPrograma: number) => {
     if (!manualText.trim()) return;
     setActionLoading(p => ({ ...p, [idPrograma]: 'manual' }));
+    setProgramError(null);
     try {
       await apiFetch('/api/mercado-laboral/benchmarking/scraping', {
         method: 'POST',
@@ -403,7 +413,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       setShowManualText(null); setManualText(''); setManualUrl('');
       setProgramNotice('Fuente manual cargada. Puedes normalizarla para verla en Referentes.');
       loadProgramas();
-    } catch (e: any) { setError(e.message); }
+    } catch (e: any) { setProgramError(e.message); }
     setActionLoading(p => ({ ...p, [idPrograma]: '' }));
   };
 
@@ -924,6 +934,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           )}
 
           {/* Tabla de programas */}
+          {programError && selectedCarrera && !isReferenceView && (
+            <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8,
+              padding: '10px 14px', marginBottom: -4, color: '#991b1b', fontSize: 12, fontWeight: 700 }}>
+              {programError}
+            </div>
+          )}
           {programNotice && selectedCarrera && !isReferenceView && (
             <div style={{ background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 8,
               padding: '10px 14px', marginBottom: -4, color: '#166534', fontSize: 12, fontWeight: 700 }}>
@@ -1078,7 +1094,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                     Candidatos de fuente oficial
                   </div>
                   <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
-                    Revisa si la URL corresponde a carrera, malla, perfil, plan o competencias antes de aprobar.
+                    Elige la URL que se usará como fuente principal para extraer y comparar la malla.
                   </div>
                 </div>
                 <button onClick={() => setShowCandidatesFor(null)}
@@ -1093,7 +1109,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
+                  <table style={{ width: '100%', minWidth: 1040, borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: 110 }} />
+                      <col style={{ width: 150 }} />
+                      <col style={{ width: 360 }} />
+                      <col />
+                      <col style={{ width: 190 }} />
+                    </colgroup>
                     <thead>
                       <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
                         {['Estado', 'Tipo', 'Titulo / URL', 'Evidencia', 'Acciones'].map(h => (
@@ -1108,9 +1131,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                       {(candidates[showCandidatesFor] || []).map(c => {
                         return (
                           <tr key={c.id_candidate} style={{ borderBottom: `1px solid ${border}` }}>
-                            <td style={{ padding: '8px 10px', fontWeight: 800, width: 90 }}>{c.estado}</td>
-                            <td style={{ padding: '8px 10px', width: 120 }}>{c.tipo_fuente_detectado}</td>
-                            <td style={{ padding: '8px 10px', width: 360 }}>
+                            <td style={{ padding: '8px 10px', fontWeight: 800 }}>{c.estado}</td>
+                            <td style={{ padding: '8px 10px' }}>{c.tipo_fuente_detectado}</td>
+                            <td style={{ padding: '8px 10px' }}>
                               <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {c.titulo || 'Sin titulo detectado'}
                               </div>
@@ -1119,19 +1142,19 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                 {c.url}
                               </a>
                             </td>
-                            <td style={{ padding: '8px 10px', width: 360, color: muted }}>
+                            <td style={{ padding: '8px 10px', color: muted }}>
                               <div style={{ maxHeight: 54, overflow: 'hidden', lineHeight: 1.35, wordBreak: 'break-word' }}
                                 title={c.snippet || c.motivo || ''}>
                                 {(c.snippet || c.motivo || '').substring(0, 260)}
                               </div>
                             </td>
-                            <td style={{ padding: '8px 10px', width: 150 }}>
+                            <td style={{ padding: '8px 10px' }}>
                               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                                 <button onClick={() => handleAprobarCandidato(c.id_programa_benchmark, c.id_candidate)}
                                   disabled={!!actionLoading[c.id_candidate]}
                                   style={{ border: 'none', borderRadius: 5, background: '#16a34a', color: '#fff',
                                     padding: '4px 8px', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>
-                                  {c.estado === 'aprobado' ? 'Usar fuente' : 'Aprobar'}
+                                  {actionLoading[c.id_candidate] === 'approve' ? '...' : 'Elegir fuente'}
                                 </button>
                                 {c.estado === 'candidato' && (
                                   <button onClick={() => handleDescartarCandidato(c.id_programa_benchmark, c.id_candidate)}
