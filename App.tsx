@@ -27,11 +27,22 @@ const App: React.FC = () => {
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' })
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 12000);
+
+    fetch('/api/auth/me', { credentials: 'include', signal: controller.signal })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => setUser(data.user))
       .catch(() => setUser(null))
-      .finally(() => setAuthLoading(false));
+      .finally(() => {
+        window.clearTimeout(timeout);
+        setAuthLoading(false);
+      });
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, []);
 
   const handleLogin = (userData: AuthUser) => {
@@ -115,12 +126,27 @@ const App: React.FC = () => {
   if (authLoading) {
     return (
       <div
-        className="min-h-screen w-full flex items-center justify-center"
-        style={{ background: 'linear-gradient(135deg, #0b1e20 0%, #0f2a2d 40%, #14363a 100%)' }}
+        style={{
+          minHeight: '100vh',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #0b1e20 0%, #0f2a2d 40%, #14363a 100%)',
+        }}
       >
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-12 h-12 rounded-full border-2 border-[#2A9D8F] border-t-transparent animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 999,
+              border: '2px solid #2A9D8F',
+              borderTopColor: 'transparent',
+              animation: 'kf-spin-slow 0.8s linear infinite',
+            }}
+          />
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: 'rgba(255,255,255,0.3)' }}>
             Verificando sesión...
           </p>
         </div>
