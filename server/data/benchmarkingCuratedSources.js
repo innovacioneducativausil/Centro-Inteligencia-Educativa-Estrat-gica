@@ -62,9 +62,9 @@ const URLS_BY_CAREER = {
     ['UPC', 'brochure_pdf', 'Malla curricular Turismo y Administracion UPC PDF (malla 2024)', 'https://upc-cdn.b-cdn.net/mallas/minerva/ADMINISTRACION-EN-HOTELERIA-Y-TURISMO/TURISMO%20Y%20ADMINISTRACION%20PREGRADO%20FDM.pdf'],
     ['USMP', 'malla_curricular', 'Malla curricular Turismo USMP', 'https://fcctp.usmp.edu.pe/site/programas-academicos/pregrado/turismo/malla-curricular/'],
     ['USMP', 'malla_curricular', 'Malla curricular Turismo USMP 2022-2', 'https://fcctp.usmp.edu.pe/site/programas-academicos/pregrado/turismo/malla-curricular-2022-2/'],
-    ['UNMSM', 'malla_curricular', 'Malla curricular Administracion de Turismo UNMSM', 'https://administracion.unmsm.edu.pe/e-p-administracion-de-turismo/'],
-    ['UPN', 'malla_curricular', 'Malla curricular Administracion y Servicios Turisticos UPN PDF', 'https://www.upn.edu.pe/sites/default/files/malla-curricular/carrera-ug-administracion-servicios-turisticos.pdf'],
-    ['UPN', 'pagina_programa', 'Administracion y Servicios Turisticos UPN', 'https://www.upn.edu.pe/carrera/administracion-y-servicios-turisticos'],
+    ['UNMSM', 'malla_curricular', 'Malla curricular Administracion de Turismo UNMSM PDF', 'https://administracion.unmsm.edu.pe/1web2022/wp-content/uploads/2022/02/Malla-Curricular-2018-EP-Turismo.pdf'],
+    ['UNMSM', 'pagina_programa', 'Administracion de Turismo UNMSM', 'https://administracion.unmsm.edu.pe/e-p-administracion-de-turismo/'],
+    ['UPN', 'malla_curricular', 'Malla curricular Administracion y Servicios Turisticos UPN', 'https://www.upn.edu.pe/carrera/administracion-y-servicios-turisticos'],
     ['UCV', 'pagina_programa', 'Administracion Turismo y Hoteleria UCV', 'https://www.ucv.edu.pe/sube-semipresencial/administracion-turismo-y-hoteleria'],
   ],
   'ADMINISTRACION HOTELERA': [

@@ -421,24 +421,94 @@ function knownCurriculumByOfficialUrl(url = '') {
 // Parse UPC-style tab-based curricula by reading the HTML structure directly.
 // Handles Bootstrap tab layouts where each tab-pane contains one semester's courses.
 function parseHtmlTabCurriculum(html = '') {
-  if (!html.includes('id="tab-0"')) return [];
+  if (!/id=["']tab-0["']/i.test(html)) return [];
   const courses = [];
   for (let i = 0; i <= 11; i++) {
-    const start = html.indexOf(`id="tab-${i}"`);
+    const tabMatch = new RegExp(`id=["']tab-${i}["']`, 'i').exec(html);
+    const start = tabMatch?.index ?? -1;
     if (start < 0) break;
-    const end = html.indexOf(`id="tab-${i + 1}"`, start + 1);
-    const content = end >= 0 ? html.slice(start, end) : html.slice(start);
+    const nextMatch = new RegExp(`id=["']tab-${i + 1}["']`, 'i').exec(html.slice(start + 1));
+    const stopMarkers = [
+      html.indexOf('Malla curricular 2025', start + 1),
+      html.indexOf('Ver malla de ingresantes', start + 1),
+      html.indexOf('Nuestros docentes', start + 1),
+      html.indexOf('Plana docente', start + 1),
+    ].filter(idx => idx > start);
+    const nextTab = nextMatch ? start + 1 + nextMatch.index : -1;
+    const end = [nextTab, ...stopMarkers].filter(idx => idx > start).sort((a, b) => a - b)[0] || html.length;
+    const content = html.slice(start, end);
     const ciclo = String(i + 1);
     const re = /<li[^>]*>([\s\S]*?)<\/li>/gi;
     let m;
     while ((m = re.exec(content)) !== null) {
       const text = cleanPageText(m[1]).trim();
-      if (text && isLikelyCourseName(text)) {
+      if (text && !text.includes(':') && isLikelyCourseName(text)) {
         courses.push({ ciclo, nombreCurso: text, evidencia: text });
       }
     }
   }
   return courses;
+}
+
+function parseHtmlCycleCardCurriculum(html = '') {
+  if (!/style-malla-curricular/i.test(html)) return [];
+  const courses = [];
+  const blockRegex = /<div[^>]*class=["'][^"']*style-malla-curricular[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi;
+  let block;
+  while ((block = blockRegex.exec(html)) !== null) {
+    const blockHtml = block[1];
+    const titleMatch = blockHtml.match(/<p[^>]*class=["'][^"']*title[^"']*["'][^>]*>([\s\S]*?)<\/p>/i);
+    const ciclo = spanishCycleToNumber(cleanPageText(titleMatch?.[1] || ''));
+    if (!ciclo) continue;
+    const body = blockHtml
+      .replace(/<p[^>]*class=["'][^"']*title[^"']*["'][^>]*>[\s\S]*?<\/p>/i, ' ')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&');
+    const lines = body
+      .replace(/\r/g, '\n')
+      .replace(/\s*-\s*/g, '\n')
+      .split(/\n+/)
+      .map(line => line.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    for (const line of lines) {
+      if (isLikelyCourseName(line)) courses.push({ ciclo, nombreCurso: line, evidencia: line });
+    }
+  }
+  return courses;
+}
+
+function parseHtmlCurriculumCourses(html = '') {
+  const parsers = [
+    { parser: 'html_tab_malla_v1', courses: parseHtmlTabCurriculum(html) },
+    { parser: 'html_cycle_cards_malla_v1', courses: parseHtmlCycleCardCurriculum(html) },
+  ];
+  return parsers
+    .filter(result => result.courses.length >= 3)
+    .sort((a, b) => b.courses.length - a.courses.length)[0] || null;
+}
+
+function findCurriculumPdfUrl(html = '', baseUrl = '') {
+  const pdfLinks = [];
+  const re = /href=["']([^"']+\.pdf(?:\?[^"']*)?)["']/gi;
+  let match;
+  while ((match = re.exec(html)) !== null) {
+    try {
+      const url = new URL(match[1], baseUrl).toString();
+      const scoreText = normalizeText(`${url} ${html.slice(Math.max(0, match.index - 300), match.index + 300)}`);
+      let score = 0;
+      if (scoreText.includes('malla')) score += 30;
+      if (scoreText.includes('curricular')) score += 30;
+      if (scoreText.includes('plan de estudios')) score += 20;
+      if (scoreText.includes('turismo')) score += 20;
+      if (scoreText.includes('administracion')) score += 10;
+      pdfLinks.push({ url, score });
+    } catch {
+      // Ignora URLs mal formadas.
+    }
+  }
+  return pdfLinks.sort((a, b) => b.score - a.score)[0]?.url || null;
 }
 
 function parseCurriculumCourses(text = '', url = '') {
@@ -507,7 +577,7 @@ async function fetchText(url) {
     if (!res.ok) return '';
     const type = res.headers.get('content-type') || '';
     if (!/text|html|json|pdf/i.test(type)) return '';
-    return String(await res.text()).substring(0, 80000);
+    return String(await res.text()).substring(0, 500000);
   } catch {
     return '';
   } finally {
@@ -532,9 +602,14 @@ async function fetchPdfText(url) {
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('pdf') && !/\.pdf($|\?)/i.test(url)) return null;
     const buffer = Buffer.from(await res.arrayBuffer());
-    const { default: pdfParse } = await import('pdf-parse/lib/pdf-parse.js');
-    const data = await pdfParse(buffer, { max: 0 });
-    return data.text ? visibleText(data.text).substring(0, 120000) : null;
+    const { PDFParse } = await import('pdf-parse');
+    const parser = new PDFParse({ data: buffer });
+    try {
+      const data = await parser.getText();
+      return data.text ? visibleText(data.text).substring(0, 120000) : null;
+    } finally {
+      await parser.destroy?.();
+    }
   } catch (err) {
     console.warn(`[pdf] No se pudo parsear ${url}:`, err.message);
     return null;
@@ -1058,9 +1133,9 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
   //    This must run before text-based parsing because text extraction loses tab context.
   let parsed = null;
   if (rawHtml) {
-    const htmlCourses = parseHtmlTabCurriculum(rawHtml);
-    if (htmlCourses.length >= 3) {
-      parsed = { courses: htmlCourses, parser: 'html_tab_malla_v1', status: 'parseado' };
+    const htmlParsed = parseHtmlCurriculumCourses(rawHtml);
+    if (htmlParsed) {
+      parsed = { ...htmlParsed, status: 'parseado' };
     }
   }
 
@@ -1069,14 +1144,36 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
     parsed = parseCurriculumCourses(textForStorage, urlFinalForStorage || url);
   }
 
-  // 3. Fetch fallback: try plain HTTP fetch when Selenium/text parsing yielded nothing
+  // 3. Linked PDF fallback: many university pages only list the actual curriculum as a PDF link.
+  if (!parsed.courses.length && rawHtml && url?.startsWith('http')) {
+    const linkedPdfUrl = findCurriculumPdfUrl(rawHtml, urlFinalForStorage || url);
+    if (linkedPdfUrl) {
+      try {
+        const pdf = await extractPageTextWithFetch(linkedPdfUrl);
+        const pdfParsed = parseCurriculumCourses(pdf.text, pdf.finalUrl || linkedPdfUrl);
+        if (pdfParsed.courses.length > parsed.courses.length) {
+          textForStorage = pdf.text;
+          titleForStorage = pdf.title || titleForStorage;
+          urlFinalForStorage = pdf.finalUrl || linkedPdfUrl;
+          parsed = {
+            ...pdfParsed,
+            parser: `${pdfParsed.parser}_linked_pdf_fallback`,
+          };
+        }
+      } catch {
+        // Se conserva la captura original si el PDF enlazado no se puede leer.
+      }
+    }
+  }
+
+  // 4. Fetch fallback: try plain HTTP fetch when Selenium/text parsing yielded nothing
   if (!parsed.courses.length && url?.startsWith('http')) {
     try {
       const fallback = await extractPageTextWithFetch(url);
       // Try HTML tab parser on fallback HTML too
-      const fallbackHtmlCourses = fallback.rawHtml ? parseHtmlTabCurriculum(fallback.rawHtml) : [];
-      const fallbackParsed = fallbackHtmlCourses.length >= 3
-        ? { courses: fallbackHtmlCourses, parser: 'html_tab_malla_v1_fetch_fallback', status: 'parseado' }
+      const fallbackHtmlParsed = fallback.rawHtml ? parseHtmlCurriculumCourses(fallback.rawHtml) : null;
+      const fallbackParsed = fallbackHtmlParsed
+        ? { ...fallbackHtmlParsed, parser: `${fallbackHtmlParsed.parser}_fetch_fallback`, status: 'parseado' }
         : parseCurriculumCourses(fallback.text, fallback.finalUrl || url);
       if (fallbackParsed.courses.length > parsed.courses.length) {
         textForStorage = fallback.text;
@@ -1293,4 +1390,4 @@ async function cargarTextoManual(idPrograma, textoFuente, urlOrigen) {
   return { ok: true };
 }
 
-export { scrapeProgramaUrl, scraperBatch, cargarTextoManual, discoverOfficialSources, parseCurriculumCourses, extractPageTextWithFetch };
+export { scrapeProgramaUrl, scraperBatch, cargarTextoManual, discoverOfficialSources, parseCurriculumCourses, parseHtmlCurriculumCourses, extractPageTextWithFetch };
