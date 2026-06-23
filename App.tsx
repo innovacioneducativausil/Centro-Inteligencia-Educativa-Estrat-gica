@@ -55,6 +55,7 @@ const App: React.FC = () => {
     // Log antes de limpiar la cookie (el backend tambien registra en logout)
     logActividad(reason === 'inactivity' ? 'logout_inactividad' : 'logout');
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
+    localStorage.removeItem('radar_token');
     setUser(null);
     setActiveView('inicio');
   }, []);

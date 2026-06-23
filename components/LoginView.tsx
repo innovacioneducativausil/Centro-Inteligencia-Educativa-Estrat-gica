@@ -345,6 +345,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
         return;
       }
+      if (data.token) localStorage.setItem('radar_token', data.token);
       if (remember) localStorage.setItem('radar_remember', '1');
       onLogin(data.user);
     } catch {
@@ -449,6 +450,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       }
 
       if (otpContext === 'login') {
+        if (data.token) localStorage.setItem('radar_token', data.token);
         if (remember) localStorage.setItem('radar_remember', '1');
         setPassword('');
         onLogin(data.user);

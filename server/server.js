@@ -51,7 +51,11 @@ app.set('trust proxy', 1);
 // ── Orígenes permitidos (configurable por env) ───────────
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  : [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'https://centro-inteligencia-educativa-estra.vercel.app',
+    ];
 
 // ── Helmet: cabeceras HTTP de seguridad ──────────────────
 app.use(helmet({
