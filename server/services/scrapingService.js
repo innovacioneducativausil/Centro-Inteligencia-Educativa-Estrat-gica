@@ -236,6 +236,15 @@ function parseLineBasedCurriculum(rawText = '') {
       continue;
     }
 
+    // Detect "Ciclo N" / "PRIMER CICLO" / "Semestre N" labels (used by UNMSM, UP, etc.)
+    // Only treat as a cycle header if the line is a pure cycle label (short, no other content)
+    if (/^(?:ciclo|semestre)\s+[0-9]{1,2}$/.test(normalized)
+      || /^(?:primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)$/.test(normalized)
+      || /^[ivx]{1,5}\s+(?:ciclo|semestre)$/.test(normalized)) {
+      const detected = spanishCycleToNumber(line);
+      if (detected) { currentCycle = detected; continue; }
+    }
+
     if (!currentCycle) continue;
     if (isLikelyCourseName(line)) {
       courses.push({ ciclo: currentCycle, nombreCurso: line, evidencia: line });
@@ -409,6 +418,29 @@ function knownCurriculumByOfficialUrl(url = '') {
   }));
 }
 
+// Parse UPC-style tab-based curricula by reading the HTML structure directly.
+// Handles Bootstrap tab layouts where each tab-pane contains one semester's courses.
+function parseHtmlTabCurriculum(html = '') {
+  if (!html.includes('id="tab-0"')) return [];
+  const courses = [];
+  for (let i = 0; i <= 11; i++) {
+    const start = html.indexOf(`id="tab-${i}"`);
+    if (start < 0) break;
+    const end = html.indexOf(`id="tab-${i + 1}"`, start + 1);
+    const content = end >= 0 ? html.slice(start, end) : html.slice(start);
+    const ciclo = String(i + 1);
+    const re = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+    let m;
+    while ((m = re.exec(content)) !== null) {
+      const text = cleanPageText(m[1]).trim();
+      if (text && isLikelyCourseName(text)) {
+        courses.push({ ciclo, nombreCurso: text, evidencia: text });
+      }
+    }
+  }
+  return courses;
+}
+
 function parseCurriculumCourses(text = '', url = '') {
   const domain = getDomain(url);
   let courses = [];
@@ -480,6 +512,32 @@ async function fetchText(url) {
     return '';
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function fetchPdfText(url) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'user-agent': 'Mozilla/5.0 (compatible; AcademicBenchmarkBot/1.0; academic research)',
+        'accept': 'application/pdf,*/*',
+      },
+      redirect: 'follow',
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('pdf') && !/\.pdf($|\?)/i.test(url)) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const { default: pdfParse } = await import('pdf-parse/lib/pdf-parse.js');
+    const data = await pdfParse(buffer, { max: 0 });
+    return data.text ? visibleText(data.text).substring(0, 120000) : null;
+  } catch (err) {
+    console.warn(`[pdf] No se pudo parsear ${url}:`, err.message);
+    return null;
   }
 }
 
@@ -836,10 +894,30 @@ async function extractPageText(driver, url) {
   const title = await driver.getTitle().catch(() => '');
   const finalUrl = await driver.getCurrentUrl().catch(() => url);
   const combinedText = `${String(bodyText || '')}\n\n${cleanPageText(String(bodyHtml || ''))}`;
-  return { url, finalUrl, title, text: visibleText(combinedText).substring(0, 120000) };
+  return {
+    url,
+    finalUrl,
+    title,
+    text: visibleText(combinedText).substring(0, 120000),
+    rawHtml: String(bodyHtml || '').substring(0, 300000),
+  };
 }
 
 async function extractPageTextWithFetch(url) {
+  if (/\.pdf($|\?)/i.test(url)) {
+    const pdfText = await fetchPdfText(url);
+    if (pdfText && pdfText.length > 100) {
+      return {
+        url,
+        finalUrl: url,
+        title: `PDF malla curricular - ${url.split('/').pop().split('?')[0]}`,
+        text: pdfText,
+        rawHtml: '',
+      };
+    }
+    throw new Error('No se pudo extraer texto del PDF');
+  }
+
   const html = await fetchText(url);
   const text = cleanPageText(html);
   if (!text || text.length < 200) {
@@ -850,6 +928,7 @@ async function extractPageTextWithFetch(url) {
     finalUrl: url,
     title: extractPageTitle(html) || 'Fuente oficial capturada con fetch',
     text: visibleText(text).substring(0, 120000),
+    rawHtml: String(html || '').substring(0, 300000),
   };
 }
 
@@ -970,16 +1049,35 @@ async function replaceBenchmarkCourses(idPrograma, url, courses) {
   }
 }
 
-async function persistExtraction({ idPrograma, url, urlFinal, title, text }) {
+async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHtml }) {
   let textForStorage = text;
   let titleForStorage = title;
   let urlFinalForStorage = urlFinal;
-  let parsed = parseCurriculumCourses(textForStorage, urlFinalForStorage || url);
 
+  // 1. Try HTML tab structure parser first (handles UPC-style Bootstrap tab curricula).
+  //    This must run before text-based parsing because text extraction loses tab context.
+  let parsed = null;
+  if (rawHtml) {
+    const htmlCourses = parseHtmlTabCurriculum(rawHtml);
+    if (htmlCourses.length >= 3) {
+      parsed = { courses: htmlCourses, parser: 'html_tab_malla_v1', status: 'parseado' };
+    }
+  }
+
+  // 2. Fall back to text-based parsing
+  if (!parsed) {
+    parsed = parseCurriculumCourses(textForStorage, urlFinalForStorage || url);
+  }
+
+  // 3. Fetch fallback: try plain HTTP fetch when Selenium/text parsing yielded nothing
   if (!parsed.courses.length && url?.startsWith('http')) {
     try {
       const fallback = await extractPageTextWithFetch(url);
-      const fallbackParsed = parseCurriculumCourses(fallback.text, fallback.finalUrl || url);
+      // Try HTML tab parser on fallback HTML too
+      const fallbackHtmlCourses = fallback.rawHtml ? parseHtmlTabCurriculum(fallback.rawHtml) : [];
+      const fallbackParsed = fallbackHtmlCourses.length >= 3
+        ? { courses: fallbackHtmlCourses, parser: 'html_tab_malla_v1_fetch_fallback', status: 'parseado' }
+        : parseCurriculumCourses(fallback.text, fallback.finalUrl || url);
       if (fallbackParsed.courses.length > parsed.courses.length) {
         textForStorage = fallback.text;
         titleForStorage = fallback.title || titleForStorage;
@@ -1075,6 +1173,28 @@ async function scrapeProgramaUrl(idPrograma, url) {
     ['pendiente', 'Scraping iniciado...', idPrograma]
   );
 
+  // For PDF URLs, skip Selenium entirely and parse the PDF directly
+  if (/\.pdf($|\?)/i.test(url)) {
+    try {
+      const result = await extractPageTextWithFetch(url);
+      return await persistExtraction({
+        idPrograma,
+        url,
+        urlFinal: result.finalUrl,
+        title: result.title,
+        text: result.text,
+        rawHtml: result.rawHtml || '',
+      });
+    } catch (pdfErr) {
+      const msg = String(pdfErr.message || pdfErr).substring(0, 500);
+      await db_empl.query(
+        'UPDATE programa_benchmark SET estado_extraccion=?, observaciones=?, fecha_captura=NOW() WHERE id_programa_benchmark=?',
+        ['error', `Error extracción PDF: ${msg}`, idPrograma]
+      );
+      return { ok: false, error: msg };
+    }
+  }
+
   let driver = null;
   try {
     driver = await buildDriver();
@@ -1087,6 +1207,7 @@ async function scrapeProgramaUrl(idPrograma, url) {
       urlFinal: result.finalUrl,
       title: result.title,
       text: result.text,
+      rawHtml: result.rawHtml || '',
     });
 
     await db_empl.query(
@@ -1107,6 +1228,7 @@ async function scrapeProgramaUrl(idPrograma, url) {
         urlFinal: fallback.finalUrl,
         title: fallback.title,
         text: fallback.text,
+        rawHtml: fallback.rawHtml || '',
       });
     } catch (fallbackErr) {
       const fallbackMsg = String(fallbackErr.message || fallbackErr).substring(0, 300);
