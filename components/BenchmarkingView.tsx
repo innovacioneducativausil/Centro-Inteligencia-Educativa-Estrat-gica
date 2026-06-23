@@ -466,6 +466,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const coberturaTipoTotal = cobertura.reduce((acc, c) => acc + (c.benchmarking?.[tipo]?.total_programas ?? 0), 0);
   const selectedCareerName = carreraSeleccionada?.nombre_carrera || '';
   const isReferenceView = TIPOS_REFERENCIA.includes(tipo);
+  const noticeIsOperational = notice
+    ? /^(Extracción completada|Normalización completada|Fuente aprobada|Fuente manual)/.test(notice)
+    : false;
   const facultadesReferencia = [...new Set(carreras.map(c => c.nombre_facultad).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, 'es'));
   const carrerasReferencia = selectedFacultadReferencia
@@ -595,21 +598,27 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   ) => {
     const grouped = groupCoursesByCycle(courses);
     return (
-      <div style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden', background: card }}>
-        <div style={{ padding: '10px 12px', background: isDark ? '#0f172a' : '#f8fafc', borderBottom: `1px solid ${border}` }}>
+      <div style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden', background: card,
+        height: 430, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div style={{ padding: '10px 12px', background: isDark ? '#0f172a' : '#f8fafc',
+          borderBottom: `1px solid ${border}`, flex: '0 0 auto' }}>
           <div style={{ fontWeight: 800, color: accent, fontSize: 12 }}>{title}</div>
           <div style={{ color: muted, fontSize: 10, marginTop: 2 }}>{subtitle}</div>
         </div>
         {grouped.length === 0 ? (
           <div style={{ padding: 16, color: muted, fontSize: 12 }}>No hay cursos cargados para esta malla.</div>
         ) : (
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: 10 }}>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', overflowY: 'hidden',
+            padding: 10, flex: '1 1 auto', minHeight: 0 }}>
             {grouped.map(([cycle, items]) => (
-              <div key={`${title}-${cycle}`} style={{ minWidth: 170, flex: '0 0 170px' }}>
-                <div style={{ background: accent, color: '#fff', padding: '5px 8px', fontWeight: 800, fontSize: 11, borderRadius: '6px 6px 0 0' }}>
+              <div key={`${title}-${cycle}`} style={{ minWidth: 170, flex: '0 0 170px',
+                height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{ background: accent, color: '#fff', padding: '5px 8px',
+                  fontWeight: 800, fontSize: 11, borderRadius: '6px 6px 0 0', flex: '0 0 auto' }}>
                   Ciclo {cycle}
                 </div>
-                <div style={{ border: `1px solid ${border}`, borderTop: 'none', borderRadius: '0 0 6px 6px', overflow: 'hidden' }}>
+                <div style={{ border: `1px solid ${border}`, borderTop: 'none', borderRadius: '0 0 6px 6px',
+                  overflowY: 'auto', overflowX: 'hidden', flex: '1 1 auto', minHeight: 0 }}>
                   {items.map((course, idx) => (
                     <div key={`${cycle}-${course.nombre}-${idx}`}
                       style={{ padding: '7px 8px', borderBottom: idx < items.length - 1 ? `1px solid ${border}` : 'none',
@@ -678,7 +687,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         </div>
       )}
 
-      {notice && (
+      {notice && !(isReferenceView && noticeIsOperational) && (
         <div style={{ background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 8,
           padding: '10px 14px', marginBottom: 12, color: '#166534', fontSize: 12, fontWeight: 700 }}>
           {notice}
