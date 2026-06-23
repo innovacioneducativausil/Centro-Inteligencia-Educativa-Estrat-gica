@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CIEE</title>
 
-    <!-- Google Fonts: Inter + Space Grotesk + Bricolage Grotesque -->
+    <!-- Google Fonts: Montserrat + fallbacks retained for legacy views -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Material Symbols -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
 
@@ -16,16 +16,49 @@
     <script src="https://cdn.tailwindcss.com" defer></script>
 
     <style>
+      :root {
+        --ciee-primary: #00195A;
+        --ciee-active: #0036DC;
+        --ciee-button: #57C4DD;
+        --ciee-accent: #E71E5E;
+        --ciee-turquoise: #0891B2;
+        --ciee-orange: #EA580C;
+        --ciee-green: #24A148;
+        --ciee-purple: #9B51E0;
+        --ciee-success: #16A34A;
+        --ciee-success-light: #DCFCE7;
+        --ciee-error: #DC2626;
+        --ciee-error-light: #FEE2E2;
+        --ciee-warning: #F59E0B;
+        --ciee-warning-light: #FFF7E6;
+        --ciee-info: #0284C7;
+        --ciee-info-light: #E0F2FE;
+        --ciee-border: #EEEEEE;
+        --ciee-border-strong: #DBDBDB;
+        --ciee-surface: #F9F9F9;
+        --ciee-surface-2: #F4F4F4;
+        --ciee-surface-3: #EDEDED;
+        --ciee-title: #2E2E2E;
+        --ciee-body: #888888;
+        --ciee-label: #B9B9B9;
+        --ciee-font: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
       /* ─── Global Font ─── */
       *, *::before, *::after {
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-family: var(--ciee-font);
+      }
+
+      body {
+        margin: 0;
+        background: var(--ciee-surface);
+        color: var(--ciee-title);
       }
 
       /* ─── Global Scrollbar ─── */
       ::-webkit-scrollbar { width: 5px; height: 5px; }
       ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: rgba(42, 157, 143, 0.28); border-radius: 10px; }
-      ::-webkit-scrollbar-thumb:hover { background: rgba(42, 157, 143, 0.55); }
+      ::-webkit-scrollbar-thumb { background: rgba(87, 196, 221, 0.42); border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(0, 54, 220, 0.55); }
 
       /* ─── Keyframe Animations ─── */
       @keyframes kf-fade-in {
@@ -98,7 +131,7 @@
       .shadow-3xl { box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.22); }
 
       .text-gradient-teal {
-        background: linear-gradient(135deg, #2A9D8F, #38BDF8);
+        background: linear-gradient(135deg, var(--ciee-active), var(--ciee-button));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -129,7 +162,7 @@
         left: 50%;
         width: 50%;
         height: 2px;
-        background: linear-gradient(90deg, rgba(17, 82, 212, 0.8), transparent);
+        background: linear-gradient(90deg, rgba(0, 54, 220, 0.8), transparent);
         transform-origin: left center;
         animation: rotate-sweep 8s linear infinite;
       }
@@ -137,30 +170,30 @@
         position: absolute;
         width: 6px;
         height: 6px;
-        background-color: #1152d4;
+        background-color: var(--ciee-active);
         border-radius: 50%;
-        box-shadow: 0 0 10px #1152d4;
+        box-shadow: 0 0 10px var(--ciee-active);
       }
       .font-display {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: var(--ciee-font);
       }
 
       /* ─── Password Strength Meter ─── */
       .strength-segment {
         height: 4px;
         border-radius: 2px;
-        background-color: #e2e8f0;
+        background-color: var(--ciee-surface-3);
         flex: 1;
         transition: background-color 0.3s ease;
       }
-      .strength-segment.active-weak   { background-color: #ef4444; }
-      .strength-segment.active-medium { background-color: #f59e0b; }
-      .strength-segment.active-strong { background-color: #22c55e; }
+      .strength-segment.active-weak   { background-color: var(--ciee-error); }
+      .strength-segment.active-medium { background-color: var(--ciee-warning); }
+      .strength-segment.active-strong { background-color: var(--ciee-success); }
 
       /* ─── Rich Text Editor placeholder ─── */
       [contenteditable][data-placeholder]:empty::before {
         content: attr(data-placeholder);
-        color: #9ca3af;
+        color: var(--ciee-label);
         pointer-events: none;
       }
 
@@ -168,11 +201,11 @@
       .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(42, 157, 143, 0.25);
+        background: rgba(87, 196, 221, 0.42);
         border-radius: 2px;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(42, 157, 143, 0.5);
+        background: rgba(0, 54, 220, 0.55);
       }
     </style>
   </head>

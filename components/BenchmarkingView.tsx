@@ -1,6 +1,7 @@
 ﻿// components/BenchmarkingView.tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ThemeColors } from '../types';
+import { BRAND_COLORS } from '../constants';
 
 interface BenchmarkingViewProps {
   themeColors: ThemeColors;
@@ -111,8 +112,8 @@ interface CoberturaCarrera extends FiltroCarrera {
   }>>;
 }
 
-const USIL = '#002855';
-const CYAN = '#00A3E0';
+const USIL = BRAND_COLORS.primary;
+const CYAN = BRAND_COLORS.button;
 
 const TIPO_LABELS: Record<TipoBenchmark, string> = {
   competencia_directa:     'Competencia Directa',
@@ -211,11 +212,11 @@ function sourceHasConflictingCareerLabel(sourceText: string, careerName: string)
 
 const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRole }) => {
   const isDark   = themeColors.bg?.includes('950') || themeColors.bg?.includes('slate-900') || false;
-  const bg       = isDark ? '#0f172a' : '#f8fafc';
+  const bg       = isDark ? '#0f172a' : BRAND_COLORS.surface;
   const card     = isDark ? '#1e293b' : '#ffffff';
-  const text     = isDark ? '#f1f5f9' : '#1e293b';
-  const muted    = isDark ? '#94a3b8' : '#64748b';
-  const border   = isDark ? 'rgba(148,163,184,0.15)' : '#e2e8f0';
+  const text     = isDark ? '#f1f5f9' : BRAND_COLORS.title;
+  const muted    = isDark ? '#94a3b8' : BRAND_COLORS.body;
+  const border   = isDark ? 'rgba(148,163,184,0.15)' : BRAND_COLORS.borderStrong;
   const canEdit  = userRole === 'admin';
 
   const [tipo, setTipo]             = useState<TipoBenchmark>('competencia_directa');
@@ -611,7 +612,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     return (
       <div style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden', background: card,
         height: 430, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <div style={{ padding: '10px 12px', background: isDark ? '#0f172a' : '#f8fafc',
+        <div style={{ padding: '10px 12px', background: isDark ? '#0f172a' : BRAND_COLORS.surface,
           borderBottom: `1px solid ${border}`, flex: '0 0 auto' }}>
           <div style={{ fontWeight: 800, color: accent, fontSize: 12 }}>{title}</div>
           <div style={{ color: muted, fontSize: 10, marginTop: 2 }}>{subtitle}</div>
@@ -667,7 +668,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             style={{
               padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
               fontWeight: 700, fontSize: 12,
-              background: tipo === t ? USIL : (isDark ? '#334155' : '#e2e8f0'),
+              background: tipo === t ? USIL : (isDark ? '#334155' : BRAND_COLORS.surface3),
               color: tipo === t ? '#fff' : text,
             }}>
             {TIPO_LABELS[t]}
@@ -722,7 +723,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   setSelectedReferenciaUniversidad('');
                 }}
                 style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}>
+                  background: isDark ? '#0f172a' : BRAND_COLORS.surface, color: text, fontSize: 12 }}>
                 <option value="">- Selecciona facultad -</option>
                 {facultadesReferencia.map(facultad => (
                   <option key={facultad} value={facultad}>{facultad}</option>
@@ -737,7 +738,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 onChange={e => setSelectedCarrera(e.target.value ? Number(e.target.value) : '')}
                 disabled={!selectedFacultadReferencia}
                 style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : '#f8fafc', color: !selectedFacultadReferencia ? muted : text, fontSize: 12 }}>
+                  background: isDark ? '#0f172a' : BRAND_COLORS.surface, color: !selectedFacultadReferencia ? muted : text, fontSize: 12 }}>
                 <option value="">
                   {selectedFacultadReferencia ? '- Selecciona carrera -' : 'Primero selecciona facultad'}
                 </option>
@@ -756,7 +757,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 onChange={e => setSelectedReferenciaUniversidad(e.target.value ? Number(e.target.value) : '')}
                 disabled={!selectedCarrera || loadingProgs || referenciaUniversidades.length === 0}
                 style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : '#f8fafc', color: !selectedCarrera || referenciaUniversidades.length === 0 ? muted : text, fontSize: 12 }}>
+                  background: isDark ? '#0f172a' : BRAND_COLORS.surface, color: !selectedCarrera || referenciaUniversidades.length === 0 ? muted : text, fontSize: 12 }}>
                 <option value="">
                   {!selectedCarrera
                     ? 'Primero selecciona una carrera'
@@ -784,7 +785,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 
       {!isReferenceView && coverageRows.length > 0 && (
         <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden', marginBottom: 12 }}>
-          <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+          <div style={{ background: isDark ? '#1e293b' : BRAND_COLORS.surface2, padding: '10px 16px',
             borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
               Cobertura de {TIPO_LABELS[tipo].toLowerCase()} por carrera
@@ -796,7 +797,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <thead style={{ position: 'sticky', top: 0 }}>
-                <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
+                <tr style={{ background: isDark ? '#0f172a' : BRAND_COLORS.surface }}>
                   {['Facultad', 'Carrera', TIPO_LABELS[tipo], 'Fuentes', 'Validadas', 'Pendientes', 'Última revisión'].map(h => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
                       color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
@@ -924,7 +925,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   ['4', 'Comparación', 'Cruzar lo extraído contra malla y sílabos de la carrera seleccionada.'],
                   ['5', 'Propuesta', 'Generar brecha y propuesta curricular para revisión humana, nunca aplicar automático.'],
                 ].map(([n, title, desc]) => (
-                  <div key={n} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: 10, background: isDark ? '#0f172a' : '#f8fafc' }}>
+                  <div key={n} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: 10, background: isDark ? '#0f172a' : BRAND_COLORS.surface }}>
                     <div style={{ fontSize: 10, fontWeight: 800, color: CYAN }}>Paso {n}</div>
                     <div style={{ fontSize: 12, fontWeight: 800, color: text, marginTop: 3 }}>{title}</div>
                     <div style={{ fontSize: 10, color: muted, marginTop: 4, lineHeight: 1.35 }}>{desc}</div>

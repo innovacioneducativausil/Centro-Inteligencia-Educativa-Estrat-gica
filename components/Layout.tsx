@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Home, TrendingUp, Briefcase, Bell, Sun, Moon, LogOut, User, Layers, FileText, Settings2, BookOpen, BarChart3 } from 'lucide-react';
 import { ThemeColors } from '../types';
 import { AuthUser } from './LoginView';
+import { BRAND_COLORS } from '../constants';
 
 interface LayoutProps {
   activeView: string;
@@ -19,12 +20,12 @@ interface LayoutProps {
 
 // â”€â”€ Color palette (matches HTML design)
 const NAV = {
-  bg:       '#0F2A3F',
-  active:   'rgba(13,148,136,0.18)',
+  bg:       BRAND_COLORS.primary,
+  active:   'rgba(87,196,221,0.20)',
   hover:    'rgba(255,255,255,0.06)',
-  iconOn:   '#14B8A6',
+  iconOn:   BRAND_COLORS.button,
   iconOff:  'rgba(255,255,255,0.45)',
-  labelOn:  '#14B8A6',
+  labelOn:  BRAND_COLORS.button,
   labelOff: 'rgba(255,255,255,0.35)',
 };
 
@@ -108,7 +109,7 @@ const Layout: React.FC<LayoutProps> = ({
     });
   };
 
-  const tipoColor = (t: string) => t === 'senal' ? '#0D9488' : t === 'tendencia' ? '#3b82f6' : '#a855f7';
+  const tipoColor = (t: string) => t === 'senal' ? BRAND_COLORS.turquoise : t === 'tendencia' ? BRAND_COLORS.active : BRAND_COLORS.purple;
   const tipoLabel = (t: string) => t === 'senal' ? 'Señal' : t === 'tendencia' ? 'Tendencia' : 'Escenario';
   const fmtDate   = (d: string | null) => d ? new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '';
 
@@ -126,7 +127,7 @@ const Layout: React.FC<LayoutProps> = ({
     ...(isAdmin ? [{ name: 'Gestión', icon: Settings2, short: 'Gestión' }] : []),
   ];
 
-  const fontStyle = { fontFamily: "'Space Grotesk', 'Inter', sans-serif" };
+  const fontStyle = { fontFamily: "'Montserrat', system-ui, -apple-system, sans-serif" };
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden', ...fontStyle }}>
@@ -139,7 +140,7 @@ const Layout: React.FC<LayoutProps> = ({
         {/* Logo */}
         <div
           title="USIL Radar Prospectivo"
-          style={{ width: 36, height: 36, background: 'linear-gradient(135deg,#0D9488,#14B8A6)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, flexShrink: 0, cursor: 'default' }}
+          style={{ width: 36, height: 36, background: `linear-gradient(135deg,${BRAND_COLORS.active},${BRAND_COLORS.button})`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, flexShrink: 0, cursor: 'default' }}
         >
           <TrendingUp style={{ width: 18, height: 18, color: 'white' }} strokeWidth={2.5} />
         </div>
@@ -166,7 +167,7 @@ const Layout: React.FC<LayoutProps> = ({
               {NEW_BADGE_KEYS.has(navKey) && (
                 <span style={{
                   position: 'absolute', top: 2, right: 2,
-                  background: 'linear-gradient(135deg,#F59E0B,#F97316)',
+                  background: `linear-gradient(135deg,${BRAND_COLORS.warning},${BRAND_COLORS.orange})`,
                   color: '#fff', fontSize: 6, fontWeight: 800,
                   padding: '1.5px 4px', borderRadius: 5,
                   letterSpacing: '0.3px', lineHeight: 1.4,
@@ -207,7 +208,7 @@ const Layout: React.FC<LayoutProps> = ({
           >
             <Bell style={{ width: 15, height: 15, color: 'rgba(255,255,255,0.6)' }} strokeWidth={2} />
             {unreadCount > 0 && (
-              <span style={{ position: 'absolute', top: 3, right: 3, minWidth: 14, height: 14, background: '#E76F51', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: 'white', padding: '0 3px', border: '1.5px solid ' + NAV.bg, lineHeight: 1 }}>
+              <span style={{ position: 'absolute', top: 3, right: 3, minWidth: 14, height: 14, background: BRAND_COLORS.accent, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: 'white', padding: '0 3px', border: '1.5px solid ' + NAV.bg, lineHeight: 1 }}>
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
@@ -217,11 +218,11 @@ const Layout: React.FC<LayoutProps> = ({
           {bellOpen && (
             <div style={{ position: 'absolute', left: 'calc(100% + 10px)', bottom: 0, width: 290, borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.35)', background: theme === 'dark' ? '#1e293b' : 'white', border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,42,63,0.1)'}`, zIndex: 100, overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,42,63,0.06)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 700, fontSize: 12, color: theme === 'dark' ? '#e2e8f0' : '#0F2A3F' }}>Actividad reciente</span>
+                <span style={{ fontWeight: 700, fontSize: 12, color: theme === 'dark' ? '#e2e8f0' : BRAND_COLORS.primary }}>Actividad reciente</span>
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllSeen}
-                    style={{ fontSize: 10, color: '#0D9488', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', borderRadius: 4, fontFamily: 'inherit' }}
+                    style={{ fontSize: 10, color: BRAND_COLORS.active, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', borderRadius: 4, fontFamily: 'inherit' }}
                     onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.textDecoration = 'underline'; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.textDecoration = 'none'; }}
                   >
@@ -231,20 +232,20 @@ const Layout: React.FC<LayoutProps> = ({
               </div>
               <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                 {publishedNotifs.length === 0 ? (
-                  <p style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>No hay actividad reciente</p>
+                  <p style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: BRAND_COLORS.body }}>No hay actividad reciente</p>
                 ) : publishedNotifs.map(n => {
                   const unread = !seenIds.has(n.id);
                   return (
                     <div
                       key={`${n.tipo}-${n.id}`}
                       onClick={() => { markSeen(n.id); onNotifClick({ id: n.id, tipo: n.tipo }); setBellOpen(false); }}
-                      style={{ padding: '10px 16px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`, cursor: 'pointer', borderLeft: unread ? '3px solid #0D9488' : '3px solid transparent', background: unread ? (theme === 'dark' ? 'rgba(13,148,136,0.06)' : 'rgba(13,148,136,0.04)') : 'transparent', transition: 'background .15s' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#f8fafc'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = unread ? (theme === 'dark' ? 'rgba(13,148,136,0.06)' : 'rgba(13,148,136,0.04)') : 'transparent'; }}
+                      style={{ padding: '10px 16px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.05)' : BRAND_COLORS.border}`, cursor: 'pointer', borderLeft: unread ? `3px solid ${BRAND_COLORS.button}` : '3px solid transparent', background: unread ? (theme === 'dark' ? 'rgba(87,196,221,0.08)' : 'rgba(87,196,221,0.10)') : 'transparent', transition: 'background .15s' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : BRAND_COLORS.surface; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = unread ? (theme === 'dark' ? 'rgba(87,196,221,0.08)' : 'rgba(87,196,221,0.10)') : 'transparent'; }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
                         <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 100, background: tipoColor(n.tipo), color: 'white' }}>{tipoLabel(n.tipo)}</span>
-                        <span style={{ fontSize: 9, color: '#94a3b8', marginLeft: 'auto' }}>{fmtDate(n.fecha_publicacion)}</span>
+                        <span style={{ fontSize: 9, color: BRAND_COLORS.body, marginLeft: 'auto' }}>{fmtDate(n.fecha_publicacion)}</span>
                       </div>
                       <p style={{ fontSize: 11, fontWeight: unread ? 600 : 500, color: theme === 'dark' ? '#cbd5e1' : '#1e293b', lineHeight: 1.4 }}>{n.titulo}</p>
                     </div>
@@ -260,7 +261,7 @@ const Layout: React.FC<LayoutProps> = ({
           <button
             title={user.nombre}
             onClick={() => setProfileOpen(!profileOpen)}
-            style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#0D9488,#1E3A52)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer' }}
+            style={{ width: 32, height: 32, borderRadius: '50%', background: `linear-gradient(135deg,${BRAND_COLORS.active},${BRAND_COLORS.primary})`, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer' }}
           >
             {user.iniciales}
           </button>
@@ -269,9 +270,9 @@ const Layout: React.FC<LayoutProps> = ({
           {profileOpen && (
             <div style={{ position: 'absolute', left: 'calc(100% + 10px)', bottom: 0, width: 220, borderRadius: 14, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', background: 'white', border: '1px solid rgba(15,42,63,0.08)', zIndex: 100, padding: 8, overflow: 'hidden' }}>
               <div style={{ padding: '10px 12px 8px' }}>
-                <p style={{ fontSize: 12, fontWeight: 800, color: '#0F2A3F', marginBottom: 2 }}>{user.nombre}</p>
+                <p style={{ fontSize: 12, fontWeight: 800, color: BRAND_COLORS.primary, marginBottom: 2 }}>{user.nombre}</p>
                 <p style={{ fontSize: 10, color: '#94A3B8', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.correo}</p>
-                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '3px 8px', borderRadius: 100, background: 'rgba(13,148,136,0.1)', color: '#0D9488' }}>{user.rolLabel}</span>
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '3px 8px', borderRadius: 100, background: 'rgba(87,196,221,0.16)', color: BRAND_COLORS.active }}>{user.rolLabel}</span>
               </div>
               <div style={{ height: 1, background: 'rgba(15,42,63,0.06)', margin: '6px 8px' }} />
               <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#475569', fontFamily: 'inherit' }}
@@ -312,4 +313,3 @@ const Layout: React.FC<LayoutProps> = ({
 };
 
 export default Layout;
-

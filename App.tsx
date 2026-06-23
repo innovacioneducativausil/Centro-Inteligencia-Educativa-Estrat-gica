@@ -9,7 +9,7 @@ import ImpactosView from './components/ImpactosView';
 import ReportsView from './components/ReportsView';
 import GestionView from './components/GestionView';
 import LoginView, { AuthUser } from './components/LoginView';
-import { THEMES } from './constants';
+import { BRAND_COLORS, THEMES } from './constants';
 import { logActividad } from './services/actividadService';
 
 type PendingNotif = { uuid: string; tipo: 'senal' | 'tendencia' | 'escenario' } | null;
@@ -133,7 +133,7 @@ const App: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #0b1e20 0%, #0f2a2d 40%, #14363a 100%)',
+          background: `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.active} 54%, ${BRAND_COLORS.button} 100%)`,
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
@@ -142,7 +142,7 @@ const App: React.FC = () => {
               width: 48,
               height: 48,
               borderRadius: 999,
-              border: '2px solid #2A9D8F',
+              border: `2px solid ${BRAND_COLORS.button}`,
               borderTopColor: 'transparent',
               animation: 'kf-spin-slow 0.8s linear infinite',
             }}
