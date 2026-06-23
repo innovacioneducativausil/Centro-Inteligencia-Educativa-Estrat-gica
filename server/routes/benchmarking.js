@@ -95,6 +95,10 @@ function careerEquivalentRoots(careerName = '') {
       roots: ['gastron', 'culinar'],
     },
     {
+      selected: ['administracion'],
+      roots: ['administracion', 'business', 'management', 'strategy'],
+    },
+    {
       selected: ['digital business management'],
       roots: ['digital', 'business', 'marketing', 'administracion', 'management'],
     },
@@ -154,6 +158,9 @@ function sourceTermMatches(haystack = '', term = '') {
 
 function sourceHasConflictingCareer(haystack = '', careerName = '') {
   const selected = normalizeName(careerName).toLowerCase();
+  if (selected.includes('administracion') && /\b(business|management|strategy|entrepreneurship)\b/.test(haystack)) {
+    return false;
+  }
   const groups = [
     ['psicologia', ['psicolog']],
     ['derecho', ['derecho']],
@@ -186,8 +193,8 @@ function sourceMatchesCareer(source, careerName = '') {
   const haystack = normalizeName(`${source?.url || ''} ${source?.titulo || ''}`).toLowerCase();
   if (haystack.includes('fuente exacta pendiente') || haystack.includes('url institucional base')) return false;
   if (sourceHasConflictingCareer(haystack, careerName)) return false;
-  if (/academic-programs|undergraduate-programs|degree-charts|fields%20of%20concentration|graduation-requirements-all-options|bulletin\.stanford\.edu\/programs/i.test(source?.url || '')) {
-    return true;
+  if (/academic-programs|undergraduate-programs|degree-charts\/?$|fields%20of%20concentration|graduation-requirements-all-options\/?$|bulletin\.stanford\.edu\/programs\/?$/i.test(source?.url || '')) {
+    return false;
   }
   return matchTerms.some(term => sourceTermMatches(haystack, term))
     || equivalentRoots.some(root => haystack.includes(root));
@@ -868,6 +875,14 @@ router.post('/mercado-laboral/benchmarking/candidatos/:id/aprobar', adminOnly, a
     );
     if (!candidate) return res.status(404).json({ error: 'Candidato no encontrado' });
 
+    await db.query(
+      `UPDATE benchmark_source_candidate
+       SET estado='candidato'
+       WHERE id_programa_benchmark=?
+         AND id_candidate<>?
+         AND estado='aprobado'`,
+      [candidate.id_programa_benchmark, req.params.id]
+    );
     await db.query(
       `UPDATE benchmark_source_candidate
        SET estado='aprobado', revisado_en=NOW(), revisado_por=?

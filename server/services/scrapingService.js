@@ -11,6 +11,23 @@ const DELAY_BETWEEN_REQUESTS_MS = 3000;
 const PAGE_LOAD_TIMEOUT_MS = 20000;
 const DISCOVERY_TIMEOUT_MS = 12000;
 const ROMAN_CYCLES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const SPANISH_CYCLE_WORDS = {
+  primer: '1',
+  primero: '1',
+  segundo: '2',
+  tercer: '3',
+  tercero: '3',
+  cuarto: '4',
+  quinto: '5',
+  sexto: '6',
+  septimo: '7',
+  setimo: '7',
+  octavo: '8',
+  noveno: '9',
+  decimo: '10',
+  undecimo: '11',
+  duodecimo: '12',
+};
 const SECTION_STOP_WORDS = [
   'conoce mas', 'conoce más', 'descarga brochure', 'postula', 'autoridades',
   'contacto', 'informacion general', 'información general', 'transparencia',
@@ -116,6 +133,16 @@ function romanToCycle(value = '') {
   return idx >= 0 ? String(idx + 1) : null;
 }
 
+function spanishCycleToNumber(value = '') {
+  const normalized = normalizeText(value);
+  const wordMatch = normalized.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+ciclo\b/);
+  if (wordMatch) return SPANISH_CYCLE_WORDS[wordMatch[1]] || null;
+  const romanMatch = normalized.match(/\b([ivx]{1,5})\s+ciclo\b/i);
+  if (romanMatch) return romanToCycle(romanMatch[1]);
+  const numberMatch = normalized.match(/\b(?:ciclo|semestre)\s+([0-9]{1,2})\b/);
+  return numberMatch ? numberMatch[1] : null;
+}
+
 function isLikelyCourseName(line = '') {
   const text = line.trim();
   if (text.length < 3 || text.length > 140) return false;
@@ -184,6 +211,57 @@ function parseLineBasedCurriculum(rawText = '') {
   }
 
   return courses;
+}
+
+function parseTableLikeCurriculum(rawText = '') {
+  const segment = segmentAfterMalla(rawText);
+  if (!segment) return [];
+
+  const text = visibleText(segment)
+    .replace(/\t/g, '\n')
+    .replace(/\s{2,}/g, '\n');
+  const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  const courses = [];
+  let currentCycle = null;
+
+  for (const line of lines) {
+    const normalized = normalizeText(line);
+    const detectedCycle = spanishCycleToNumber(line);
+    if (detectedCycle) {
+      currentCycle = detectedCycle;
+      continue;
+    }
+    if (!currentCycle) continue;
+    if (/^(curso|creditos|credito|ht|hp|pre requisito|prerequisito|modalidad|caracter|total de creditos)/.test(normalized)) continue;
+
+    const firstCell = line.split(/\s{2,}|\t/)[0].trim();
+    const candidate = firstCell
+      .replace(/\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?(?:\s+.*)?$/i, '')
+      .replace(/\s+(presencial|virtual|a distancia|semipresencial|obligatorio|electivo).*$/i, '')
+      .trim();
+    if (isLikelyCourseName(candidate)) {
+      courses.push({ ciclo: currentCycle, nombreCurso: candidate, evidencia: line });
+    }
+  }
+
+  if (courses.length >= 3) return courses;
+
+  const compact = segment.replace(/\s+/g, ' ').trim();
+  const cycleRegex = /\b(PRIMER|PRIMERO|SEGUNDO|TERCER|TERCERO|CUARTO|QUINTO|SEXTO|SEPTIMO|SETIMO|OCTAVO|NOVENO|DECIMO|UNDECIMO|DUODECIMO)\s+CICLO\b/gi;
+  const matches = [...compact.matchAll(cycleRegex)];
+  const flattened = [];
+  for (let i = 0; i < matches.length; i += 1) {
+    const cycle = spanishCycleToNumber(matches[i][0]);
+    const start = (matches[i].index || 0) + matches[i][0].length;
+    const end = i + 1 < matches.length ? (matches[i + 1].index || compact.length) : compact.length;
+    const chunk = compact.slice(start, end);
+    const rowRegex = /([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9,.:;()\/\- ]{3,}?)\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?/g;
+    for (const row of chunk.matchAll(rowRegex)) {
+      const name = row[1].replace(/\b(Curso|Creditos|HT|HP|Pre Requisito|Modalidad|Caracter)\b/gi, '').trim();
+      if (isLikelyCourseName(name)) flattened.push({ ciclo, nombreCurso: name, evidencia: row[0] });
+    }
+  }
+  return flattened;
 }
 
 function parseFlattenedUcvCurriculum(rawText = '') {
@@ -310,6 +388,14 @@ function parseCurriculumCourses(text = '', url = '') {
     if (courses.length < 8) courses = parseFlattenedUcvCurriculum(text);
   } else {
     courses = parseLineBasedCurriculum(text);
+  }
+
+  if (courses.length < 3) {
+    const tableCourses = parseTableLikeCurriculum(text);
+    if (tableCourses.length > courses.length) {
+      courses = tableCourses;
+      parser = domain.includes('usmp.edu.pe') ? 'usmp_table_malla_v1' : 'generic_table_malla_v1';
+    }
   }
 
   if (!courses.length) {

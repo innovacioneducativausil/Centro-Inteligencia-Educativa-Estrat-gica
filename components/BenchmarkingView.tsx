@@ -237,6 +237,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const [actionLoading, setActionLoading] = useState<Record<number, string>>({});
   const [error, setError]           = useState<string | null>(null);
   const [notice, setNotice]         = useState<string | null>(null);
+  const [programNotice, setProgramNotice] = useState<string | null>(null);
   const [seeding, setSeeding]       = useState(false);
   const [showAddUniv, setShowAddUniv] = useState(false);
   const [showAddProg, setShowAddProg] = useState(false);
@@ -274,6 +275,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   useEffect(() => {
     setSelectedReferenciaUniversidad('');
     setShowCandidatesFor(null);
+    setProgramNotice(null);
   }, [tipo, selectedCarrera]);
 
   const loadProgramas = useCallback(() => {
@@ -292,7 +294,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const handleScraping = async (idPrograma: number) => {
     setActionLoading(p => ({ ...p, [idPrograma]: 'scraping' }));
     setError(null);
-    setNotice(null);
+    setProgramNotice(null);
     try {
       const result = await apiFetch<{ results?: Array<{ ok: boolean; cursosDetectados?: number; parser?: string; error?: string }> }>(
         '/api/mercado-laboral/benchmarking/scraping',
@@ -304,7 +306,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       );
       const first = result.results?.[0];
       if (first?.ok) {
-        setNotice(`Extracción completada: ${first.cursosDetectados ?? 0} cursos detectados${first.parser ? ` con ${first.parser}` : ''}. Requiere revisión académica antes de validar.`);
+        setProgramNotice(`Extracción completada: ${first.cursosDetectados ?? 0} cursos detectados${first.parser ? ` con ${first.parser}` : ''}. Requiere revisión académica antes de validar.`);
       }
       loadProgramas();
     } catch (e: any) {
@@ -350,7 +352,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     setError(null);
     try {
       await apiFetch(`/api/mercado-laboral/benchmarking/candidatos/${idCandidate}/aprobar`, { method: 'POST' });
-      setNotice('Fuente aprobada. Ahora puedes extraer el texto oficial.');
+      setProgramNotice('Fuente aprobada. Ahora puedes extraer el texto oficial.');
       await loadCandidates(idPrograma);
       loadProgramas();
     } catch (e: any) {
@@ -374,14 +376,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const handleNormalizarIA = async (idPrograma: number) => {
     setActionLoading(p => ({ ...p, [idPrograma]: 'ia' }));
     setError(null);
-    setNotice(null);
+    setProgramNotice(null);
     try {
       const result = await apiFetch<{ cursos?: number; competencias?: number; tecnologias?: number }>('/api/mercado-laboral/benchmarking/normalizar-ia', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_programa: idPrograma }),
       });
-      setNotice(`Normalización completada: ${result.cursos ?? 0} cursos y ${result.competencias ?? 0} competencias estructuradas.`);
+      setProgramNotice(`Normalización completada: ${result.cursos ?? 0} cursos y ${result.competencias ?? 0} competencias estructuradas.`);
       await loadProgramas();
     } catch (e: any) {
       setError(e.message);
@@ -399,6 +401,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         body: JSON.stringify({ id_programa: idPrograma, texto_manual: manualText, url_origen: manualUrl }),
       });
       setShowManualText(null); setManualText(''); setManualUrl('');
+      setProgramNotice('Fuente manual cargada. Puedes normalizarla para verla en Referentes.');
       loadProgramas();
     } catch (e: any) { setError(e.message); }
     setActionLoading(p => ({ ...p, [idPrograma]: '' }));
@@ -912,6 +915,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           )}
 
           {/* Tabla de programas */}
+          {programNotice && selectedCarrera && !isReferenceView && (
+            <div style={{ background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 8,
+              padding: '10px 14px', marginBottom: -4, color: '#166534', fontSize: 12, fontWeight: 700 }}>
+              {programNotice}
+            </div>
+          )}
           {selectedCarrera && !isReferenceView && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
               <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
@@ -1109,14 +1118,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                             </td>
                             <td style={{ padding: '8px 10px', width: 150 }}>
                               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                                {c.estado !== 'aprobado' && (
-                                  <button onClick={() => handleAprobarCandidato(c.id_programa_benchmark, c.id_candidate)}
-                                    disabled={!!actionLoading[c.id_candidate]}
-                                    style={{ border: 'none', borderRadius: 5, background: '#16a34a', color: '#fff',
-                                      padding: '4px 8px', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>
-                                    Aprobar
-                                  </button>
-                                )}
+                                <button onClick={() => handleAprobarCandidato(c.id_programa_benchmark, c.id_candidate)}
+                                  disabled={!!actionLoading[c.id_candidate]}
+                                  style={{ border: 'none', borderRadius: 5, background: '#16a34a', color: '#fff',
+                                    padding: '4px 8px', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>
+                                  {c.estado === 'aprobado' ? 'Usar fuente' : 'Aprobar'}
+                                </button>
                                 {c.estado === 'candidato' && (
                                   <button onClick={() => handleDescartarCandidato(c.id_programa_benchmark, c.id_candidate)}
                                     disabled={!!actionLoading[c.id_candidate]}
