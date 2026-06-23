@@ -1016,7 +1016,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
               pb.estado_validacion,
               ub.nombre_universidad, ub.pais, ub.tipo_benchmark,
               COUNT(cb.id_competencia_benchmark) AS total_competencias,
-              COUNT(DISTINCT cu.id_curso_benchmark) AS total_cursos,
+              COUNT(DISTINCT CASE WHEN cu.ciclo IS NOT NULL AND cu.ciclo <> '' THEN cu.id_curso_benchmark END) AS total_cursos,
               COUNT(DISTINCT bs.id_benchmark_source) AS total_fuentes,
               COUNT(DISTINCT CASE WHEN bs.estado='validado' THEN bs.id_benchmark_source END) AS fuentes_validadas,
               COUNT(DISTINCT CASE WHEN bs.estado IN ('registrado','pendiente_extraccion','extraido','pendiente_validacion') THEN bs.id_benchmark_source END) AS fuentes_pendientes,
@@ -1062,6 +1062,8 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
         `SELECT id_programa_benchmark, nombre_curso, ciclo, area_formacion, descripcion_curso, fuente_url
          FROM curso_benchmark
          WHERE id_programa_benchmark IN (${placeholders})
+           AND ciclo IS NOT NULL
+           AND ciclo <> ''
          ORDER BY CAST(NULLIF(ciclo, '') AS UNSIGNED), nombre_curso`,
         ids
       );

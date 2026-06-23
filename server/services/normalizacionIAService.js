@@ -124,24 +124,29 @@ async function normalizarPrograma(idPrograma) {
     }
   }
   const cursosMap = new Map();
-  for (const curso of cursosIA) {
-    if (!curso || curso === 'no_identificado') continue;
-    const nombre = String(curso).trim();
-    if (!nombre) continue;
-    cursosMap.set(nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), {
-      nombre,
-      ciclo: null,
-      evidencia: 'Extraído por normalización IA',
-    });
-  }
-  for (const curso of cursosDeterministicos) {
-    const nombre = String(curso.nombreCurso || '').trim();
-    if (!nombre) continue;
-    cursosMap.set(nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), {
-      nombre,
-      ciclo: curso.ciclo || null,
-      evidencia: curso.evidencia || 'Extraído por parser de malla',
-    });
+  if (cursosDeterministicos.length) {
+    for (const curso of cursosDeterministicos) {
+      const nombre = String(curso.nombreCurso || '').trim();
+      if (!nombre) continue;
+      cursosMap.set(nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), {
+        nombre,
+        ciclo: curso.ciclo || null,
+        evidencia: curso.evidencia || 'Extraido por parser de malla',
+        origen: 'parser',
+      });
+    }
+  } else {
+    for (const curso of cursosIA) {
+      if (!curso || curso === 'no_identificado') continue;
+      const nombre = String(curso).trim();
+      if (!nombre) continue;
+      cursosMap.set(nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), {
+        nombre,
+        ciclo: null,
+        evidencia: 'Sugerido por normalizacion IA; requiere validacion manual',
+        origen: 'ia',
+      });
+    }
   }
   const cursos = Array.from(cursosMap.values());
   const tecnologias   = Array.isArray(parsed.tecnologias) ? parsed.tecnologias : [];
@@ -199,7 +204,7 @@ async function normalizarPrograma(idPrograma) {
           idPrograma,
           String(curso.nombre).substring(0, 299),
           curso.ciclo,
-          areas[0] ?? null,
+          curso.origen === 'parser' ? 'malla_externa' : (areas[0] ?? 'sugerido_ia'),
           curso.evidencia,
           JSON.stringify(competencias.filter(c => c !== 'no_identificado')),
           JSON.stringify(tecnologias.filter(t => t !== 'no_identificado')),
