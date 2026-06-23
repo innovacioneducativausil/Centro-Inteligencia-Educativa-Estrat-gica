@@ -28,6 +28,20 @@ const SPANISH_CYCLE_WORDS = {
   undecimo: '11',
   duodecimo: '12',
 };
+const ENGLISH_CYCLE_WORDS = {
+  first: '1',
+  second: '2',
+  third: '3',
+  fourth: '4',
+  fifth: '5',
+  sixth: '6',
+  seventh: '7',
+  eighth: '8',
+  ninth: '9',
+  tenth: '10',
+  eleventh: '11',
+  twelfth: '12',
+};
 const SECTION_STOP_WORDS = [
   'conoce mas', 'conoce más', 'descarga brochure', 'postula', 'autoridades',
   'contacto', 'informacion general', 'información general', 'transparencia',
@@ -137,10 +151,28 @@ function spanishCycleToNumber(value = '') {
   const normalized = normalizeText(value);
   const wordMatch = normalized.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+ciclo\b/);
   if (wordMatch) return SPANISH_CYCLE_WORDS[wordMatch[1]] || null;
+  const englishWordMatch = normalized.match(/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:cycle|semester|term|year)\b/);
+  if (englishWordMatch) return ENGLISH_CYCLE_WORDS[englishWordMatch[1]] || null;
   const romanMatch = normalized.match(/\b([ivx]{1,5})\s+ciclo\b/i);
   if (romanMatch) return romanToCycle(romanMatch[1]);
-  const numberMatch = normalized.match(/\b(?:ciclo|semestre)\s+([0-9]{1,2})\b/);
+  const romanAcademicMatch = normalized.match(/\b([ivx]{1,5})\s+(?:semester|term|year|cycle)\b/i);
+  if (romanAcademicMatch) return romanToCycle(romanAcademicMatch[1]);
+  const numberMatch = normalized.match(/\b(?:ciclo|semestre|cycle|semester|term|year)\s+([0-9]{1,2})\b/);
   return numberMatch ? numberMatch[1] : null;
+}
+
+function lastCycleToNumber(value = '') {
+  const text = String(value || '');
+  const normalized = normalizeText(text);
+  const matches = [
+    ...normalized.matchAll(/\b(?:ciclo|semestre|cycle|semester|term|year)\s+([0-9]{1,2})\b/g),
+    ...normalized.matchAll(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)\b/g),
+    ...normalized.matchAll(/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:cycle|semester|term|year)\b/g),
+    ...normalized.matchAll(/\b([ivx]{1,5})\s+(?:ciclo|semestre|cycle|semester|term|year)\b/g),
+  ].sort((a, b) => (a.index || 0) - (b.index || 0));
+  const last = matches[matches.length - 1];
+  if (!last) return null;
+  return spanishCycleToNumber(last[0]);
 }
 
 function findCurriculumStart(normalized = '') {
@@ -149,6 +181,12 @@ function findCurriculumStart(normalized = '') {
     'plan de estudios',
     'plan curricular',
     'estructura curricular',
+    'curriculum',
+    'curricular map',
+    'study plan',
+    'program structure',
+    'course sequence',
+    'degree requirements',
   ]
     .map(marker => normalized.indexOf(marker))
     .filter(idx => idx >= 0);
@@ -156,7 +194,10 @@ function findCurriculumStart(normalized = '') {
   const cycleWord = normalized.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+ciclo\b/);
   if (cycleWord?.index != null) markerIndexes.push(cycleWord.index);
 
-  const romanCycle = normalized.match(/\b(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\s+ciclo\b/);
+  const englishCycleWord = normalized.match(/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:cycle|semester|term|year)\b/);
+  if (englishCycleWord?.index != null) markerIndexes.push(englishCycleWord.index);
+
+  const romanCycle = normalized.match(/\b(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\s+(?:ciclo|cycle|semester|term|year)\b/);
   if (romanCycle?.index != null) markerIndexes.push(romanCycle.index);
 
   return markerIndexes.length ? Math.min(...markerIndexes) : -1;
@@ -166,11 +207,13 @@ function isLikelyCourseName(line = '') {
   const text = line.trim();
   if (text.length < 3 || text.length > 140) return false;
   const n = normalizeText(text);
-  if (/^(malla curricular|ciclo|semestre|periodo|periodo academico|electivo)$/.test(n)) return false;
+  if (/^(malla curricular|curriculum|study plan|plan de estudios|ciclo|semestre|semester|term|year|periodo|periodo academico|electivo|elective)$/.test(n)) return false;
   if (SECTION_STOP_WORDS.some(word => n.includes(normalizeText(word)))) return false;
   if (/^(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)$/i.test(text)) return false;
   if (/^\d+$/.test(text)) return false;
   if (/^(dni|correo|apellidos|nombres|telefono|celular)$/i.test(text)) return false;
+  if (/^(creditos?|credits?|hours?|horas?|prerequisites?|pre requisit[eo]|modalidad|character|caracter|type|code|codigo)$/i.test(n)) return false;
+  if (/^(apply|admission|contact|brochure|download|postula|inscribete|conoce mas|learn more)$/i.test(n)) return false;
   return /[a-záéíóúñ]/i.test(text);
 }
 
@@ -238,9 +281,10 @@ function parseLineBasedCurriculum(rawText = '') {
 
     // Detect "Ciclo N" / "PRIMER CICLO" / "Semestre N" labels (used by UNMSM, UP, etc.)
     // Only treat as a cycle header if the line is a pure cycle label (short, no other content)
-    if (/^(?:ciclo|semestre)\s+[0-9]{1,2}$/.test(normalized)
+    if (/^(?:ciclo|semestre|cycle|semester|term|year)\s+[0-9]{1,2}$/.test(normalized)
       || /^(?:primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)$/.test(normalized)
-      || /^[ivx]{1,5}\s+(?:ciclo|semestre)$/.test(normalized)) {
+      || /^(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:cycle|semester|term|year)$/.test(normalized)
+      || /^[ivx]{1,5}\s+(?:ciclo|semestre|cycle|semester|term|year)$/.test(normalized)) {
       const detected = spanishCycleToNumber(line);
       if (detected) { currentCycle = detected; continue; }
     }
@@ -479,14 +523,95 @@ function parseHtmlCycleCardCurriculum(html = '') {
   return courses;
 }
 
+function parseHtmlTableCurriculum(html = '') {
+  if (!/<table[\s>]/i.test(html)) return [];
+  const courses = [];
+  const tableRegex = /<table[\s\S]*?<\/table>/gi;
+  let table;
+  while ((table = tableRegex.exec(html)) !== null) {
+    const before = html.slice(Math.max(0, table.index - 800), table.index);
+    let currentCycle = lastCycleToNumber(cleanPageText(before).split(/\s{2,}|\n/).slice(-10).join(' '));
+    const rows = [...table[0].matchAll(/<tr[\s\S]*?<\/tr>/gi)].map(row => row[0]);
+    if (rows.length < 2) continue;
+    const headerText = normalizeText(cleanPageText(rows.slice(0, 2).join(' ')));
+    const looksCurricular = /(curso|asignatura|materia|nombre del curso|course|subject|module|unidad curricular|credit|credito|credits)/.test(headerText);
+    if (!looksCurricular) continue;
+
+    for (const rowHtml of rows) {
+      const cells = [...rowHtml.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+        .map(cell => cleanPageText(cell[1]).trim())
+        .filter(Boolean);
+      if (!cells.length) continue;
+      const rowText = cells.join(' ');
+      const rowCycle = spanishCycleToNumber(rowText);
+      if (rowCycle && cells.length <= 2) {
+        currentCycle = rowCycle;
+        continue;
+      }
+      const normalizedRow = normalizeText(rowText);
+      if (/^(curso|asignatura|materia|course|subject|module|codigo|code|creditos?|credits?)/.test(normalizedRow)) continue;
+
+      const courseCell = cells.find(cell => isLikelyCourseName(cell) && !/^\d+(\.\d+)?$/.test(cell)) || '';
+      const cleanedCourse = courseCell
+        .replace(/^[A-Z]{2,5}\d{2,5}\s+/i, match => match.trim() + ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (currentCycle && isLikelyCourseName(cleanedCourse)) {
+        courses.push({ ciclo: currentCycle, nombreCurso: cleanedCourse, evidencia: rowText });
+      }
+    }
+  }
+  return courses;
+}
+
+function parseHtmlGenericCycleLists(html = '') {
+  const cycleHeaderRegex = /<(h[1-6]|p|div|span|button|a)[^>]*>([^<]*(?:ciclo|semestre|semester|cycle|term|year)[^<]*)<\/\1>/gi;
+  const headers = [...html.matchAll(cycleHeaderRegex)]
+    .map(match => ({
+      index: match.index || 0,
+      label: cleanPageText(match[2]),
+      ciclo: spanishCycleToNumber(cleanPageText(match[2])),
+    }))
+    .filter(header => header.ciclo);
+  if (!headers.length) return [];
+
+  const courses = [];
+  for (let i = 0; i < headers.length; i += 1) {
+    const start = headers[i].index;
+    const end = i + 1 < headers.length ? headers[i + 1].index : Math.min(html.length, start + 8000);
+    const chunk = html.slice(start, end)
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/h[1-6]>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&');
+    const lines = chunk
+      .replace(/\r/g, '\n')
+      .replace(/\s*-\s*/g, '\n')
+      .split(/\n+/)
+      .map(line => cleanPageText(line).trim())
+      .filter(Boolean);
+    for (const line of lines) {
+      if (normalizeText(line).includes(normalizeText(headers[i].label))) continue;
+      if (isLikelyCourseName(line)) {
+        courses.push({ ciclo: headers[i].ciclo, nombreCurso: line, evidencia: line });
+      }
+    }
+  }
+  return courses;
+}
+
 function parseHtmlCurriculumCourses(html = '') {
   const parsers = [
     { parser: 'html_tab_malla_v1', courses: parseHtmlTabCurriculum(html) },
     { parser: 'html_cycle_cards_malla_v1', courses: parseHtmlCycleCardCurriculum(html) },
+    { parser: 'html_table_malla_v1', courses: parseHtmlTableCurriculum(html) },
+    { parser: 'html_cycle_lists_malla_v1', courses: parseHtmlGenericCycleLists(html) },
   ];
-  return parsers
-    .filter(result => result.courses.length >= 3)
-    .sort((a, b) => b.courses.length - a.courses.length)[0] || null;
+  return parsers.find(result => result.courses.length >= 3) || null;
 }
 
 function findCurriculumPdfUrl(html = '', baseUrl = '') {
@@ -500,9 +625,13 @@ function findCurriculumPdfUrl(html = '', baseUrl = '') {
       let score = 0;
       if (scoreText.includes('malla')) score += 30;
       if (scoreText.includes('curricular')) score += 30;
+      if (scoreText.includes('curriculum')) score += 30;
       if (scoreText.includes('plan de estudios')) score += 20;
-      if (scoreText.includes('turismo')) score += 20;
-      if (scoreText.includes('administracion')) score += 10;
+      if (scoreText.includes('study plan')) score += 20;
+      if (scoreText.includes('course sequence')) score += 20;
+      if (scoreText.includes('program structure')) score += 15;
+      if (scoreText.includes('brochure')) score += 5;
+      if (/admision|admission|postula|reglamento|manual|formato|autorizacion/.test(scoreText)) score -= 25;
       pdfLinks.push({ url, score });
     } catch {
       // Ignora URLs mal formadas.
