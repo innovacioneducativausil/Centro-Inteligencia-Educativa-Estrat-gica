@@ -252,14 +252,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const [candidates, setCandidates] = useState<Record<number, FuenteCandidata[]>>({});
 
   useEffect(() => {
-    fetch('/api/curricular/filtros', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => { if (!d.error && d.carreras) setCarreras(d.carreras); })
-      .catch(() => {});
-    fetch('/api/mercado-laboral/benchmarking/cobertura', { credentials: 'include' })
-      .then(r => r.json())
+    apiFetch<{ carreras?: FiltroCarrera[] }>('/api/curricular/filtros')
+      .then(d => { if (Array.isArray(d.carreras)) setCarreras(d.carreras); })
+      .catch(e => setError(`No se pudieron cargar carreras: ${e.message}`));
+    apiFetch<CoberturaCarrera[]>('/api/mercado-laboral/benchmarking/cobertura')
       .then(d => { if (Array.isArray(d)) setCobertura(d); })
-      .catch(() => {});
+      .catch(e => setError(`No se pudo cargar cobertura de benchmarking: ${e.message}`));
   }, []);
 
   const loadUniversidades = useCallback(() => {
@@ -472,8 +470,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 
   const competenciasUnicas = [...new Set(competencias.map(c => c.nombre_competencia))];
   const universidadesConPrograma = [...new Set(programas.map(p => p.nombre_universidad))];
-  const carreraSeleccionada = cobertura.find(c => c.id_carrera === selectedCarrera) || carreras.find(c => c.id_carrera === selectedCarrera);
-  const coberturaTipoTotal = cobertura.reduce((acc, c) => acc + (c.benchmarking?.[tipo]?.total_programas ?? 0), 0);
+  const coverageRows = cobertura.length
+    ? cobertura
+    : carreras.map(c => ({ ...c, benchmarking: {} as CoberturaCarrera['benchmarking'] }));
+  const carreraSeleccionada = coverageRows.find(c => c.id_carrera === selectedCarrera) || carreras.find(c => c.id_carrera === selectedCarrera);
+  const coberturaTipoTotal = coverageRows.reduce((acc, c) => acc + (c.benchmarking?.[tipo]?.total_programas ?? 0), 0);
   const selectedCareerName = carreraSeleccionada?.nombre_carrera || '';
   const isReferenceView = TIPOS_REFERENCIA.includes(tipo);
   const noticeIsOperational = notice
@@ -781,7 +782,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         </div>
       )}
 
-      {!isReferenceView && cobertura.length > 0 && (
+      {!isReferenceView && coverageRows.length > 0 && (
         <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden', marginBottom: 12 }}>
           <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
             borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -805,7 +806,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 </tr>
               </thead>
               <tbody>
-                {cobertura.map(c => {
+                {coverageRows.map(c => {
                   const tipos = c.benchmarking || {};
                   const total = (t: TipoBenchmark, key: 'total_programas' | 'fuentes_validadas' | 'fuentes_pendientes') => tipos[t]?.[key] ?? 0;
                   const datosTipo = tipos[tipo];
