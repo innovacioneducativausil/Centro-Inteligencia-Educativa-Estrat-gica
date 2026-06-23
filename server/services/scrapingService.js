@@ -219,6 +219,7 @@ function isLikelyCourseName(line = '') {
   const text = line.trim();
   if (text.length < 3 || text.length > 140) return false;
   const n = normalizeText(text);
+  if (isCurriculumMetadataLine(text)) return false;
   if (/^(malla curricular|curriculum|study plan|plan de estudios|ciclo|semestre|semester|term|year|periodo|periodo academico|electivo|elective)$/.test(n)) return false;
   if (SECTION_STOP_WORDS.some(word => n.includes(normalizeText(word)))) return false;
   if (/^(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)$/i.test(text)) return false;
@@ -227,6 +228,32 @@ function isLikelyCourseName(line = '') {
   if (/^(creditos?|credits?|hours?|horas?|prerequisites?|pre requisit[eo]|modalidad|character|caracter|type|code|codigo)$/i.test(n)) return false;
   if (/^(apply|admission|contact|brochure|download|postula|inscribete|conoce mas|learn more)$/i.test(n)) return false;
   return /[a-záéíóúñ]/i.test(text);
+}
+
+function isCurriculumMetadataLine(line = '') {
+  const n = normalizeText(line);
+  if (!n) return true;
+  if (/^--\s*\d+\s+of\s+\d+/.test(n)) return true;
+  if (/^(codigo|nombre del curso|horas teoricas|horas practicas|creditos|formato presencial|formato blended|formato virtual|tipo de curso|requisitos|ht hp|cp cv)$/.test(n)) return true;
+  if (/\b(creditos generales|creditos obligatorios|creditos electivos|creditaje total|niveles de las competencias|logro inicial|logro intermedio|logro final|competencias especificas|competencias generales|fecha de aprobacion|rectificado al)\b/.test(n)) return true;
+  if (/^(cursos|creditaje total)\s+\d+/.test(n)) return true;
+  if (/^(electivo|elective)\s+\d+/.test(n)) return true;
+  return false;
+}
+
+function cleanCurriculumCourseLine(line = '') {
+  const text = cleanPageText(line).trim();
+  if (!text || isCurriculumMetadataLine(text)) return '';
+
+  const codeRow = text.match(/^([A-Z]{2,6}\d{1,5})\s+(.+?)\s+\d{1,3}(?:\s+\d{1,3})?\s+\d(?:[\s.]\d)?\b/u);
+  if (codeRow) return `${codeRow[1]} ${codeRow[2]}`.replace(/\s+/g, ' ').trim();
+
+  const withoutMetrics = text
+    .replace(/\s+\d{1,3}(?:\s+\d{1,3})?\s+\d(?:[\s.]\d)?(?:\s+\d(?:[\s.]\d)?)*\s+(?:carrera|electivo|obligatorio|presencial|virtual|a distancia|semipresencial)\b.*$/i, '')
+    .replace(/\s+\d{1,3}\s*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return isCurriculumMetadataLine(withoutMetrics) ? '' : withoutMetrics;
 }
 
 function segmentAfterMalla(rawText = '') {
@@ -305,8 +332,9 @@ function parseLineBasedCurriculum(rawText = '') {
     }
 
     if (!currentCycle) continue;
-    if (isLikelyCourseName(line)) {
-      courses.push({ ciclo: currentCycle, nombreCurso: line, evidencia: line });
+    const courseName = cleanCurriculumCourseLine(line);
+    if (isLikelyCourseName(courseName)) {
+      courses.push({ ciclo: currentCycle, nombreCurso: courseName, evidencia: line });
     }
   }
 
@@ -323,19 +351,28 @@ function parseTableLikeCurriculum(rawText = '') {
   const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
   const courses = [];
   let currentCycle = null;
+  let skippingRepeatedHeader = false;
 
   for (const line of lines) {
     const normalized = normalizeText(line);
     const detectedCycle = spanishCycleToNumber(line);
     if (detectedCycle) {
       currentCycle = detectedCycle;
+      skippingRepeatedHeader = false;
       continue;
     }
+    if (/\b(malla curricular|modalidad de estudio|competencias especificas|competencias generales)\b/.test(normalized)
+      || /^(cp\s*=|cv\s*=|codigo|nombre del curso|formato|requisitos|ht hp)/.test(normalized)) {
+      skippingRepeatedHeader = true;
+      continue;
+    }
+    if (skippingRepeatedHeader) continue;
+    if (isCurriculumMetadataLine(line)) continue;
     if (!currentCycle) continue;
     if (/^(curso|creditos|credito|ht|hp|pre requisito|prerequisito|modalidad|caracter|total de creditos)/.test(normalized)) continue;
 
     const firstCell = line.split(/\s{2,}|\t/)[0].trim();
-    const candidate = firstCell
+    const candidate = cleanCurriculumCourseLine(firstCell)
       .replace(/\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?(?:\s+.*)?$/i, '')
       .replace(/\s+(presencial|virtual|a distancia|semipresencial|obligatorio|electivo).*$/i, '')
       .trim();
