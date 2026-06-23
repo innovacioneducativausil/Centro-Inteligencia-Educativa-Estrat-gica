@@ -143,6 +143,25 @@ function spanishCycleToNumber(value = '') {
   return numberMatch ? numberMatch[1] : null;
 }
 
+function findCurriculumStart(normalized = '') {
+  const markerIndexes = [
+    'malla curricular',
+    'plan de estudios',
+    'plan curricular',
+    'estructura curricular',
+  ]
+    .map(marker => normalized.indexOf(marker))
+    .filter(idx => idx >= 0);
+
+  const cycleWord = normalized.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+ciclo\b/);
+  if (cycleWord?.index != null) markerIndexes.push(cycleWord.index);
+
+  const romanCycle = normalized.match(/\b(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\s+ciclo\b/);
+  if (romanCycle?.index != null) markerIndexes.push(romanCycle.index);
+
+  return markerIndexes.length ? Math.min(...markerIndexes) : -1;
+}
+
 function isLikelyCourseName(line = '') {
   const text = line.trim();
   if (text.length < 3 || text.length > 140) return false;
@@ -158,11 +177,15 @@ function isLikelyCourseName(line = '') {
 function segmentAfterMalla(rawText = '') {
   const text = visibleText(rawText);
   const normalized = normalizeText(text);
-  const start = normalized.indexOf('malla curricular');
+  const start = findCurriculumStart(normalized);
   if (start < 0) return '';
+  const cycleAfterStart = normalized
+    .slice(start)
+    .search(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+ciclo\b|\b(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\s+ciclo\b/);
+  const contentStart = cycleAfterStart >= 0 ? start + cycleAfterStart : start;
   let end = text.length;
   for (const stop of SECTION_STOP_WORDS) {
-    const idx = normalized.indexOf(normalizeText(stop), start + 20);
+    const idx = normalized.indexOf(normalizeText(stop), contentStart + 20);
     if (idx > start && idx < end) end = idx;
   }
   return text.slice(start, end);
@@ -184,7 +207,16 @@ function parseLineBasedCurriculum(rawText = '') {
   for (const line of lines) {
     const normalized = normalizeText(line);
     if (!seenMalla) {
-      if (normalized.includes('malla curricular')) seenMalla = true;
+      const detectedCycle = spanishCycleToNumber(line);
+      if (
+        normalized.includes('malla curricular')
+        || normalized.includes('plan de estudios')
+        || normalized.includes('plan curricular')
+        || detectedCycle
+      ) {
+        seenMalla = true;
+        if (detectedCycle) currentCycle = detectedCycle;
+      }
       continue;
     }
 
@@ -247,7 +279,7 @@ function parseTableLikeCurriculum(rawText = '') {
   if (courses.length >= 3) return courses;
 
   const compact = segment.replace(/\s+/g, ' ').trim();
-  const cycleRegex = /\b(PRIMER|PRIMERO|SEGUNDO|TERCER|TERCERO|CUARTO|QUINTO|SEXTO|SEPTIMO|SETIMO|OCTAVO|NOVENO|DECIMO|UNDECIMO|DUODECIMO)\s+CICLO\b/gi;
+  const cycleRegex = /\b(PRIMER|PRIMERO|SEGUNDO|TERCER|TERCERO|CUARTO|QUINTO|SEXTO|S[EÉ]PTIMO|SETIMO|OCTAVO|NOVENO|D[EÉ]CIMO|UND[EÉ]CIMO|DUOD[EÉ]CIMO)\s+CICLO\b/giu;
   const matches = [...compact.matchAll(cycleRegex)];
   const flattened = [];
   for (let i = 0; i < matches.length; i += 1) {
@@ -255,10 +287,10 @@ function parseTableLikeCurriculum(rawText = '') {
     const start = (matches[i].index || 0) + matches[i][0].length;
     const end = i + 1 < matches.length ? (matches[i + 1].index || compact.length) : compact.length;
     const chunk = compact.slice(start, end);
-    const rowRegex = /([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9,.:;()\/\- ]{3,}?)\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?/g;
+    const rowRegex = /([\p{Lu}][\p{Lu}\p{N},.:;()\/\- ]{3,}?)\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?/gu;
     for (const row of chunk.matchAll(rowRegex)) {
       const name = row[1].replace(/\b(Curso|Creditos|HT|HP|Pre Requisito|Modalidad|Caracter)\b/gi, '').trim();
-      if (isLikelyCourseName(name)) flattened.push({ ciclo, nombreCurso: name, evidencia: row[0] });
+      if (isLikelyCourseName(name)) flattened.push({ ciclo: cycle, nombreCurso: name, evidencia: row[0] });
     }
   }
   return flattened;
