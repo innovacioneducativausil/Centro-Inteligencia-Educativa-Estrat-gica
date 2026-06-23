@@ -224,6 +224,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const [competencias, setCompetencias] = useState<Competencia[]>([]);
   const [carreras, setCarreras]     = useState<FiltroCarrera[]>([]);
   const [cobertura, setCobertura]   = useState<CoberturaCarrera[]>([]);
+  const [selectedFacultadReferencia, setSelectedFacultadReferencia] = useState('');
   const [selectedCarrera, setSelectedCarrera] = useState<number | ''>('');
   const [selectedReferenciaUniversidad, setSelectedReferenciaUniversidad] = useState<number | ''>('');
   const [selectedPrograma, setSelectedPrograma] = useState<number | null>(null);
@@ -462,6 +463,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const coberturaTipoTotal = cobertura.reduce((acc, c) => acc + (c.benchmarking?.[tipo]?.total_programas ?? 0), 0);
   const selectedCareerName = carreraSeleccionada?.nombre_carrera || '';
   const isReferenceView = TIPOS_REFERENCIA.includes(tipo);
+  const facultadesReferencia = [...new Set(carreras.map(c => c.nombre_facultad).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  const carrerasReferencia = selectedFacultadReferencia
+    ? carreras.filter(c => c.nombre_facultad === selectedFacultadReferencia)
+    : [];
   const hasUsableSource = (p: Programa) => {
     if ((p.total_fuentes ?? 0) <= 0) return false;
     if (!p.url_programa || isGenericInstitutionUrl(p.url_programa)) return false;
@@ -503,6 +509,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       setSelectedReferenciaUniversidad('');
     }
   }, [selectedReferenciaUniversidad, referenciaUniversidadesKey]);
+
+  useEffect(() => {
+    if (!isReferenceView || selectedFacultadReferencia || !carreraSeleccionada?.nombre_facultad) return;
+    setSelectedFacultadReferencia(carreraSeleccionada.nombre_facultad);
+  }, [isReferenceView, selectedFacultadReferencia, carreraSeleccionada?.nombre_facultad]);
 
   useEffect(() => {
     if (!isReferenceView || !carreraSeleccionada?.nombre_carrera) {
@@ -676,19 +687,40 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase', marginBottom: 10 }}>
             Filtros de comparación de malla
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 1.2fr) minmax(240px, 1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 0.8fr) minmax(260px, 1.2fr) minmax(240px, 1fr)', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', marginBottom: 5 }}>
+                Facultad
+              </label>
+              <select value={selectedFacultadReferencia}
+                onChange={e => {
+                  setSelectedFacultadReferencia(e.target.value);
+                  setSelectedCarrera('');
+                  setSelectedReferenciaUniversidad('');
+                }}
+                style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
+                  background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}>
+                <option value="">- Selecciona facultad -</option>
+                {facultadesReferencia.map(facultad => (
+                  <option key={facultad} value={facultad}>{facultad}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', marginBottom: 5 }}>
                 Carrera USIL
               </label>
               <select value={selectedCarrera}
                 onChange={e => setSelectedCarrera(e.target.value ? Number(e.target.value) : '')}
+                disabled={!selectedFacultadReferencia}
                 style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}>
-                <option value="">- Selecciona carrera -</option>
-                {carreras.map(c => (
+                  background: isDark ? '#0f172a' : '#f8fafc', color: !selectedFacultadReferencia ? muted : text, fontSize: 12 }}>
+                <option value="">
+                  {selectedFacultadReferencia ? '- Selecciona carrera -' : 'Primero selecciona facultad'}
+                </option>
+                {carrerasReferencia.map(c => (
                   <option key={c.id_carrera} value={c.id_carrera}>
-                    {c.nombre_carrera} {c.nombre_facultad ? `(${c.nombre_facultad})` : ''}
+                    {c.nombre_carrera}
                   </option>
                 ))}
               </select>
