@@ -184,8 +184,8 @@ async function normalizarPrograma(idPrograma) {
       );
     }
 
+    await conn.query('DELETE FROM curso_benchmark WHERE id_programa_benchmark=?', [idPrograma]);
     if (cursos.length) {
-      await conn.query('DELETE FROM curso_benchmark WHERE id_programa_benchmark=?', [idPrograma]);
       if (textoCurricular !== prog.fuente_texto_original) {
         await conn.query(
           `UPDATE programa_benchmark

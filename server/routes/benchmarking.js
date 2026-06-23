@@ -1016,7 +1016,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
               pb.estado_validacion,
               ub.nombre_universidad, ub.pais, ub.tipo_benchmark,
               COUNT(cb.id_competencia_benchmark) AS total_competencias,
-              COUNT(DISTINCT CASE WHEN cu.ciclo IS NOT NULL AND cu.ciclo <> '' THEN cu.id_curso_benchmark END) AS total_cursos,
+              COUNT(DISTINCT cu.id_curso_benchmark) AS total_cursos,
               COUNT(DISTINCT bs.id_benchmark_source) AS total_fuentes,
               COUNT(DISTINCT CASE WHEN bs.estado='validado' THEN bs.id_benchmark_source END) AS fuentes_validadas,
               COUNT(DISTINCT CASE WHEN bs.estado IN ('registrado','pendiente_extraccion','extraido','pendiente_validacion') THEN bs.id_benchmark_source END) AS fuentes_pendientes,
@@ -1062,9 +1062,15 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
         `SELECT id_programa_benchmark, nombre_curso, ciclo, area_formacion, descripcion_curso, fuente_url
          FROM curso_benchmark
          WHERE id_programa_benchmark IN (${placeholders})
-           AND ciclo IS NOT NULL
-           AND ciclo <> ''
-         ORDER BY CAST(NULLIF(ciclo, '') AS UNSIGNED), nombre_curso`,
+         ORDER BY
+           CASE
+             WHEN ciclo REGEXP '^[0-9]+$' THEN 0
+             WHEN ciclo IS NULL OR ciclo = '' THEN 2
+             ELSE 1
+           END,
+           CAST(NULLIF(ciclo, '') AS UNSIGNED),
+           ciclo,
+           nombre_curso`,
         ids
       );
 
@@ -1084,7 +1090,8 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
 
       cursosByPrograma = cursosExternos.reduce((map, curso) => {
         const list = map.get(curso.id_programa_benchmark) || [];
-        list.push(curso);
+        const ciclo = curso.ciclo && String(curso.ciclo).trim() ? String(curso.ciclo).trim() : 'S/C';
+        list.push({ ...curso, ciclo });
         map.set(curso.id_programa_benchmark, list);
         return map;
       }, new Map());

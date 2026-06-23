@@ -151,12 +151,18 @@ function spanishCycleToNumber(value = '') {
   const normalized = normalizeText(value);
   const wordMatch = normalized.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+ciclo\b/);
   if (wordMatch) return SPANISH_CYCLE_WORDS[wordMatch[1]] || null;
+  const wordSemesterMatch = normalized.match(/\b(?:ciclo|semestre)\s+(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\b/);
+  if (wordSemesterMatch) return SPANISH_CYCLE_WORDS[wordSemesterMatch[1]] || null;
   const englishWordMatch = normalized.match(/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:cycle|semester|term|year)\b/);
   if (englishWordMatch) return ENGLISH_CYCLE_WORDS[englishWordMatch[1]] || null;
+  const englishLabelWordMatch = normalized.match(/\b(?:cycle|semester|term|year)\s+(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\b/);
+  if (englishLabelWordMatch) return ENGLISH_CYCLE_WORDS[englishLabelWordMatch[1]] || null;
   const romanMatch = normalized.match(/\b([ivx]{1,5})\s+ciclo\b/i);
   if (romanMatch) return romanToCycle(romanMatch[1]);
   const romanAcademicMatch = normalized.match(/\b([ivx]{1,5})\s+(?:semester|term|year|cycle)\b/i);
   if (romanAcademicMatch) return romanToCycle(romanAcademicMatch[1]);
+  const labelRomanMatch = normalized.match(/\b(?:ciclo|semestre|cycle|semester|term|year)\s+([ivx]{1,5})\b/i);
+  if (labelRomanMatch) return romanToCycle(labelRomanMatch[1]);
   const numberMatch = normalized.match(/\b(?:ciclo|semestre|cycle|semester|term|year)\s+([0-9]{1,2})\b/);
   return numberMatch ? numberMatch[1] : null;
 }
@@ -167,8 +173,11 @@ function lastCycleToNumber(value = '') {
   const matches = [
     ...normalized.matchAll(/\b(?:ciclo|semestre|cycle|semester|term|year)\s+([0-9]{1,2})\b/g),
     ...normalized.matchAll(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)\b/g),
+    ...normalized.matchAll(/\b(?:ciclo|semestre)\s+(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\b/g),
     ...normalized.matchAll(/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:cycle|semester|term|year)\b/g),
+    ...normalized.matchAll(/\b(?:cycle|semester|term|year)\s+(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\b/g),
     ...normalized.matchAll(/\b([ivx]{1,5})\s+(?:ciclo|semestre|cycle|semester|term|year)\b/g),
+    ...normalized.matchAll(/\b(?:ciclo|semestre|cycle|semester|term|year)\s+([ivx]{1,5})\b/g),
   ].sort((a, b) => (a.index || 0) - (b.index || 0));
   const last = matches[matches.length - 1];
   if (!last) return null;
@@ -200,6 +209,9 @@ function findCurriculumStart(normalized = '') {
   const romanCycle = normalized.match(/\b(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\s+(?:ciclo|cycle|semester|term|year)\b/);
   if (romanCycle?.index != null) markerIndexes.push(romanCycle.index);
 
+  const labelRomanCycle = normalized.match(/\b(?:ciclo|semestre|cycle|semester|term|year)\s+(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\b/);
+  if (labelRomanCycle?.index != null) markerIndexes.push(labelRomanCycle.index);
+
   return markerIndexes.length ? Math.min(...markerIndexes) : -1;
 }
 
@@ -224,7 +236,7 @@ function segmentAfterMalla(rawText = '') {
   if (start < 0) return '';
   const cycleAfterStart = normalized
     .slice(start)
-    .search(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+ciclo\b|\b(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\s+ciclo\b/);
+    .search(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)\b|\b(?:ciclo|semestre)\s+(?:primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo|[ivx]{1,5}|[0-9]{1,2})\b|\b(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\s+(?:ciclo|semestre)\b/);
   const contentStart = cycleAfterStart >= 0 ? start + cycleAfterStart : start;
   let end = text.length;
   for (const stop of SECTION_STOP_WORDS) {
@@ -282,8 +294,11 @@ function parseLineBasedCurriculum(rawText = '') {
     // Detect "Ciclo N" / "PRIMER CICLO" / "Semestre N" labels (used by UNMSM, UP, etc.)
     // Only treat as a cycle header if the line is a pure cycle label (short, no other content)
     if (/^(?:ciclo|semestre|cycle|semester|term|year)\s+[0-9]{1,2}$/.test(normalized)
+      || /^(?:ciclo|semestre|cycle|semester|term|year)\s+[ivx]{1,5}$/.test(normalized)
       || /^(?:primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)$/.test(normalized)
+      || /^(?:ciclo|semestre)\s+(?:primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)$/.test(normalized)
       || /^(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:cycle|semester|term|year)$/.test(normalized)
+      || /^(?:cycle|semester|term|year)\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)$/.test(normalized)
       || /^[ivx]{1,5}\s+(?:ciclo|semestre|cycle|semester|term|year)$/.test(normalized)) {
       const detected = spanishCycleToNumber(line);
       if (detected) { currentCycle = detected; continue; }
@@ -1232,8 +1247,8 @@ async function saveParseLog({ idPrograma, idSnapshot, parser, estado, cursosDete
 async function replaceBenchmarkCourses(idPrograma, url, courses) {
   await db_empl.query(
     `DELETE FROM curso_benchmark
-     WHERE id_programa_benchmark=? AND fuente_url=?`,
-    [idPrograma, url]
+     WHERE id_programa_benchmark=?`,
+    [idPrograma]
   );
 
   for (const course of courses) {

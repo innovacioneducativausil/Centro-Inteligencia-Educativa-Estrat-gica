@@ -1312,7 +1312,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           )}
 
           {/* Tabla comparativa de competencias */}
-          {competencias.length > 0 && (
+          {!isReferenceView && competencias.length > 0 && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
               <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
                 borderBottom: `1px solid ${border}` }}>
