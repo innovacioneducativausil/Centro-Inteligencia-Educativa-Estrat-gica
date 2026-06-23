@@ -149,7 +149,7 @@ function romanToCycle(value = '') {
 
 function spanishCycleToNumber(value = '') {
   const normalized = normalizeText(value);
-  const wordMatch = normalized.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+ciclo\b/);
+  const wordMatch = normalized.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)\b/);
   if (wordMatch) return SPANISH_CYCLE_WORDS[wordMatch[1]] || null;
   const wordSemesterMatch = normalized.match(/\b(?:ciclo|semestre)\s+(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\b/);
   if (wordSemesterMatch) return SPANISH_CYCLE_WORDS[wordSemesterMatch[1]] || null;
@@ -185,7 +185,7 @@ function lastCycleToNumber(value = '') {
 }
 
 function findCurriculumStart(normalized = '') {
-  const markerIndexes = [
+  const keywordMarkers = [
     'malla curricular',
     'plan de estudios',
     'plan curricular',
@@ -200,19 +200,22 @@ function findCurriculumStart(normalized = '') {
     .map(marker => normalized.indexOf(marker))
     .filter(idx => idx >= 0);
 
-  const cycleWord = normalized.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+ciclo\b/);
-  if (cycleWord?.index != null) markerIndexes.push(cycleWord.index);
+  if (keywordMarkers.length) return Math.min(...keywordMarkers);
+
+  // Fallback: no explicit curriculum header — use first cycle label found
+  const cycleWord = normalized.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)\b/);
+  if (cycleWord?.index != null) return cycleWord.index;
 
   const englishCycleWord = normalized.match(/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:cycle|semester|term|year)\b/);
-  if (englishCycleWord?.index != null) markerIndexes.push(englishCycleWord.index);
+  if (englishCycleWord?.index != null) return englishCycleWord.index;
 
   const romanCycle = normalized.match(/\b(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\s+(?:ciclo|cycle|semester|term|year)\b/);
-  if (romanCycle?.index != null) markerIndexes.push(romanCycle.index);
+  if (romanCycle?.index != null) return romanCycle.index;
 
   const labelRomanCycle = normalized.match(/\b(?:ciclo|semestre|cycle|semester|term|year)\s+(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\b/);
-  if (labelRomanCycle?.index != null) markerIndexes.push(labelRomanCycle.index);
+  if (labelRomanCycle?.index != null) return labelRomanCycle.index;
 
-  return markerIndexes.length ? Math.min(...markerIndexes) : -1;
+  return -1;
 }
 
 function isLikelyCourseName(line = '') {
@@ -783,14 +786,10 @@ async function fetchPdfText(url) {
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('pdf') && !/\.pdf($|\?)/i.test(url)) return null;
     const buffer = Buffer.from(await res.arrayBuffer());
-    const { PDFParse } = await import('pdf-parse');
-    const parser = new PDFParse({ data: buffer });
-    try {
-      const data = await parser.getText();
-      return data.text ? visibleText(data.text).substring(0, 120000) : null;
-    } finally {
-      await parser.destroy?.();
-    }
+    const pdfModule = await import('pdf-parse');
+    const pdfParse = typeof pdfModule.default === 'function' ? pdfModule.default : pdfModule;
+    const data = await pdfParse(buffer);
+    return data?.text ? visibleText(data.text).substring(0, 120000) : null;
   } catch (err) {
     console.warn(`[pdf] No se pudo parsear ${url}:`, err.message);
     return null;

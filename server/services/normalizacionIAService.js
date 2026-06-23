@@ -4,7 +4,7 @@
 // Regla: si el texto fuente no contiene un dato, se marca como "no_identificado".
 
 import db_empl from '../db_empl.js';
-import { extractPageTextWithFetch, parseCurriculumCourses } from './scrapingService.js';
+import { extractPageTextWithFetch, parseCurriculumCourses, parseHtmlCurriculumCourses } from './scrapingService.js';
 
 const HF_URL   = 'https://router.huggingface.co/v1/chat/completions';
 const HF_MODEL = 'Qwen/Qwen2.5-7B-Instruct:together';
@@ -114,7 +114,14 @@ async function normalizarPrograma(idPrograma) {
   if (!cursosDeterministicos.length && prog.url_programa?.startsWith('http')) {
     try {
       const fetched = await extractPageTextWithFetch(prog.url_programa);
-      const fetchedCourses = parseCurriculumCourses(fetched.text, fetched.finalUrl || prog.url_programa).courses || [];
+      let fetchedCourses = [];
+      if (fetched.rawHtml) {
+        const htmlParsed = parseHtmlCurriculumCourses(fetched.rawHtml);
+        if (htmlParsed?.courses?.length) fetchedCourses = htmlParsed.courses;
+      }
+      if (!fetchedCourses.length) {
+        fetchedCourses = parseCurriculumCourses(fetched.text, fetched.finalUrl || prog.url_programa).courses || [];
+      }
       if (fetchedCourses.length) {
         textoCurricular = fetched.text;
         cursosDeterministicos = fetchedCourses;
