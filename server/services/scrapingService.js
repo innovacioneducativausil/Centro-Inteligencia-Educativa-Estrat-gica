@@ -237,10 +237,9 @@ function isCurriculumMetadataLine(line = '') {
   const n = normalizeText(line);
   if (!n) return true;
   if (/^--\s*\d+\s+of\s+\d+/.test(n)) return true;
-  if (/^(codigo|nombre del curso|horas teoricas|horas practicas|creditos|formato presencial|formato blended|formato virtual|tipo de curso|requisitos|ht hp|cp cv)$/.test(n)) return true;
-  if (/\b(creditos generales|creditos obligatorios|creditos electivos|creditaje total|niveles de las competencias|logro inicial|logro intermedio|logro final|competencias especificas|competencias generales|fecha de aprobacion|rectificado al)\b/.test(n)) return true;
+  if (/^(codigo|nombre del curso|horas teoricas|horas practicas|creditos|formato presencial|formato blended|formato virtual|tipo de curso|requisitos|ht hp|cp cv|competencias especificas|competencias generales)$/.test(n)) return true;
+  if (/\b(creditos generales|creditos obligatorios|creditos electivos|creditaje total|niveles de las competencias|logro inicial|logro intermedio|logro final|fecha de aprobacion|rectificado al)\b/.test(n)) return true;
   if (/^(cursos|creditaje total)\s+\d+/.test(n)) return true;
-  if (/^(electivo|elective)\s+\d+/.test(n)) return true;
   return false;
 }
 
