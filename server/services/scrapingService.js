@@ -245,7 +245,7 @@ function isCurriculumMetadataLine(line = '') {
 }
 
 function cleanCurriculumCourseLine(line = '') {
-  const text = cleanPageText(line).trim();
+  const text = cleanPageText(line).trim().replace(/^[•\-\u2013\u2014]\s*/, '');
   if (!text || isCurriculumMetadataLine(text)) return '';
 
   const codeRow = text.match(/^([A-Z]{2,6}\d{1,5})\s+(.+?)\s+\d{1,3}(?:\s+\d{1,3})?\s+\d(?:[\s.]\d)?\b/u);

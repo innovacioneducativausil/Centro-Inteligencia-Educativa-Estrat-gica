@@ -110,24 +110,57 @@ async function normalizarPrograma(idPrograma) {
   const competencias  = Array.isArray(parsed.competencias) ? parsed.competencias : [];
   const cursosIA      = Array.isArray(parsed.cursos_equivalentes) ? parsed.cursos_equivalentes : [];
   let textoCurricular = prog.fuente_texto_original;
-  let cursosDeterministicos = parseCurriculumCourses(textoCurricular, prog.url_programa).courses || [];
-  if (!cursosDeterministicos.length && prog.url_programa?.startsWith('http')) {
+  let parsedCurriculum = parseCurriculumCourses(textoCurricular, prog.url_programa);
+  let cursosDeterministicos = parsedCurriculum.courses || [];
+  if (prog.url_programa?.startsWith('http')) {
     try {
       const fetched = await extractPageTextWithFetch(prog.url_programa);
       let fetchedCourses = [];
+      let shouldUseFetched = false;
       if (fetched.rawHtml) {
         const htmlParsed = parseHtmlCurriculumCourses(fetched.rawHtml);
-        if (htmlParsed?.courses?.length) fetchedCourses = htmlParsed.courses;
+        if (htmlParsed?.courses?.length) {
+          fetchedCourses = htmlParsed.courses;
+          shouldUseFetched = !cursosDeterministicos.length
+            || parsedCurriculum.parser === 'generic_html_malla_v1'
+            || fetchedCourses.length >= Math.floor(cursosDeterministicos.length * 0.7);
+        }
       }
       if (!fetchedCourses.length) {
-        fetchedCourses = parseCurriculumCourses(fetched.text, fetched.finalUrl || prog.url_programa).courses || [];
+        const fetchedParsed = parseCurriculumCourses(fetched.text, fetched.finalUrl || prog.url_programa);
+        fetchedCourses = fetchedParsed.courses || [];
+        shouldUseFetched = !cursosDeterministicos.length || fetchedCourses.length > cursosDeterministicos.length;
       }
-      if (fetchedCourses.length) {
+      if (fetchedCourses.length && shouldUseFetched) {
         textoCurricular = fetched.text;
         cursosDeterministicos = fetchedCourses;
       }
     } catch {
       // Si la segunda lectura falla, se continua con el texto ya capturado.
+    }
+  }
+  if (!cursosDeterministicos.length) {
+    const [cursosExtraidos] = await db_empl.query(
+      `SELECT nombre_curso, ciclo, descripcion_curso, fuente_url
+       FROM curso_benchmark
+       WHERE id_programa_benchmark=?
+       ORDER BY
+         CASE
+           WHEN ciclo REGEXP '^[0-9]+$' THEN 0
+           WHEN ciclo IS NULL OR ciclo = '' THEN 2
+           ELSE 1
+         END,
+         CAST(NULLIF(ciclo, '') AS UNSIGNED),
+         ciclo,
+         nombre_curso`,
+      [idPrograma]
+    );
+    if (cursosExtraidos.length) {
+      cursosDeterministicos = cursosExtraidos.map(curso => ({
+        nombreCurso: curso.nombre_curso,
+        ciclo: curso.ciclo || null,
+        evidencia: curso.descripcion_curso || `Preservado desde extraccion previa: ${curso.fuente_url || prog.url_programa}`,
+      }));
     }
   }
   const cursosMap = new Map();
