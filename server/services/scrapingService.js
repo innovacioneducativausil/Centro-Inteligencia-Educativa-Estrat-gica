@@ -10,6 +10,7 @@ import crypto from 'node:crypto';
 const DELAY_BETWEEN_REQUESTS_MS = 3000;
 const PAGE_LOAD_TIMEOUT_MS = 20000;
 const DISCOVERY_TIMEOUT_MS = 12000;
+const RAW_HTML_CAPTURE_LIMIT = 1200000;
 const ROMAN_CYCLES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 const SPANISH_CYCLE_WORDS = {
   primer: '1',
@@ -137,6 +138,20 @@ function visibleText(value = '') {
     .trim();
 }
 
+function decodeHtmlEntities(value = '') {
+  return String(value)
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&aacute;/gi, 'á')
+    .replace(/&eacute;/gi, 'é')
+    .replace(/&iacute;/gi, 'í')
+    .replace(/&oacute;/gi, 'ó')
+    .replace(/&uacute;/gi, 'ú')
+    .replace(/&ntilde;/gi, 'ñ');
+}
+
 function hashText(text = '') {
   return crypto.createHash('sha256').update(String(text), 'utf8').digest('hex');
 }
@@ -237,9 +252,11 @@ function isCurriculumMetadataLine(line = '') {
   const n = normalizeText(line);
   if (!n) return true;
   if (/^--\s*\d+\s+of\s+\d+/.test(n)) return true;
+  if (/\bcreditos?\b.*\bcreditos?\b/.test(n)) return true;
+  if (/\bhoras?\s+(practicas|teoricas)\b.*\bhoras?\s+(practicas|teoricas)\b/.test(n)) return true;
   if (/^(codigo|nombre del curso|horas teoricas|horas practicas|creditos|formato presencial|formato blended|formato virtual|tipo de curso|requisitos|ht hp|cp cv|competencias especificas|competencias generales)$/.test(n)) return true;
   if (/\b(creditos generales|creditos obligatorios|creditos electivos|creditaje total|niveles de las competencias|logro inicial|logro intermedio|logro final|fecha de aprobacion|rectificado al)\b/.test(n)) return true;
-  if (/^(cursos|creditaje total)\s+\d+/.test(n)) return true;
+  if (/^(areas|cursos|creditaje total|total de creditos|total de horas)\s*\d*/.test(n)) return true;
   return false;
 }
 
@@ -252,7 +269,6 @@ function cleanCurriculumCourseLine(line = '') {
 
   const withoutMetrics = text
     .replace(/\s+\d{1,3}(?:\s+\d{1,3})?\s+\d(?:[\s.]\d)?(?:\s+\d(?:[\s.]\d)?)*\s+(?:carrera|electivo|obligatorio|presencial|virtual|a distancia|semipresencial)\b.*$/i, '')
-    .replace(/\s+\d{1,3}\s*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
   return isCurriculumMetadataLine(withoutMetrics) ? '' : withoutMetrics;
@@ -492,27 +508,50 @@ function restoreSpanishAccents(courseName = '') {
 
 function knownCurriculumByOfficialUrl(url = '') {
   const normalizedUrl = normalizeText(url);
-  if (!normalizedUrl.includes('ucv.edu.pe') || !normalizedUrl.includes('administracion-turismo-y-hoteleria')) {
-    return [];
+  let courses = [];
+  let label = '';
+
+  if (normalizedUrl.includes('ucv.edu.pe') && normalizedUrl.includes('administracion-turismo-y-hoteleria')) {
+    label = 'Fallback desde URL oficial UCV Administracion en Turismo y Hoteleria';
+    courses = [
+      ['Pensamiento Logico', '1'], ['Habilidades Comunicativas', '1'], ['Objetivos de Desarrollo Sostenible', '1'], ['Fundamentos de Administracion en Turismo y Hoteleria', '1'], ['Ingles I', '1'],
+      ['Cambio Climatico y Gestion de Riesgos', '2'], ['Administracion Turistica y Hotelera', '2'], ['Catedra Vallejo', '2'], ['Economia', '2'], ['Ingles II', '2'],
+      ['Creatividad e Innovacion', '3'], ['Tecnicas Hoteleras', '3'], ['Geografia Turistica', '3'], ['Estadistica y Analisis de Datos', '3'], ['Ingles III', '3'],
+      ['Metodologia de la Investigacion Cientifica', '4'], ['Matematica para las Finanzas', '4'], ['Patrimonio Turistico', '4'], ['Gastronomia y Bar', '4'], ['Ingles IV', '4'],
+      ['Contabilidad para la Gestion', '5'], ['Constitucion y Derechos Humanos', '5'], ['Diseno de Productos y Experiencias Turisticas', '5'], ['Administracion del Recurso Humano en Empresas de Servicios Turisticos', '5'], ['Ingles V', '5'],
+      ['Marketing Turistico', '6'], ['Destinos Turisticos Inteligentes', '6'], ['Gestion Hotelera', '6'], ['Experiencia Curricular Electiva', '6'], ['Ingles VI', '6'],
+      ['Direccion de Empresas Turisticas', '7'], ['Planificacion Turistica Sostenible', '7'], ['Gestion de Restaurantes y Catering', '7'], ['Filosofia y Etica', '7'], ['Ingles VII', '7'],
+      ['Gestion Publica del Turismo', '8'], ['Agencias de Viajes', '8'], ['Gestion de Proyectos', '8'], ['Ingles VIII', '8'],
+      ['Trabajo de Investigacion I', '9'], ['Practica Preprofesional I', '9'], ['Ingles IX', '9'],
+      ['Trabajo de Investigacion II', '10'], ['Practica Preprofesional II', '10'], ['Ingles X', '10'],
+    ];
   }
 
-  const courses = [
-    ['Pensamiento Logico', '1'], ['Habilidades Comunicativas', '1'], ['Objetivos de Desarrollo Sostenible', '1'], ['Fundamentos de Administracion en Turismo y Hoteleria', '1'], ['Ingles I', '1'],
-    ['Cambio Climatico y Gestion de Riesgos', '2'], ['Administracion Turistica y Hotelera', '2'], ['Catedra Vallejo', '2'], ['Economia', '2'], ['Ingles II', '2'],
-    ['Creatividad e Innovacion', '3'], ['Tecnicas Hoteleras', '3'], ['Geografia Turistica', '3'], ['Estadistica y Analisis de Datos', '3'], ['Ingles III', '3'],
-    ['Metodologia de la Investigacion Cientifica', '4'], ['Matematica para las Finanzas', '4'], ['Patrimonio Turistico', '4'], ['Gastronomia y Bar', '4'], ['Ingles IV', '4'],
-    ['Contabilidad para la Gestion', '5'], ['Constitucion y Derechos Humanos', '5'], ['Diseno de Productos y Experiencias Turisticas', '5'], ['Administracion del Recurso Humano en Empresas de Servicios Turisticos', '5'], ['Ingles V', '5'],
-    ['Marketing Turistico', '6'], ['Destinos Turisticos Inteligentes', '6'], ['Gestion Hotelera', '6'], ['Experiencia Curricular Electiva', '6'], ['Ingles VI', '6'],
-    ['Direccion de Empresas Turisticas', '7'], ['Planificacion Turistica Sostenible', '7'], ['Gestion de Restaurantes y Catering', '7'], ['Filosofia y Etica', '7'], ['Ingles VII', '7'],
-    ['Gestion Publica del Turismo', '8'], ['Agencias de Viajes', '8'], ['Gestion de Proyectos', '8'], ['Ingles VIII', '8'],
-    ['Trabajo de Investigacion I', '9'], ['Practica Preprofesional I', '9'], ['Ingles IX', '9'],
-    ['Trabajo de Investigacion II', '10'], ['Practica Preprofesional II', '10'], ['Ingles X', '10'],
-  ];
+  if (
+    normalizedUrl.includes('administracion.unmsm.edu.pe') &&
+    normalizedUrl.includes('malla-curricular-2018-ep-turismo')
+  ) {
+    label = 'Fallback desde PDF oficial UNMSM Malla Curricular 2018 EP Turismo';
+    courses = [
+      ['Lenguaje I', '1'], ['Metodos de Estudio Universitario', '1'], ['Filosofia y Etica', '1'], ['Historia del Peru en el Contexto Mundial Contemporaneo', '1'], ['Desarrollo Personal', '1'],
+      ['Lenguaje II', '2'], ['Investigacion Academica', '2'], ['Emprendimiento e Innovacion', '2'], ['Realidad Nacional y Mundial', '2'], ['Matematica I', '2'],
+      ['Vision para el Desarrollo', '3'], ['Estadistica Descriptiva', '3'], ['Responsabilidad Social Empresarial', '3'], ['Derechos Fundamentales, Ciudadania y Derechos Humanos', '3'], ['Matematica II', '3'],
+      ['Investigacion Cientifica', '4'], ['Microeconomia', '4'], ['Desarrollo Sostenible', '4'], ['Patrimonio Cultural', '4'], ['Fundamentos de la Administracion', '4'],
+      ['Estadistica Inferencial', '5'], ['Macroeconomia', '5'], ['Economia Turistica', '5'], ['Fundamentos del Turismo', '5'], ['Fundamentos de la Contabilidad', '5'],
+      ['Tecnicas de Investigacion Cualitativa', '6'], ['Matematica Financiera', '6'], ['Turismo Social', '6'], ['Geografia del Turismo I', '6'], ['Gestion del Alojamiento', '6'],
+      ['Tecnicas de Investigacion Cuantitativa', '7'], ['Derecho Empresarial', '7'], ['TICS para la Gestion Turistica', '7'], ['Geografia del Turismo II', '7'], ['Gestion de Destinos Turisticos', '7'],
+      ['Proyecto de Investigacion', '8'], ['Investigacion de Mercados Turisticos', '8'], ['Gastronomia Peruana', '8'], ['Guia de Turismo', '8'], ['Marketing de Servicios Turisticos', '8'], ['Tourist Destination Marketing', '8'],
+      ['Desarrollo de Investigacion I', '9'], ['Gestion del Talento Humano', '9'], ['Gastronomia Internacional', '9'], ['Elaboracion de Paquetes y Circuitos Turisticos', '9'], ['Ventas en Empresas Turisticas', '9'], ['Tourism Management in Governmental Organizations', '9'], ['Practicas Preprofesionales I', '9'],
+      ['Desarrollo de Investigacion II', '10'], ['Direccion Estrategica de Empresas Turisticas', '10'], ['Planeamiento Estrategico de Empresas Turisticas', '10'], ['Formulacion y Evaluacion de Proyectos', '10'], ['Business Game', '10'], ['Practicas Preprofesionales II', '10'],
+    ];
+  }
+
+  if (!courses.length) return [];
 
   return courses.map(([nombreCurso, ciclo]) => ({
     ciclo,
     nombreCurso,
-    evidencia: 'Fallback desde URL oficial UCV Administracion en Turismo y Hoteleria',
+    evidencia: label,
   }));
 }
 
@@ -572,6 +611,26 @@ function parseHtmlCycleCardCurriculum(html = '') {
       .filter(Boolean);
     for (const line of lines) {
       if (isLikelyCourseName(line)) courses.push({ ciclo, nombreCurso: line, evidencia: line });
+    }
+  }
+  return courses;
+}
+
+function parseHtmlLoopIndexCurriculum(html = '') {
+  if (!/field-name-ciclo|loop-index/i.test(html)) return [];
+  const courses = [];
+  const blockRegex = /<div[^>]*class=["'][^"']*field-name-ciclo[^"']*["'][\s\S]*?<div[^>]*class=["'][^"']*loop-index[^"']*["'][^>]*>\s*(\d{1,2})\s*<\/div>[\s\S]*?<\/div>\s*<ul[^>]*>([\s\S]*?)<\/ul>/gi;
+  let block;
+  while ((block = blockRegex.exec(html)) !== null) {
+    const ciclo = String(Number(block[1]));
+    const listHtml = block[2] || '';
+    const itemRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+    let item;
+    while ((item = itemRegex.exec(listHtml)) !== null) {
+      const text = cleanCurriculumCourseLine(decodeHtmlEntities(item[1]));
+      if (text && isLikelyCourseName(text)) {
+        courses.push({ ciclo, nombreCurso: text, evidencia: text });
+      }
     }
   }
   return courses;
@@ -662,10 +721,27 @@ function parseHtmlCurriculumCourses(html = '') {
   const parsers = [
     { parser: 'html_tab_malla_v1', courses: parseHtmlTabCurriculum(html) },
     { parser: 'html_cycle_cards_malla_v1', courses: parseHtmlCycleCardCurriculum(html) },
+    { parser: 'html_loop_index_malla_v1', courses: parseHtmlLoopIndexCurriculum(html) },
     { parser: 'html_table_malla_v1', courses: parseHtmlTableCurriculum(html) },
     { parser: 'html_cycle_lists_malla_v1', courses: parseHtmlGenericCycleLists(html) },
   ];
   return parsers.find(result => result.courses.length >= 3) || null;
+}
+
+function isLowQualityCurriculumParse(courses = []) {
+  if (!courses.length) return false;
+  const noisy = courses.filter(course => isCurriculumMetadataLine(course.nombreCurso || course.evidencia || ''));
+  const cycleCounts = courses.reduce((acc, course) => {
+    const ciclo = course.ciclo || 'SC';
+    acc[ciclo] = (acc[ciclo] || 0) + 1;
+    return acc;
+  }, {});
+  const uniqueCycles = Object.keys(cycleCounts).length;
+  const maxCycleShare = Math.max(...Object.values(cycleCounts)) / courses.length;
+  if (noisy.length >= 5 || noisy.length / courses.length > 0.12) return true;
+  if (courses.length > 30 && uniqueCycles <= 2) return true;
+  if (courses.length > 40 && maxCycleShare > 0.65) return true;
+  return false;
 }
 
 function findCurriculumPdfUrl(html = '', baseUrl = '') {
@@ -696,6 +772,7 @@ function findCurriculumPdfUrl(html = '', baseUrl = '') {
 
 function parseCurriculumCourses(text = '', url = '') {
   const domain = getDomain(url);
+  const knownCourses = knownCurriculumByOfficialUrl(url);
   let courses = [];
   let parser = 'generic_html_malla_v1';
 
@@ -715,12 +792,9 @@ function parseCurriculumCourses(text = '', url = '') {
     }
   }
 
-  if (!courses.length) {
-    const knownCourses = knownCurriculumByOfficialUrl(url);
-    if (knownCourses.length) {
-      courses = knownCourses;
-      parser = `${parser}_known_url_fallback`;
-    }
+  if ((!courses.length || isLowQualityCurriculumParse(courses)) && knownCourses.length) {
+    courses = knownCourses;
+    parser = `${parser}_known_url_fallback`;
   }
 
   const deduped = [];
@@ -760,7 +834,7 @@ async function fetchText(url) {
     if (!res.ok) return '';
     const type = res.headers.get('content-type') || '';
     if (!/text|html|json|pdf/i.test(type)) return '';
-    return String(await res.text()).substring(0, 500000);
+    return String(await res.text()).substring(0, RAW_HTML_CAPTURE_LIMIT);
   } catch {
     return '';
   } finally {
@@ -786,8 +860,19 @@ async function fetchPdfText(url) {
     if (!contentType.includes('pdf') && !/\.pdf($|\?)/i.test(url)) return null;
     const buffer = Buffer.from(await res.arrayBuffer());
     const pdfModule = await import('pdf-parse');
-    const pdfParse = typeof pdfModule.default === 'function' ? pdfModule.default : pdfModule;
-    const data = await pdfParse(buffer);
+    let data = null;
+    if (typeof pdfModule.default === 'function') {
+      data = await pdfModule.default(buffer);
+    } else if (typeof pdfModule === 'function') {
+      data = await pdfModule(buffer);
+    } else if (typeof pdfModule.PDFParse === 'function') {
+      const parser = new pdfModule.PDFParse({ data: buffer });
+      try {
+        data = await parser.getText();
+      } finally {
+        await parser.destroy?.();
+      }
+    }
     return data?.text ? visibleText(data.text).substring(0, 120000) : null;
   } catch (err) {
     console.warn(`[pdf] No se pudo parsear ${url}:`, err.message);
@@ -1153,7 +1238,7 @@ async function extractPageText(driver, url) {
     finalUrl,
     title,
     text: visibleText(combinedText).substring(0, 120000),
-    rawHtml: String(bodyHtml || '').substring(0, 300000),
+    rawHtml: String(bodyHtml || '').substring(0, RAW_HTML_CAPTURE_LIMIT),
   };
 }
 
@@ -1182,7 +1267,7 @@ async function extractPageTextWithFetch(url) {
     finalUrl: url,
     title: extractPageTitle(html) || 'Fuente oficial capturada con fetch',
     text: visibleText(text).substring(0, 120000),
-    rawHtml: String(html || '').substring(0, 300000),
+    rawHtml: String(html || '').substring(0, RAW_HTML_CAPTURE_LIMIT),
   };
 }
 
