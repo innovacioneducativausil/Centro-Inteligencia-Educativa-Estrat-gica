@@ -1,11 +1,8 @@
-// server/middleware/auth.js
-// Middleware JWT para proteger rutas de la API.
+
+
 import jwt from 'jsonwebtoken';
 
-/**
- * Verifica JWT por cookie httpOnly o por Authorization Bearer.
- * Bearer se mantiene como compatibilidad para clientes existentes.
- */
+
 export function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   const cookieToken = req.cookies?.radar_token;

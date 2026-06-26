@@ -30,7 +30,7 @@ const DATA_POINTS = [
   { top: '15%', left: '65%', opacity: 0.7 },
 ];
 
-// ─── Utilidades ───────────────────────────────────────────
+
 function getStrength(pwd: string): Strength | null {
   if (!pwd) return null;
   const score = [
@@ -55,7 +55,7 @@ async function postForgotPassword(correo: string) {
   return data;
 }
 
-// ─── Tarjeta base (fuera del componente principal para evitar re-montaje) ──
+
 const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 relative overflow-hidden"
     style={{ boxShadow: '0 16px 40px -10px rgba(0,0,0,0.1)' }}>
@@ -66,7 +66,7 @@ const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </div>
 );
 
-// ─── Subcomponentes compartidos ───────────────────────────
+
 const RadarPanel: React.FC<{ view: View }> = ({ view }) => {
   const label =
     view === 'login'   ? 'Scanning' :
@@ -166,7 +166,7 @@ const BackButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   </div>
 );
 
-// Campo de contraseña reutilizable
+
 const PasswordField: React.FC<{
   id: string; label: string; icon: string;
   value: string; onChange: (v: string) => void;
@@ -199,13 +199,10 @@ const PasswordField: React.FC<{
 );
 
 
-// ═══════════════════════════════════════════════════════════
-//  Componente principal
-// ═══════════════════════════════════════════════════════════
 const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [view, setView] = useState<View>('login');
 
-  // ── Login ─────────────────────────────────────────────────
+
   const [correo,       setCorreo]       = useState('');
   const [password,     setPassword]     = useState('');
   const [showPass,     setShowPass]     = useState(false);
@@ -214,12 +211,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [loginError,   setLoginError]   = useState<string | null>(null);
   const [loginSuccess, setLoginSuccess] = useState<string | null>(null);
 
-  // ── Forgot ────────────────────────────────────────────────
+
   const [fpCorreo,  setFpCorreo]  = useState('');
   const [fpLoading, setFpLoading] = useState(false);
   const [fpError,   setFpError]   = useState<string | null>(null);
 
-  // ── OTP Verify (HU003) ────────────────────────────────────
+
   const [otpDigits,         setOtpDigits]         = useState<string[]>(['','','','','','']);
   const [otpLoading,        setOtpLoading]        = useState(false);
   const [otpError,          setOtpError]          = useState<string | null>(null);
@@ -229,7 +226,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [otpContext,        setOtpContext]        = useState<OtpContext>('reset');
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // ── Reset ─────────────────────────────────────────────────
+
   const [newPassword,     setNewPassword]     = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPass,     setShowNewPass]     = useState(false);
@@ -238,16 +235,16 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [resetError,      setResetError]      = useState<string | null>(null);
   const [resetToken,      setResetToken]      = useState<string>('');
 
-  // Detectar token en la URL al cargar (enlace desde el correo)
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token  = params.get('reset_token');
     if (!token) return;
 
-    // Limpiar el token de la URL sin recargar
+
     window.history.replaceState({}, '', window.location.pathname);
 
-    // Validar el token contra el backend
+
     (async () => {
       try {
         const res  = await fetch(`/api/auth/verify-reset-token/${token}`);
@@ -258,7 +255,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           setNewPassword(''); setConfirmPassword(''); setResetError(null);
           setView('reset');
         } else {
-          // Token inválido o expirado → mostrar error en login
+
           setLoginError(data.error || 'El enlace de recuperación es inválido o ha expirado.');
           setView('login');
         }
@@ -267,24 +264,24 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         setView('login');
       }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
-  // OTP countdown (5 min)
+
   useEffect(() => {
     if (otpTimer <= 0) return;
     const t = setTimeout(() => setOtpTimer(s => s - 1), 1000);
     return () => clearTimeout(t);
   }, [otpTimer]);
 
-  // OTP resend cooldown (60s)
+
   useEffect(() => {
     if (otpResendCooldown <= 0) return;
     const t = setTimeout(() => setOtpResendCooldown(s => s - 1), 1000);
     return () => clearTimeout(t);
   }, [otpResendCooldown]);
 
-  // Password strength
+
   const strength = useMemo(() => getStrength(newPassword), [newPassword]);
 
   const requirements = useMemo(() => [
@@ -305,8 +302,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     : strength === 'strong'                 ? { text: 'Fuerte', color: BRAND_COLORS.success }
     : null;
 
-  // ── Helpers de correo ────────────────────────────────────
-  // Solo permite escribir el dominio si es prefijo válido de 'usil.edu.pe'
+
   const handleCorreoChange = (val: string) => {
     const atIdx = val.indexOf('@');
     if (atIdx === -1) { setCorreo(val); return; }
@@ -318,7 +314,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     && (correo.split('@')[1]?.length ?? 0) > 0
     && !correo.toLowerCase().endsWith('@usil.edu.pe');
 
-  // ── Handlers ─────────────────────────────────────────────
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null); setLoginSuccess(null);
@@ -379,7 +375,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     e.preventDefault();
     setResetError(null);
 
-    // Verificar cada requisito de política HU004
+
     if (newPassword.length < 8) {
       setResetError('La contraseña debe tener mínimo 8 caracteres.'); return;
     }
@@ -396,7 +392,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     try {
       const res  = await fetch('/api/auth/reset-password', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        // Enviar el token (no el correo) — el backend lo valida y actualiza
+
         body: JSON.stringify({ token: resetToken, newPassword }),
       });
       const data = await res.json();
@@ -408,7 +404,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     } finally { setResetLoading(false); }
   };
 
-  // ── OTP handlers ─────────────────────────────────────────
+
   const handleOtpChange = (idx: number, val: string) => {
     if (val && !/^[0-9]$/.test(val)) return;
     const next = [...otpDigits]; next[idx] = val; setOtpDigits(next);
@@ -485,20 +481,20 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       setOtpTimer(300);
       setOtpResendCooldown(60);
       setTimeout(() => otpRefs.current[0]?.focus(), 50);
-    } catch { /* respuesta siempre genérica */ }
+    } catch {}
     finally { setOtpResendLoading(false); }
   };
 
-  // ── Computed OTP ─────────────────────────────────────────
+
   const otpTimerDisplay = otpTimer > 0
     ? `${Math.floor(otpTimer / 60)}:${String(otpTimer % 60).padStart(2, '0')}`
     : null;
 
-  // Navegación
+
   const goToForgot = () => { setFpCorreo(''); setFpError(null); setView('forgot'); };
   const goToLogin  = () => { setLoginError(null); setView('login'); };
 
-  // ─── Render ───────────────────────────────────────────────
+
   return (
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden"
       style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -509,7 +505,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         <div className="w-full max-w-md">
           <USILHeader />
 
-          {/* ════════════════ LOGIN ════════════════ */}
+
           {view === 'login' && (
             <>
               <Card>
@@ -523,7 +519,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-4 relative z-10">
-                  {/* Éxito tras reset */}
+
                   {loginSuccess && (
                     <div className="flex items-start gap-2.5 p-3 rounded-xl bg-green-50 border border-green-200 animate-in slide-in-from-top-2 duration-300">
                       <span className="material-symbols-outlined flex-shrink-0 mt-0.5"
@@ -538,7 +534,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     </div>
                   )}
 
-                  {/* Correo */}
+
                   <div className="space-y-1.5">
                     <label className="block text-sm font-bold text-slate-800" htmlFor="email">Correo Institucional</label>
                     <div className="relative">
@@ -557,7 +553,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                         onFocus={e  => (e.target.style.borderColor = dominioInvalido ? BRAND_COLORS.error : BRAND_COLORS.active)}
                         onBlur={e   => (e.target.style.borderColor = dominioInvalido ? BRAND_COLORS.error : correo ? BRAND_COLORS.active : BRAND_COLORS.borderStrong)} />
                     </div>
-                    {/* Advertencia de dominio */}
+
                     {dominioInvalido && (
                       <div className="flex items-center gap-1.5 pt-0.5">
                         <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#ef4444' }}>warning</span>
@@ -566,7 +562,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                         </p>
                       </div>
                     )}
-                    {/* Confirmación cuando el dominio es correcto */}
+
                     {correo.toLowerCase().endsWith('@usil.edu.pe') && correo.split('@')[0].length > 0 && (
                       <div className="flex items-center gap-1.5 pt-0.5">
                         <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#16a34a' }}>check_circle</span>
@@ -575,13 +571,13 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     )}
                   </div>
 
-                  {/* Contraseña */}
+
                   <PasswordField id="password" label="Contraseña" icon="lock"
                     value={password} onChange={setPassword}
                     show={showPass} onToggle={() => setShowPass(p => !p)}
                     autoComplete="new-password" />
 
-                  {/* Recordarme */}
+
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2.5 cursor-pointer group rounded hover:bg-slate-50 p-1 -ml-1 transition-colors">
                       <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
@@ -612,7 +608,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             </>
           )}
 
-          {/* ════════════════ FORGOT ════════════════ */}
+
           {view === 'forgot' && (
             <>
               <Card>
@@ -665,12 +661,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             </>
           )}
 
-          {/* ════════════════ VERIFY OTP ════════════════ */}
+
           {view === 'verify' && (
             <>
               <Card>
                 <div className="relative z-10">
-                  {/* Ícono + título */}
+
                   <div className="mb-5 text-center">
                     <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
                       style={{ backgroundColor: '#eff6ff' }}>
@@ -687,7 +683,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                   </div>
 
                   <form onSubmit={handleVerifyOtp} className="space-y-4">
-                    {/* Error OTP */}
+
                     {otpError && (
                       <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-200">
                         <AlertCircle size={15} className="text-rose-500 flex-shrink-0 mt-0.5" />
@@ -695,7 +691,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                       </div>
                     )}
 
-                    {/* 6 inputs OTP */}
+
                     <div className="flex justify-center gap-2">
                       {otpDigits.map((digit, i) => (
                         <input key={i}
@@ -716,7 +712,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                       ))}
                     </div>
 
-                    {/* Info / timer */}
+
                     <div className="p-3 rounded-xl border flex gap-3 items-start"
                       style={{ backgroundColor: 'rgba(239,246,255,0.5)', borderColor: '#dbeafe' }}>
                       <span className="material-symbols-outlined mt-0.5 flex-shrink-0"
@@ -735,7 +731,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                       )}
                     </div>
 
-                    {/* Botón validar */}
+
                     <button type="submit"
                       disabled={otpLoading || otpDigits.join('').length < 6 || otpTimer === 0}
                       className="w-full text-white font-bold text-base py-3.5 px-6 rounded-xl flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -747,7 +743,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                         : <span>{otpContext === 'login' ? 'Validar Codigo e Ingresar' : 'Validar Codigo y Continuar'}</span>}
                     </button>
 
-                    {/* Reenviar */}
+
                     <div className="text-center">
                       {otpResendCooldown > 0 ? (
                         <p className="text-xs text-slate-400 font-medium">
@@ -770,7 +766,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             </>
           )}
 
-          {/* ════════════════ RESET ════════════════ */}
+
           {view === 'reset' && (
             <>
               <Card>
@@ -792,13 +788,13 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                       </div>
                     )}
 
-                    {/* Nueva contraseña + strength meter */}
+
                     <div className="space-y-1.5">
                       <PasswordField id="new-password" label="Nueva contraseña" icon="lock"
                         value={newPassword} onChange={setNewPassword}
                         show={showNewPass} onToggle={() => setShowNewPass(p => !p)} />
 
-                      {/* Barra de fuerza */}
+
                       {newPassword && (
                         <div className="pt-1">
                           <div className="flex gap-1.5 mb-1">
@@ -817,12 +813,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                       )}
                     </div>
 
-                    {/* Confirmar contraseña */}
+
                     <PasswordField id="confirm-password" label="Confirmar nueva contraseña" icon="lock_reset"
                       value={confirmPassword} onChange={setConfirmPassword}
                       show={showConfirmPass} onToggle={() => setShowConfirmPass(p => !p)} />
 
-                    {/* Requisitos */}
+
                     <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(239,246,255,0.5)', borderColor: '#dbeafe' }}>
                       <h4 className="text-xs font-bold text-slate-700 mb-3 uppercase tracking-wider">
                         Requisitos de la contraseña
@@ -843,7 +839,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                       </ul>
                     </div>
 
-                    {/* Submit */}
+
                     <button type="submit"
                       disabled={resetLoading || !newPassword || !confirmPassword}
                       className="w-full text-white font-bold text-base py-3.5 px-6 rounded-xl flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -864,12 +860,12 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             </>
           )}
 
-          {/* ════════════════ SUCCESS ════════════════ */}
+
           {view === 'success' && (
             <>
               <Card>
                 <div className="relative z-10 flex flex-col items-center text-center py-4">
-                  {/* Ícono */}
+
                   <div className="mb-8 rounded-full flex items-center justify-center"
                     style={{ width: 112, height: 112, backgroundColor: '#eff6ff' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 64, color: BRAND_COLORS.active }}>
@@ -877,17 +873,17 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     </span>
                   </div>
 
-                  {/* Título */}
+
                   <h1 className="text-3xl font-bold mb-4 tracking-tight leading-tight" style={{ color: BRAND_COLORS.active }}>
                     Contraseña actualizada
                   </h1>
 
-                  {/* Descripción */}
+
                   <p className="text-lg text-slate-600 leading-relaxed font-medium mb-10 max-w-sm mx-auto">
                     Tu contraseña ha sido restablecida correctamente. Ya puedes acceder a la plataforma con tus nuevas credenciales.
                   </p>
 
-                  {/* Botón ir al login */}
+
                   <button type="button" onClick={goToLogin}
                     className="w-full text-white font-bold text-base py-4 px-6 rounded-xl flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]"
                     style={{ backgroundColor: BRAND_COLORS.active, boxShadow: '0 6px 16px rgba(0,54,220,0.3)' }}

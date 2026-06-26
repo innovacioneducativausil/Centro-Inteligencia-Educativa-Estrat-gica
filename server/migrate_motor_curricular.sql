@@ -1,7 +1,3 @@
--- ============================================================
--- TABLAS PARA MOTOR DE IMPACTO CURRICULAR
--- Base de datos: mallas_usil
--- ============================================================
 
 USE mallas_usil;
 

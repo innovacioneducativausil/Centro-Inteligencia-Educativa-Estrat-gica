@@ -1,5 +1,5 @@
 import { serverError } from '../middleware/errorHandler.js';
-// server/routes/tendencias.js
+
 import { Router } from 'express';
 import db from '../db.js';
 
@@ -13,10 +13,7 @@ function extractYouTubeId(url) {
   return m ? m[1] : null;
 }
 
-/**
- * GET /api/tendencias
- * Query params opcionales: pestel, sector, q
- */
+
 router.get('/tendencias', async (req, res) => {
   try {
     const { pestel, sector, q } = req.query;
@@ -82,7 +79,7 @@ router.get('/tendencias', async (req, res) => {
       params
     );
 
-    // Estado semaforo basado en cantidad de señales asociadas
+
     const statusMap = (count) => {
       if (count >= 5) return 'Crítico';
       if (count >= 2) return 'Alto';
@@ -110,7 +107,7 @@ router.get('/tendencias', async (req, res) => {
       sourceUrl:      row.url_fuente       || null,
       publishedAt:    row.fecha_publicacion,
       totalSenales:   Number(row.total_senales) || 0,
-      // Métricas calculadas
+
       status:         statusMap(Number(row.total_senales)),
       impact:         60 + (idx * 9) % 40,
       maturity:       45 + (idx * 13) % 55,

@@ -1,19 +1,9 @@
--- ============================================================
--- BASE DE DATOS: ESTUDIO DE EMPLEABILIDAD - USIL
--- Motor: MySQL 8.0
--- Años cubiertos: 2022, 2023, 2024, 2025
--- Columnas Excel: "Ac Empl 2022", "Ac Empl 2023", "Ac Empl 2024", "Ac Empl 2025"
--- ============================================================
 
 CREATE DATABASE IF NOT EXISTS empleabilidad_usil
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
 USE empleabilidad_usil;
-
--- ============================================================
--- CATÁLOGOS
--- ============================================================
 
 CREATE TABLE IF NOT EXISTS facultad (
   id_facultad     INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -48,8 +38,6 @@ CREATE TABLE IF NOT EXISTS ciclo_egreso (
   estado           VARCHAR(40)  NULL,
   UNIQUE KEY uq_ciclo (codigo_ciclo)
 ) COMMENT = 'Ciclos: 2021-2, 2022-0, 2022-1, etc.';
-
--- Normaliza los rangos salariales que cambiaron entre 2022 y 2025
 CREATE TABLE IF NOT EXISTS catalogo_salario (
   id_salario           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   descripcion_original VARCHAR(200) NOT NULL,
@@ -58,8 +46,6 @@ CREATE TABLE IF NOT EXISTS catalogo_salario (
   rango_max_soles      DECIMAL(10,2) NULL,
   UNIQUE KEY uq_desc_salario (descripcion_original)
 ) COMMENT = 'Normaliza variantes de rangos salariales 2022-2025 a un estandar unico';
-
--- Normaliza texto libre del puesto al puesto oficial + nivel
 CREATE TABLE IF NOT EXISTS catalogo_puesto (
   id_puesto        INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   texto_busqueda   VARCHAR(200) NOT NULL,
@@ -67,11 +53,6 @@ CREATE TABLE IF NOT EXISTS catalogo_puesto (
   nivel_puesto     VARCHAR(40)  NOT NULL,
   UNIQUE KEY uq_texto_busqueda (texto_busqueda)
 ) COMMENT = 'Texto libre del egresado -> puesto oficial + nivel Alto/Medio/Operativo';
-
--- ============================================================
--- TABLA PRINCIPAL: EGRESADO
--- Datos fijos del estudiante (no cambian entre años de encuesta)
--- ============================================================
 
 CREATE TABLE IF NOT EXISTS egresado (
   id_egresado           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -96,86 +77,34 @@ CREATE TABLE IF NOT EXISTS egresado (
   CONSTRAINT fk_egresado_ciclo   FOREIGN KEY (id_ciclo_egreso) REFERENCES ciclo_egreso (id_ciclo_egreso)
 ) COMMENT = 'Datos fijos del egresado: identidad, carrera, ciclo de egreso';
 
--- ============================================================
--- TABLA CENTRAL: ENCUESTA_ANUAL
--- 1 fila = 1 egresado x 1 año de encuesta
---
--- Mapeo de columnas Excel:
---   "Ac Empl 2022"         -> anio_encuesta=2022, trabaja (0/1)
---   "Ac Empl 2023"         -> anio_encuesta=2023, trabaja (0/1)
---   "Ac Empl 2024"         -> anio_encuesta=2024, trabaja (0/1)
---   "Ac Empl 2025"         -> anio_encuesta=2025, trabaja (0/1)
---   "NIVEL DE PUESTO 20XX" -> nivel_puesto
---   "SALARIO PROMEDIO 20XX"-> id_salario (via catalogo)
---   "Satisfaccion 20XX"    -> satisfaccion_usil
---   "EMPRENDE 20XX"        -> es_emprendedor
---   "Afinidad 20XX"        -> afinidad_laboral
--- ============================================================
-
 CREATE TABLE IF NOT EXISTS encuesta_anual (
   id_encuesta       INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   id_egresado       INT UNSIGNED NOT NULL,
-
-  -- Sufijo del año en la columna Excel: 2022 | 2023 | 2024 | 2025
   anio_encuesta     SMALLINT     NOT NULL,
   trimestre         VARCHAR(5)   NOT NULL DEFAULT 'Q4',
-
-  -- "Ac Empl 20XX" (situacion laboral texto + flag calculado)
   situacion_laboral TEXT         NULL,
   trabaja           TINYINT(1)   NOT NULL DEFAULT 0,
-
-  -- "EMPRENDE 20XX"
-  -- NULL = pregunta no incluida en esa encuesta; 0 = respondió No; 1 = respondió Sí
   es_emprendedor    TINYINT(1)   NULL DEFAULT NULL,
-
-  -- "?Tu posicion laboral guarda afinidad?" 20XX
-  afinidad_laboral  VARCHAR(10)  NULL,   -- 'SI' | 'NO'
-
-  -- "NIVEL DE PUESTO 20XX"
-  nivel_puesto      VARCHAR(40)  NULL,   -- 'Alto' | 'Medio' | 'Operativo'
-
-  -- "SALARIO PROMEDIO 20XX" normalizado
+  afinidad_laboral  VARCHAR(10)  NULL,
+  nivel_puesto      VARCHAR(40)  NULL,
   id_salario        INT UNSIGNED NULL,
-
-  -- "Satisfaccion 20XX"
   satisfaccion_usil VARCHAR(40)  NULL,
-
-  -- 0 = egresado no fue encuestado ese año (fila en blanco en Excel)
   encuestado        TINYINT(1)   NOT NULL DEFAULT 1,
   fuente_carga      VARCHAR(120) NULL,
 
   created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-  -- Un egresado solo puede tener 1 registro por anio+trimestre
   UNIQUE KEY uq_encuesta (id_egresado, anio_encuesta, trimestre),
   CONSTRAINT fk_encuesta_egresado FOREIGN KEY (id_egresado) REFERENCES egresado (id_egresado),
   CONSTRAINT fk_encuesta_salario  FOREIGN KEY (id_salario)  REFERENCES catalogo_salario (id_salario)
 ) COMMENT = '1 fila = 1 egresado x 1 anio. Origen: columnas Ac Empl 2022/2023/2024/2025';
 
--- ============================================================
--- TABLA: EMPLEO
--- Solo si encuesta_anual.trabaja = 1
--- Mapeo: "Centro Laboral 20XX", "RUBRO 20XX", "Area trabajo 20XX",
---        "PUESTO 20XX", "PUESTO OFICIAL 20XX"
--- ============================================================
-
 CREATE TABLE IF NOT EXISTS empleo (
   id_empleo       INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   id_encuesta     INT UNSIGNED NOT NULL,
-
-  -- "Nombre del centro laboral (Razon Social) 20XX"
   centro_laboral  VARCHAR(200) NULL,
-
-  -- "RUBRO 20XX"
   rubro           VARCHAR(150) NULL,
-
-  -- "Area de trabajo 20XX"
   area_trabajo    VARCHAR(150) NULL,
-
-  -- "PUESTO 20XX" (texto libre del egresado)
   puesto_libre    VARCHAR(200) NULL,
-
-  -- "PUESTO OFICIAL 20XX" -> normalizado via catalogo
   id_puesto       INT UNSIGNED NULL,
 
   created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -185,36 +114,25 @@ CREATE TABLE IF NOT EXISTS empleo (
   CONSTRAINT fk_empleo_puesto   FOREIGN KEY (id_puesto)   REFERENCES catalogo_puesto (id_puesto)
 ) COMMENT = 'Datos laborales por año. Columnas: Centro Laboral/RUBRO/PUESTO 20XX';
 
--- ============================================================
--- DATOS INICIALES
--- ============================================================
-
 INSERT IGNORE INTO tipo_programa (descripcion) VALUES
   ('PREGRADO'), ('CPEL'), ('EPG'), ('IE'), ('MAESTRIAS'), ('DOCTORADO'), ('SEGUNDA ESPECIALIDAD');
-
--- Rangos salariales: variantes de 2022, 2023, 2024 y 2025 -> estandar unico
 INSERT IGNORE INTO catalogo_salario (descripcion_original, rango_estandar, rango_min_soles, rango_max_soles) VALUES
-  -- Estandar actual 2024-2025
   ('Menos de S/. 1,500',                 'Menos de S/. 1,500',                0,      1499.99),
   ('De S/. 1,500 a menos de S/. 3,500',  'De S/. 1,500 a menos de S/. 3,500', 1500,   3499.99),
   ('De S/. 3,500 a menos de S/. 5,500',  'De S/. 3,500 a menos de S/. 5,500', 3500,   5499.99),
   ('De S/. 5,500 a menos de S/. 7,500',  'De S/. 5,500 a menos de S/. 7,500', 5500,   7499.99),
   ('De S/. 7,500 a mas',                 'De S/. 7,500 a mas',                7500,   NULL),
-  -- Variantes 2022
   ('Menos de S/. 1,025',                 'Menos de S/. 1,500',                0,      1024.99),
   ('De S/. 1,025 a menos de S/. 1,500',  'Menos de S/. 1,500',                1025,   1499.99),
   ('De S/. 1,500 a menos de S/. 3,000',  'De S/. 1,500 a menos de S/. 3,500', 1500,   2999.99),
   ('De S/. 3,000 a menos de S/. 6,000',  'De S/. 3,500 a menos de S/. 5,500', 3000,   5999.99),
   ('De S/. 6,000 a mas',                 'De S/. 7,500 a mas',                6000,   NULL),
-  -- Variantes 2023 (salario minimo)
   ('Sueldo hasta 2 salarios minimos',    'Menos de S/. 1,500',                0,      2049.99),
   ('Sueldo hasta 4 salarios minimos',    'De S/. 1,500 a menos de S/. 3,500', 2050,   4099.99),
   ('Sueldo hasta 6 salarios minimos',    'De S/. 3,500 a menos de S/. 5,500', 4100,   6149.99),
   ('Sueldo mas de 6 salarios minimos',   'De S/. 7,500 a mas',                6150,   NULL),
-  -- Variantes 2025
   ('De S/. 6,500 a menos de S/. 8,500',  'De S/. 5,500 a menos de S/. 7,500', 6500,   8499.99),
   ('De S/. 8,500 a mas',                 'De S/. 7,500 a mas',                8500,   NULL),
-  -- Rangos granulares S/500 (Excel con más detalle) → agrupados en los 5 rangos canónicos
   ('De S/. 1,500 a menos de S/. 2,500',  'De S/. 1,500 a menos de S/. 3,500', 1500,   2499.99),
   ('De S/. 2,500 a menos de S/. 3,500',  'De S/. 1,500 a menos de S/. 3,500', 2500,   3499.99),
   ('De S/. 3,500 a menos de S/. 4,500',  'De S/. 3,500 a menos de S/. 5,500', 3500,   4499.99),
@@ -226,7 +144,6 @@ INSERT IGNORE INTO catalogo_salario (descripcion_original, rango_estandar, rango
   ('De S/. 8500 a menos de S/. 9,500',   'De S/. 7,500 a mas',                8500,   9499.99),
   ('Más de S/. 9,500',                    'De S/. 7,500 a mas',                9500,   NULL),
   ('Mas de S/. 9,500',                    'De S/. 7,500 a mas',                9500,   NULL),
-  -- Variantes con typos / sin punto en "S/"
   ('De S/. 5,500 a menos de S/6,500',    'De S/. 5,500 a menos de S/. 7,500', 5500,   6499.99),
   ('De S/. 6,500 a menos de S/7,500',    'De S/. 5,500 a menos de S/. 7,500', 6500,   7499.99),
   ('De S/7,500 a menos de S/8,500',      'De S/. 7,500 a mas',                7500,   8499.99),
@@ -255,12 +172,6 @@ INSERT IGNORE INTO catalogo_puesto (texto_busqueda, puesto_oficial, nivel_puesto
   ('Tecnico',       'Tecnico(a)',                           'Operativo'),
   ('Independiente', 'Independiente / Emprendedor',          'Medio'),
   ('Emprendedor',   'Independiente / Emprendedor',          'Medio');
-
--- ============================================================
--- VISTAS PARA EL API Y EL DASHBOARD
--- ============================================================
-
--- KPIs + tasas por año/trimestre/carrera/facultad (alimenta todos los recuadros)
 CREATE OR REPLACE VIEW v_resumen_empleabilidad AS
 SELECT
   ea.anio_encuesta,
@@ -288,8 +199,6 @@ WHERE ea.encuestado = 1
 GROUP BY ea.anio_encuesta, ea.trimestre,
          f.nombre_facultad, tp.descripcion, c.nombre_carrera,
          ce.codigo_ciclo, ce.anio_egreso;
-
--- Recuadro: Rango Salarial Promedio
 CREATE OR REPLACE VIEW v_rangos_salariales AS
 SELECT
   ea.anio_encuesta,
@@ -305,8 +214,6 @@ JOIN catalogo_salario cs ON ea.id_salario = cs.id_salario
 WHERE ea.encuestado = 1 AND ea.trabaja = 1
 GROUP BY ea.anio_encuesta, ea.trimestre,
          cs.rango_estandar, cs.rango_min_soles, cs.rango_max_soles;
-
--- Recuadro: Nivel de Puesto
 CREATE OR REPLACE VIEW v_nivel_puesto AS
 SELECT
   ea.anio_encuesta,
@@ -318,8 +225,6 @@ SELECT
 FROM encuesta_anual ea
 WHERE ea.encuestado = 1 AND ea.trabaja = 1 AND ea.nivel_puesto IS NOT NULL
 GROUP BY ea.anio_encuesta, ea.trimestre, ea.nivel_puesto;
-
--- Recuadro: Satisfaccion USIL
 CREATE OR REPLACE VIEW v_satisfaccion_usil AS
 SELECT
   ea.anio_encuesta,
@@ -331,8 +236,6 @@ SELECT
 FROM encuesta_anual ea
 WHERE ea.encuestado = 1 AND ea.satisfaccion_usil IS NOT NULL
 GROUP BY ea.anio_encuesta, ea.trimestre, ea.satisfaccion_usil;
-
--- Historial completo por egresado: muestra evolucion 2022-2025
 CREATE OR REPLACE VIEW v_historial_egresado AS
 SELECT
   eg.nro_doc,

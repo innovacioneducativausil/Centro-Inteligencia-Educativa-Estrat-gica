@@ -1,12 +1,5 @@
-// server/scripts/createUser.js
-// Crea un nuevo usuario con contraseña hasheada directamente en la BD.
-// Uso: node scripts/createUser.js <correo> <contraseña> "<nombre completo>" [rol]
-//
-// Roles disponibles: admin | usuario  (default: usuario)
-//
-// Ejemplos:
-//   node scripts/createUser.js admin@usil.edu Admin2025!  "Ana García"  admin
-//   node scripts/createUser.js user@usil.edu  Clave123!   "Luis Torres" usuario
+
+
 
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
@@ -44,7 +37,7 @@ if (!ROLES_VALIDOS.includes(rol)) {
   process.exit(1);
 }
 
-// Verificar si ya existe
+
 const [[existe]] = await db.query(
   'SELECT id_usuario FROM usuario WHERE correo_usuario = ?',
   [correo.trim().toLowerCase()]
@@ -55,12 +48,12 @@ if (existe) {
   process.exit(1);
 }
 
-// Generar hash bcrypt
+
 const hash = await bcrypt.hash(password, 10);
 
-// Insertar usuario
+
 const id = randomUUID();
-const nombreCorto = nombre.trim().split(' ')[0]; // primer nombre como nombre corto
+const nombreCorto = nombre.trim().split(' ')[0];
 
 await db.query(
   `INSERT INTO usuario

@@ -1,12 +1,12 @@
 import { serverError } from '../middleware/errorHandler.js';
-// server/routes/catalogos.js
-// Catálogos de filtros: PESTEL y Sectores
+
+
 import { Router } from 'express';
 import db from '../db.js';
 
 const router = Router();
 
-/** GET /api/pestel — lista todas las categorías PESTEL activas */
+
 router.get('/pestel', async (_req, res) => {
   try {
     const [rows] = await db.query(
@@ -23,7 +23,7 @@ router.get('/pestel', async (_req, res) => {
   }
 });
 
-/** GET /api/sectores — lista todos los sectores activos */
+
 router.get('/sectores', async (_req, res) => {
   try {
     const [rows] = await db.query(

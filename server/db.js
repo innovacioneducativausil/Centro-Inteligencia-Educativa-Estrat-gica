@@ -1,4 +1,4 @@
-// server/db.js — Conexión a MySQL
+
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -19,7 +19,7 @@ const pool = mysql.createPool({
   timezone: '+00:00',
 });
 
-// Verificar conexión al arrancar
+
 pool.getConnection()
   .then(conn => {
     console.log('✅ MySQL conectado a "radar_carreras" en puerto 3306');

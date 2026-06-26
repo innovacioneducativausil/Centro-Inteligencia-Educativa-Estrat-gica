@@ -1,7 +1,5 @@
-// server/routes/benchmarking.js
-// Módulo: Benchmarking Universitario (Competencia Directa + Referentes Internacionales)
-// Tablas en: empleabilidad_usil
-// Auto-crea tablas al arrancar (mismo patrón que mercadoLaboral.js)
+
+
 
 import { Router } from 'express';
 import db from '../db_empl.js';
@@ -400,7 +398,7 @@ router.use(async (req, res, next) => {
   try { await ensureBenchmarkingSchema(); next(); } catch (e) { next(e); }
 });
 
-// ── GET /api/mercado-laboral/benchmarking/universidades ─────────────────────
+
 router.get('/mercado-laboral/benchmarking/universidades', async (req, res) => {
   try {
     const { tipo } = req.query;
@@ -417,7 +415,7 @@ router.get('/mercado-laboral/benchmarking/universidades', async (req, res) => {
   } catch (e) { serverError(res, e, 'GET /benchmarking/universidades'); }
 });
 
-// ── POST /api/mercado-laboral/benchmarking/universidades ────────────────────
+
 router.post('/mercado-laboral/benchmarking/universidades', adminOnly, async (req, res) => {
   try {
     const { nombre_universidad, pais = 'Peru', ciudad, tipo_benchmark, sitio_web } = req.body;
@@ -433,7 +431,7 @@ router.post('/mercado-laboral/benchmarking/universidades', adminOnly, async (req
   } catch (e) { serverError(res, e, 'POST /benchmarking/universidades'); }
 });
 
-// ── PUT /api/mercado-laboral/benchmarking/universidades/:id ─────────────────
+
 router.put('/mercado-laboral/benchmarking/universidades/:id', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
@@ -452,7 +450,7 @@ router.put('/mercado-laboral/benchmarking/universidades/:id', adminOnly, async (
   } catch (e) { serverError(res, e, 'PUT /benchmarking/universidades/:id'); }
 });
 
-// ── DELETE /api/mercado-laboral/benchmarking/universidades/:id ──────────────
+
 router.delete('/mercado-laboral/benchmarking/universidades/:id', adminOnly, async (req, res) => {
   try {
     await db.query('UPDATE universidad_benchmark SET activo=0 WHERE id_universidad_benchmark=?', [req.params.id]);
@@ -460,7 +458,7 @@ router.delete('/mercado-laboral/benchmarking/universidades/:id', adminOnly, asyn
   } catch (e) { serverError(res, e, 'DELETE /benchmarking/universidades/:id'); }
 });
 
-// ── GET /api/mercado-laboral/benchmarking/programas ─────────────────────────
+
 router.get('/mercado-laboral/benchmarking/programas', async (req, res) => {
   try {
     const { id_universidad, carrera_id, estado } = req.query;
@@ -481,7 +479,7 @@ router.get('/mercado-laboral/benchmarking/programas', async (req, res) => {
   } catch (e) { serverError(res, e, 'GET /benchmarking/programas'); }
 });
 
-// ── GET /api/mercado-laboral/benchmarking/cobertura ───────────────────────
+
 router.get('/mercado-laboral/benchmarking/cobertura', async (_req, res) => {
   try {
     const [carreras] = await dbCurricular.query(
@@ -539,7 +537,7 @@ router.get('/mercado-laboral/benchmarking/cobertura', async (_req, res) => {
   } catch (e) { serverError(res, e, 'GET /benchmarking/cobertura'); }
 });
 
-// ── POST /api/mercado-laboral/benchmarking/seed-inicial ────────────────────
+
 router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req, res) => {
   try {
     await db.query(`UPDATE universidad_benchmark SET tipo_benchmark='competencia_internacional' WHERE tipo_benchmark='referente_tecnologico'`);
@@ -697,7 +695,7 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
   } catch (e) { serverError(res, e, 'POST /benchmarking/seed-inicial'); }
 });
 
-// ── POST /api/mercado-laboral/benchmarking/programas ────────────────────────
+
 router.post('/mercado-laboral/benchmarking/programas', adminOnly, async (req, res) => {
   try {
     const { id_universidad_benchmark, nombre_programa, url_programa, carrera_equivalente_id, modalidad, duracion } = req.body;
@@ -714,7 +712,7 @@ router.post('/mercado-laboral/benchmarking/programas', adminOnly, async (req, re
   } catch (e) { serverError(res, e, 'POST /benchmarking/programas'); }
 });
 
-// ── GET /api/mercado-laboral/benchmarking/programas/:id ─────────────────────
+
 router.get('/mercado-laboral/benchmarking/programas/:id', async (req, res) => {
   try {
     const [[prog]] = await db.query(
@@ -743,7 +741,7 @@ router.get('/mercado-laboral/benchmarking/programas/:id', async (req, res) => {
   } catch (e) { serverError(res, e, 'GET /benchmarking/programas/:id'); }
 });
 
-// ── GET /api/mercado-laboral/benchmarking/programas/:id/fuentes ───────────
+
 router.get('/mercado-laboral/benchmarking/programas/:id/fuentes', async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -756,7 +754,7 @@ router.get('/mercado-laboral/benchmarking/programas/:id/fuentes', async (req, re
   } catch (e) { serverError(res, e, 'GET /benchmarking/programas/:id/fuentes'); }
 });
 
-// ── POST /api/mercado-laboral/benchmarking/programas/:id/fuentes ──────────
+
 router.post('/mercado-laboral/benchmarking/programas/:id/fuentes', adminOnly, async (req, res) => {
   try {
     const {
@@ -788,7 +786,7 @@ router.post('/mercado-laboral/benchmarking/programas/:id/fuentes', adminOnly, as
   } catch (e) { serverError(res, e, 'POST /benchmarking/programas/:id/fuentes'); }
 });
 
-// ── PUT /api/mercado-laboral/benchmarking/fuentes/:id ─────────────────────
+
 router.put('/mercado-laboral/benchmarking/fuentes/:id', adminOnly, async (req, res) => {
   try {
     const allowed = ['tipo_fuente','titulo','url','estado','es_fuente_principal','fecha_captura','fecha_validacion','validado_por','extractor','extractor_version','evidencia_resumen','observaciones','activo'];
@@ -807,7 +805,7 @@ router.put('/mercado-laboral/benchmarking/fuentes/:id', adminOnly, async (req, r
   } catch (e) { serverError(res, e, 'PUT /benchmarking/fuentes/:id'); }
 });
 
-// ── POST /api/mercado-laboral/benchmarking/scraping ─────────────────────────
+
 router.post('/mercado-laboral/benchmarking/scraping', adminOnly, async (req, res) => {
   try {
     const { ids, texto_manual, url_origen, id_programa } = req.body;
@@ -827,7 +825,7 @@ router.post('/mercado-laboral/benchmarking/scraping', adminOnly, async (req, res
   } catch (e) { serverError(res, e, 'POST /benchmarking/scraping'); }
 });
 
-// ── POST /api/mercado-laboral/benchmarking/descubrir-fuentes ───────────────
+
 router.post('/mercado-laboral/benchmarking/descubrir-fuentes', adminOnly, async (req, res) => {
   try {
     const { id_programa, ids } = req.body;
@@ -844,7 +842,7 @@ router.post('/mercado-laboral/benchmarking/descubrir-fuentes', adminOnly, async 
   } catch (e) { serverError(res, e, 'POST /benchmarking/descubrir-fuentes'); }
 });
 
-// ── GET /api/mercado-laboral/benchmarking/programas/:id/candidatos ─────────
+
 router.get('/mercado-laboral/benchmarking/programas/:id/candidatos', async (req, res) => {
   try {
     const incluirHistorial = req.query.historial === '1';
@@ -863,7 +861,7 @@ router.get('/mercado-laboral/benchmarking/programas/:id/candidatos', async (req,
   } catch (e) { serverError(res, e, 'GET /benchmarking/programas/:id/candidatos'); }
 });
 
-// ── POST /api/mercado-laboral/benchmarking/candidatos/:id/aprobar ──────────
+
 router.post('/mercado-laboral/benchmarking/candidatos/:id/aprobar', adminOnly, async (req, res) => {
   try {
     const [[candidate]] = await db.query(
@@ -920,7 +918,7 @@ router.post('/mercado-laboral/benchmarking/candidatos/:id/aprobar', adminOnly, a
   } catch (e) { serverError(res, e, 'POST /benchmarking/candidatos/:id/aprobar'); }
 });
 
-// ── POST /api/mercado-laboral/benchmarking/candidatos/:id/descartar ────────
+
 router.post('/mercado-laboral/benchmarking/candidatos/:id/descartar', adminOnly, async (req, res) => {
   try {
     await db.query(
@@ -933,7 +931,7 @@ router.post('/mercado-laboral/benchmarking/candidatos/:id/descartar', adminOnly,
   } catch (e) { serverError(res, e, 'POST /benchmarking/candidatos/:id/descartar'); }
 });
 
-// ── PUT /api/mercado-laboral/benchmarking/programas/:id/equivalencia ───────
+
 router.put('/mercado-laboral/benchmarking/programas/:id/equivalencia', adminOnly, async (req, res) => {
   try {
     const { nombre_oficial_sugerido, aliases = [], nivel_equivalencia = 'cercana', observaciones } = req.body;
@@ -952,7 +950,7 @@ router.put('/mercado-laboral/benchmarking/programas/:id/equivalencia', adminOnly
   } catch (e) { serverError(res, e, 'PUT /benchmarking/programas/:id/equivalencia'); }
 });
 
-// ── POST /api/mercado-laboral/benchmarking/normalizar-ia ────────────────────
+
 router.post('/mercado-laboral/benchmarking/normalizar-ia', adminOnly, async (req, res) => {
   try {
     const { id_programa } = req.body;
@@ -962,7 +960,7 @@ router.post('/mercado-laboral/benchmarking/normalizar-ia', adminOnly, async (req
   } catch (e) { serverError(res, e, 'POST /benchmarking/normalizar-ia'); }
 });
 
-// ── GET /api/mercado-laboral/benchmarking/comparar/:idCarrera ───────────────
+
 router.get('/mercado-laboral/benchmarking/comparar/:idCarrera', async (req, res) => {
   try {
     const { idCarrera } = req.params;
@@ -992,7 +990,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera', async (req, res)
   } catch (e) { serverError(res, e, 'GET /benchmarking/comparar/:idCarrera'); }
 });
 
-// ── GET /api/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark ─
+
 router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', async (req, res) => {
   try {
     const { idCarrera, tipoBenchmark } = req.params;

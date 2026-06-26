@@ -1,8 +1,3 @@
--- ============================================================
--- Benchmarking curricular v2
--- Ejecutar en Railway MySQL sobre la base empleabilidad_usil.
--- Nota: si Railway no permite USE, selecciona la BD y ejecuta desde CREATE/ALTER.
--- ============================================================
 
 USE empleabilidad_usil;
 
@@ -47,8 +42,6 @@ CREATE TABLE IF NOT EXISTS programa_benchmark (
   CONSTRAINT fk_pb_universidad FOREIGN KEY (id_universidad_benchmark)
     REFERENCES universidad_benchmark(id_universidad_benchmark) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Si programa_benchmark ya existía y falla por columna duplicada, omite este ALTER.
 ALTER TABLE programa_benchmark
   ADD COLUMN estado_validacion ENUM('registrado','pendiente_extraccion','extraido','pendiente_validacion','validado','rechazado','desactualizado','reemplazado') NOT NULL DEFAULT 'registrado' AFTER estado_extraccion;
 

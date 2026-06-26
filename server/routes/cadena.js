@@ -1,5 +1,5 @@
-// server/routes/cadena.js — Cadena Causal por tópico
-// Devuelve señales, tendencias y escenarios de cada tópico con sus relaciones
+
+
 import { serverError } from '../middleware/errorHandler.js';
 import { Router } from 'express';
 import db from '../db.js';
@@ -7,13 +7,10 @@ import { adminOrAnalyst } from '../middleware/roles.js';
 
 const router = Router();
 
-/**
- * GET /api/cadena-causal
- * Devuelve todos los tópicos con sus señales, tendencias, escenarios y relaciones.
- */
+
 router.get('/cadena-causal', async (req, res) => {
   try {
-    // 1) Todos los tópicos que tienen al menos un elemento publicado
+
     const [topicos] = await db.query(`
       SELECT DISTINCT tp.id_topico, tp.nombre
       FROM topico tp
@@ -26,7 +23,7 @@ router.get('/cadena-causal', async (req, res) => {
     const result = await Promise.all(topicos.map(async (tp) => {
       const id = tp.id_topico;
 
-      // 2) Señales del tópico
+
       const [senales] = await db.query(`
         SELECT s.id_senal AS uuid, s.titulo_senal AS titulo, s.desc_corta_senal AS descCorta,
                s.url_imagen_senal AS urlImagen, s.fuente_senal AS fuente, s.url_fuente AS urlFuente,
@@ -39,7 +36,7 @@ router.get('/cadena-causal', async (req, res) => {
         ORDER BY s.fecha_publicacion DESC
       `, [id]);
 
-      // 3) Tendencias del tópico
+
       const [tendencias] = await db.query(`
         SELECT t.id_tendencia AS uuid, t.titulo_tendencia AS titulo, t.desc_corta_tendencia AS descCorta,
                MIN(p.nombre_pestel) AS pestel, MIN(p.color) AS color
@@ -51,7 +48,7 @@ router.get('/cadena-causal', async (req, res) => {
         ORDER BY t.fecha_publicacion DESC
       `, [id]);
 
-      // 4) Escenarios del tópico
+
       const [escenarios] = await db.query(`
         SELECT e.id_escenario AS uuid, e.titulo_escenario AS titulo, e.desc_corta_escenario AS descCorta,
                e.probabilidad,
@@ -64,7 +61,7 @@ router.get('/cadena-causal', async (req, res) => {
         ORDER BY e.fecha_publicacion DESC
       `, [id]);
 
-      // 5) Relaciones señal → tendencia
+
       const [relST] = await db.query(`
         SELECT s.id_senal AS idSenal, t.id_tendencia AS idTendencia
         FROM senal_tendencia st
@@ -72,7 +69,7 @@ router.get('/cadena-causal', async (req, res) => {
         JOIN tendencia t ON st.id_tendencia = t.id_tendencia AND t.id_topico  = ? AND t.id_estado = 1
       `, [id, id]);
 
-      // 6) Relaciones señal → escenario
+
       const [relSE] = await db.query(`
         SELECT s.id_senal AS idSenal, e.id_escenario AS idEscenario
         FROM senal_escenario se
@@ -80,7 +77,7 @@ router.get('/cadena-causal', async (req, res) => {
         JOIN escenario e ON se.id_escenario = e.id_escenario AND e.id_topico = ? AND e.id_estado = 1
       `, [id, id]);
 
-      // 7) Relaciones tendencia → escenario
+
       const [relTE] = await db.query(`
         SELECT t.id_tendencia AS idTendencia, e.id_escenario AS idEscenario
         FROM tendencia_escenario te
@@ -102,7 +99,7 @@ router.get('/cadena-causal', async (req, res) => {
       };
     }));
 
-    // Solo devolver tópicos con al menos 1 elemento en cada columna
+
     const filtered = result.filter(t => t.senales.length > 0 || t.tendencias.length > 0 || t.escenarios.length > 0);
     res.json({ data: filtered });
 
@@ -112,7 +109,7 @@ router.get('/cadena-causal', async (req, res) => {
   }
 });
 
-// ── Stopwords para inferencia por keywords (sin IA) ─────────────────────────
+
 const STOPS = new Set([
   'the','a','an','in','of','for','to','and','or','is','are','with','by','as','at','on',
   'that','this','their','they','have','been','will','from','but','not','more','its',
@@ -127,28 +124,24 @@ function tokens(text) {
     .filter(w => w.length > 3 && !STOPS.has(w));
 }
 
-/**
- * POST /api/cadena-causal/:idTopico/relaciones/inferir
- * Infiere relaciones para un tópico que no las tiene y las guarda en BD.
- * Usa Groq (si GROQ_API_KEY está configurado) o keyword-matching como fallback.
- */
+
 router.post('/cadena-causal/:idTopico/relaciones/inferir', adminOrAnalyst, async (req, res) => {
   const idTopico = parseInt(req.params.idTopico);
   if (!idTopico) return res.status(400).json({ error: 'idTopico inválido' });
 
   try {
-    // 1) Verificar que el tópico existe
+
     const [[tp]] = await db.query('SELECT id_topico, nombre FROM topico WHERE id_topico = ? LIMIT 1', [idTopico]);
     if (!tp) return res.status(404).json({ error: 'Tópico no encontrado' });
 
-    // 2) Señales, tendencias, escenarios publicados
+
     const [[senales], [tendencias], [escenarios]] = await Promise.all([
       db.query('SELECT id_senal AS uuid, titulo_senal AS titulo, desc_corta_senal AS descCorta FROM senal WHERE id_topico=? AND id_estado=1', [idTopico]),
       db.query('SELECT id_tendencia AS uuid, titulo_tendencia AS titulo, desc_corta_tendencia AS descCorta FROM tendencia WHERE id_topico=? AND id_estado=1', [idTopico]),
       db.query('SELECT id_escenario AS uuid, titulo_escenario AS titulo, desc_corta_escenario AS descCorta FROM escenario WHERE id_topico=? AND id_estado=1', [idTopico]),
     ]);
 
-    // 3) Si ya hay relaciones, devolverlas sin hacer nada
+
     const [[cntST], [cntSE], [cntTE]] = await Promise.all([
       db.query(`SELECT COUNT(*) AS n FROM senal_tendencia st
         JOIN senal s ON st.id_senal=s.id_senal WHERE s.id_topico=?`, [idTopico]),
@@ -177,8 +170,8 @@ router.post('/cadena-causal/:idTopico/relaciones/inferir', adminOrAnalyst, async
       return res.status(400).json({ error: 'El tópico no tiene elementos publicados' });
     }
 
-    // 4) Inferir relaciones — con IA si hay GROQ_API_KEY, sino por keywords
-    let inferred = []; // [{ tipo, idA, idB }]
+
+    let inferred = [];
 
     const groqKey = process.env.GROQ_API_KEY;
     if (groqKey && (senales.length + tendencias.length + escenarios.length) >= 2) {
@@ -227,10 +220,10 @@ Responde SOLO JSON válido:
       }
     }
 
-    // Fallback: keyword matching
+
     if (!inferred.length) {
-      // Keyword fallback — todos los IDs como strings para consistencia
-      // señal → tendencia
+
+
       for (const s of senales) {
         const sw = new Set(tokens(`${s.titulo} ${s.descCorta || ''}`));
         let connected = false;
@@ -244,7 +237,7 @@ Responde SOLO JSON válido:
           inferred.push({ tipo: 'senal_tendencia', idA: String(s.uuid), idB: String(tendencias[0].uuid) });
         }
       }
-      // tendencia → escenario
+
       for (const t of tendencias) {
         const tw = new Set(tokens(`${t.titulo} ${t.descCorta || ''}`));
         let connected = false;
@@ -258,7 +251,7 @@ Responde SOLO JSON válido:
           inferred.push({ tipo: 'tendencia_escenario', idA: String(t.uuid), idB: String(escenarios[0].uuid) });
         }
       }
-      // señal → escenario (solo si no hay tendencias o escenario huérfano)
+
       const connectedEscIds = new Set(inferred.filter(r => r.tipo === 'tendencia_escenario').map(r => r.idB));
       if (tendencias.length === 0) {
         for (const s of senales) {
@@ -288,9 +281,7 @@ Responde SOLO JSON válido:
       }
     }
 
-    // 5) Validar IDs y guardar en BD
-    // Nota: los IDs vienen como enteros de MySQL; String() normaliza la comparación
-    // sin importar si Groq devuelve strings o el fallback devuelve números.
+
     const senalIdSet = new Set(senales.map(s  => String(s.uuid)));
     const tendIdSet  = new Set(tendencias.map(t => String(t.uuid)));
     const escIdSet   = new Set(escenarios.map(e => String(e.uuid)));

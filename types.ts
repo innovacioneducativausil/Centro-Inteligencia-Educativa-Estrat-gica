@@ -13,7 +13,7 @@ export enum Category {
 }
 
 export enum Sector {
-  // — Existentes —
+
   Salud           = 'Salud',
   Logistica       = 'Logística',
   Finanzas        = 'Finanzas',
@@ -21,18 +21,18 @@ export enum Sector {
   Energia         = 'Energía',
   Aeroespacial    = 'Aeroespacial',
   Industria       = 'Industria',
-  // — Prioridad Alta —
+
   TI              = 'Tecnología de la Información',
   Mineria         = 'Minería y Recursos Naturales',
   Agroindustria   = 'Agroindustria',
   Construccion    = 'Construcción e Infraestructura',
   Biotecnologia   = 'Biotecnología y Ciencias de la Vida',
-  // — Prioridad Media —
+
   Turismo         = 'Turismo y Hotelería',
   Telecomunicaciones = 'Telecomunicaciones',
   Medioambiente   = 'Medioambiente y Sostenibilidad',
   Comercio        = 'Comercio y E-commerce',
-  // — Contextuales —
+
   GobiernoPublico = 'Gobierno y Sector Público',
   Medios          = 'Medios, Comunicación y Entretenimiento',
   DefensaSeguridad = 'Defensa y Seguridad'

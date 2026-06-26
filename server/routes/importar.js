@@ -1,5 +1,5 @@
-// server/routes/importar.js — Importación de artículos con clasificación IA
-// POST /api/importar/confirmar — Guarda propuestas aprobadas como publicadas
+
+
 import { Router }     from 'express';
 import { randomUUID } from 'crypto';
 import db             from '../db.js';
@@ -19,7 +19,7 @@ function requireRole(...roles) {
 }
 const adminOnly = requireRole('admin', 'analista');
 
-/** Serializa array de URLs para escenario.url_fuente (TEXT JSON) */
+
 function serializeUrlFuentes(urlsFuente, fallbackUrl) {
   const arr = Array.isArray(urlsFuente)
     ? urlsFuente.filter(u => u?.trim())
@@ -146,7 +146,7 @@ async function loadExistingByTopic(topicoNombre) {
   return result;
 }
 
-/** Encuentra o crea un tópico por nombre. Devuelve id_topico (int). */
+
 router.get('/importar/topico-existe', adminOnly, async (req, res) => {
   try {
     const topico = String(req.query.topico || '').trim();
@@ -227,35 +227,7 @@ router.post('/importar/revisar', adminOnly, async (req, res) => {
   }
 });
 
-/**
- * POST /api/importar/confirmar
- * Body: {
- *   topico:    string   — título del artículo (crea/encuentra en tabla topico)
- *   fuente:    string   — nombre de la fuente del artículo
- *   urlFuente: string   — URL del artículo original
- *   propuestas: Array<{
- *     id:               string    — localId (ej. 'senal-0', 'tendencia-1')
- *     tipo:             'senal' | 'tendencia' | 'escenario'
- *     titulo:           string    — título descriptivo (max 100 chars)
- *     nombre:           string    — nombre conciso (max 60 chars)
- *     descCorta:        string    — descripción breve (max 280 chars)
- *     descLarga:        string    — texto completo del fragmento
- *     fuente:           string    — fuente específica del ítem
- *     urlFuente:        string    — URL para señal/tendencia
- *     urlsFuente:       string[]  — URLs múltiples para escenario
- *     probabilidad:     number    — 1-5 (solo escenario)
- *     temasRelacionados: string[] — tópicos relacionados (solo tendencia)
- *     pestelId:         string    — id del PESTEL asignado
- *     sectorId:         string    — id del sector asignado
- *   }>
- *   relaciones: Array<{
- *     idOrigen:  string  — localId del origen
- *     idDestino: string  — localId del destino
- *     tipo:      'senal_tendencia' | 'tendencia_escenario' | 'senal_escenario'
- *   }>
- * }
- * Respuesta: { creados, ids, relaciones, errores, topicoId, topicoNombre }
- */
+
 router.post('/importar/confirmar', adminOnly, async (req, res) => {
   const { topico = '', fuente = '', urlFuente = '', propuestas, relaciones = [], modoRevision = false } = req.body;
 
@@ -265,13 +237,11 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
   await ensureRadarSchemaSupport();
 
   const usuarioId    = req.user.id;
-  const creados      = [];  // { localId, realId, tipo, titulo }
+  const creados      = [];
   const errores      = [];
   const omitidos      = [];
 
-  // 1. Crear/encontrar tópico del artículo (ancla de trazabilidad)
-  // Prioridad: topico del formulario (nivel documento) — lo pasamos al loop
-  // para que cada escenario pueda usar su propio topico como fallback si el documento no lo tiene.
+
   let topicoIdDoc     = null;
   let topicoNombre    = topico.trim() || null;
   if (topicoNombre) {
@@ -281,11 +251,11 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
       console.error('[IMPORTAR] Error creando tópico:', err);
     }
   }
-  // Alias mantenido para señales y tendencias
+
   let topicoId = topicoIdDoc;
 
-  // 2. Insertar cada propuesta aprobada
-  const localToReal = new Map(); // localId → { realId, tipo }
+
+  const localToReal = new Map();
 
   for (const p of propuestas) {
     const {
@@ -300,29 +270,29 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
       urlsFuente        = [],
       probabilidad,
       temasRelacionados = [],
-      pestelId,          // legacy single (fallback)
-      sectorId,          // legacy single (fallback)
-      pestelIds = [],    // nuevos arrays multi-valor
-      sectorIds = [],    // nuevos arrays multi-valor
-      // Campos enriquecidos → columnas DB
-      razonClasificacion = '',   // → razon_cambio
-      paisOrigen         = null, // → pais_origen (señales)
-      fechaArticulo      = null, // → fecha_senal_articulo (señales) YYYY-MM-DD
-      lugar              = null, // legacy alias de paisOrigen
-      fechaMencionada    = null, // legacy alias de fechaArticulo
-      horizonteTemporal  = null, // → horizonte_escenario (escenarios)
-      urlImagen          = '',   // → url_imagen_senal / tendencia / escenario
-      urlVideo           = '',   // → url_video_senal  / tendencia / escenario
-      // Escenarios (nuevos campos de prompt)
-      topico:    topicoEscenario = '', // tópico del documento por escenario (fallback)
-      referencias = [],              // → referencias_escenario (JSON array)
-      tendenciasSoporte = [],        // nombres de tendencias de soporte → tendencia_escenario
-      autor             = null,      // extraído de "Seleccionado, filtrado y editado con [AUTOR]"
+      pestelId,
+      sectorId,
+      pestelIds = [],
+      sectorIds = [],
+
+      razonClasificacion = '',
+      paisOrigen         = null,
+      fechaArticulo      = null,
+      lugar              = null,
+      fechaMencionada    = null,
+      horizonteTemporal  = null,
+      urlImagen          = '',
+      urlVideo           = '',
+
+      topico:    topicoEscenario = '',
+      referencias = [],
+      tendenciasSoporte = [],
+      autor             = null,
       syncAction        = null,
       existingId        = null,
     } = p;
 
-    // Validaciones mínimas
+
     if (!tipo || !['senal', 'tendencia', 'escenario'].includes(tipo)) {
       errores.push({ id: localId, titulo: titulo || '(sin título)', error: `Tipo inválido: "${tipo}"` });
       continue;
@@ -331,7 +301,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
       errores.push({ id: localId, titulo: titulo || '(sin título)', error: 'El título y la descripción son obligatorios.' });
       continue;
     }
-    // Unificar arrays: nuevos campos tienen prioridad; fallback a single legacy
+
     const finalPestelIds = pestelIds.length > 0 ? pestelIds : (pestelId ? [pestelId] : []);
     const finalSectorIds = sectorIds.length > 0 ? sectorIds : (sectorId ? [sectorId] : []);
 
@@ -424,7 +394,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
       }
 
       if (tipo === 'senal') {
-        // Anti-colisión por título o nombre
+
         const dup = await findDuplicateTitleOrName('senal', tituloFin, nombreFin);
         if (dup) {
           if (modoRevision) {
@@ -436,7 +406,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
           continue;
         }
 
-        // paisOrigen / fechaArticulo (nuevos) con fallback legacy
+
         const paisOrigenFin    = (paisOrigen || lugar)?.trim()          || null;
         const fechaArticuloFin = (fechaArticulo || fechaMencionada)?.trim() || null;
         const urlImagenFin     = urlImagen?.trim() || null;
@@ -463,7 +433,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
           await db.query('INSERT IGNORE INTO senal_sector  (id_senal, id_sector) VALUES (?, ?)', [newId, sid]);
 
       } else if (tipo === 'tendencia') {
-        // Anti-colisión por título o nombre
+
         const dup = await findDuplicateTitleOrName('tendencia', tituloFin, nombreFin);
         if (dup) {
           if (modoRevision) {
@@ -493,7 +463,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
         for (const sid of finalSectorIds)
           await db.query('INSERT IGNORE INTO tendencia_sector  (id_tendencia, id_sector) VALUES (?, ?)', [newId, sid]);
 
-        // Temas relacionados → topico_relac_tendencia
+
         for (const tema of temasRelacionados) {
           if (!tema?.trim()) continue;
           try {
@@ -510,7 +480,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
         }
 
       } else if (tipo === 'escenario') {
-        // Anti-colisión por título o nombre
+
         const dup = await findDuplicateTitleOrName('escenario', tituloFin, nombreFin);
         if (dup) {
           if (modoRevision) {
@@ -529,7 +499,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
 
         const horizonteFin = horizonteTemporal?.trim() || null;
 
-        // Fallback: si el formulario no tenía tópico, usar el que la IA generó por escenario
+
         let topicoIdEsc = topicoIdDoc;
         if (!topicoIdEsc && topicoEscenario?.trim()) {
           try {
@@ -539,7 +509,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
           }
         }
 
-        // Serializar referencias como JSON
+
         const referenciasFin = Array.isArray(referencias) && referencias.length > 0
           ? JSON.stringify(referencias.filter(r => r?.trim()))
           : null;
@@ -566,7 +536,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
         for (const sid of finalSectorIds)
           await db.query('INSERT IGNORE INTO escenario_sector  (id_escenario, id_sector) VALUES (?, ?)', [newId, sid]);
 
-        // Vincular tendenciasSoporte: buscar por nombre y crear relación en tendencia_escenario
+
         if (Array.isArray(tendenciasSoporte) && tendenciasSoporte.length > 0) {
           for (const nombreTend of tendenciasSoporte) {
             if (!nombreTend?.trim()) continue;
@@ -605,13 +575,13 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
     }
   }
 
-  // 3. Insertar relaciones usando IDs reales (localId → realId ya mapeados)
+
   let relacionesCreadas = 0;
   for (const rel of relaciones) {
     const { idOrigen, idDestino, tipo: tipoRel } = rel;
     const origen  = localToReal.get(idOrigen);
     const destino = localToReal.get(idDestino);
-    if (!origen || !destino) continue; // uno falló o fue rechazado
+    if (!origen || !destino) continue;
 
     try {
       if (tipoRel === 'senal_tendencia') {

@@ -1,5 +1,3 @@
--- Tabla para los informes descargables del Estudio de Empleabilidad
--- Ejecutar en Railway MySQL: Data > Query
 
 CREATE TABLE IF NOT EXISTS informe_empleabilidad (
   id             INT AUTO_INCREMENT PRIMARY KEY,
@@ -12,8 +10,6 @@ CREATE TABLE IF NOT EXISTS informe_empleabilidad (
   activo         TINYINT(1)   DEFAULT 1,
   fecha_creacion TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
 );
-
--- Datos de ejemplo (ajustar URLs reales antes de usar)
 INSERT INTO informe_empleabilidad (nombre, anio, unidad, facultad, url_descarga, tipo_acceso) VALUES
 ('Estudio de Empleabilidad Pregrado 2024',          2024, 'Pregrado',          'Ciencias Empresariales', NULL, 'descarga'),
 ('Estudio de Empleabilidad Pregrado 2024',          2024, 'Pregrado',          'Ingeniería',             NULL, 'descarga'),

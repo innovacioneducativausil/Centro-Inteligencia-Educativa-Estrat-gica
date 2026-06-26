@@ -1,11 +1,11 @@
-// server/scripts/addResetTokenColumns.js
+
 import db from '../db.js';
 
 console.log('⏳ Verificando columnas de reset token...\n');
 
 const DB_NAME = process.env.DB_NAME || 'radar_carreras';
 
-// Comprueba qué columnas ya existen
+
 const [cols] = await db.query(
   `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
    WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'usuario'

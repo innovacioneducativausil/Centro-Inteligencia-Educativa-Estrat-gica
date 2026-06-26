@@ -1,4 +1,4 @@
-// server/db_curricular.js — Conexión a la BD de mallas curriculares
+
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';

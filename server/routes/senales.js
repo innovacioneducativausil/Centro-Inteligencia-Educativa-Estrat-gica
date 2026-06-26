@@ -1,11 +1,11 @@
 import { serverError } from '../middleware/errorHandler.js';
-// server/routes/senales.js
+
 import { Router } from 'express';
 import db from '../db.js';
 
 const router = Router();
 
-/** Extrae el ID de YouTube de una URL (cualquier formato) */
+
 function extractYouTubeId(url) {
   if (!url) return null;
   const m = url.match(
@@ -14,18 +14,12 @@ function extractYouTubeId(url) {
   return m ? m[1] : null;
 }
 
-/**
- * GET /api/senales
- * Query params opcionales:
- *   pestel  → slug_pestel  (ej. "social")
- *   sector  → slug_sector  (ej. "educacion")
- *   q       → búsqueda en título / descripción
- */
+
 router.get('/senales', async (req, res) => {
   try {
     const { pestel, sector, q } = req.query;
 
-    // Construcción dinámica del WHERE
+
     const conditions = ['s.id_estado = 1'];
     const params = [];
 
@@ -102,7 +96,7 @@ router.get('/senales', async (req, res) => {
       sourceUrl:      row.url_fuente       || null,
       publishedAt:    row.fecha_publicacion,
       articleDate:    row.fecha_senal_articulo || null,
-      // Métricas calculadas (la BD no tiene estos campos numéricos aún)
+
       urgency:        60 + (idx * 7) % 40,
       impact:         55 + (idx * 11) % 45,
       maturity:       40 + (idx * 13) % 60,
@@ -116,10 +110,7 @@ router.get('/senales', async (req, res) => {
   }
 });
 
-/**
- * GET /api/senales/:uuid
- * Devuelve una señal individual con todos sus PESTEL y sectores asociados
- */
+
 router.get('/senales/:uuid', async (req, res) => {
   try {
     const { uuid } = req.params;

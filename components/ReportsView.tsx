@@ -54,7 +54,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ themeColors }) => {
   return (
     <div className="p-8 space-y-10 max-w-5xl mx-auto">
 
-      {/* ── Header ── */}
+
       <header className="text-center space-y-3">
         <div
           className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-3"
@@ -68,21 +68,21 @@ const ReportsView: React.FC<ReportsViewProps> = ({ themeColors }) => {
         </p>
       </header>
 
-      {/* ── Report Cards ── */}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {reportCards.map(report => (
           <div
             key={report.id}
             className={`rounded-3xl border shadow-md transition-all hover:shadow-xl hover:-translate-y-1 group overflow-hidden ${themeColors.cardBg} ${themeColors.cardBorder}`}
           >
-            {/* Gradient top bar */}
+
             <div
               className="h-1.5 w-full"
               style={{ background: `linear-gradient(90deg, ${report.accentColor}, ${report.accentColor}66)` }}
             />
 
             <div className="p-6">
-              {/* Icon with colored bg */}
+
               <div
                 className="p-3.5 rounded-2xl inline-flex mb-5 transition-transform group-hover:scale-110"
                 style={{ background: `${report.accentColor}14` }}
@@ -120,9 +120,9 @@ const ReportsView: React.FC<ReportsViewProps> = ({ themeColors }) => {
         ))}
       </div>
 
-      {/* ── AI Executive Summary ── */}
+
       <div className={`p-8 rounded-3xl border-2 border-dashed relative overflow-hidden ${themeColors.cardBorder}`}>
-        {/* Background decoration */}
+
         <div
           className="absolute top-0 right-0 w-52 h-52 pointer-events-none"
           style={{

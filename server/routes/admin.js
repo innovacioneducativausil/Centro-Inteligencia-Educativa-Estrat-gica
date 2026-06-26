@@ -1,6 +1,6 @@
 import { serverError } from '../middleware/errorHandler.js';
-// server/routes/admin.js — Consola de administración (HU006)
-// RBAC: solo admin y analista
+
+
 import { Router }      from 'express';
 import { randomUUID }  from 'crypto';
 import db from '../db.js';
@@ -8,7 +8,7 @@ import { sanitizeRichHtml, normalizePositiveInt } from '../utils/security.js';
 
 const router = Router();
 
-// ── Mapeo de id_estado ─────────────────────────────────────
+
 const ESTADO = {
   1: { label: 'Publicado',   slug: 'publicado' },
   2: { label: 'En revisión', slug: 'revision'  },
@@ -19,15 +19,15 @@ function estadoInfo(id) {
   return ESTADO[Number(id)] || { label: 'Borrador', slug: 'borrador' };
 }
 
-/** Parsea url_fuente de escenario (TEXT con JSON array o string plano) → string[] */
+
 function parseUrlFuentes(raw) {
   if (!raw) return [];
   if (typeof raw === 'string' && raw.startsWith('[')) {
-    try { return JSON.parse(raw).filter(Boolean); } catch { /* fall through */ }
+    try { return JSON.parse(raw).filter(Boolean); } catch {}
   }
   return raw ? [raw] : [];
 }
-/** Serializa array de URLs para guardar en escenario.url_fuente */
+
 function serializeUrlFuentes(urlFuentes, urlFuente) {
   const arr = Array.isArray(urlFuentes) ? urlFuentes.filter(u => u?.trim()) :
               (urlFuente?.trim() ? [urlFuente.trim()] : []);
@@ -91,7 +91,7 @@ async function ensureUniqueTitleOrName(resource, titulo, nombre, excludeId = nul
   throw err;
 }
 
-// ── Middleware RBAC ────────────────────────────────────────
+
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.rol)) {
@@ -102,14 +102,14 @@ function requireRole(...roles) {
 }
 const adminOnly = requireRole('admin');
 
-// ── Helpers ────────────────────────────────────────────────
+
 function parsePagination(query) {
   const page  = normalizePositiveInt(query.page, 1, { min: 1, max: 100000 });
   const limit = normalizePositiveInt(query.limit, 10, { min: 1, max: 50 });
   return { page, limit, offset: (page - 1) * limit };
 }
 
-// ─── GET /api/admin/senales ────────────────────────────────
+
 router.get('/admin/senales', adminOnly, async (req, res) => {
   try {
     const { page, limit, offset } = parsePagination(req.query);
@@ -214,7 +214,7 @@ router.get('/admin/senales', adminOnly, async (req, res) => {
   }
 });
 
-// ─── PATCH /api/admin/senales/:uuid/estado ─────────────────
+
 router.patch('/admin/senales/:uuid/estado', adminOnly, async (req, res) => {
   try {
     const { uuid }     = req.params;
@@ -246,7 +246,7 @@ router.patch('/admin/senales/:uuid/estado', adminOnly, async (req, res) => {
   }
 });
 
-// ─── GET /api/admin/tendencias ─────────────────────────────
+
 router.get('/admin/tendencias', adminOnly, async (req, res) => {
   try {
     const { page, limit, offset } = parsePagination(req.query);
@@ -351,7 +351,7 @@ router.get('/admin/tendencias', adminOnly, async (req, res) => {
   }
 });
 
-// ─── PATCH /api/admin/tendencias/:uuid/estado ──────────────
+
 router.patch('/admin/tendencias/:uuid/estado', adminOnly, async (req, res) => {
   try {
     const { uuid }     = req.params;
@@ -383,7 +383,7 @@ router.patch('/admin/tendencias/:uuid/estado', adminOnly, async (req, res) => {
   }
 });
 
-// ─── GET /api/admin/escenarios ─────────────────────────────
+
 router.get('/admin/escenarios', adminOnly, async (req, res) => {
   try {
     const { page, limit, offset } = parsePagination(req.query);
@@ -494,7 +494,7 @@ router.get('/admin/escenarios', adminOnly, async (req, res) => {
   }
 });
 
-// ─── PATCH /api/admin/escenarios/:uuid/estado ──────────────
+
 router.patch('/admin/escenarios/:uuid/estado', adminOnly, async (req, res) => {
   try {
     const { uuid }     = req.params;
@@ -526,7 +526,7 @@ router.patch('/admin/escenarios/:uuid/estado', adminOnly, async (req, res) => {
   }
 });
 
-// ─── GET /api/admin/senales/:uuid ──────────────────────────
+
 router.get('/admin/senales/:uuid', adminOnly, async (req, res) => {
   try {
     const { uuid } = req.params;
@@ -573,7 +573,7 @@ router.get('/admin/senales/:uuid', adminOnly, async (req, res) => {
   } catch (err) { serverError(res, err); }
 });
 
-// ─── PUT /api/admin/senales/:uuid ──────────────────────────
+
 router.put('/admin/senales/:uuid', adminOnly, async (req, res) => {
   try {
     const { uuid } = req.params;
@@ -626,7 +626,7 @@ router.put('/admin/senales/:uuid', adminOnly, async (req, res) => {
   }
 });
 
-// ─── GET /api/admin/tendencias/:uuid ───────────────────────
+
 router.get('/admin/tendencias/:uuid', adminOnly, async (req, res) => {
   try {
     const { uuid } = req.params;
@@ -671,7 +671,7 @@ router.get('/admin/tendencias/:uuid', adminOnly, async (req, res) => {
   } catch (err) { serverError(res, err); }
 });
 
-// ─── PUT /api/admin/tendencias/:uuid ───────────────────────
+
 router.put('/admin/tendencias/:uuid', adminOnly, async (req, res) => {
   try {
     const { uuid } = req.params;
@@ -722,7 +722,7 @@ router.put('/admin/tendencias/:uuid', adminOnly, async (req, res) => {
   }
 });
 
-// ─── GET /api/admin/escenarios/:uuid ───────────────────────
+
 router.get('/admin/escenarios/:uuid', adminOnly, async (req, res) => {
   try {
     const { uuid } = req.params;
@@ -770,7 +770,7 @@ router.get('/admin/escenarios/:uuid', adminOnly, async (req, res) => {
   } catch (err) { serverError(res, err); }
 });
 
-// ─── PUT /api/admin/escenarios/:uuid ───────────────────────
+
 router.put('/admin/escenarios/:uuid', adminOnly, async (req, res) => {
   try {
     const { uuid } = req.params;
@@ -824,8 +824,7 @@ router.put('/admin/escenarios/:uuid', adminOnly, async (req, res) => {
   }
 });
 
-// ─── GET /api/admin/options ────────────────────────────────
-// Devuelve pestels y sectores activos para los selects del formulario
+
 router.get('/admin/options', adminOnly, async (_req, res) => {
   try {
     const [pestels] = await db.query(
@@ -841,7 +840,7 @@ router.get('/admin/options', adminOnly, async (_req, res) => {
   }
 });
 
-// ── Validación compartida HU009 ────────────────────────────
+
 function validateCreate({ nombre, sectorId, pestelId, descCorta }) {
   const errs = [];
   if (!nombre?.trim())    errs.push('El nombre es obligatorio.');
@@ -852,7 +851,7 @@ function validateCreate({ nombre, sectorId, pestelId, descCorta }) {
   return errs;
 }
 
-// ─── POST /api/admin/senales ───────────────────────────────
+
 router.post('/admin/senales', adminOnly, async (req, res) => {
   try {
     const {
@@ -927,7 +926,7 @@ router.post('/admin/senales', adminOnly, async (req, res) => {
   }
 });
 
-// ─── POST /api/admin/tendencias ────────────────────────────
+
 router.post('/admin/tendencias', adminOnly, async (req, res) => {
   try {
     const {
@@ -1001,7 +1000,7 @@ router.post('/admin/tendencias', adminOnly, async (req, res) => {
   }
 });
 
-// ─── POST /api/admin/escenarios ────────────────────────────
+
 router.post('/admin/escenarios', adminOnly, async (req, res) => {
   try {
     const {
@@ -1079,9 +1078,7 @@ router.post('/admin/escenarios', adminOnly, async (req, res) => {
   }
 });
 
-// ─── GET /api/admin/notificaciones ─────────────────────────
-// Últimos 20 elementos subidos (señales + tendencias + escenarios, cualquier estado)
-// ─── PATCH /api/admin/:resource/:uuid/archive ───────────────
+
 router.patch('/admin/:resource/:uuid/archive', adminOnly, async (req, res) => {
   try {
     const { resource, uuid } = req.params;

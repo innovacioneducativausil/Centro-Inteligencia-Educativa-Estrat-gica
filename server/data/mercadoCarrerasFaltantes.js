@@ -1,10 +1,9 @@
-// server/data/mercadoCarrerasFaltantes.js
-// Datos de las 6 carreras faltantes en mercado_informe.
-// Fuente: infografías USIL Análisis del Mercado Laboral Perú 2025-2026.
+
+
 
 export const CARRERAS_FALTANTES = [
 
-  // ─── INGENIERÍA DE SOFTWARE ──────────────────────────────────────────────
+
   {
     nombre_facultad:    'Facultad de Ingenieria e Inteligencia Artificial',
     nombre_carrera:     'Ingeniería de Software',
@@ -60,7 +59,7 @@ export const CARRERAS_FALTANTES = [
     ],
   },
 
-  // ─── ADMINISTRACIÓN ──────────────────────────────────────────────────────
+
   {
     nombre_facultad:    'Facultad de Ciencias Empresariales',
     nombre_carrera:     'Administración',
@@ -116,7 +115,7 @@ export const CARRERAS_FALTANTES = [
     ],
   },
 
-  // ─── NUTRICIÓN Y DIETÉTICA ───────────────────────────────────────────────
+
   {
     nombre_facultad:    'Facultad de Ciencias de la Salud',
     nombre_carrera:     'Nutrición y Dietética',
@@ -168,7 +167,7 @@ export const CARRERAS_FALTANTES = [
     ],
   },
 
-  // ─── MEDICINA HUMANA ─────────────────────────────────────────────────────
+
   {
     nombre_facultad:    'Facultad de Ciencias de la Salud',
     nombre_carrera:     'Medicina Humana',
@@ -220,7 +219,7 @@ export const CARRERAS_FALTANTES = [
     ],
   },
 
-  // ─── PSICOLOGÍA ──────────────────────────────────────────────────────────
+
   {
     nombre_facultad:    'Facultad de Ciencias de la Salud',
     nombre_carrera:     'Psicología',
@@ -272,7 +271,7 @@ export const CARRERAS_FALTANTES = [
     ],
   },
 
-  // ─── COMUNICACIÓN ────────────────────────────────────────────────────────
+
   {
     nombre_facultad:    'Facultad de Artes y Humanidades',
     nombre_carrera:     'Comunicación',

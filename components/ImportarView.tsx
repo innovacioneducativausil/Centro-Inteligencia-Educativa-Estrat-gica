@@ -1,5 +1,5 @@
-// components/ImportarView.tsx — Importación de artículos con clasificación IA (WEF Horizon Scanning)
-// Flujo: Subir PDF → Procesando IA → Revisión (tabs) → Confirmado
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -11,12 +11,12 @@ import {
   extractUrlsFromText,
 } from '../services/geminiService';
 
-// Configurar worker de pdfjs (Vite lo sirve como asset estático)
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorkerUrl;
 
 interface ImportarViewProps { themeColors: ThemeColors; onVolver: () => void; }
 
-// ── Tipos locales ────────────────────────────────────────────
+
 type Step         = 'fuente' | 'procesando' | 'revision' | 'confirmado';
 type TabRevision  = 'senales' | 'tendencias' | 'escenarios' | 'relaciones';
 type ProgresoStep = 'idle' | 'loading' | 'done' | 'error';
@@ -32,8 +32,8 @@ interface PropuestaLocal extends PropuestaImportacion {
   syncMessage?:  string;
   existingId?:   string;
   existingTitle?: string;
-  pestelIds:     string[];   // múltiples PESTEL
-  sectorIds:     string[];   // múltiples sectores
+  pestelIds:     string[];
+  sectorIds:     string[];
   editTitulo:    string;
   editNombre:    string;
   editDescCorta: string;
@@ -42,7 +42,7 @@ interface PropuestaLocal extends PropuestaImportacion {
 interface PestelOpt { id_pestel: string; nombre_pestel: string; letra_codigo: string; color: string; }
 interface SectorOpt { id_sector: string; nombre_sector: string; }
 
-// ── Estilos por tipo ─────────────────────────────────────────
+
 const TIPO_STYLE = {
   senal:     { label: 'SEÑAL',     bg: '#fef3c7', text: '#92400e', icon: 'wifi_tethering', activeTab: '#f59e0b' },
   tendencia: { label: 'TENDENCIA', bg: '#dbeafe', text: '#1e40af', icon: 'trending_up',     activeTab: '#3b82f6' },
@@ -53,7 +53,7 @@ const authH = () => ({
   'Content-Type': 'application/json',
 });
 
-// ── Extracción de texto + hipervínculos desde PDF ────────────
+
 async function extractTextFromPDF(file: File): Promise<{ texto: string; info: PdfInfo }> {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -67,8 +67,7 @@ async function extractTextFromPDF(file: File): Promise<{ texto: string; info: Pd
       page.getAnnotations(),
     ]);
 
-    // Recopilar anotaciones de tipo Link con URL resuelta
-    // pdfjs puede usar ann.url, ann.unsafeUrl o ann.action.url según el PDF
+
     const linkAnns: { url: string; rect: [number, number, number, number] }[] = [];
     for (const ann of annotations as any[]) {
       if (ann.subtype !== 'Link') continue;
@@ -82,14 +81,11 @@ async function extractTextFromPDF(file: File): Promise<{ texto: string; info: Pd
     }
     totalLinks += linkAnns.length;
 
-    // Reconstruir texto con marcadores [→url] inline.
-    // Estrategia en 2 pasos para máxima compatibilidad con PDFs de distintos orígenes:
-    // Paso 1: mapear cada anotación al ítem de texto más cercano (tolerancia generosa + fallback distancia).
-    // Paso 2: insertar el marcador [→url] después de ese ítem al construir pageText.
+
     const pageItems = textContent.items as any[];
 
-    // ── Paso 1: anotación → índice del ítem de texto más cercano ─────────────
-    const annToItemIdx = new Map<number, number>();   // annIdx → itemIdx
+
+    const annToItemIdx = new Map<number, number>();
     for (let ai = 0; ai < linkAnns.length; ai++) {
       const rect  = linkAnns[ai].rect;
       const rxMin = Math.min(rect[0], rect[2]);
@@ -102,7 +98,7 @@ async function extractTextFromPDF(file: File): Promise<{ texto: string; info: Pd
       let bestIdx  = -1;
       let bestDist = Infinity;
 
-      // Intento 1: solapamiento con tolerancia generosa (±15 Y, ±5 X)
+
       for (let ii = 0; ii < pageItems.length; ii++) {
         const item = pageItems[ii];
         if (!item.str?.trim()) continue;
@@ -115,7 +111,7 @@ async function extractTextFromPDF(file: File): Promise<{ texto: string; info: Pd
         if (inX && inY && dist < bestDist) { bestDist = dist; bestIdx = ii; }
       }
 
-      // Intento 2 (fallback): ítem más cercano en toda la página, máximo 300 unidades
+
       if (bestIdx === -1) {
         bestDist = Infinity;
         for (let ii = 0; ii < pageItems.length; ii++) {
@@ -126,13 +122,13 @@ async function extractTextFromPDF(file: File): Promise<{ texto: string; info: Pd
           const dist = Math.sqrt((ix - rcx) ** 2 + (iy - rcy) ** 2);
           if (dist < bestDist) { bestDist = dist; bestIdx = ii; }
         }
-        if (bestDist > 300) bestIdx = -1; // demasiado lejos → no mapear
+        if (bestDist > 300) bestIdx = -1;
       }
 
       if (bestIdx !== -1) annToItemIdx.set(ai, bestIdx);
     }
 
-    // Índice inverso: ítemIdx → lista de anotaciones a insertar después de él
+
     const itemToAnns = new Map<number, number[]>();
     for (const [ai, ii] of annToItemIdx.entries()) {
       const list = itemToAnns.get(ii) ?? [];
@@ -140,7 +136,7 @@ async function extractTextFromPDF(file: File): Promise<{ texto: string; info: Pd
       itemToAnns.set(ii, list);
     }
 
-    // ── Paso 2: construir pageText con marcadores [→url] en posición correcta ─
+
     let pageText = '';
     let lastY: number | null = null;
 
@@ -154,7 +150,7 @@ async function extractTextFromPDF(file: File): Promise<{ texto: string; info: Pd
       if (item.hasEOL) pageText += '\n';
       lastY = y;
 
-      // Insertar marcadores de anotaciones mapeadas a este ítem
+
       const anns = itemToAnns.get(ii);
       if (anns) {
         for (const ai of anns) {
@@ -163,7 +159,7 @@ async function extractTextFromPDF(file: File): Promise<{ texto: string; info: Pd
       }
     }
 
-    // Bloque al final de página con TODAS las URLs (compatibilidad con extractUrlsFromText)
+
     if (linkAnns.length > 0) {
       pageText += `\n[Links pág.${pageNum}: ${linkAnns.map(a => a.url).join(' | ')}]`;
     }
@@ -177,7 +173,7 @@ async function extractTextFromPDF(file: File): Promise<{ texto: string; info: Pd
   };
 }
 
-// ── Componente principal ─────────────────────────────────────
+
 const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) => {
   const [step,       setStep]       = useState<Step>('fuente');
   const [tabRev,     setTabRev]     = useState<TabRevision>('senales');
@@ -188,13 +184,13 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
   const [syncMode,   setSyncMode]   = useState(false);
   const [syncSummary, setSyncSummary] = useState<Record<string, number> | null>(null);
 
-  // Metadatos
+
   const [topico,    setTopico]    = useState('');
   const [fuente,    setFuente]    = useState('');
   const [urlFuente, setUrlFuente] = useState('');
   const [autorPdf,  setAutorPdf]  = useState('');
 
-  // PDF
+
   const [pdfFile,     setPdfFile]     = useState<File | null>(null);
   const [pdfTexto,    setPdfTexto]    = useState('');
   const [pdfInfo,     setPdfInfo]     = useState<PdfInfo | null>(null);
@@ -203,16 +199,16 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
   const [previewOpen, setPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Progreso IA
+
   const [progreso, setProgreso] = useState<Record<string, ProgresoStep>>({
     senales: 'idle', tendencias: 'idle', escenarios: 'idle', relaciones: 'idle',
   });
 
-  // Propuestas y relaciones
+
   const [propuestas, setPropuestas] = useState<PropuestaLocal[]>([]);
   const [relaciones, setRelaciones] = useState<RelacionSugerida[]>([]);
 
-  // Catálogos
+
   const [pestels, setPestels] = useState<PestelOpt[]>([]);
   const [sectors, setSectors] = useState<SectorOpt[]>([]);
 
@@ -226,11 +222,11 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
   const updateProp = (id: string, patch: Partial<PropuestaLocal>) =>
     setPropuestas(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p));
 
-  // Devuelve el primer contenedor scrollable encontrado (main, o el más cercano con overflow-y).
+
   const getScrollContainer = (): HTMLElement | null => {
     const main = document.querySelector('main') as HTMLElement | null;
     if (main) return main;
-    // fallback: primer ancestro scrollable del body
+
     let el: HTMLElement | null = document.body;
     while (el) {
       const style = getComputedStyle(el);
@@ -240,14 +236,13 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     return document.documentElement as HTMLElement;
   };
 
-  // Al expandir una tarjeta, graba la posición y la restaura con múltiples rAF
-  // para anular el auto-scroll del browser al montar inputs/textareas recién visibles.
+
   const handleToggleExpand = (id: string, currentExpanded: boolean) => {
     if (!currentExpanded) {
       const sc = getScrollContainer();
       if (sc) {
         const savedTop = sc.scrollTop;
-        // Tres rAF consecutivos cubren el ciclo completo render → layout → paint del browser
+
         requestAnimationFrame(() =>
           requestAnimationFrame(() =>
             requestAnimationFrame(() => { sc.scrollTop = savedTop; })
@@ -258,26 +253,24 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     updateProp(id, { expanded: !currentExpanded });
   };
 
-  // Captura cualquier evento de focus dentro de la tarjeta expandida y restaura el scroll.
-  // Necesario porque el browser hace scroll-to-focused-element automáticamente al
-  // renderizar inputs/textareas que acaban de aparecer en el DOM.
+
   const handleFocusLock = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
     const sc = getScrollContainer();
     if (!sc) return;
     const saved = sc.scrollTop;
-    // Promise.resolve (microtask) dispara DESPUÉS del comportamiento por defecto del browser
-    // pero ANTES del siguiente frame → cubre el scroll-to-focus nativo
+
+
     Promise.resolve().then(() => { sc.scrollTop = saved; });
-    // rAF adicional como red de seguridad para browsers que difieren el scroll
+
     requestAnimationFrame(() => { sc.scrollTop = saved; });
   }, []);
 
   const toLocal = (item: PropuestaImportacion): PropuestaLocal => {
-    // Normaliza acentos para comparación robusta (e.g. "Tecnologico" == "Tecnológico")
+
     const norm = (s: string) =>
       s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    // PESTEL múltiple: "Tecnológico; Económico" o ["Tecnológico","Económico"] → ids
+
     const pestelIds: string[] = [];
     const rawPestels = (item.pestelNombre || item.pestelLetra || '')
       .split(';').map(s => s.trim()).filter(Boolean);
@@ -292,7 +285,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
       if (m && !pestelIds.includes(m.id_pestel)) pestelIds.push(m.id_pestel);
     }
 
-    // Sector múltiple: normalizado igual
+
     const sectorIds: string[] = [];
     const rawSectors = (item.sectorNombre || '')
       .split(';').map(s => s.trim()).filter(Boolean);
@@ -318,7 +311,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     };
   };
 
-  // ── Seleccionar / cambiar PDF ────────────────────────────────
+
   const resolveTaxonomyIds = (p: PropuestaLocal): PropuestaLocal => {
     const norm = (s: string) =>
       s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -369,7 +362,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     setPdfError(null);
     setExtrayendo(true);
 
-    // Autocompletar tópico con el nombre del archivo si está vacío
+
     if (!topico.trim()) {
       setTopico(file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' '));
     }
@@ -382,7 +375,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
       } else {
         setPdfTexto(texto);
         setPdfInfo(info);
-        // Extraer autor de la carátula: "Seleccionado, filtrado y editado con [AUTOR]"
+
         const match = texto.match(
           /Seleccionado[,.]?\s*filtrado\s*y\s*editado\s*con\s+([^\n\r\[→]{2,100})/i
         );
@@ -396,14 +389,14 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     }
   };
 
-  // ── Drag & drop ─────────────────────────────────────────────
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file) handlePdfSelect(file);
   };
 
-  // ── Paso 1 → 2: Procesar con IA (todo el texto del PDF) ─────
+
   const handleProcesar = async () => {
     if (!topico.trim()) { setAiError('El tópico/título del informe es obligatorio.'); return; }
     if (!pdfTexto || pdfTexto.trim().length < 100) { setAiError('Primero sube el PDF del artículo.'); return; }
@@ -427,13 +420,13 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     const all: PropuestaImportacion[] = [];
     const upd = (k: string, v: ProgresoStep) => setProgreso(p => ({ ...p, [k]: v }));
 
-    // Catálogo de sectores para que la IA elija el nombre exacto
+
     const sectorNames = sectors.map(s => s.nombre_sector);
 
-    // Extraer URLs únicas del PDF para el flujo "una señal por URL"
+
     const urlsDetectadas = extractUrlsFromText(pdfTexto);
 
-    // Las 3 llamadas reciben el texto completo del PDF + catálogo de sectores
+
     const errores: string[] = [];
 
     upd('senales', 'loading');
@@ -463,7 +456,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
       return;
     }
 
-    // Auto-fetch og:image para todas las señales con urlFuente (siempre usa la imagen real del artículo)
+
     await Promise.all(
       all
         .filter(item => item.tipo === 'senal' && item.urlFuente)
@@ -476,7 +469,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
               item.fechaArticulo = d.articleDate;
               item.fechaMencionada = d.articleDate;
             }
-          } catch { /* silencioso */ }
+          } catch {}
         })
     );
 
@@ -538,7 +531,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     setStep('revision');
   };
 
-  // ── Confirmar aprobadas ─────────────────────────────────────
+
   const handleConfirmar = async () => {
     const aprobadas = propuestas
       .filter(p => p.decision === 'aprobada' && p.syncAction !== 'ignorar')
@@ -584,7 +577,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
             temasRelacionados: p.temasRelacionados,
             pestelIds:         p.pestelIds,
             sectorIds:         p.sectorIds,
-            // Campos enriquecidos → columnas DB
+
             razonClasificacion: p.razonClasificacion,
             paisOrigen:         p.paisOrigen  || p.lugar || '',
             fechaArticulo:      p.fechaArticulo || p.fechaMencionada || '',
@@ -621,7 +614,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     setProgreso({ senales: 'idle', tendencias: 'idle', escenarios: 'idle', relaciones: 'idle' });
   };
 
-  // ── UI helpers ───────────────────────────────────────────────
+
   const isDark   = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
   const inputCls = `w-full px-3 py-2 text-sm rounded-lg border outline-none transition-all focus:ring-2 focus:ring-blue-400/30 ${themeColors.inputBg} ${themeColors.inputBorder} ${themeColors.inputText}`;
   const cardCls  = `rounded-xl border shadow-sm ${themeColors.cardBg} ${themeColors.cardBorder}`;
@@ -636,7 +629,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
   const STEP_LABELS = ['1. Fuente', '2. Análisis IA', '3. Revisión', '4. Guardado'];
   const stepIdx     = STEPS.indexOf(step);
 
-  // ── Tarjeta de propuesta ─────────────────────────────────────
+
   const PropCard = ({ prop }: { prop: PropuestaLocal }) => {
     const ts   = TIPO_STYLE[prop.tipo];
     const isAp = prop.decision === 'aprobada';
@@ -667,7 +660,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
             <span className="material-symbols-outlined" style={{ fontSize: 16, color: ts.text }}>{ts.icon}</span>
           </div>
           <div className="flex-1 min-w-0">
-            {/* Badges: tipo + PESTEL(s) + Sector(s) + evidencia */}
+
             <div className="flex flex-wrap items-center gap-1 mb-1">
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: ts.bg, color: ts.text }}>
                 {ts.label}
@@ -722,7 +715,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
                 </span>
               )}
             </div>
-            {/* Título */}
+
             <input
               type="text" value={prop.editTitulo} maxLength={180}
               onChange={e => updateProp(prop.id, { editTitulo: e.target.value })}
@@ -730,7 +723,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
               style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}
               placeholder="Título (hasta 180 caracteres)"
             />
-            {/* Nombre corto */}
+
             <input
               type="text" value={prop.editNombre} maxLength={55}
               onChange={e => updateProp(prop.id, { editNombre: e.target.value })}
@@ -743,7 +736,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
                 {prop.syncMessage}{prop.existingTitle ? `: ${prop.existingTitle}` : ''}
               </p>
             )}
-            {/* Desc corta */}
+
             <textarea
               value={prop.editDescCorta} maxLength={200} rows={2}
               onChange={e => updateProp(prop.id, { editDescCorta: e.target.value })}
@@ -789,7 +782,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
         </div>
 
         <div className={`border-t ${themeColors.cardBorder}`}>
-          {/* type="button" evita scroll-to-top al expandir */}
+
           <button type="button" onClick={() => handleToggleExpand(prop.id, prop.expanded)}
             className="flex items-center gap-1 text-xs font-medium px-4 py-2" style={{ color: '#1978e5' }}>
             <span className="material-symbols-outlined" style={{ fontSize: 13, transform: prop.expanded ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}>chevron_right</span>
@@ -798,7 +791,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
           {prop.expanded && (
             <div className="px-4 pb-4 space-y-3" onFocusCapture={handleFocusLock}>
 
-              {/* PESTEL multi-chip */}
+
               <div>
                 <label className="block text-[11px] font-semibold mb-1.5" style={{ color: needPestel ? '#dc2626' : '#9ca3af' }}>
                   PESTEL <span style={{ color: '#ef4444' }}>*</span>
@@ -822,7 +815,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
                 </div>
               </div>
 
-              {/* SECTOR multi-chip */}
+
               <div>
                 <label className="block text-[11px] font-semibold mb-1.5" style={{ color: needSector ? '#dc2626' : '#9ca3af' }}>
                   SECTOR <span style={{ color: '#ef4444' }}>*</span>
@@ -867,7 +860,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
                   </div>
                 </div>
               )}
-              {/* ── Campos específicos por tipo ─────────────────── */}
+
               {prop.tipo === 'senal' && (
                 <div className="space-y-2">
                   {prop.descLarga && (
@@ -1003,7 +996,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
                   )}
                 </div>
               )}
-              {/* ── Fragmento de origen ─────────────────────────── */}
+
               {prop.fragmento && (
                 <div className="rounded-lg px-3 py-2" style={{ backgroundColor: isDark ? '#1e293b' : '#f8fafc' }}>
                   <p className="text-[11px] font-semibold mb-1" style={{ color: '#9ca3af' }}>FRAGMENTO DE ORIGEN</p>
@@ -1017,11 +1010,11 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
     );
   };
 
-  // ── RENDER ───────────────────────────────────────────────────
+
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto">
 
-      {/* Breadcrumb */}
+
       <nav className="text-xs font-medium mb-6 flex items-center gap-1" style={{ color: '#9ca3af' }}>
         <button onClick={onVolver} className="hover:underline" style={{ color: '#1978e5' }}>Gestión</button>
         <span className="material-symbols-outlined" style={{ fontSize: 14 }}>chevron_right</span>
@@ -1035,7 +1028,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
         </button>
       </nav>
 
-      {/* Stepper */}
+
       <div className="flex items-center gap-0 mb-8 overflow-x-auto pb-1">
         {STEP_LABELS.map((label, i) => {
           const done = i < stepIdx; const cur = i === stepIdx;
@@ -1056,7 +1049,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
         })}
       </div>
 
-      {/* ══ PASO 1: FUENTE ══ */}
+
       {step === 'fuente' && (
         <div className={`${cardCls} p-6 space-y-5`}>
           <div>
@@ -1086,7 +1079,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
             ))}
           </div>
 
-          {/* Zona de carga del PDF */}
+
           <div
             onDragOver={e => e.preventDefault()}
             onDrop={handleDrop}
@@ -1134,7 +1127,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
             )}
           </div>
 
-          {/* Error de extracción */}
+
           {pdfError && (
             <div className="flex items-start gap-2 px-4 py-3 rounded-lg" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>
               <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 17, marginTop: 1 }}>error</span>
@@ -1142,7 +1135,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
             </div>
           )}
 
-          {/* Vista previa del texto extraído */}
+
           {pdfTexto && (
             <div className="rounded-lg border overflow-hidden" style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}>
               <button
@@ -1164,7 +1157,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
             </div>
           )}
 
-          {/* Metadatos del artículo */}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold mb-1" style={{ color: isDark ? '#e2e8f0' : '#374151' }}>
@@ -1216,7 +1209,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
         </div>
       )}
 
-      {/* ══ PASO 2: PROCESANDO ══ */}
+
       {step === 'procesando' && (
         <div className={`${cardCls} p-10 flex flex-col items-center gap-6`}>
           <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: '#eff6ff' }}>
@@ -1248,7 +1241,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
         </div>
       )}
 
-      {/* ══ PASO 3: REVISIÓN ══ */}
+
       {step === 'revision' && (
         <div className="space-y-4">
           <div className={`${cardCls} px-5 py-3 flex flex-wrap items-center gap-3`}>
@@ -1368,7 +1361,7 @@ const ImportarView: React.FC<ImportarViewProps> = ({ themeColors, onVolver }) =>
         </div>
       )}
 
-      {/* ══ PASO 4: CONFIRMADO ══ */}
+
       {step === 'confirmado' && resultado && (
         <div className={`${cardCls} p-10 flex flex-col items-center gap-6 text-center`}>
           <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: '#f0fdf4' }}>

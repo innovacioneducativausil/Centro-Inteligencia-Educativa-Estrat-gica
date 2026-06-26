@@ -17,7 +17,7 @@ interface RadarViewProps {
 
 const stripHtml = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/  +/g, ' ').trim();
 
-// ── Color palette (HTML design)
+
 const C = {
   teal:    '#0D9488',
   tealL:   '#14B8A6',
@@ -67,7 +67,7 @@ const PROB_STRIPE: Record<string, string> = {
   Baja:  'linear-gradient(90deg,#6EE7B7,#34D399)',
 };
 const PROB_COLORS: Record<string, string> = { Alta: '#8B5CF6', Media: '#3B82F6', Baja: '#10B981' };
-// probability es 1-5 en la BD
+
 const probLevel = (v: number): 'Alta' | 'Media' | 'Baja' => v >= 4 ? 'Alta' : v >= 3 ? 'Media' : 'Baja';
 
 const CLUSTER_EMOJI: Record<string, string> = {
@@ -83,7 +83,6 @@ const impactLevel = (v: number): 'Alto' | 'Medio' | 'Bajo' =>
   v >= 70 ? 'Alto' : v >= 40 ? 'Medio' : 'Bajo';
 
 
-// ── Unified item type ─────────────────────────────────────
 type UnifiedItem = {
   uuid: string;
   title: string;
@@ -113,7 +112,7 @@ const unifySignal   = (s: ApiSignal): UnifiedItem   => ({ uuid: s.uuid, title: s
 const unifyTrend    = (t: ApiTrend): UnifiedItem    => ({ uuid: t.uuid, title: t.name, excerpt: stripHtml(t.description), category: t.category, sector: t.sector, source: t.source, impact: t.impact, urgency: t.impact, horizon: t.horizon, color: t.color, emoji: t.emoji, imageUrl: t.imageUrl, youtubeId: t.youtubeId, topico: t.topico, publishedAt: t.publishedAt, autor: t.autor, raw: t, type: 'tendencia', nombreTendencia: t.nombreTendencia, topicosRelacionados: t.topicosRelacionados });
 const unifyScenario = (s: ApiScenario): UnifiedItem => ({ uuid: s.uuid, title: s.title, excerpt: stripHtml(s.description), category: s.category, sector: s.sector, source: s.source, impact: 0, urgency: 0, probability: s.probability, horizon: s.horizon, color: s.color, emoji: s.emoji, imageUrl: s.imageUrl, topico: s.topico, publishedAt: s.publishedAt, autor: s.autor, raw: s, type: 'escenario' });
 
-// ── Adapters for modal (unchanged) ────────────────────────
+
 function toSignal(s: ApiSignal): Signal {
   return { id: s.id, emoji: s.emoji, title: s.title, category: s.category, sector: (s.sector as Sector) || Sector.Educacion, youtubeId: s.youtubeId ?? undefined, imageUrl: s.imageUrl ?? null, signalText: s.signalText, implicationText: s.implicationText, reasonText: s.reasonText, source: s.source ?? '', link: s.sourceUrl ?? '', color: s.color, topico: s.topico ?? null, publishedAt: s.publishedAt, articleDate: s.articleDate };
 }
@@ -160,14 +159,14 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
   const [aiMetrics, setAiMetrics] = useState<{ impact: number; urgency: number } | null>(null);
   const [aiMetricsLoading, setAiMetricsLoading] = useState(false);
   const [aiMetricsError, setAiMetricsError] = useState<string | null>(null);
-  // Cache: uuid → {impact, urgency} — persiste mientras la app está abierta
+
   const metricsCache = useRef<Map<string, { impact: number; urgency: number }>>(new Map());
-  // Descripción larga modal (señales)
+
   const [descLargaContent, setDescLargaContent] = useState<string | null>(null);
   const [descLargaLoading, setDescLargaLoading] = useState(false);
   const [showDescLarga, setShowDescLarga] = useState(false);
 
-  // ── API data
+
   const [signals, setSignals]     = useState<ApiSignal[]>([]);
   const [trends, setTrends]       = useState<ApiTrend[]>([]);
   const [scenarios, setScenarios] = useState<ApiScenario[]>([]);
@@ -178,7 +177,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     if (activeTabProp) setActiveTab(activeTabProp);
   }, [activeTabProp]);
 
-  // Reset activeView to 'cards' when switching tabs if current view isn't available
+
   useEffect(() => {
     const valid = VIEWS_FOR_TAB[activeTab]?.map(v => v.id) ?? ['cards'];
     if (!valid.includes(activeView)) setActiveView('cards');
@@ -202,7 +201,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
       .finally(() => setLoadingData(false));
   }, []);
 
-  // Auto-abrir modal cuando viene una notificación pendiente y los datos ya están cargados
+
   useEffect(() => {
     if (!pendingNotif || loadingData) return;
     let found = false;
@@ -238,7 +237,6 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
   }, [pendingNotif, loadingData, signals, trends, scenarios]);
 
 
-  // ── Handlers
   const handleOpenSignal   = (s: ApiSignal)   => { setSelectedSignal(toSignal(s));   setSelectedType('señal');     setAiAnalysis(null); setAiError(null); logActividad('ver_senal',     { modulo: 'radar', elementoUuid: s.uuid, elementoTipo: 'señal',     elementoTitulo: s.title }); };
   const handleOpenTrend    = (t: ApiTrend)    => { setSelectedSignal(toTrend(t));    setSelectedType('tendencia'); setAiAnalysis(null); setAiError(null); logActividad('ver_tendencia', { modulo: 'radar', elementoUuid: t.uuid, elementoTipo: 'tendencia', elementoTitulo: t.name  }); };
   const handleOpenScenario = (s: ApiScenario) => { setSelectedSignal(toScenario(s)); setSelectedType('escenario'); setAiAnalysis(null); setAiError(null); logActividad('ver_escenario', { modulo: 'radar', elementoUuid: s.uuid, elementoTipo: 'escenario', elementoTitulo: s.title }); };
@@ -251,7 +249,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     else if (item.type === 'tendencia') handleOpenTrend(item.raw as ApiTrend);
     else handleOpenScenario(item.raw as ApiScenario);
 
-    // Calcular impacto/urgencia vía IA (solo señales y tendencias)
+
     if (item.type !== 'escenario') {
       const cached = metricsCache.current.get(item.uuid);
       if (cached) {
@@ -287,12 +285,12 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     try {
       const r = await fetch(`/api/admin/senales/${selectedUuid}`);
       if (r.ok) { const d = await r.json(); setDescLargaContent(d.descLarga || null); }
-    } catch { /* silencioso */ }
+    } catch {}
     setDescLargaLoading(false);
     setShowDescLarga(true);
   };
 
-  // ── Filter toggles
+
   const togglePestel  = (v: string) => setActivePestelSet(prev => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
   const toggleSector  = (v: string) => setActiveSectorSet(prev => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
   const toggleTopico  = (v: string) => setActiveTopicoSet(prev => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
@@ -306,14 +304,14 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     setQuickFilter('todas');
   };
 
-  // ── Unique sectors from all loaded data
+
   const allSectors = useMemo(() => {
     const s = new Set<string>();
     [...signals, ...trends, ...scenarios].forEach(i => { if (i.sector) s.add(i.sector); });
     return Array.from(s).sort();
   }, [signals, trends, scenarios]);
 
-  // ── Unique tópicos (principal + secundarios) from current tab data
+
   const allTopicos = useMemo(() => {
     const all = new Set<string>();
     if (activeTab === 'señales') signals.forEach(i => { if (i.topico) all.add(i.topico); });
@@ -325,7 +323,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     return Array.from(all).sort();
   }, [activeTab, signals, trends, scenarios]);
 
-  // ── Unified filtered + sorted items
+
   const sortedItems = useMemo(() => {
     let base: UnifiedItem[] = [];
     if (activeTab === 'señales')     base = signals.map(unifySignal);
@@ -360,7 +358,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     }
   }, [activeTab, signals, trends, scenarios, searchInput, activePestelSet, activeSectorSet, activeTopicoSet, quickFilter, sortOrder]);
 
-  // ── Timeline grouping
+
   const timelineGroups = useMemo(() => {
     const map = new Map<string, UnifiedItem[]>();
     for (const item of sortedItems) {
@@ -377,7 +375,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
       if (!map.has(bucket)) map.set(bucket, []);
       map.get(bucket)!.push(item);
     }
-    // Ordenar: "Sin fecha" al final; el resto de más reciente a más antiguo
+
     return Array.from(map.entries()).sort(([a], [b]) => {
       if (a === 'Sin fecha de artículo') return 1;
       if (b === 'Sin fecha de artículo') return -1;
@@ -386,7 +384,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     });
   }, [sortedItems]);
 
-  // ── Cluster grouping (by tópico principal)
+
   const clusterGroups = useMemo(() => {
     const map = new Map<string, UnifiedItem[]>();
     for (const item of sortedItems) {
@@ -397,7 +395,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     return Array.from(map.entries());
   }, [sortedItems]);
 
-  // ── Matrix quadrants
+
   const matrizQuads = useMemo(() => {
     const actuar: UnifiedItem[] = [], planificar: UnifiedItem[] = [], monitorear: UnifiedItem[] = [], delegar: UnifiedItem[] = [];
     for (const item of sortedItems) {
@@ -410,10 +408,10 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     return { actuar, planificar, monitorear, delegar };
   }, [sortedItems]);
 
-  // ── Tab label
+
   const tabLabel = activeTab === 'señales' ? 'Señales' : activeTab === 'tendencias' ? 'Tendencias' : activeTab === 'cadena' ? 'Cadena Causal' : 'Escenarios';
 
-  // ── Shared sub-styles
+
   const fontStyle: React.CSSProperties = { fontFamily: "'Space Grotesk', 'Inter', sans-serif" };
   const isDark = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
   const D = {
@@ -426,22 +424,20 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     footerBg:  isDark ? '#151E2A' : '#FAFCFF',
   };
 
-  // ─────────────────────────────────────────────────────────
-  //  RENDER
-  // ─────────────────────────────────────────────────────────
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', ...fontStyle }}>
 
-      {/* ── TOPBAR ─────────────────────────────────────────── */}
+
       <header style={{ height: 52, flexShrink: 0, background: D.surfaceBg, borderBottom: `1px solid ${D.border}`, display: 'flex', alignItems: 'center', padding: '0 20px 0 24px', gap: 16, zIndex: 40 }}>
-        {/* Breadcrumb */}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: D.muted, fontWeight: 500 }}>
           <span>Radar</span>
           <span style={{ color: D.border }}>›</span>
           <span style={{ color: D.text, fontWeight: 700 }}>{tabLabel}</span>
         </div>
 
-        {/* Sub-tabs */}
+
         <div style={{ display: 'flex', gap: 2, borderLeft: `1px solid ${C.border}`, paddingLeft: 16, marginLeft: 4 }}>
           {([
             { id: 'señales',    label: 'Señales',       Icon: Zap        },
@@ -471,7 +467,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
           ))}
         </div>
 
-        {/* Right: view switcher — only valid views for current tab */}
+
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ display: 'flex', gap: 2, background: D.subtleBg, borderRadius: 9, padding: 3, border: `1px solid ${D.border}` }}>
             {(VIEWS_FOR_TAB[activeTab] || VIEWS_FOR_TAB['señales']).map(v => (
@@ -495,10 +491,10 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
         </div>
       </header>
 
-      {/* ── FILTER BAR ─────────────────────────────────────── */}
+
       {activeTab !== 'cadena' && <div style={{ background: D.surfaceBg, borderBottom: `1px solid ${D.border}`, padding: '0 24px', display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0, height: 48, overflow: 'visible' }}>
 
-        {/* Search */}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px', background: D.subtleBg, border: `1.5px solid ${D.border}`, borderRadius: 8, minWidth: 170, marginRight: 12, flexShrink: 0, transition: 'border .15s' }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={D.muted} strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input
@@ -515,10 +511,10 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
           )}
         </div>
 
-        {/* PESTEL label */}
+
         <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.2px', color: D.muted, whiteSpace: 'nowrap', marginRight: 6, flexShrink: 0 }}>PESTEL</span>
 
-        {/* PESTEL chips */}
+
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {PESTEL_LIST.map(cat => {
             const selected = activePestelSet.has(cat);
@@ -538,10 +534,10 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
           })}
         </div>
 
-        {/* Separator */}
+
         <div style={{ width: 1, height: 24, background: D.border, flexShrink: 0, margin: '0 10px' }} />
 
-        {/* Sector dropdown */}
+
         <div ref={sectorDropRef} style={{ position: 'relative', flexShrink: 0 }}>
           <button
             onClick={e => {
@@ -594,7 +590,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
           )}
         </div>
 
-        {/* Tópico dropdown */}
+
         <div ref={topicoDropRef} style={{ position: 'relative', flexShrink: 0, marginLeft: 8 }}>
           <button
             onClick={e => {
@@ -644,7 +640,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
           )}
         </div>
 
-        {/* Reset */}
+
         <button
           onClick={resetFilters}
           style={{ marginLeft: 'auto', flexShrink: 0, padding: '4px 11px', borderRadius: 100, fontSize: 11, fontWeight: 600, border: `1.5px solid ${D.border}`, color: D.muted, background: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all .15s' }}
@@ -655,7 +651,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
         </button>
       </div>}
 
-      {/* ── QUICK ACCESS BAR ────────────────────────────────── */}
+
       {activeTab !== 'cadena' && <div style={{ padding: '8px 24px', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
         <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, whiteSpace: 'nowrap', marginRight: 2 }}>Acceso rápido</span>
         {([
@@ -677,7 +673,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
         ))}
       </div>}
 
-      {/* ── RESULT ROW ──────────────────────────────────────── */}
+
       {activeTab !== 'cadena' && <div style={{ padding: '4px 24px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <span style={{ fontSize: 11, color: D.muted }}>
           <strong style={{ color: D.text, fontWeight: 700 }}>{loadingData ? '…' : sortedItems.length}</strong> {tabLabel.toLowerCase()} encontradas
@@ -694,7 +690,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
         </select>
       </div>}
 
-      {/* ── CONTENT ─────────────────────────────────────────── */}
+
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px', scrollbarWidth: 'thin' }}>
         {activeTab === 'cadena' ? (
           <div style={{ paddingTop: 16 }}>
@@ -713,7 +709,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
           </div>
         ) : (
           <>
-            {/* ── CARDS VIEW ──────────────────────────────── */}
+
             {activeView === 'cards' && (
               <div>
                 {sortedItems.length === 0 ? (
@@ -734,9 +730,9 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                           onMouseEnter={e => { const el = e.currentTarget; el.style.boxShadow = '0 8px 24px rgba(15,42,63,0.10)'; el.style.transform = 'translateY(-2px)'; el.style.borderColor = 'rgba(13,148,136,0.22)'; }}
                           onMouseLeave={e => { const el = e.currentTarget; el.style.boxShadow = 'none'; el.style.transform = 'translateY(0)'; el.style.borderColor = D.border; }}
                         >
-                          {/* Urgency / Probability stripe */}
+
                           <div style={{ height: 3, background: item.type === 'escenario' && plvl ? PROB_STRIPE[plvl] : IMP_STRIPE[impactLevel(item.impact)] }} />
-                          {/* Body */}
+
                           <div style={{ padding: '13px 15px 11px', flex: 1 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: D.text, lineHeight: 1.35, marginBottom: item.type === 'tendencia' && item.nombreTendencia && item.nombreTendencia !== item.title ? 2 : 6 }}>
                               {item.title}
@@ -750,7 +746,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                               {item.excerpt}
                             </div>
                           </div>
-                          {/* Image / video thumbnail */}
+
                           {item.imageUrl ? (
                             <div style={{ padding: '0 12px 8px' }}>
                               <img src={item.imageUrl!} alt={item.title} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 8 }} onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }} />
@@ -763,7 +759,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                               </div>
                             </div>
                           ) : null}
-                          {/* Footer */}
+
                           <div style={{ padding: '8px 15px', borderTop: `1px solid ${D.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: D.footerBg }}>
                             <span style={{ fontSize: 9, color: D.muted, fontWeight: 500 }}>{item.source || ''}</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -785,7 +781,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
               </div>
             )}
 
-            {/* ── TABLA VIEW ──────────────────────────────── */}
+
             {activeView === 'tabla' && (
               <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
                 <thead>
@@ -843,7 +839,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
               </table>
             )}
 
-            {/* ── MATRIZ VIEW ─────────────────────────────── */}
+
             {activeView === 'matriz' && (
               <div style={{ background: C.white, borderRadius: 14, padding: 20, border: `1.5px solid ${C.border}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -883,7 +879,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
               </div>
             )}
 
-            {/* ── CLUSTER VIEW ────────────────────────────── */}
+
             {activeView === 'cluster' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {clusterGroups.map(([cat, items]) => {
@@ -945,7 +941,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
               </div>
             )}
 
-            {/* ── TIMELINE VIEW ───────────────────────────── */}
+
             {activeView === 'timeline' && (
               <div>
                 {timelineGroups.map(([bucket, items]) => {
@@ -989,9 +985,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
         )}
       </div>
 
-      {/* ══════════════════════════════════════════════════════
-          DETAIL MODAL (unchanged)
-      ══════════════════════════════════════════════════════ */}
+
       {selectedSignal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-black/55 backdrop-blur-xl" onClick={closeModal} />
@@ -999,11 +993,11 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
             className="relative w-full max-w-[900px] max-h-[90vh] overflow-y-auto rounded-2xl border shadow-2xl animate-in zoom-in-95 duration-500 custom-scrollbar"
             style={{ background: D.surfaceBg, borderColor: D.border, boxShadow: '0 40px 80px -20px rgba(0,0,0,0.5)' }}
           >
-            {/* Gradient bar */}
+
             <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl"
               style={{ background: `linear-gradient(90deg, ${selectedSignal.color}, #38BDF8)` }} />
 
-            {/* Close */}
+
             <button onClick={closeModal} className="absolute top-4 right-4 z-10 p-2 rounded-full transition-colors"
               style={{ color: D.muted }}
               onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)')}
@@ -1011,10 +1005,10 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
               <X size={20} />
             </button>
 
-            {/* ── Header ── */}
+
             <div className="px-8 pt-7 pb-6 border-b" style={{ borderColor: D.border, background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(249,250,251,0.6)' }}>
 
-              {/* Emoji + Título */}
+
               <div className="flex items-start gap-5">
                 <span className="text-5xl flex-shrink-0 leading-none mt-1">{selectedSignal.emoji}</span>
                 <div>
@@ -1026,10 +1020,10 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
               </div>
             </div>
 
-            {/* ── Body ── */}
+
             <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-              {/* Columna izquierda: contenido */}
+
               <div className="lg:col-span-2 space-y-6">
                 {selectedType === 'tendencia' && (
                   <div>
@@ -1068,7 +1062,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   )}
                 </div>
 
-                {/* Autor (solo tendencias y escenarios) */}
+
                 {selectedType !== 'señal' && (
                   <div className="flex items-center gap-2 py-1">
                     <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 15, color: D.muted }}>person</span>
@@ -1079,7 +1073,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   </div>
                 )}
 
-                {/* Fuentes del escenario (solo escenarios) */}
+
                 {selectedType === 'escenario' && selectedSignal.referencias && selectedSignal.referencias.length > 0 && (
                   <div className="p-4 rounded-xl border" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(249,250,251,0.9)', borderColor: D.border }}>
                     <span className="block text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: D.muted }}>Fuentes del Escenario</span>
@@ -1103,7 +1097,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                 {selectedSignal.youtubeId && (
                   <div className="aspect-video rounded-xl overflow-hidden bg-black shadow-lg">
                     <iframe className="w-full h-full"
-                      src={`https://www.youtube-nocookie.com/embed/${selectedSignal.youtubeId}?autoplay=0`}
+                      src={`https://www.youtube.com/embed/${selectedSignal.youtubeId}`}
                       title="YouTube signal proof"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen />
@@ -1125,10 +1119,10 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                 )}
               </div>
 
-              {/* Columna derecha: clasificación + fuente + AI */}
+
               <div className="space-y-4">
 
-                {/* Clasificación */}
+
                 <div>
                   <span className="block text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: D.muted }}>Clasificación</span>
                   <div className="space-y-3">
@@ -1160,7 +1154,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   </div>
                 </div>
 
-                {/* Tópicos */}
+
                 {(selectedSignal.topico || (selectedSignal.topicosRelacionados && selectedSignal.topicosRelacionados.length > 0)) && (
                   <div>
                     {selectedSignal.topico && (
@@ -1192,7 +1186,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   </div>
                 )}
 
-                {/* Probabilidad de ocurrencia (solo escenarios) */}
+
                 {selectedType === 'escenario' && selectedSignal.probability != null && (
                   <div>
                     <span className="block text-[10px] mb-1.5" style={{ color: D.muted }}>Probabilidad de Ocurrencia</span>
@@ -1211,7 +1205,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   </div>
                 )}
 
-                {/* Fecha del Artículo (solo señales) */}
+
                 {selectedType === 'señal' && (() => {
                   const artDate = (selectedSignal as any).articleDate ?? null;
                   const dateStr = artDate;
@@ -1230,7 +1224,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   );
                 })()}
 
-                {/* Fuente / Referencia */}
+
                 {(selectedSignal.source || selectedSignal.link) && (
                   <div className="p-4 rounded-xl border" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(249,250,251,0.9)', borderColor: D.border }}>
                     <span className="block text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: D.muted }}>
@@ -1252,7 +1246,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   </div>
                 )}
 
-                {/* Impacto & Urgencia IA */}
+
                 {selectedType !== 'tendencia' && (
                   <div className="rounded-xl border p-4 space-y-3"
                     style={{ borderColor: isDark ? 'rgba(99,102,241,0.25)' : 'rgba(99,102,241,0.2)', background: isDark ? 'rgba(99,102,241,0.04)' : 'rgba(99,102,241,0.03)' }}>
@@ -1291,7 +1285,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
                   </div>
                 )}
 
-                {/* AI chat compacto */}
+
                 <div className="rounded-xl border overflow-hidden" style={{ borderColor: isDark ? 'rgba(42,157,143,0.25)' : 'rgba(42,157,143,0.2)' }}>
                   <div className="flex items-center gap-2 px-4 py-3 border-b"
                     style={{ background: isDark ? 'rgba(42,157,143,0.1)' : 'rgba(42,157,143,0.06)', borderColor: isDark ? 'rgba(42,157,143,0.2)' : 'rgba(42,157,143,0.15)' }}>

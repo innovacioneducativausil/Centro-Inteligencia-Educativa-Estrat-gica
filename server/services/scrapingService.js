@@ -1,7 +1,5 @@
-// server/services/scrapingService.js
-// Scraping responsable de páginas universitarias públicas con Selenium WebDriver.
-// Requiere: npm install selenium-webdriver (en server/package.json)
-// El ChromeDriver se gestiona automáticamente via Selenium Manager (v4.10+).
+
+
 
 import db_empl from '../db_empl.js';
 import { getCuratedBenchmarkSources } from '../data/benchmarkingCuratedSources.js';
@@ -217,7 +215,7 @@ function findCurriculumStart(normalized = '') {
 
   if (keywordMarkers.length) return Math.min(...keywordMarkers);
 
-  // Fallback: no explicit curriculum header — use first cycle label found
+
   const cycleWord = normalized.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)\b/);
   if (cycleWord?.index != null) return cycleWord.index;
 
@@ -336,8 +334,7 @@ function parseLineBasedCurriculum(rawText = '') {
       continue;
     }
 
-    // Detect "Ciclo N" / "PRIMER CICLO" / "Semestre N" labels (used by UNMSM, UP, etc.)
-    // Only treat as a cycle header if the line is a pure cycle label (short, no other content)
+
     if (/^(?:ciclo|semestre|cycle|semester|term|year)\s+[0-9]{1,2}$/.test(normalized)
       || /^(?:ciclo|semestre|cycle|semester|term|year)\s+[ivx]{1,5}$/.test(normalized)
       || /^(?:primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)$/.test(normalized)
@@ -555,8 +552,7 @@ function knownCurriculumByOfficialUrl(url = '') {
   }));
 }
 
-// Parse UPC-style tab-based curricula by reading the HTML structure directly.
-// Handles Bootstrap tab layouts where each tab-pane contains one semester's courses.
+
 function parseHtmlTabCurriculum(html = '') {
   if (!/id=["']tab-0["']/i.test(html)) return [];
   const courses = [];
@@ -764,7 +760,6 @@ function findCurriculumPdfUrl(html = '', baseUrl = '') {
       if (/admision|admission|postula|reglamento|manual|formato|autorizacion/.test(scoreText)) score -= 25;
       pdfLinks.push({ url, score });
     } catch {
-      // Ignora URLs mal formadas.
     }
   }
   return pdfLinks.sort((a, b) => b.score - a.score)[0]?.url || null;
@@ -892,7 +887,6 @@ function extractLinks(html, baseUrl, domain) {
       url.hash = '';
       links.add(url.toString());
     } catch {
-      // ignore invalid links
     }
   }
   return [...links];
@@ -923,7 +917,7 @@ async function searchOfficialLinks(domain, career) {
           links.add(candidate.toString());
         }
       } catch {
-        // ignore invalid search links
+
       }
     }
   }
@@ -1393,8 +1387,7 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
   let titleForStorage = title;
   let urlFinalForStorage = urlFinal;
 
-  // 1. Try HTML tab structure parser first (handles UPC-style Bootstrap tab curricula).
-  //    This must run before text-based parsing because text extraction loses tab context.
+
   let parsed = null;
   if (rawHtml) {
     const htmlParsed = parseHtmlCurriculumCourses(rawHtml);
@@ -1403,12 +1396,12 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
     }
   }
 
-  // 2. Fall back to text-based parsing
+
   if (!parsed) {
     parsed = parseCurriculumCourses(textForStorage, urlFinalForStorage || url);
   }
 
-  // 3. Linked PDF fallback: many university pages only list the actual curriculum as a PDF link.
+
   if (!parsed.courses.length && rawHtml && url?.startsWith('http')) {
     const linkedPdfUrl = findCurriculumPdfUrl(rawHtml, urlFinalForStorage || url);
     if (linkedPdfUrl) {
@@ -1425,16 +1418,16 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
           };
         }
       } catch {
-        // Se conserva la captura original si el PDF enlazado no se puede leer.
+
       }
     }
   }
 
-  // 4. Fetch fallback: try plain HTTP fetch when Selenium/text parsing yielded nothing
+
   if (!parsed.courses.length && url?.startsWith('http')) {
     try {
       const fallback = await extractPageTextWithFetch(url);
-      // Try HTML tab parser on fallback HTML too
+
       const fallbackHtmlParsed = fallback.rawHtml ? parseHtmlCurriculumCourses(fallback.rawHtml) : null;
       const fallbackParsed = fallbackHtmlParsed
         ? { ...fallbackHtmlParsed, parser: `${fallbackHtmlParsed.parser}_fetch_fallback`, status: 'parseado' }
@@ -1446,7 +1439,7 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
         parsed = fallbackParsed;
       }
     } catch {
-      // Se conserva la captura original si la lectura estatica falla.
+
     }
   }
 
@@ -1534,7 +1527,7 @@ async function scrapeProgramaUrl(idPrograma, url) {
     ['pendiente', 'Scraping iniciado...', idPrograma]
   );
 
-  // For PDF URLs, skip Selenium entirely and parse the PDF directly
+
   if (/\.pdf($|\?)/i.test(url)) {
     try {
       const result = await extractPageTextWithFetch(url);
@@ -1610,7 +1603,7 @@ async function scrapeProgramaUrl(idPrograma, url) {
     return { ok: false, error: msg };
   } finally {
     if (driver) {
-      try { await driver.quit(); } catch { /* ignore */ }
+      try { await driver.quit(); } catch {}
     }
     await sleep(DELAY_BETWEEN_REQUESTS_MS);
   }

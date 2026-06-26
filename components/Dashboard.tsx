@@ -135,7 +135,7 @@ const MODULES = [
 const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRadarTab }) => {
   const isDark = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
 
-  // â”€â”€ Brand color palette â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   const C = {
     primary:            isDark ? '#b1c5ff' : '#001a48',
     primaryContainer:   '#002d72',
@@ -149,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
     outlineVariant:     isDark ? 'rgba(255,255,255,0.10)' : 'rgba(196,198,210,0.6)',
   };
 
-  // â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   const [stats, setStats]     = useState<Estadisticas | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -160,7 +160,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
       .finally(() => setLoading(false));
   }, []);
 
-  // â”€â”€ Matriz de Escenarios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   const [searchType, setSearchType]                   = useState<'señal' | 'tendencia'>('señal');
   const [matrixQuery, setMatrixQuery]                 = useState('');
   const [matrixResults, setMatrixResults]             = useState<MatrixItem[]>([]);
@@ -173,7 +173,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
   const matrixSearchTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownCloseTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // â”€â”€ Quadrant detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   const [selectedQuadrant, setSelectedQuadrant]               = useState<QuadrantKey | null>(null);
   const [quadrantDetail, setQuadrantDetail]                   = useState<string | null>(null);
   const [quadrantDetailLoading, setQuadrantDetailLoading]     = useState(false);
@@ -266,7 +266,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
     }
   };
 
-  // â”€â”€ KPI cards data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   const kpiCards = useMemo(() => {
     if (!stats) return null;
     const { kpis } = stats;
@@ -278,7 +278,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
     ];
   }, [stats, setActiveView, setRadarTab]);
 
-  // â”€â”€ Shared styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   const normalText  = C.onSurface;
   const mutedText   = C.onSurfaceVariant;
   const solidCardBg = C.surfaceLowest;
@@ -297,7 +297,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
     outline:      'none',
   };
 
-  // â”€â”€ KPI Card (sparkline style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   const KpiCard = ({ title, value, change, trend, icon: Icon, accentColor, onClick }: any) => (
     <div
       onClick={onClick}
@@ -338,14 +338,12 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
   return (
     <div className="animate-in fade-in duration-700">
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          SECTION 1 — HERO
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+
       <section
         className="relative px-8 py-20 overflow-hidden"
         style={{ background: C.surface }}
       >
-        {/* Background glow orbs */}
+
         <div className="absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full pointer-events-none"
           style={{ background: 'radial-gradient(circle, rgba(0,107,88,0.07), transparent 65%)' }} />
         <div className="absolute -bottom-24 -left-16 w-96 h-96 rounded-full pointer-events-none"
@@ -353,7 +351,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
 
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
 
-          {/* Left: headline + CTAs */}
+
           <div className="z-10">
             <span
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-6"
@@ -397,13 +395,13 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
             </div>
           </div>
 
-          {/* Right: Live stats card */}
+
           <div className="relative hidden lg:block">
-            {/* Glow */}
+
             <div className="absolute -top-16 -right-16 w-72 h-72 rounded-full pointer-events-none"
               style={{ background: 'rgba(0,107,88,0.10)', filter: 'blur(80px)' }} />
 
-            {/* Main card */}
+
             <div
               className="relative z-10 p-6 rounded-[2rem] shadow-2xl"
               style={{ background: solidCardBg, border: `1px solid ${C.outlineVariant}` }}
@@ -423,7 +421,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                 <div className="w-2.5 h-2.5 rounded-full animate-pulse-dot" style={{ background: '#22c55e' }} />
               </div>
 
-              {/* KPI mini grid */}
+
               <div className="grid grid-cols-2 gap-3 mb-4">
                 {[
                   { label: 'Señales',    value: stats?.kpis.senales,    icon: 'sensors',    color: '#0EA5E9' },
@@ -447,7 +445,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                 ))}
               </div>
 
-              {/* Insight card */}
+
               <div className="p-4 rounded-2xl" style={{ background: 'linear-gradient(135deg, #001a48, #002d72)' }}>
                 <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1.5">Insight del Mes</p>
                 <p className="text-xs text-white/90 leading-relaxed">
@@ -458,7 +456,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
               </div>
             </div>
 
-            {/* Floating badge */}
+
             <div
               className="absolute -bottom-5 -left-6 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl z-20"
               style={{ background: isDark ? '#1e293b' : '#ffffff' }}
@@ -479,9 +477,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          SECTION 2 — METODOLOGÍA
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+
       <section
         className="py-20 px-8"
         style={{ background: C.surfaceContainer }}
@@ -527,9 +523,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          SECTION 3 — KPI CARDS
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+
       <section className="py-14 px-8" style={{ background: C.surface }}>
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
@@ -550,9 +544,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          SECTION 4 — MATRIZ + ESTADO GLOBAL
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+
       <section className="py-16 px-8" style={{ background: C.surfaceContainerLow }}>
         <div className="max-w-7xl mx-auto">
 
@@ -576,17 +568,17 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
 
           <div className="grid lg:grid-cols-3 gap-8">
 
-            {/* â”€â”€ Left 2/3: AI Matrix â”€â”€ */}
+
             <div className="lg:col-span-2">
               <div
                 className="p-7 rounded-3xl relative"
                 style={{ background: solidCardBg, border: `1px solid ${C.outlineVariant}` }}
               >
-                {/* Decorative glow */}
+
                 <div className="absolute inset-0 pointer-events-none rounded-3xl"
                   style={{ background: 'radial-gradient(ellipse at top right, rgba(16,185,129,0.06), transparent 55%)' }} />
 
-                {/* Info tooltip + description */}
+
                 <div className="flex items-center gap-2 mb-1 relative">
                   <p className="text-sm font-semibold" style={{ color: mutedText }}>
                     Selecciona una o más {searchType === 'tendencia' ? 'tendencias' : 'señales'} para que la IA genere los 4 escenarios posibles.
@@ -615,7 +607,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                   </div>
                 </div>
 
-                {/* Type toggle */}
+
                 <div className="flex gap-2 mb-3 mt-4">
                   {(['señal', 'tendencia'] as const).map(type => (
                     <button
@@ -633,7 +625,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                   ))}
                 </div>
 
-                {/* Search + Generate */}
+
                 <div className="flex gap-3 mb-4 relative z-20">
                   <div className="relative flex-1">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: mutedText }} />
@@ -685,7 +677,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                   </button>
                 </div>
 
-                {/* Selected badges */}
+
                 {matrixSelectedItems.length > 0 && (
                   <div className="flex items-start gap-2 mb-4 flex-wrap">
                     <span className="text-[9px] font-black uppercase tracking-widest mt-2" style={{ color: mutedText }}>Analizando:</span>
@@ -702,7 +694,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                   </div>
                 )}
 
-                {/* Error */}
+
                 {matrixError && (
                   <div className="mb-4 px-4 py-3 rounded-2xl text-sm font-bold"
                     style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#dc2626' }}>
@@ -710,7 +702,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                   </div>
                 )}
 
-                {/* Loading */}
+
                 {matrixLoading && (
                   <div className="py-10 flex flex-col items-center gap-3" style={{ color: mutedText }}>
                     <Loader2 size={28} className="animate-spin" style={{ color: '#10B981' }} />
@@ -718,10 +710,10 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                   </div>
                 )}
 
-                {/* Matrix result */}
+
                 {matrixData && !matrixLoading && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                    {/* 2Ã—2 Grid */}
+
                     <div className="lg:col-span-2">
                       <div className="flex justify-center mb-3">
                         <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full"
@@ -763,7 +755,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                       </div>
                     </div>
 
-                    {/* Quadrant detail panel */}
+
                     <div
                       className="lg:col-span-1 rounded-2xl p-5 flex flex-col"
                       style={{
@@ -803,7 +795,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                   </div>
                 )}
 
-                {/* Empty state */}
+
                 {!matrixData && !matrixLoading && (
                   <div className="py-10 flex flex-col items-center text-center" style={{ color: mutedText }}>
                     <div className="w-14 h-14 rounded-2xl mb-4 flex items-center justify-center text-3xl"
@@ -815,7 +807,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
               </div>
             </div>
 
-            {/* â”€â”€ Right 1/3: Estado Global â”€â”€ */}
+
             <div
               className="flex flex-col gap-6 p-7 rounded-3xl h-fit"
               style={{ background: 'linear-gradient(175deg, #001a48 0%, #002d72 100%)', color: '#ffffff' }}
@@ -868,9 +860,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          SECTION 5 — MÃ“DULOS ESTRATÃ‰GICOS
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+
       <section className="py-20 px-8" style={{ background: C.surfaceContainer }}>
         <div className="max-w-7xl mx-auto">
           <div className="mb-10">
@@ -929,16 +919,14 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          SECTION 6 — CTA
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+
       <section className="px-8 py-20" style={{ background: C.surface }}>
         <div className="max-w-7xl mx-auto">
           <div
             className="relative rounded-[3rem] p-12 lg:p-20 overflow-hidden text-center"
             style={{ background: 'linear-gradient(135deg, #001a48 0%, #002d72 60%, #003a8c 100%)' }}
           >
-            {/* Glow overlay */}
+
             <div className="absolute inset-0 pointer-events-none"
               style={{ background: 'radial-gradient(ellipse at 70% 30%, rgba(0,107,88,0.25), transparent 60%)' }} />
             <div className="relative z-10 max-w-3xl mx-auto">

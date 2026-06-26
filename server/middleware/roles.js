@@ -8,4 +8,4 @@ export function requireRole(...roles) {
 }
 
 export const adminOnly     = requireRole('admin');
-export const adminOrAnalyst = adminOnly; // alias — 'analista' ya no existe, solo 'admin'
+export const adminOrAnalyst = adminOnly;

@@ -1,9 +1,9 @@
-// server/services/userMigration.js
-// Migración automática de usuarios y roles al arrancar Railway.
-// Cada paso tiene su propio try/catch — un fallo no detiene los siguientes.
+
+
+
 import db from '../db.js';
 
-// Hash bcrypt de "Usuario2026*" (verificado: bcrypt.compare retorna true)
+
 const HASH_USUARIO2026 = '$2b$10$.uvMqDT.FrLCvDpQYrvAr.zL84/e0UPxti5nqKfwj86ugrUUB5wbW';
 
 const USUARIOS_NUEVOS = [
@@ -16,7 +16,7 @@ const USUARIOS_NUEVOS = [
 
 const USUARIOS_ADMIN = [
   { nombre: 'Krios Valverde', corto: 'Krios', correo: 'kriosv@usil.edu.pe' },
-  { nombre: 'Willy Campos',   corto: 'Willy', correo: 'wcampos@usil.edu.pe' },
+  { nombre: 'Wlimer Campos',  corto: 'Wlimer', correo: 'wcampos@usil.edu.pe' },
 ];
 
 const USUARIOS_SOLICITADOS = [
@@ -28,17 +28,16 @@ const USUARIOS_SOLICITADOS = [
 export async function runUserMigration() {
   console.log('[USER MIGRATION] Iniciando...');
 
-  // Paso 1: Convertir columna rol de ENUM a VARCHAR(50)
-  // Esto permite insertar 'usuario' sin importar el ENUM previo
+
   try {
     await db.query(`ALTER TABLE usuario MODIFY rol VARCHAR(50) NOT NULL DEFAULT 'usuario'`);
     console.log('[USER MIGRATION] Paso 1: rol → VARCHAR(50) OK');
   } catch (e) {
-    // Puede fallar si ya es VARCHAR — no es crítico
+
     console.warn('[USER MIGRATION] Paso 1 (ALTER):', e.message);
   }
 
-  // Paso 1b: Asegurar que password_hash sea VARCHAR(255) para evitar truncado de bcrypt
+
   try {
     await db.query(`ALTER TABLE usuario MODIFY password_hash VARCHAR(255) NOT NULL`);
     console.log('[USER MIGRATION] Paso 1b: password_hash → VARCHAR(255) OK');
@@ -46,7 +45,7 @@ export async function runUserMigration() {
     console.warn('[USER MIGRATION] Paso 1b (ALTER password_hash):', e.message);
   }
 
-  // Paso 1c: Asegurar columnas OTP usadas por login y recuperacion
+
   try {
     const [columns] = await db.query(
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
@@ -67,7 +66,7 @@ export async function runUserMigration() {
     console.warn('[USER MIGRATION] Paso 1c (OTP columns):', e.message);
   }
 
-  // Paso 2: Poner acastroh como admin
+
   try {
     const [r] = await db.query(
       `UPDATE usuario SET rol='admin' WHERE correo_usuario='acastroh@usil.edu.pe' AND rol != 'admin'`
@@ -75,7 +74,7 @@ export async function runUserMigration() {
     if (r.affectedRows) console.log('[USER MIGRATION] Paso 2: acastroh → admin');
   } catch (e) { console.warn('[USER MIGRATION] Paso 2:', e.message); }
 
-  // Paso 3: Migrar roles legacy → usuario
+
   try {
     const [r] = await db.query(
       `UPDATE usuario SET rol='usuario' WHERE rol IN ('editor','analista','lector')`
@@ -83,13 +82,13 @@ export async function runUserMigration() {
     if (r.affectedRows) console.log(`[USER MIGRATION] Paso 3: ${r.affectedRows} usuarios migrados → usuario`);
   } catch (e) { console.warn('[USER MIGRATION] Paso 3:', e.message); }
 
-  // Paso 4: Eliminar admin@usil.edu
+
   try {
     await db.query(`DELETE FROM usuario WHERE correo_usuario='admin@usil.edu'`);
     console.log('[USER MIGRATION] Paso 4: admin@usil.edu eliminado');
   } catch (e) { console.warn('[USER MIGRATION] Paso 4:', e.message); }
 
-  // Paso 5: Crear usuarios nuevos o corregir su hash si ya existen
+
   for (const u of USUARIOS_NUEVOS) {
     try {
       const [[existe]] = await db.query(
@@ -105,7 +104,7 @@ export async function runUserMigration() {
         );
         console.log(`[USER MIGRATION] Paso 5: creado ${u.correo}`);
       } else if (existe.hash_len < 60) {
-        // Hash truncado (columna era VARCHAR<60) — corregir
+
         await db.query(
           'UPDATE usuario SET password_hash = ? WHERE correo_usuario = ?',
           [HASH_USUARIO2026, u.correo]
@@ -117,7 +116,7 @@ export async function runUserMigration() {
     }
   }
 
-  // Paso 6: Crear o actualizar administradores solicitados
+
   for (const u of USUARIOS_ADMIN) {
     try {
       const [[existe]] = await db.query(
@@ -148,7 +147,7 @@ export async function runUserMigration() {
     }
   }
 
-  // Paso 7: Crear o actualizar usuarios solicitados
+
   for (const u of USUARIOS_SOLICITADOS) {
     try {
       const [[existe]] = await db.query(

@@ -6,18 +6,18 @@ interface EmpleabilidadViewProps {
   userRole?: string;
 }
 
-// ─── Modal de importación ─────────────────────────────────────────────────────
+
 interface MapeoFila { columna: string; campo: string; tipo: string; }
 interface PreviewData {
   format: 'wide' | 'tall';
   totalRows: number;
-  // wide
+
   years?: number[];
   yearCols?: Record<number, Record<string, string>>;
   fixedCols?: Record<string, string> | null;
   aiUsed?: boolean;
   mapeoResumen?: MapeoFila[];
-  // tall
+
   anioEncuesta?: number;
   trimestre?: string;
   colsDetected?: { key: string; columna: string }[];
@@ -59,7 +59,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
       if (!r.ok) throw new Error(data.error || 'Error al previsualizar');
       setPreview(data);
       if (data.format === 'wide' && data.years?.length) setSelYears(data.years);
-      // Auto-detectar año desde el nombre del archivo si el servidor no lo pudo inferir
+
       if (data.format === 'tall' && !data.anioEncuesta) {
         const m = file?.name?.match(/(20[2-9]\d)/);
         if (m) setAnioOverride(m[1]);
@@ -73,7 +73,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
   const handleImport = async () => {
     if (!file || !preview) return;
     setLoading(true); setError(null); setImportProgress(0);
-    // Avance simulado: sube rápido al 80% y se frena esperando respuesta del servidor
+
     let pct = 0;
     progressRef.current = setInterval(() => {
       pct = pct < 80 ? pct + (80 - pct) * 0.04 : pct + (95 - pct) * 0.01;
@@ -98,7 +98,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
       if (preview.tallCols) fd.append('tallCols', JSON.stringify(preview.tallCols));
     } else {
       endpoint = '/api/empleabilidad/importar';
-      // Filtrar yearCols a solo los años seleccionados
+
       const activeYears = selYears.length > 0 ? selYears : (preview.years ?? []);
       const filteredYearCols = preview.yearCols
         ? Object.fromEntries(Object.entries(preview.yearCols).filter(([yr]) => activeYears.includes(Number(yr))))
@@ -137,7 +137,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
       <div style={{ background: card, borderRadius: 16, padding: 28, width: 560, maxWidth: '95vw',
         border: `1px solid ${border}`, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
 
-        {/* Header */}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: accent }}>Importar Excel de Empleabilidad</h3>
@@ -149,7 +149,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
             fontSize: 20, color: text, opacity: 0.5, lineHeight: 1 }}>✕</button>
         </div>
 
-        {/* Paso 1: seleccionar archivo */}
+
         {!result && (
           <>
             <div style={{ marginBottom: 14 }}>
@@ -180,7 +180,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
           </>
         )}
 
-        {/* Error */}
+
         {error && (
           <div style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: 8,
             padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#991B1B' }}>
@@ -188,7 +188,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
           </div>
         )}
 
-        {/* Preview */}
+
         {preview && !result && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -222,7 +222,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
                 </>
               ) : (
                 <>
-                  {/* Selector de años para wide format */}
+
                   <div style={{ background: '#10B98112', borderRadius: 8, padding: '10px 14px', flex: 2, minWidth: 180 }}>
                     <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px',
                       color: '#059669', marginBottom: 8 }}>
@@ -260,7 +260,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
               )}
             </div>
 
-            {/* Mapeo de columnas detectadas (tall: colsDetected; wide: mapeoResumen) */}
+
             {preview.format === 'tall' && (preview.colsDetected ?? []).length > 0 && (
               <div style={{ marginBottom: 14 }}>
                 <button onClick={() => setShowMapeo(m => !m)}
@@ -366,7 +366,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
               </table>
             </div>
 
-            {/* Barra de progreso — visible solo durante importación */}
+
             {loading && (
               <div style={{ marginTop: 14, marginBottom: 2 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -412,7 +412,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
           </div>
         )}
 
-        {/* Resultado */}
+
         {result && (() => {
           const SKIP_LABELS: Record<string,{label:string;color:string;bg:string;border:string;icon:string}> = {
             sin_dni:                   { label: 'Sin DNI',                      color:'#92400E', bg:'#FEF3C7', border:'#FDE68A', icon:'⚠️' },
@@ -423,7 +423,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
           const hasSkipDetails = result.skipDetails && Object.keys(result.skipDetails).length > 0;
           return (
             <div>
-              {/* Encabezado */}
+
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
                 <div style={{ fontSize: 36, marginBottom: 6 }}>{result.errors.length > 0 ? '⚠️' : '✅'}</div>
                 <div style={{ fontSize: 18, fontWeight: 900, color: result.errors.length > 0 ? '#D97706' : '#059669' }}>
@@ -431,7 +431,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
                 </div>
               </div>
 
-              {/* Contadores principales */}
+
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                 <div style={{ flex: 1, background: '#D1FAE5', borderRadius: 8, padding: '12px', textAlign: 'center' }}>
                   <div style={{ fontSize: 28, fontWeight: 900, color: '#059669' }}>{result.imported}</div>
@@ -451,7 +451,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
                 )}
               </div>
 
-              {/* Skip details expandibles */}
+
               {hasSkipDetails && (
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px',
@@ -462,7 +462,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
                     return (
                       <div key={razon} style={{ marginBottom: 8, borderRadius: 8, border: `1px solid ${cfg.border}`,
                         background: cfg.bg, overflow: 'hidden' }}>
-                        {/* Cabecera clickeable */}
+
                         <button onClick={() => setExpandedSkip(isOpen ? null : razon)}
                           style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer',
                             padding: '9px 12px', display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left' }}>
@@ -472,7 +472,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
                             background: cfg.border, borderRadius: 12, padding: '1px 9px' }}>{detail.count}</span>
                           <span style={{ fontSize: 12, color: cfg.color, opacity: 0.6 }}>{isOpen ? '▲' : '▼'}</span>
                         </button>
-                        {/* Lista expandible */}
+
                         {isOpen && detail.registros.length > 0 && (
                           <div style={{ borderTop: `1px solid ${cfg.border}`, maxHeight: 180, overflowY: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
@@ -504,7 +504,7 @@ function ImportModal({ onClose, accent, card, text, border }: {
                 </div>
               )}
 
-              {/* Errores técnicos (excepciones de fila) */}
+
               {result.errors.length > 0 && (
                 <div style={{ borderRadius: 8, border: '1px solid #FCA5A5', marginBottom: 12, overflow: 'hidden' }}>
                   <div style={{ background: '#FEE2E2', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -539,11 +539,11 @@ function ImportModal({ onClose, accent, card, text, border }: {
   );
 }
 
-// ─── Paleta USIL — 4 tonos de azul ───────────────────────────────────────────
+
 const SALARY_COLORS = ['#1E3A8A','#1D4ED8','#2563EB','#3B82F6','#60A5FA','#93C5FD','#BFDBFE'];
 
-const ACCENT  = '#1E3A8A';  // navy — Información General
-const ACCENT2 = '#2563EB';  // bright blue
+const ACCENT  = '#1E3A8A';
+const ACCENT2 = '#2563EB';
 
 function getNivelColor(nivel: string): string {
   const l = nivel.toLowerCase();
@@ -561,7 +561,7 @@ function getSatisfColor(nivel: string): string {
   return '#9ca3af';
 }
 
-// ─── SVG Donut helpers ────────────────────────────────────────────────────────
+
 function pToXY(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
@@ -572,7 +572,7 @@ interface DSeg { pct: number; color: string; }
 function DonutChart({ segments, size = 120, stroke = 22, centerText, centerColor, showExtLabel, extLabelAll }: {
   segments: DSeg[]; size?: number; stroke?: number; centerText?: string; centerColor?: string; showExtLabel?: boolean; extLabelAll?: boolean;
 }) {
-  // pad reducido a 18 para que el SVG no crezca demasiado y los cards queden compactos
+
   const pad   = showExtLabel || extLabelAll ? 24 : 0;
   const cx    = size / 2 + pad;
   const cy    = size / 2 + pad;
@@ -582,7 +582,7 @@ function DonutChart({ segments, size = 120, stroke = 22, centerText, centerColor
   const GAP = segments.length > 2 ? 2 : 0;
   const elems: React.ReactNode[] = [];
   segments.forEach((s, i) => {
-    // el GAP no puede exceder el ángulo del segmento (evita arcos invertidos en pct muy pequeños)
+
     const segDeg   = (s.pct / 100) * 360;
     const halfGap  = Math.min(GAP / 2, segDeg / 4);
     const sa  = (cur / 100) * 360 + halfGap;
@@ -599,7 +599,7 @@ function DonutChart({ segments, size = 120, stroke = 22, centerText, centerColor
     if ((showExtLabel && s.pct > 0 && s.pct < 35) || (extLabelAll && s.pct > 2)) {
       const lp = pToXY(cx, cy, rLbl, mid);
       const anchor = lp.x > cx + 4 ? 'start' : lp.x < cx - 4 ? 'end' : 'middle';
-      // si el segmento es gris claro, usar gris medio para que el texto sea legible
+
       const lblColor = s.color === '#e5e7eb' || s.color === '#f3f4f6' ? '#6b7280' : s.color;
       elems.push(
         <text key={`l${i}`} x={lp.x} y={lp.y} textAnchor={anchor} dominantBaseline="middle"
@@ -620,7 +620,7 @@ function DonutChart({ segments, size = 120, stroke = 22, centerText, centerColor
   );
 }
 
-// ─── Barra horizontal ────────────────────────────────────────────────────────
+
 function HBar({ label, pct, color, textColor }: { label: string; pct: number; color: string; textColor: string }) {
   return (
     <div style={{ marginBottom: 8 }}>
@@ -636,11 +636,11 @@ function HBar({ label, pct, color, textColor }: { label: string; pct: number; co
   );
 }
 
-/** Normaliza nombres de programa: CPEL (cualquier variante) → "Pregrado Ejecutivo" */
+
 const normalizeProg = (p: string): string =>
   /cpel/i.test(p) ? 'Pregrado Ejecutivo' : p;
 
-// ─── Barra horizontal para rankings (label truncado + barra + conteo) ─────────
+
 function TopBar({ label, pct, total, color, textColor }: {
   label: string; pct: number; total: number; color: string; textColor: string;
 }) {
@@ -658,7 +658,7 @@ function TopBar({ label, pct, total, color, textColor }: {
   );
 }
 
-// ─── Interfaz para stats de cada tab ─────────────────────────────────────────
+
 interface StatItem { label: string; total: number; pct: number; }
 interface TabStats {
   total: number; tasaAfinidad: number;
@@ -673,8 +673,7 @@ const EMPTY_STATS: TabStats = {
   topCarreras: [], topFacultades: [],
 };
 
-// ─── Componente principal ────────────────────────────────────────────────────
-// ─── Tipos de datos del API ──────────────────────────────────────────────────
+
 interface Resumen {
   totalEncuestados: number; egresadosColocados: number; alumniAfinCarrera: number;
   totalEmprendedores: number; tasaEmpleabilidad: number; tasaEmprendimiento: number; tasaAfinidad: number;
@@ -686,14 +685,14 @@ interface Filtros {
   años: number[]; facultades: string[]; carreras: string[];
   programas: string[]; ciclos: { codigo: string; label?: string; anio: number; codigos?: string[] }[];
 }
-// ─── Directorio histórico de informes de empleabilidad (Excel) ───────────────
+
 interface InformeEmplEntry { año: number; unidad: string; facultad: string; link: string; }
 const FACULTAD_ALL_VALUE = '__all__';
 const FACULTAD_CONSOLIDADO_VALUE = '__consolidado__';
 const CONSOLIDATED_FACULTIES = new Set(['todas', 'global', 'consolidado', 'consolidada', 'general']);
 const isConsolidatedFaculty = (facultad: string) => CONSOLIDATED_FACULTIES.has(String(facultad || '').trim().toLowerCase());
 const INFORMES_EMPL: InformeEmplEntry[] = [
-  // 2023
+
   { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Arquitectura',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBFhtdqSfZOT4qkWvtcuk3CAXUvWSPenII77LVFsPVC0rk?e=zigQcc' },
   { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Artes y Humanidades',   link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQC2ZC09UGnOQKJetH0qMI6WAUaSfGcUydqzVJQrGatblJw?e=UQkcGl' },
   { año: 2023, unidad: 'Pregrado Regular',          facultad: 'Ciencias de la Salud',  link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQALqw814DlKR7kUtZNW0ezhAXJIiUiGiNkY8kgrhbWo_d0?e=MXuYbk' },
@@ -707,7 +706,7 @@ const INFORMES_EMPL: InformeEmplEntry[] = [
   { año: 2023, unidad: 'Doble Grado',               facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAI2y7tXO7cQpWZghJbyswDATMuq3QLrHzko6WX68UKL80?e=Y1HIvh' },
   { año: 2023, unidad: 'Escuela de Postgrado',      facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:b:/s/ALUMNI475/IQD4wVbnTpv1TbTCFO8gUmmGAR7K42e6tqoEnxjysLQUy2A?e=ZEVQBn' },
   { año: 2023, unidad: 'Instituto de Emprendedores',facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAzmHJfCur4QYwFShn3hb3JAT7xpwL9rIIASuRQev6oJf8?e=DyiQuL' },
-  // 2024
+
   { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Arquitectura',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBAfOnLT025T4Jwf3FyDUqcAbSj8NyscXbLv3Rj9n5DNMo?e=70jMi0' },
   { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Artes y Humanidades',   link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAHOdapeFGlRqaRYZ1ZrMO2AcHHFPyg1AGPAvFudjboMtM?e=Pezvha' },
   { año: 2024, unidad: 'Pregrado Regular',          facultad: 'Ciencias de la Salud',  link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAK01_2fyDSR4up1e54t-jfATtruv__LdbJgEdys-bWyx8?e=YoIRgE' },
@@ -726,7 +725,7 @@ const INFORMES_EMPL: InformeEmplEntry[] = [
   { año: 2024, unidad: 'Escuela de Postgrado',      facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQAu2lW1o_esTIsqfEHAFRbsAWVL_Ztdo-NEF__9OUKVIgc?e=xaLbq0' },
   { año: 2024, unidad: 'Instituto de Emprendedores',facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQBXxAx8KdkARKtqbrdWTYlmAcUWd4WT4o4voaJpa5zfiaY?e=x8SEAn' },
   { año: 2024, unidad: 'Global',                    facultad: 'General',               link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQDMfuZsF7PKT7pJBoCiJu9YAaRQQHHwkALoSLiapGwurv0?e=hbeUcY' },
-  // 2025
+
   { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Arquitectura',          link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQCzTXwLcnckS6RKO7kGEeAXAXZgheK9jo76GWqPbYE8K4Y?e=MpSYqc' },
   { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Artes y Humanidades',   link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQC7J9IC1_K9T5rpYBPl5_L3AYWZgQLO-CRIIfWR_NO4q7I?e=jQuWZe' },
   { año: 2025, unidad: 'Pregrado Regular',          facultad: 'Ciencias de la Salud',  link: 'https://usiloffice365.sharepoint.com/:p:/s/ALUMNI475/IQC5MYDjkr68Q4IaDaUja0IRAfx6O8D3qXf-cUk6I57yQtw?e=PpX0F1' },
@@ -795,7 +794,7 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-      {/* Tarjeta de filtros propios */}
+
       <div style={{ ...cardBase, padding: '14px 18px' }}>
         <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: DL, marginBottom: 14 }}>
           Filtros
@@ -840,7 +839,7 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
         </div>
       </div>
 
-      {/* Tabla de informes */}
+
       <div style={{ ...cardBase, padding: 0, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: `1px solid ${border}` }}>
           <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted }}>
@@ -922,24 +921,24 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
   const [activeTab,  setActiveTab]  = useState<TabEmpl>('resumen');
   const canImport = userRole === 'admin' || userRole === 'analista' || userRole === 'editor';
 
-  // Filtros seleccionados
+
   const [selProgramas, setSelProgramas] = useState<string[]>([]);
   const [selAños,      setSelAños]      = useState<string[]>([]);
   const [selCiclos,    setSelCiclos]    = useState<string[]>([]);
   const [selFacultad,  setSelFacultad]  = useState('Todas');
   const [selCarrera,   setSelCarrera]   = useState('Todas');
 
-  // Opciones dinámicas de filtros
+
   const [filtros, setFiltros] = useState<Filtros>({ años: [], facultades: [], carreras: [], programas: [], ciclos: [] });
 
-  // Datos del dashboard (tab resumen)
+
   const [resumen, setResumen] = useState<Resumen>(EMPTY_RESUMEN);
   const [rangos,  setRangos]  = useState<RangoItem[]>([]);
   const [niveles, setNiveles] = useState<NivelItem[]>([]);
   const [satisf,  setSatisf]  = useState<SatisfItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Datos dashboards (tabs laboral/emprendedor/busqueda)
+
   const [tabStats,      setTabStats]      = useState<TabStats>(EMPTY_STATS);
   const [tabStatsLoading, setTabStatsLoading] = useState(false);
 
@@ -973,12 +972,12 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
         setRangos(Array.isArray(r2)  ? r2  : []);
         setNiveles(Array.isArray(r3) ? r3  : []);
         setSatisf(Array.isArray(r4)  ? r4  : []);
-      } catch { /* sin datos */ }
+      } catch {}
       setLoading(false);
     }, 300);
   }, [buildParams]);
 
-  // Cargar filtros dinámicos al montar — auto-selecciona todo al cargar
+
   useEffect(() => {
     fetch('/api/empleabilidad/filtros')
       .then(r => r.json())
@@ -1010,7 +1009,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
       .catch(() => {});
   }, [selAños, selProgramas, selFacultad, selCarrera]);
 
-  // Fetch estadísticas para dashboards de los 3 tabs de detalle
+
   const fetchTabStats = useCallback(async (tipo: string) => {
     setTabStatsLoading(true);
     const p = new URLSearchParams({ tipo });
@@ -1028,17 +1027,17 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
     setTabStatsLoading(false);
   }, [selAños, selFacultad, selCarrera, selProgramas, selCiclos]);
 
-  // Recargar datos cuando cambian filtros
+
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Recargar stats del tab cuando cambia el tab o filtros
+
   useEffect(() => {
     if (activeTab !== 'resumen' && activeTab !== 'descarga') {
       fetchTabStats(activeTab);
     }
   }, [activeTab, fetchTabStats]);
 
-  // Al cerrar el modal de importación, recarga filtros + selecciona todo automáticamente
+
   const handleImportClose = () => {
     setShowImport(false);
     fetch('/api/empleabilidad/filtros')
@@ -1085,7 +1084,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
   const selectAll = programasList.length > 0 && selProgramas.length === programasList.length;
   const toggleAll = () => setSelProgramas(selectAll ? [] : [...programasList]);
 
-  // Colores — C contiene clases Tailwind; derivamos CSS reales por el flag de dark
+
   const isDark = C.cardBg?.includes('slate-9') ?? false;
   const bg     = isDark ? '#0f172a' : '#f8fafc';
   const card   = isDark ? '#1e293b' : '#ffffff';
@@ -1101,21 +1100,21 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
 
   const noTrabaja   = Math.round(Math.max(0, 100 - resumen.tasaEmpleabilidad) * 100) / 100;
   const noAfinidad  = Math.round(Math.max(0, 100 - resumen.tasaAfinidad)      * 100) / 100;
-  // Excluir rangos sin clasificar ("-") del gráfico y la leyenda
+
   const rangosVis   = rangos.filter(r => r.rango && r.rango.trim() !== '-');
   const rangoSegs   = rangosVis.map((r, i) => ({ pct: r.pct, color: SALARY_COLORS[i] || '#ccc' }));
-  // 2022 no tiene columna EMPRENDEDOR en el Excel → ocultar la tarjeta
+
   const solo2022    = selAños.length === 1 && selAños[0] === '2022';
 
   return (
     <div style={{ padding: '14px 20px', background: bg, minHeight: '100%', color: text, overflowX: 'hidden' }}>
 
-      {/* Modal importación */}
+
       {showImport && (
         <ImportModal onClose={handleImportClose} accent={ACCENT} card={card} text={text} border={border} />
       )}
 
-      {/* TÍTULO — centrado como Power BI */}
+
       <div style={{ position: 'relative', textAlign: 'center', marginBottom: 10 }}>
         <h2 style={{ fontSize: 26, fontWeight: 900, letterSpacing: '1px', color: ACCENT, margin: 0,
           textTransform: 'uppercase' }}>
@@ -1130,7 +1129,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
           visibility: (loading || tabStatsLoading) ? 'visible' : 'hidden' }}>cargando…</span>
       </div>
 
-      {/* TABS */}
+
       <div style={{ display: 'flex', gap: 4, marginBottom: 10, borderBottom: `2px solid ${border}`, paddingBottom: 0 }}>
         {TABS.map(t => {
           const active = activeTab === t.key;
@@ -1152,7 +1151,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
         })}
       </div>
 
-      {/* FILA DE FILTROS — oculta en Descarga de informes */}
+
       {activeTab !== 'descarga' && <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
 
         {programasList.length > 0 && (
@@ -1225,14 +1224,14 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
         </div>
       </div>}
 
-      {/* ═══ TAB RESUMEN — Dashboard ════════════════════════════════════════════ */}
+
       {activeTab === 'resumen' && (
         <div style={{ display: 'flex', gap: 10 }}>
 
-          {/* ── MITAD IZQUIERDA: KPIs pegados encima de los donuts ── */}
+
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
 
-            {/* KPIs */}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div style={{ background: ACCENT, borderRadius: 10, color: '#fff', padding: '12px 16px' }}>
                 <div style={{ fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.2px', opacity: 0.85, marginBottom: 4, lineHeight: 1.3 }}>
@@ -1252,10 +1251,10 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               </div>
             </div>
 
-            {/* Donuts — flex:1 para ocupar todo el alto restante de la columna izquierda */}
+
             <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
 
-              {/* Tasa de Empleabilidad */}
+
               <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
                 <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, textAlign: 'center' }}>
                   Tasa de Empleabilidad
@@ -1281,7 +1280,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                 </div>
               </div>
 
-              {/* Afinidad Laboral */}
+
               <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px' }}>
                 <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, textAlign: 'center' }}>
                   Afinidad Laboral
@@ -1310,10 +1309,10 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
             </div>
           </div>
 
-          {/* ── MITAD DERECHA: Rango Salarial + Gráficas ── */}
+
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
 
-            {/* Rango Salarial */}
+
             <div style={{ ...cardStyle, padding: '14px 16px' }}>
               <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 10 }}>
                 Rango Salarial Promedio
@@ -1322,7 +1321,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                 <div style={{ color: muted, fontSize: 12, textAlign: 'center', padding: 16 }}>Sin datos</div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 28, minWidth: 0 }}>
-                  {/* Leyenda: cuadrado + texto + porcentaje inline (pegado al texto) */}
+
                   <div style={{ flex: '1 1 220px', minWidth: 220 }}>
                     {rangosVis.map((r, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 7 }}>
@@ -1332,7 +1331,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                       </div>
                     ))}
                   </div>
-                  {/* Donut */}
+
                   <div style={{ flexShrink: 0, marginLeft: 8 }}>
                     <DonutChart segments={rangoSegs} size={132} stroke={28} extLabelAll />
                   </div>
@@ -1340,10 +1339,10 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               )}
             </div>
 
-            {/* Gráficas — Nivel de Puesto + Satisfacción — flex:1 para alinearse con los donuts */}
+
             <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
 
-              {/* Nivel de Puesto + Emprendedores */}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ ...cardStyle, padding: '10px 14px' }}>
                   <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 8 }}>
@@ -1366,7 +1365,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                 )}
               </div>
 
-              {/* Satisfacción USIL */}
+
               <div style={{ ...cardStyle, padding: '10px 14px' }}>
                 <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 8 }}>
                   Satisfacción USIL
@@ -1391,14 +1390,14 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
         </div>
       )}
 
-      {/* ═══ TAB DESCARGA DE INFORMES ══════════════════════════════════════════ */}
+
       {activeTab === 'descarga' && <DescargaInformes card={card} text={text} muted={muted} border={border} isDark={isDark} />}
 
-      {/* ═══ TABS EGRESADOS — Dashboards ═══════════════════════════════════════ */}
+
       {activeTab !== 'resumen' && activeTab !== 'descarga' && (() => {
         const cfg = TABS.find(t => t.key === activeTab)!;
         const C1 = cfg.color;
-        // Derivar gradiente tonal para KPI cards
+
         const C2 = activeTab === 'laboral'     ? '#2563EB'
                  : activeTab === 'emprendedor' ? '#0369A1'
                  :                              '#0E7490';
@@ -1411,7 +1410,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
           </div>
         );
 
-        // ── Shared helpers ──────────────────────────────────────────────────────
+
         const KpiCard = ({ label, value, sub, wide }: { label: string; value: string | number; sub?: string; wide?: boolean }) => (
           <div style={{ background: `linear-gradient(135deg, ${C1} 0%, ${C2} 100%)`,
             borderRadius: 12, color: '#fff', padding: '14px 18px', gridColumn: wide ? 'span 2' : undefined }}>
@@ -1432,7 +1431,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
           <div style={{ color: muted, fontSize: 11, textAlign: 'center', padding: '16px 0' }}>Sin datos</div>
         );
 
-        // Donut sin porcentaje externo para gráficos de distribución
+
         const MiniDonut = ({ items }: { items: StatItem[] }) => {
           const segs = items.map((it, i) => ({ pct: it.pct, color: SALARY_COLORS[i] || '#94a3b8' }));
           return (
@@ -1453,10 +1452,10 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
           );
         };
 
-        // ── LABORAL ─────────────────────────────────────────────────────────────
+
         if (activeTab === 'laboral') return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* Fila 1: KPIs + rango salarial */}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
               <KpiCard label="Egresados en Actividad Laboral" value={S.total} />
               <KpiCard label="Afinidad con su Carrera" value={`${S.tasaAfinidad}%`}
@@ -1465,7 +1464,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                 {S.rangos.length === 0 ? <EmptyState /> : <MiniDonut items={S.rangos} />}
               </ChartCard>
             </div>
-            {/* Fila 2: Nivel de Puesto + Top Rubros + Top Empresas + Top Áreas */}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
               <ChartCard title="Nivel de Puesto">
                 {S.nivelPuesto.length === 0 ? <EmptyState /> : <MiniDonut items={S.nivelPuesto} />}
@@ -1489,10 +1488,10 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
           </div>
         );
 
-        // ── EMPRENDEDOR ──────────────────────────────────────────────────────────
+
         if (activeTab === 'emprendedor') return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* Fila 1: KPI + Satisfacción */}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 2fr)', gap: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <KpiCard label="Egresados Emprendedores" value={S.total} />
@@ -1526,7 +1525,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                 )}
               </ChartCard>
             </div>
-            {/* Fila 2: Top Carreras + Facultades + Rubros */}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
               <ChartCard title="Top Carreras de Emprendedores">
                 {S.topCarreras.length === 0 ? <EmptyState />
@@ -1547,10 +1546,10 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
           </div>
         );
 
-        // ── BÚSQUEDA ─────────────────────────────────────────────────────────────
+
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* Fila 1: KPI + Satisfacción */}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 2fr)', gap: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <KpiCard label="Egresados en Búsqueda Laboral" value={S.total} />
@@ -1584,7 +1583,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
                 )}
               </ChartCard>
             </div>
-            {/* Fila 2: Top Carreras + Facultades */}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
               <ChartCard title="Top Carreras en Búsqueda Laboral">
                 {S.topCarreras.length === 0 ? <EmptyState />

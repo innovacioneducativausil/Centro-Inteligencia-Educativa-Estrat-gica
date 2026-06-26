@@ -1,6 +1,5 @@
-// server/scripts/migrateRoles.js
-// Migra roles legacy (editor, analista, lector) → usuario
-// Uso: node scripts/migrateRoles.js
+
+
 
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';

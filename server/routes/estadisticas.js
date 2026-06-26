@@ -1,12 +1,12 @@
 import { serverError } from '../middleware/errorHandler.js';
-// server/routes/estadisticas.js
-// KPIs globales para el Dashboard
+
+
 import { Router } from 'express';
 import db from '../db.js';
 
 const router = Router();
 
-/** GET /api/estadisticas — conteos para las tarjetas KPI del Dashboard */
+
 router.get('/estadisticas', async (_req, res) => {
   try {
     const [[senales]]    = await db.query('SELECT COUNT(*) AS total FROM senal    WHERE id_estado = 1');
@@ -16,14 +16,14 @@ router.get('/estadisticas', async (_req, res) => {
     const [[pesteles]]   = await db.query('SELECT COUNT(*) AS total FROM pestel    WHERE activo = 1');
     const [[sectores]]   = await db.query('SELECT COUNT(*) AS total FROM sector    WHERE activo = 1');
 
-    // Señales publicadas este mes
+
     const [[senalesMes]] = await db.query(
       `SELECT COUNT(*) AS total FROM senal
        WHERE id_estado = 1
          AND fecha_publicacion >= DATE_FORMAT(NOW(), '%Y-%m-01')`
     );
 
-    // Distribución PESTEL para el gráfico de dispersión
+
     const [distribucionPestel] = await db.query(
       `SELECT p.nombre_pestel AS categoria, p.color, p.emoji,
               COUNT(DISTINCT sp.id_senal)    AS total_senales,
@@ -36,7 +36,7 @@ router.get('/estadisticas', async (_req, res) => {
        ORDER BY p.orden_display`
     );
 
-    // Señales recientes (últimas 5)
+
     const [senalesRecientes] = await db.query(
       `SELECT s.id_senal, s.titulo_senal, s.desc_corta_senal,
               s.fecha_publicacion,

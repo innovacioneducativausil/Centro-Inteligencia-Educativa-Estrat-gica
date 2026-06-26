@@ -2,18 +2,15 @@ node_modules
 dist
 .DS_Store
 
-# Variables de entorno — NUNCA subir al repositorio
 .env
 .env.*
 !.env.example
 
-# Carpeta duplicada anidada
 RADAR/
 
-# Claude Code (no debe estar en el repo)
-.claude/
+settings.json
+settings.local.json
 
-# Archivos temporales
 *.pptx
 *.xlsx
 .tmp_*

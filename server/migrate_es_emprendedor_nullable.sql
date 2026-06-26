@@ -1,22 +1,7 @@
--- ============================================================
--- MIGRACIÓN: es_emprendedor NOT NULL → NULL
--- Problema: el valor 0 por defecto mezcla "no respondió" con
---           "respondió No", distorsionando la tasa de emprendimiento.
--- NULL = pregunta no incluida en esa encuesta
--- 0    = respondió No
--- 1    = respondió Sí
--- ============================================================
 
 USE empleabilidad_usil;
-
--- 1. Cambiar la columna a nullable
 ALTER TABLE encuesta_anual
   MODIFY COLUMN es_emprendedor TINYINT(1) NULL DEFAULT NULL;
-
--- 2. Poner NULL en registros de 2022 y 2023 PREGRADO/CPEL donde la pregunta
---    no fue incluida en la encuesta original (fuente_carga lo identifica).
---    Estos registros tienen es_emprendedor = 0 solo por el DEFAULT, no porque
---    el egresado respondiera "No".
 UPDATE encuesta_anual ea
 JOIN egresado eg ON eg.id_egresado = ea.id_egresado
 JOIN carrera c ON c.id_carrera = eg.id_carrera
@@ -35,8 +20,6 @@ WHERE ea.anio_encuesta = 2023
   AND tp.descripcion IN ('PREGRADO', 'CPEL')
   AND ea.es_emprendedor = 0
   AND ea.fuente_carga IN ('IMPORT_Q4_PREGRADO_CPEL_2023');
-
--- 3. Verificación post-migración
 SELECT
   ea.anio_encuesta                                            AS anio,
   tp.descripcion                                             AS programa,

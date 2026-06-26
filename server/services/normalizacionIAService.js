@@ -1,7 +1,5 @@
-// server/services/normalizacionIAService.js
-// Usa la misma API de HuggingFace configurada en el proyecto (HF_API_KEY).
-// Transforma texto libre de programas universitarios en datos estructurables.
-// Regla: si el texto fuente no contiene un dato, se marca como "no_identificado".
+
+
 
 import db_empl from '../db_empl.js';
 import { extractPageTextWithFetch, parseCurriculumCourses, parseHtmlCurriculumCourses } from './scrapingService.js';
@@ -136,7 +134,7 @@ async function normalizarPrograma(idPrograma) {
         cursosDeterministicos = fetchedCourses;
       }
     } catch {
-      // Si la segunda lectura falla, se continua con el texto ya capturado.
+
     }
   }
   if (!cursosDeterministicos.length) {

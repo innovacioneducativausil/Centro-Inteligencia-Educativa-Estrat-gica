@@ -1,5 +1,3 @@
--- Agrega columna "autor" a las tres tablas principales
--- Ejecutar una sola vez contra la base de datos radar_db
 
 ALTER TABLE senal
   ADD COLUMN autor VARCHAR(255) NULL DEFAULT NULL

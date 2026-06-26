@@ -1,4 +1,4 @@
-// components/GestionView.tsx — HU006: Consola de Administración
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, ShieldAlert, Zap, Activity, Eye } from 'lucide-react';
 import { ThemeColors } from '../types';
@@ -7,7 +7,7 @@ import ImportarView from './ImportarView';
 import MonitoreoView from './MonitoreoView';
 import { sanitizeRichHtml } from '../services/sanitizeHtml';
 
-// ── Tipos ─────────────────────────────────────────────────
+
 interface AdminDetail extends AdminItem {
   id?:                     number;
   descLarga?:              string | null;
@@ -16,15 +16,15 @@ interface AdminDetail extends AdminItem {
   creadoPor?:              string | null;
   senalesRelacionadas?:     { uuid: string; titulo: string }[];
   escenariosRelacionados?:  { uuid: string; titulo: string }[];
-  tendenciasRelacionadas?:  { uuid: string; titulo: string }[]; // para tab escenarios
-  nombre?:                  string | null;                       // nombre_senal/tendencia/escenario (conciso)
-  tituloDes?:               string | null;                       // título descriptivo (titulo_senal/tendencia/escenario)
-  fechaSeñalArticulo?:      string | null;                       // fecha del artículo fuente
+  tendenciasRelacionadas?:  { uuid: string; titulo: string }[];
+  nombre?:                  string | null;
+  tituloDes?:               string | null;
+  fechaSeñalArticulo?:      string | null;
   paisOrigen?:              string | null;
-  urlFuentes?:              string[];                             // múltiples URLs (escenarios)
-  probabilidad?:            number | null;                        // 1-5 (escenarios)
+  urlFuentes?:              string[];
+  probabilidad?:            number | null;
   topico?:                  string | null;
-  topicosRelacionados?:     string[];                             // tópicos relacionados (tendencias)
+  topicosRelacionados?:     string[];
 }
 
 interface AdminItem {
@@ -69,23 +69,23 @@ interface SectorOption {
 }
 
 interface FormState {
-  nombre:    string;    // Nombre de la Señal/Tendencia/Escenario → titulo_*
-  tituloDes: string;    // Título (todos los tabs)
-  pais:      string;    // País de Origen (tendencias, opcional)
-  sectorIds: string[];  // sectores multi-select obligatorio
-  pestelIds: string[];  // PESTEL multi-select obligatorio
-  horizonte: string;    // Horizonte Temporal (escenarios)
-  descCorta: string;    // max 280 → desc_corta_*
-  descLarga: string;    // editor enriquecido → desc_larga_*
-  logica:      string;    // Lógica / Why now (tendencias / escenarios)
+  nombre:    string;
+  tituloDes: string;
+  pais:      string;
+  sectorIds: string[];
+  pestelIds: string[];
+  horizonte: string;
+  descCorta: string;
+  descLarga: string;
+  logica:      string;
   fuente:               string;
   urlFuente:            string;
-  urlFuentesEscenario:  string[];  // múltiples URLs solo para escenarios
+  urlFuentesEscenario:  string[];
   imagenUrl:            string;
   videoUrl:             string;
   autor:                string;
   fechaArticulo:        string;
-  estadoId:  string;    // '1'|'2'|'3'
+  estadoId:  string;
 }
 
 const FORM_EMPTY: FormState = {
@@ -98,7 +98,7 @@ const FORM_EMPTY: FormState = {
   estadoId: '3',
 };
 
-// Lista de países
+
 const COUNTRIES = [
   'Afganistán','Albania','Alemania','Andorra','Angola','Antigua y Barbuda',
   'Arabia Saudita','Argelia','Argentina','Armenia','Australia','Austria',
@@ -147,7 +147,7 @@ interface GestionViewProps {
   user:        AuthUser;
 }
 
-// ── Constantes ────────────────────────────────────────────
+
 const ALLOWED_ROLES = ['admin'];
 const MONITOR_CORREOS = ['acastroh@usil.edu.pe', 'mmontoyar@usil.edu.pe'];
 const PAGE_LIMIT    = 10;
@@ -159,7 +159,7 @@ const TAB_CONFIG: Record<Tab, { label: string; nueva: string }> = {
   importar:   { label: 'IMPORTAR',   nueva: ''               },
 };
 
-// Transiciones de estado según estado actual
+
 const ESTADO_TRANSITIONS: Record<string, { id: number; label: string; icon: string }[]> = {
   borrador:  [{ id: 2, label: 'Enviar a revisión', icon: 'send'         }],
   revision:  [
@@ -170,7 +170,7 @@ const ESTADO_TRANSITIONS: Record<string, { id: number; label: string; icon: stri
   archivado: [{ id: 3, label: 'Restaurar a borrador', icon: 'restore'   }],
 };
 
-// Colores de badge de estado (independientes del tema)
+
 const ESTADO_BADGE: Record<string, { bg: string; text: string; icon: string }> = {
   publicado: { bg: '#d1fae5', text: '#065f46', icon: 'check_circle' },
   revision:  { bg: '#ffedd5', text: '#9a3412', icon: 'schedule'      },
@@ -178,7 +178,7 @@ const ESTADO_BADGE: Record<string, { bg: string; text: string; icon: string }> =
   archivado: { bg: '#e5e7eb', text: '#374151', icon: 'inventory_2'   },
 };
 
-// Color de avatar con alpha
+
 function avatarColors(hex: string) {
   return { bg: hex + '22', text: hex };
 }
@@ -197,7 +197,7 @@ function getEstadoInfo(id: number): { label: string; slug: string } {
   return map[id] || { label: 'Borrador', slug: 'borrador' };
 }
 
-// ── Componente ────────────────────────────────────────────
+
 const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   const [activeTab,    setActiveTab]    = useState<Tab>('senales');
   const [pageData,     setPageData]     = useState<PageData | null>(null);
@@ -209,7 +209,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   const [openMenu,       setOpenMenu]       = useState<string | null>(null);
   const [changingId,     setChangingId]     = useState<string | null>(null);
   const [selectedItem,   setSelectedItem]   = useState<AdminItem | null>(null);
-  // ── Filtros multi-select ──
+
   const [pestelFilter,      setPestelFilter]      = useState<string[]>([]);
   const [sectorFilter,      setSectorFilter]      = useState<string[]>([]);
   const [horizonteFilter,   setHorizonteFilter]   = useState<string>('');
@@ -220,7 +220,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   const [selectedDetail, setSelectedDetail] = useState<AdminDetail | null>(null);
   const [detailLoading,  setDetailLoading]  = useState(false);
   const [showDescLargaDetail, setShowDescLargaDetail] = useState(false);
-  // ── Crear nuevo (HU009) ──
+
   const [showCreate,    setShowCreate]    = useState(false);
   const [createForm,    setCreateForm]    = useState<FormState>(FORM_EMPTY);
   const [fieldErrors,   setFieldErrors]   = useState<Partial<Record<keyof FormState, string>>>({});
@@ -228,16 +228,16 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   const [createError,   setCreateError]   = useState<string | null>(null);
   const [pestels,       setPestels]       = useState<PestelOption[]>([]);
   const [sectors,       setSectors]       = useState<SectorOption[]>([]);
-  // ── Archivar (HU011) ──
+
   const [archiveTarget, setArchiveTarget] = useState<AdminItem | null>(null);
   const [archiving,     setArchiving]     = useState(false);
   const [archiveError,  setArchiveError]  = useState<string | null>(null);
-  // ── Editar (HU018) ──
+
   const [editMode, setEditMode] = useState(false);
   const [editId,   setEditId]   = useState<string | null>(null);
   const descLargaRef = useRef<HTMLDivElement>(null);
   const menuRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  // ── Relaciones multi-select (HU013) ──
+
   const [tendenciasRel,  setTendenciasRel]  = useState<{ uuid: string; titulo: string }[]>([]);
   const [escenariosRel,  setEscenariosRel]  = useState<{ uuid: string; titulo: string }[]>([]);
   const [tendSearch,     setTendSearch]     = useState('');
@@ -248,32 +248,32 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   const [escShowDrop,    setEscShowDrop]    = useState(false);
   const tendTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const escTimerRef  = useRef<ReturnType<typeof setTimeout>>();
-  // ── Relaciones multi-select escenarios (HU017) ──
+
   const [senalesRel,   setSenalesRel]   = useState<{ uuid: string; titulo: string }[]>([]);
   const [senSearch,    setSenSearch]    = useState('');
   const [senResults,   setSenResults]   = useState<{ uuid: string; titulo: string }[]>([]);
   const [senShowDrop,  setSenShowDrop]  = useState(false);
   const senTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  // ── PESTEL dropdown multi-select ──
+
   const [pestelDropOpen, setPestelDropOpen] = useState(false);
   const pestelDropRef   = useRef<HTMLDivElement>(null);
-  // ── Sector dropdown multi-select ──
+
   const [sectorDropOpen, setSectorDropOpen] = useState(false);
   const sectorDropRef   = useRef<HTMLDivElement>(null);
-  // ── Importar Excel ──
+
   const [importing,    setImporting]    = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; total: number; errors: { fila: number; error: string }[]; warnings?: { fila: number; aviso: string }[] } | null>(null);
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const relInputRef     = useRef<HTMLInputElement>(null);
   const [importingRel,  setImportingRel]  = useState(false);
-  // ── Fechas en modo edición ──
+
   const [editDates, setEditDates] = useState<{
     creacion: string; publicacion: string; actualizacion: string;
   } | null>(null);
 
   const canAccess = ALLOWED_ROLES.includes(user.rol);
 
-  // ── Fetch ────────────────────────────────────────────────
+
   const fetchData = useCallback(async () => {
     if (!canAccess || activeTab === 'importar' || activeTab === 'monitoreo') return;
     setLoading(true); setError(null);
@@ -299,7 +299,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Cerrar dropdown contextual al clic externo
+
   useEffect(() => {
     if (!openMenu) return;
     const handler = (e: MouseEvent) => {
@@ -310,7 +310,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, [openMenu]);
 
-  // Cerrar PESTEL dropdown al clic externo
+
   useEffect(() => {
     if (!pestelDropOpen) return;
     const handler = (e: MouseEvent) => {
@@ -321,7 +321,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, [pestelDropOpen]);
 
-  // Cerrar Sector dropdown al clic externo
+
   useEffect(() => {
     if (!sectorDropOpen) return;
     const handler = (e: MouseEvent) => {
@@ -332,7 +332,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, [sectorDropOpen]);
 
-  // Cerrar filtros multi-select al clic externo
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (pestelFiltRef.current && !pestelFiltRef.current.contains(e.target as Node)) setPestelFiltOpen(false);
@@ -342,7 +342,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // ── Importar Relaciones Excel ─────────────────────────────
+
   const handleImportRelaciones = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -365,7 +365,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     }
   };
 
-  // ── Importar Excel ────────────────────────────────────────
+
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -396,7 +396,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     setPageData(null);
   };
 
-  // ── Cambio de estado ─────────────────────────────────────
+
   const handleEstadoChange = async (item: AdminItem, id_estado: number) => {
     setOpenMenu(null); setChangingId(item.uuid);
     try {
@@ -414,7 +414,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     finally { setChangingId(null); }
   };
 
-  // ── Ver detalle completo (HU012) ─────────────────────────
+
   const handleVerDetalle = async (item: AdminItem) => {
     setSelectedItem(item);
     setSelectedDetail(null);
@@ -423,11 +423,11 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     try {
       const res = await fetch(`/api/admin/${activeTab}/${item.uuid}`, { headers: authHeaders() });
       if (res.ok) setSelectedDetail(await res.json());
-    } catch { /* la info básica ya está en selectedItem */ }
+    } catch {}
     finally { setDetailLoading(false); }
   };
 
-  // ── Archivar (HU011) ─────────────────────────────────────
+
   const handleArchivar = async () => {
     if (!archiveTarget) return;
     setArchiving(true); setArchiveError(null);
@@ -440,7 +440,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         setArchiveError(data.error || 'Error al archivar.');
         return;
       }
-      // Retirar del listado activo
+
       setPageData(prev => prev ? {
         ...prev,
         data:  prev.data.filter(r => r.uuid !== archiveTarget.uuid),
@@ -452,7 +452,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     finally  { setArchiving(false); }
   };
 
-  // ── Buscar relaciones (HU013) ────────────────────────────
+
   const searchRelaciones = (
     q: string,
     timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | undefined>,
@@ -469,26 +469,26 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         const data = await res.json();
         setResults((data.data || []).map((r: AdminItem) => ({ uuid: r.uuid, titulo: r.titulo })));
         setShowDrop(true);
-      } catch { /* silencioso */ }
+      } catch {}
     }, 350);
   };
 
-  // ── Fetch opciones para select ───────────────────────────
+
   const fetchOptions = useCallback(async () => {
-    if (pestels.length > 0) return; // ya cargadas
+    if (pestels.length > 0) return;
     try {
       const res = await fetch('/api/admin/options', { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       setPestels(data.pestels || []);
       setSectors(data.sectors || []);
-    } catch { /* silencioso */ }
+    } catch {}
   }, [pestels.length]);
 
-  // Cargar opciones al montar (para los filtros de PESTEL/Sector)
+
   useEffect(() => { fetchOptions(); }, [fetchOptions]);
 
-  // ── Abrir formulario de creación (HU009) ─────────────────
+
   const openCreate = () => {
     setEditMode(false);
     setEditId(null);
@@ -504,11 +504,11 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     setTendShowDrop(false); setEscShowDrop(false);
     setSenalesRel([]); setSenSearch(''); setSenResults([]); setSenShowDrop(false);
     setPestelDropOpen(false);
-    // Limpiar editor enriquecido
+
     setTimeout(() => { if (descLargaRef.current) descLargaRef.current.innerHTML = ''; }, 50);
   };
 
-  // ── Abrir formulario de edición (HU018) ──────────────────
+
   const openEdit = async (item: AdminItem) => {
     setOpenMenu(null);
     setCreateError(null);
@@ -558,16 +558,16 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     } catch { alert('Error de conexión al cargar el elemento.'); }
   };
 
-  // ── Validación frontend HU009 ─────────────────────────────
+
   const validateForm = (): boolean => {
     const errs: Partial<Record<keyof FormState, string>> = {};
-    // ── Identificación ─────────────────────────────────────
+
     if (!createForm.nombre.trim())           errs.nombre    = 'El nombre es obligatorio.';
     if (!createForm.tituloDes.trim())            errs.tituloDes = 'El título es obligatorio.';
     else if (createForm.tituloDes.length > 180)  errs.tituloDes = 'Máximo 180 caracteres.';
     if (createForm.sectorIds.length === 0)   errs.sectorIds = 'Selecciona al menos un sector.';
     if (createForm.pestelIds.length === 0)  errs.pestelIds = 'Selecciona al menos una categoría PESTEL.';
-    // ── Descripciones ──────────────────────────────────────
+
     if (!createForm.descCorta.trim())        errs.descCorta = 'La descripción corta es obligatoria.';
     if (createForm.descCorta.length > 250)   errs.descCorta = 'Máximo 250 caracteres.';
     const larga     = descLargaRef.current?.innerText?.trim() || '';
@@ -581,34 +581,34 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
       if (!createForm.logica.trim()) errs.logica    = 'La lógica del escenario es obligatoria.';
       else if (createForm.logica.length > 1000) errs.logica = 'Máximo 1 000 caracteres.';
     }
-    // ── Multimedia ─────────────────────────────────────────
+
     const isUrl = (v: string) => /^https?:\/\/.+\..+/.test(v.trim());
     if (activeTab === 'senales') {
-      // Señales: fuente + urlFuente obligatorias; imagen opcional
+
       if (!createForm.fuente.trim())    errs.fuente    = 'La fuente es obligatoria.';
       if (!createForm.urlFuente.trim()) errs.urlFuente = 'La URL de la fuente es obligatoria.';
       else if (!isUrl(createForm.urlFuente)) errs.urlFuente = 'Ingresa una URL válida (https://...)';
       if (createForm.imagenUrl.trim() && !isUrl(createForm.imagenUrl)) errs.imagenUrl = 'Ingresa una URL válida (https://...)';
     }
-    // Tendencias: todo opcional pero debe ser URL si se ingresa
+
     if (activeTab === 'tendencias') {
       if (createForm.urlFuente.trim() && !isUrl(createForm.urlFuente)) errs.urlFuente = 'Ingresa una URL válida (https://...)';
       if (createForm.imagenUrl.trim() && !isUrl(createForm.imagenUrl)) errs.imagenUrl = 'Ingresa una URL válida (https://...)';
     }
-    // Escenarios: múltiples URLs — cada una debe ser válida si se ingresa
+
     if (activeTab === 'escenarios') {
       createForm.urlFuentesEscenario.forEach((u, i) => {
         if (u.trim() && !isUrl(u)) errs[`urlFuenteEsc_${i}`] = 'URL inválida';
       });
       if (createForm.imagenUrl.trim() && !isUrl(createForm.imagenUrl)) errs.imagenUrl = 'Ingresa una URL válida (https://...)';
     }
-    // Video URL: opcional para todos, pero debe ser URL si se ingresa
+
     if (createForm.videoUrl.trim() && !isUrl(createForm.videoUrl)) errs.videoUrl = 'Ingresa una URL válida (https://...)';
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  // ── Submit creación/edición (HU009/HU018) ────────────────
+
   const handleCreate = async () => {
     if (!validateForm()) return;
     setCreating(true); setCreateError(null);
@@ -665,7 +665,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     finally { setCreating(false); }
   };
 
-  // ── Guard ────────────────────────────────────────────────
+
   if (!canAccess) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-24 px-8 text-center">
@@ -686,17 +686,17 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
   const isDark = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
 
-  // ── Vista de monitoreo (tab monitoreo, solo correos autorizados) ──
+
   if (activeTab === 'monitoreo') {
     return <MonitoreoView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
   }
 
-  // ── Vista de importación (tab importar) ──────────────────
+
   if (activeTab === 'importar') {
     return <ImportarView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
   }
 
-  // ── Vista de creación HU009 ───────────────────────────────
+
   if (showCreate) {
     const tabSingular = activeTab === 'senales' ? 'Señal' : activeTab === 'tendencias' ? 'Tendencia' : 'Escenario';
     const tabPath     = activeTab === 'senales' ? 'Señales' : activeTab === 'tendencias' ? 'Tendencias' : 'Escenarios';
@@ -725,7 +725,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
     return (
       <div className="p-6 md:p-8">
-        {/* Breadcrumb */}
+
         <nav className="text-xs font-medium mb-6 flex items-center gap-1" style={{ color: '#9ca3af' }}>
           <button onClick={() => { setShowCreate(false); setEditMode(false); setEditId(null); }} className="hover:underline" style={{ color: '#1978e5' }}>
             Gestión
@@ -745,7 +745,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
           <div className={`rounded-xl shadow-sm border p-8 space-y-8 ${themeColors.cardBg} ${themeColors.cardBorder}`}>
 
-            {/* ── Bloque 1: Datos de Control ── */}
+
             <div className={`pb-6 border-b ${themeColors.cardBorder}`}>
               <SectionTitle icon="lock" title="Datos de Control" />
               <div className={`grid gap-4 grid-cols-2 md:grid-cols-3 ${activeTab === 'senales' ? 'lg:grid-cols-7' : 'lg:grid-cols-6'}`}>
@@ -792,11 +792,11 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               </div>
             </div>
 
-            {/* ── Bloque 2: Información Principal ── */}
+
             <div className={`pb-6 border-b ${themeColors.cardBorder}`}>
               <SectionTitle icon="info" title="Información Principal" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Nombre */}
+
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-medium" style={{ color: '#9ca3af' }}>
@@ -814,7 +814,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   <FieldError field="nombre" />
                 </div>
 
-                {/* Título (todos los tabs) */}
+
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-medium" style={{ color: '#9ca3af' }}>
@@ -839,13 +839,13 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   <FieldError field="tituloDes" />
                 </div>
 
-                {/* Sector multi-select dropdown */}
+
                 <div ref={sectorDropRef}>
                   <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>
                     sector <span style={{ color: '#ef4444' }}>*</span>
                   </label>
 
-                  {/* Chips de sectores seleccionados */}
+
                   {createForm.sectorIds.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-2">
                       {createForm.sectorIds.map(id => {
@@ -866,7 +866,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                     </div>
                   )}
 
-                  {/* Selector */}
+
                   <div className="relative">
                     <button type="button"
                       onClick={() => setSectorDropOpen(v => !v)}
@@ -907,13 +907,13 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   <FieldError field="sectorIds" />
                 </div>
 
-                {/* PESTEL multi-select dropdown */}
+
                 <div ref={pestelDropRef}>
                   <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>
                     categoría PESTEL <span style={{ color: '#ef4444' }}>*</span>
                   </label>
 
-                  {/* Chips de categorías seleccionadas */}
+
                   {createForm.pestelIds.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-2">
                       {createForm.pestelIds.map(id => {
@@ -934,7 +934,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                     </div>
                   )}
 
-                  {/* Selector */}
+
                   <div className="relative">
                     <button type="button"
                       onClick={() => setPestelDropOpen(v => !v)}
@@ -975,7 +975,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   <FieldError field="pestelIds" />
                 </div>
 
-                {/* Estado */}
+
                 <div>
                   <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>estado inicial</label>
                   <div className="relative">
@@ -992,7 +992,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   </div>
                 </div>
 
-                {/* País de Origen (solo Tendencias) */}
+
                 {activeTab === 'tendencias' && (
                   <div>
                     <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>país de origen</label>
@@ -1013,11 +1013,11 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               </div>
             </div>
 
-            {/* ── Bloque 3: Descripciones ── */}
+
             <div className={`pb-6 border-b ${themeColors.cardBorder}`}>
               <SectionTitle icon="description" title="Descripciones" />
               <div className="space-y-6">
-                {/* Desc Corta */}
+
                 <div>
                   <div className="flex justify-between mb-1">
                     <label className="text-xs font-medium" style={{ color: '#9ca3af' }}>
@@ -1038,7 +1038,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   <FieldError field="descCorta" />
                 </div>
 
-                {/* Desc Larga - Editor enriquecido */}
+
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-medium" style={{ color: '#9ca3af' }}>
@@ -1049,7 +1049,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   <div
                     className={`rounded-lg border overflow-hidden ${themeColors.cardBg} ${fieldErrors.descLarga ? 'border-red-400' : themeColors.cardBorder}`}
                   >
-                    {/* Toolbar */}
+
                     <div className={`flex items-center gap-0.5 p-2 border-b ${themeColors.cardBorder} ${themeColors.tableHeaderBg}`}>
                       {[
                         { cmd: 'bold',          icon: 'format_bold',           title: 'Negrita' },
@@ -1080,7 +1080,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                         </button>
                       ))}
                     </div>
-                    {/* Editor area */}
+
                     <div
                       ref={descLargaRef}
                       contentEditable
@@ -1100,7 +1100,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   <FieldError field="descLarga" />
                 </div>
 
-                {/* Lógica / Why now (Tendencias y Escenarios) */}
+
                 {activeTab !== 'senales' && (
                   <div>
                     <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>
@@ -1125,7 +1125,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               </div>
             </div>
 
-            {/* ── Bloque 4: Multimedia y Fuentes ── */}
+
             <div className={`pb-6 border-b ${themeColors.cardBorder}`}>
               <SectionTitle icon="perm_media" title="Multimedia y Fuentes" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1214,14 +1214,14 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               </div>
             </div>
 
-            {/* ── Bloque 5: Relaciones Estratégicas (todos los tabs) ── */}
+
             <div className={`pb-6 border-b ${themeColors.cardBorder}`}>
               <SectionTitle icon="hub" title="Relaciones Estratégicas" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                  {/* ─ Señales: tendencias + escenarios ─ */}
+
                   {activeTab === 'senales' && (<>
-                    {/* Tendencias relacionadas */}
+
                     <div>
                       <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>tendencias relacionadas</label>
                       <div className={`rounded-lg border p-2 min-h-[44px] ${themeColors.inputBg} ${themeColors.inputBorder} focus-within:ring-2 focus-within:ring-blue-400/30`}>
@@ -1259,7 +1259,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                       </div>
                       <p className="text-[10px] mt-1" style={{ color: '#94a3b8' }}>Busque y seleccione tendencias para vincular.</p>
                     </div>
-                    {/* Escenarios relacionados */}
+
                     <div>
                       <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>escenarios relacionados</label>
                       <div className={`rounded-lg border p-2 min-h-[44px] ${themeColors.inputBg} ${themeColors.inputBorder} focus-within:ring-2 focus-within:ring-blue-400/30`}>
@@ -1299,9 +1299,9 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                     </div>
                   </>)}
 
-                  {/* ─ Tendencias: señales + escenarios ─ */}
+
                   {activeTab === 'tendencias' && (<>
-                    {/* Señales relacionadas */}
+
                     <div>
                       <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>señales relacionadas</label>
                       <div className={`rounded-lg border p-2 min-h-[44px] ${themeColors.inputBg} ${themeColors.inputBorder} focus-within:ring-2 focus-within:ring-blue-400/30`}>
@@ -1340,7 +1340,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                       <p className="text-[10px] mt-1" style={{ color: '#94a3b8' }}>Busque y seleccione señales para vincular.</p>
                     </div>
 
-                    {/* Escenarios relacionados */}
+
                     <div>
                       <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>escenarios relacionados</label>
                       <div className={`rounded-lg border p-2 min-h-[44px] ${themeColors.inputBg} ${themeColors.inputBorder} focus-within:ring-2 focus-within:ring-blue-400/30`}>
@@ -1385,9 +1385,9 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                     </div>
                   </>)}
 
-                  {/* ─ Escenarios: señales + tendencias ─ */}
+
                   {activeTab === 'escenarios' && (<>
-                    {/* Señales relacionadas */}
+
                     <div>
                       <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>señales relacionadas</label>
                       <div className={`rounded-lg border p-2 min-h-[44px] ${themeColors.inputBg} ${themeColors.inputBorder} focus-within:ring-2 focus-within:ring-blue-400/30`}>
@@ -1431,7 +1431,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                       <p className="text-[10px] mt-1" style={{ color: '#94a3b8' }}>Busque y seleccione señales para vincular.</p>
                     </div>
 
-                    {/* Tendencias relacionadas (para escenarios) */}
+
                     <div>
                       <label className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>tendencias relacionadas</label>
                       <div className={`rounded-lg border p-2 min-h-[44px] ${themeColors.inputBg} ${themeColors.inputBorder} focus-within:ring-2 focus-within:ring-blue-400/30`}>
@@ -1478,7 +1478,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                 </div>
             </div>
 
-            {/* Error general */}
+
             {createError && (
               <div className="flex items-center gap-2 px-4 py-3 rounded-lg" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 18 }}>error</span>
@@ -1486,7 +1486,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               </div>
             )}
 
-            {/* ── Acciones ── */}
+
             <div className={`flex items-center justify-end gap-3 pt-4 border-t ${themeColors.cardBorder}`}>
               <button
                 type="button"
@@ -1524,7 +1524,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   return (
     <div className="p-6 md:p-8 space-y-6">
 
-      {/* ── Cabecera ── */}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className={`text-2xl md:text-3xl font-bold mb-2 ${themeColors.headerText}`}>
@@ -1535,7 +1535,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* ── Importar Relaciones ── */}
+
           <input ref={relInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportRelaciones} className="hidden" />
           <button
             onClick={() => relInputRef.current?.click()}
@@ -1550,7 +1550,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
             }
             {importingRel ? 'IMPORTANDO...' : 'IMPORTAR RELACIONES'}
           </button>
-          {/* ── Importar Excel ── */}
+
           {(
             <>
               <input
@@ -1587,7 +1587,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         </div>
       </div>
 
-      {/* ── Resultado de importación ── */}
+
       {importResult && (
         <div className={`flex items-start justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-medium ${
           importResult.errors.length > 0 && importResult.imported === 0
@@ -1632,7 +1632,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         </div>
       )}
 
-      {/* ── Tab switcher ── */}
+
       <div className="mb-6">
         <div className={`inline-flex p-1 rounded-xl shadow-sm border ${themeColors.cardBg} ${themeColors.cardBorder}`}>
           {(Object.keys(TAB_CONFIG) as Tab[]).map(tab => {
@@ -1656,7 +1656,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               </button>
             );
           })}
-          {/* Tab Monitoreo: solo visible para correos autorizados */}
+
           {MONITOR_CORREOS.includes(user.correo) && (
             <button
               onClick={() => switchTab('monitoreo')}
@@ -1674,12 +1674,12 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         </div>
       </div>
 
-      {/* ── Card de tabla ── */}
+
       <div
         className={`rounded-xl shadow-sm border transition-colors duration-200 ${themeColors.cardBg} ${themeColors.cardBorder}`}
         style={{ paddingBottom: openMenu ? 128 : 0 }}
       >
-        {/* ── Barra de búsqueda ── */}
+
         <div className={`px-6 py-3 border-b ${themeColors.cardBorder} flex flex-col sm:flex-row sm:flex-wrap gap-2`}>
           <div className="relative flex-1 max-w-sm">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2"
@@ -1706,7 +1706,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
             <option value="archivado">Papelera / Archivados</option>
           </select>
 
-          {/* ── Filtro PESTEL ── */}
+
           <div ref={pestelFiltRef} className="relative">
             <button
               onClick={() => { setPestelFiltOpen(v => !v); setSectorFiltOpen(false); }}
@@ -1762,7 +1762,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
             )}
           </div>
 
-          {/* ── Filtro Sector ── */}
+
           <div ref={sectorFiltRef} className="relative">
             <button
               onClick={() => { setSectorFiltOpen(v => !v); setPestelFiltOpen(false); }}
@@ -1815,7 +1815,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
         </div>
 
-        {/* ── Contenido ── */}
+
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 size={26} className="animate-spin" style={{ color: '#1978e5' }} />
@@ -1845,7 +1845,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
           </div>
         ) : (
           <>
-            {/* ── Tabla ── */}
+
             <div className="overflow-visible">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -1881,7 +1881,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                         onMouseEnter={e => { if (!menuOpen) (e.currentTarget as HTMLElement).style.backgroundColor = rowHover; }}
                         onMouseLeave={e => { if (!menuOpen) (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
                       >
-                        {/* ── Señal ── */}
+
                         <td className="px-6 py-4" style={{ maxWidth: 280 }}>
                           <div className="flex items-start gap-4">
                             <div
@@ -1919,7 +1919,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                           </div>
                         </td>
 
-                        {/* ── Sector ── */}
+
                         <td className="px-6 py-4" style={{ width: 160, maxWidth: 160 }}>
                           {item.sectors && item.sectors.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
@@ -1941,7 +1941,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                           ) : <span style={{ color: '#cbd5e1', fontSize: 13 }}>—</span>}
                         </td>
 
-                        {/* ── PESTEL ── */}
+
                         <td className="px-6 py-4">
                           {item.pestels && item.pestels.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
@@ -1966,7 +1966,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                           ) : <span style={{ color: '#cbd5e1', fontSize: 13 }}>—</span>}
                         </td>
 
-                        {/* ── Fuente ── */}
+
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <span className={`text-sm font-bold ${themeColors.headerText}`}>
@@ -1990,14 +1990,14 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                           </div>
                         </td>
 
-                        {/* ── Fecha de Creación ── */}
+
                         <td className="px-6 py-4 text-sm" style={{ color: '#9ca3af', whiteSpace: 'nowrap' }}>
                           {item.fecha
                             ? new Date(item.fecha).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' })
                             : '—'}
                         </td>
 
-                        {/* ── Estado ── */}
+
                         <td className="px-6 py-4">
                           <span
                             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
@@ -2028,11 +2028,11 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                           )}
                         </td>
 
-                        {/* ── Acciones ── */}
+
                         <td className="px-6 py-4 text-center relative">
                           <div className="flex items-center justify-center gap-2">
 
-                            {/* Botón ver detalle */}
+
                             <button
                               className="p-1.5 rounded-full transition-colors"
                               style={{ color: '#1978e5' }}
@@ -2044,7 +2044,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                               <span className="material-symbols-outlined" style={{ fontSize: 20 }}>visibility</span>
                             </button>
 
-                            {/* Menú contextual */}
+
                             {isChanging ? (
                               <div className="p-1.5">
                                 <Loader2 size={18} className="animate-spin" style={{ color: '#94a3b8' }} />
@@ -2075,7 +2075,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                                       outline: '1px solid rgba(0,0,0,0.05)',
                                     }}
                                   >
-                                    {/* Editar */}
+
                                     <button
                                       onClick={() => openEdit(item)}
                                       className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors text-left ${themeColors.text}`}
@@ -2086,7 +2086,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                                       <span className="font-medium">Editar</span>
                                     </button>
 
-                                    {/* Transiciones de estado */}
+
                                     {transitions.map(t => (
                                       <button
                                         key={t.id}
@@ -2101,10 +2101,10 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                                     ))}
 
                                     {item.idEstado !== 4 && (<>
-                                      {/* Separador */}
+
                                       <div style={{ height: 1, backgroundColor: '#f3f4f6', margin: '2px 0' }} />
 
-                                      {/* Archivar */}
+
                                       <button
                                         onClick={() => { setOpenMenu(null); setArchiveTarget(item); setArchiveError(null); }}
                                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors text-left"
@@ -2129,7 +2129,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               </table>
             </div>
 
-            {/* ── Paginación ── */}
+
             <div
               className={`px-6 py-4 border-t ${themeColors.cardBorder} ${themeColors.cardBg} flex flex-col sm:flex-row items-center justify-between gap-3`}
             >
@@ -2199,7 +2199,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         )}
       </div>
 
-      {/* ── Modal de confirmación de archivado (HU011) ── */}
+
       {archiveTarget && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center p-4"
@@ -2208,7 +2208,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         >
           <div className={`w-full max-w-md rounded-2xl shadow-2xl border animate-in zoom-in-95 duration-200 ${themeColors.cardBg} ${themeColors.cardBorder}`}>
 
-            {/* Header */}
+
             <div className={`px-6 py-5 border-b ${themeColors.cardBorder} flex items-center gap-3`}>
               <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: '#fef2f2' }}>
@@ -2220,7 +2220,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               </div>
             </div>
 
-            {/* Body */}
+
             <div className="px-6 py-5">
               <p className="text-sm" style={{ color: '#6b7280' }}>
                 ¿Confirmas que deseas archivar{' '}
@@ -2238,7 +2238,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               )}
             </div>
 
-            {/* Footer */}
+
             <div
               className={`px-6 py-4 border-t ${themeColors.cardBorder} flex items-center justify-end gap-3 rounded-b-2xl`}
               style={{ backgroundColor: 'rgba(249,250,251,0.5)' }}
@@ -2272,7 +2272,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         </div>
       )}
 
-      {/* ── Modal de detalle (HU012) ── */}
+
       {selectedItem && (() => {
         const item     = selectedItem;
         const detail   = selectedDetail;
@@ -2291,7 +2291,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
           >
             <div className={`relative w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col rounded-2xl shadow-2xl border animate-in zoom-in-95 duration-200 ${themeColors.cardBg} ${themeColors.cardBorder}`}>
 
-              {/* Botón cerrar */}
+
               <button
                 onClick={closeModal}
                 className="absolute top-4 right-4 z-10 p-2 rounded-full transition-colors"
@@ -2302,7 +2302,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                 <span className="material-symbols-outlined" style={{ fontSize: 22 }}>close</span>
               </button>
 
-              {/* ── Header ── */}
+
               <div
                 className={`px-8 py-6 border-b ${themeColors.cardBorder} flex items-start gap-3`}
                 style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(249,250,251,0.7)' }}
@@ -2325,10 +2325,10 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                 </div>
               </div>
 
-              {/* ── Cuerpo ── */}
+
               <div className="p-8 space-y-8 flex-1">
 
-                {/* ── Información General ── */}
+
                 <section>
                   <h4 className="text-xs font-semibold uppercase tracking-wider mb-4 pb-2"
                     style={{ color: '#9ca3af', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#f1f5f9'}` }}>
@@ -2336,7 +2336,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   </h4>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-                    {/* Izquierda: nombre + descripciones */}
+
                     <div className="lg:col-span-2 space-y-4">
                       <div>
                         <span className="block text-xs font-medium mb-1" style={{ color: '#9ca3af' }}>
@@ -2359,7 +2359,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                         </p>
                       </div>
 
-                      {/* Descripción Larga (HU012) — toggle */}
+
                       {detailLoading && !detail && (
                         <div className="flex items-center gap-2 py-3" style={{ color: '#9ca3af' }}>
                           <Loader2 size={14} className="animate-spin" />
@@ -2388,7 +2388,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                       )}
                     </div>
 
-                    {/* Derecha: clasificación + fuente */}
+
                     <div className="space-y-6">
                       <div>
                         <span className="block text-xs font-medium mb-2" style={{ color: '#9ca3af' }}>Clasificación</span>
@@ -2454,7 +2454,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                         </div>
                       )}
 
-                      {/* Fecha del artículo — solo señales */}
+
                       {activeTab === 'senales' && detail?.fechaSeñalArticulo && (
                         <div>
                           <span className="text-xs block mb-1" style={{ color: '#9ca3af' }}>Fecha del Artículo</span>
@@ -2464,7 +2464,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                           </div>
                         </div>
                       )}
-                      {/* Tópico — todos los tabs */}
+
                       {detail?.topico && (
                         <div>
                           <span className="text-xs block mb-1" style={{ color: '#9ca3af' }}>Tópico</span>
@@ -2474,7 +2474,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                           </div>
                         </div>
                       )}
-                      {/* Tópicos relacionados — solo tendencias */}
+
                       {activeTab === 'tendencias' && detail?.topicosRelacionados && detail.topicosRelacionados.length > 0 && (
                         <div>
                           <span className="text-xs block mb-1" style={{ color: '#9ca3af' }}>Tópicos relacionados</span>
@@ -2489,7 +2489,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                           </div>
                         </div>
                       )}
-                      {/* Probabilidad — solo escenarios */}
+
                       {activeTab === 'escenarios' && detail?.probabilidad != null && (
                         <div>
                           <span className="text-xs block mb-1" style={{ color: '#9ca3af' }}>Probabilidad</span>
@@ -2509,7 +2509,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   </div>
                 </section>
 
-                {/* ── Multimedia y Evidencia (HU012) ── */}
+
                 {(detail?.imagenUrl || detail?.videoUrl) && (
                   <section>
                     <h4 className="text-xs font-semibold uppercase tracking-wider mb-4 pb-2"
@@ -2562,7 +2562,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   </section>
                 )}
 
-                {/* ── Relaciones Estratégicas (HU012 / HU016) ── */}
+
                 {(() => {
                   const showSenales    = (detail?.senalesRelacionadas?.length ?? 0) > 0;
                   const isEscenarios   = activeTab === 'escenarios';
@@ -2629,7 +2629,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                   );
                 })()}
 
-                {/* Metadatos */}
+
                 {(item.fecha || detail?.creadoPor) && (
                   <div className="text-[11px] font-medium px-2 py-1 rounded-md inline-block"
                     style={{ color: '#9ca3af', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(249,250,251,0.8)' }}>
@@ -2644,7 +2644,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
                 )}
               </div>
 
-              {/* ── Footer acciones ── */}
+
               <div
                 className={`px-8 py-5 border-t ${themeColors.cardBorder} flex items-center justify-between rounded-b-2xl gap-3`}
                 style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(249,250,251,0.7)' }}

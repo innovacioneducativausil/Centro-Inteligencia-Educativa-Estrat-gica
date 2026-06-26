@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CIEE</title>
 
-    <!-- Google Fonts: Montserrat + fallbacks retained for legacy views -->
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Material Symbols -->
+
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
 
-    <!-- Tailwind CSS CDN: non-blocking so React can mount even if the CDN is slow -->
+
     <script src="https://cdn.tailwindcss.com" defer></script>
 
     <style>
@@ -43,8 +43,7 @@
         --ciee-label: #B9B9B9;
         --ciee-font: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       }
-      /* ─── Global Font ─── */
-      *, *::before, *::after {
+
         font-family: var(--ciee-font);
       }
 
@@ -54,13 +53,13 @@
         color: var(--ciee-title);
       }
 
-      /* ─── Global Scrollbar ─── */
+
       ::-webkit-scrollbar { width: 5px; height: 5px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb { background: rgba(87, 196, 221, 0.42); border-radius: 10px; }
       ::-webkit-scrollbar-thumb:hover { background: rgba(0, 54, 220, 0.55); }
 
-      /* ─── Keyframe Animations ─── */
+
       @keyframes kf-fade-in {
         from { opacity: 0; }
         to   { opacity: 1; }
@@ -102,11 +101,11 @@
         100% { background-position:  200% 0; }
       }
 
-      /* ─── animate-in system ─── */
+
       .animate-in {
         animation-fill-mode: both;
         animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-        animation-duration: 0.45s; /* safe default */
+        animation-duration: 0.45s;
       }
       .animate-in.duration-200 { animation-duration: 0.2s; }
       .animate-in.duration-300 { animation-duration: 0.3s; }
@@ -122,12 +121,12 @@
       .slide-in-from-left-6    { animation-name: kf-slide-from-left; }
       .zoom-in-95              { animation-name: kf-zoom-in; }
 
-      /* ─── Utility Animations ─── */
+
       .animate-pulse-dot  { animation: kf-pulse-dot  2s ease-out     infinite; }
       .animate-float      { animation: kf-float      4s ease-in-out  infinite; }
       .animate-spin-slow  { animation: kf-spin-slow  12s linear      infinite; }
 
-      /* ─── Custom Utilities ─── */
+
       .shadow-3xl { box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.22); }
 
       .text-gradient-teal {
@@ -137,7 +136,7 @@
         background-clip: text;
       }
 
-      /* ─── Radar Login Animations ─── */
+
       @keyframes pulse-ring {
         0%   { transform: translate(-50%, -50%) scale(1);    opacity: 0.2; }
         50%  { transform: translate(-50%, -50%) scale(1.02); opacity: 0.4; }
@@ -178,7 +177,7 @@
         font-family: var(--ciee-font);
       }
 
-      /* ─── Password Strength Meter ─── */
+
       .strength-segment {
         height: 4px;
         border-radius: 2px;
@@ -190,14 +189,14 @@
       .strength-segment.active-medium { background-color: var(--ciee-warning); }
       .strength-segment.active-strong { background-color: var(--ciee-success); }
 
-      /* ─── Rich Text Editor placeholder ─── */
+
       [contenteditable][data-placeholder]:empty::before {
         content: attr(data-placeholder);
         color: var(--ciee-label);
         pointer-events: none;
       }
 
-      /* ─── Custom Scrollbar Class ─── */
+
       .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
       .custom-scrollbar::-webkit-scrollbar-thumb {

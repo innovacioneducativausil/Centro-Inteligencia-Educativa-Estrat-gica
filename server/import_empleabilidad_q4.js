@@ -164,7 +164,7 @@ function key(s) {
 function normalizePrograma(v) {
   const n = key(v);
   if (!n) return '';
-  // "Pregrado Ejecutivo" es el nombre visible del programa CPEL — debe ir antes del chequeo 'pre'
+
   if (n.includes('cpel') || (n.includes('pregrado') && n.includes('ejecutivo'))) return 'CPEL';
   if (n.includes('pre')) return 'PREGRADO';
   if (n.includes('epg') || n.includes('postgrado')) return 'EPG';

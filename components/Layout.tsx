@@ -18,7 +18,7 @@ interface LayoutProps {
   onNotifClick: (notif: { id: string; tipo: string }) => void;
 }
 
-// â”€â”€ Color palette (matches HTML design)
+
 const NAV = {
   bg:       BRAND_COLORS.primary,
   active:   'rgba(87,196,221,0.20)',
@@ -50,7 +50,7 @@ const Layout: React.FC<LayoutProps> = ({
 
   const isAdmin = user.rol === 'admin';
 
-  // Fetch on mount for initial badge count
+
   useEffect(() => {
     fetch('/api/admin/notificaciones', { credentials: 'include' })
       .then(r => r.ok ? r.json() : Promise.reject())
@@ -58,7 +58,7 @@ const Layout: React.FC<LayoutProps> = ({
       .catch(() => {});
   }, []);
 
-  // Close dropdowns on outside click
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (bellRef.current    && !bellRef.current.contains(e.target as Node))    setBellOpen(false);
@@ -75,11 +75,11 @@ const Layout: React.FC<LayoutProps> = ({
       try {
         const res = await fetch('/api/admin/notificaciones', { credentials: 'include' });
         if (res.ok) { const j = await res.json(); setNotifs(j.data || []); setNotifsLoaded(true); }
-      } catch { /* silencioso */ }
+      } catch {}
     }
   };
 
-  // Solo publicadas con fecha válida, ordenadas de más reciente a más antigua
+
   const publishedNotifs = useMemo(() =>
     notifs
       .filter(n => n.id_estado === 1 && n.fecha_publicacion)
@@ -132,12 +132,10 @@ const Layout: React.FC<LayoutProps> = ({
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden', ...fontStyle }}>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          ICON NAV — compact left bar
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+
       <nav style={{ width: 72, minWidth: 72, background: NAV.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: 4, zIndex: 60, flexShrink: 0 }}>
 
-        {/* Logo */}
+
         <div
           title="USIL Radar Prospectivo"
           style={{ width: 36, height: 36, background: `linear-gradient(135deg,${BRAND_COLORS.active},${BRAND_COLORS.button})`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, flexShrink: 0, cursor: 'default' }}
@@ -145,7 +143,7 @@ const Layout: React.FC<LayoutProps> = ({
           <TrendingUp style={{ width: 18, height: 18, color: 'white' }} strokeWidth={2.5} />
         </div>
 
-        {/* Nav buttons */}
+
         {navItems.map(item => {
           const navKey = ('key' in item ? item.key : 'gestion') as string;
           const navLabel = 'label' in item ? item.label : 'Gestión';
@@ -183,7 +181,7 @@ const Layout: React.FC<LayoutProps> = ({
 
         <div style={{ flex: 1 }} />
 
-        {/* Theme toggle */}
+
         <button
           title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
           onClick={toggleTheme}
@@ -197,7 +195,7 @@ const Layout: React.FC<LayoutProps> = ({
           }
         </button>
 
-        {/* Bell */}
+
         <div ref={bellRef} style={{ position: 'relative' }}>
           <button
             title="Notificaciones"
@@ -214,7 +212,7 @@ const Layout: React.FC<LayoutProps> = ({
             )}
           </button>
 
-          {/* Bell dropdown */}
+
           {bellOpen && (
             <div style={{ position: 'absolute', left: 'calc(100% + 10px)', bottom: 0, width: 290, borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.35)', background: theme === 'dark' ? '#1e293b' : 'white', border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,42,63,0.1)'}`, zIndex: 100, overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,42,63,0.06)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -256,7 +254,7 @@ const Layout: React.FC<LayoutProps> = ({
           )}
         </div>
 
-        {/* User avatar */}
+
         <div ref={profileRef} style={{ position: 'relative', marginBottom: 4 }}>
           <button
             title={user.nombre}
@@ -266,7 +264,7 @@ const Layout: React.FC<LayoutProps> = ({
             {user.iniciales}
           </button>
 
-          {/* Profile dropdown */}
+
           {profileOpen && (
             <div style={{ position: 'absolute', left: 'calc(100% + 10px)', bottom: 0, width: 220, borderRadius: 14, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', background: 'white', border: '1px solid rgba(15,42,63,0.08)', zIndex: 100, padding: 8, overflow: 'hidden' }}>
               <div style={{ padding: '10px 12px 8px' }}>
@@ -297,11 +295,9 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
       </nav>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          MAIN CONTENT — full height, no wrapper header
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+
       <main
-        // Only Radar manages its own internal scroll; all others scroll normally
+
         className={`${themeColors.bg} ${themeColors.text}`}
         style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: activeView === 'radar' ? 'hidden' : 'auto' }}
         onClick={() => { if (profileOpen) setProfileOpen(false); if (bellOpen) setBellOpen(false); }}

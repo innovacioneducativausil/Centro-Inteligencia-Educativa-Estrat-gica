@@ -1,4 +1,4 @@
-// server/routes/curricular.js
+
 import { Router } from 'express';
 import multer from 'multer';
 import xlsx   from 'xlsx';
@@ -22,8 +22,7 @@ const serverError = (res, e) => {
   res.status(500).json({ error: e.message });
 };
 
-// ─── GET /api/curricular/filtros ──────────────────────────────────────────────
-// Devuelve facultades y carreras con mallas cargadas
+
 router.get('/curricular/filtros', async (_req, res) => {
   try {
     const [[facultades], [carreras]] = await Promise.all([
@@ -44,8 +43,7 @@ router.get('/curricular/filtros', async (_req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
-// ─── GET /api/curricular/mallas?carrera=X&facultad=Y ─────────────────────────
-// Devuelve versiones de malla disponibles para una carrera
+
 router.get('/curricular/mallas', async (req, res) => {
   try {
     const { carrera, facultad } = req.query;
@@ -72,7 +70,7 @@ router.get('/curricular/mallas', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
-// ─── GET /api/curricular/kpis/:idMalla ───────────────────────────────────────
+
 router.get('/curricular/kpis/:idMalla', async (req, res) => {
   try {
     const { idMalla } = req.params;
@@ -104,8 +102,7 @@ router.get('/curricular/kpis/:idMalla', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
-// ─── GET /api/curricular/mapa/:idMalla ───────────────────────────────────────
-// Devuelve cursos agrupados por ciclo con su análisis IA
+
 router.get('/curricular/mapa/:idMalla', async (req, res) => {
   try {
     const { idMalla } = req.params;
@@ -123,7 +120,7 @@ router.get('/curricular/mapa/:idMalla', async (req, res) => {
       ORDER BY c.numero_ciclo, COALESCE(c.nro_orden, 999), c.nombre_curso
     `, [idMalla]);
 
-    // Agrupar por ciclo
+
     const ciclosMap = {};
     for (const row of rows) {
       const n = row.numero_ciclo;
@@ -160,7 +157,7 @@ router.get('/curricular/mapa/:idMalla', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
-// ─── POST /api/curricular/preview ────────────────────────────────────────────
+
 router.post('/curricular/preview', adminOrAnalyst, upload.single('file'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
@@ -186,9 +183,7 @@ router.post('/curricular/preview', adminOrAnalyst, upload.single('file'), (req, 
   } catch (e) { serverError(res, e); }
 });
 
-// ─── POST /api/curricular/importar ───────────────────────────────────────────
-// Columnas esperadas: FACULTAD, CARRERA, VERSION_MALLA, ANIO_INICIO, ES_VIGENTE,
-//                     CICLO, NOMBRE_CURSO, TIPO_CURSO, CREDITOS
+
 router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
@@ -199,7 +194,7 @@ router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async
     if (shapeError) return res.status(400).json({ error: shapeError });
     if (!rows.length) return res.status(400).json({ error: 'Archivo vacío' });
 
-    // Helper: leer columna con variantes de nombre
+
     const col = (row, ...keys) => {
       for (const k of keys) {
         const v = row[k] ?? row[k.toLowerCase()] ?? row[k.toUpperCase()];
@@ -208,7 +203,7 @@ router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async
       return null;
     };
 
-    // Cache para evitar re-consultar IDs ya obtenidos
+
     const facCache   = {};
     const carCache   = {};
     const mallaCache = {};
@@ -216,7 +211,7 @@ router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async
     let imported = 0, skipped = 0;
     const errors = [];
 
-    // Cuando se marque es_vigente=1, garantizar que sea la única vigente de esa carrera
+
     const setVigente = async (idMalla, idCarrera) => {
       await db.query('UPDATE malla_version SET es_vigente=0 WHERE id_carrera=? AND id_malla!=?', [idCarrera, idMalla]);
       await db.query('UPDATE malla_version SET es_vigente=1 WHERE id_malla=?', [idMalla]);
@@ -237,7 +232,7 @@ router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async
 
         if (!nomFac || !nomCar || !nomVersion || !nomCurso || !numeroCiclo) { skipped++; continue; }
 
-        // Facultad
+
         const facKey = nomFac;
         if (!facCache[facKey]) {
           const [rows_] = await db.query('SELECT id_facultad FROM facultad WHERE nombre_facultad=? LIMIT 1', [nomFac]);
@@ -250,7 +245,7 @@ router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async
         }
         const idFac = facCache[facKey];
 
-        // Carrera
+
         const carKey = `${nomCar}|${idFac}`;
         if (!carCache[carKey]) {
           const [rows_] = await db.query('SELECT id_carrera FROM carrera WHERE nombre_carrera=? AND id_facultad=? LIMIT 1', [nomCar, idFac]);
@@ -263,7 +258,7 @@ router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async
         }
         const idCar = carCache[carKey];
 
-        // Malla version
+
         const mallaKey = `${idCar}|${nomVersion}`;
         if (!mallaCache[mallaKey]) {
           const [rows_] = await db.query('SELECT id_malla FROM malla_version WHERE id_carrera=? AND nombre_version=? LIMIT 1', [idCar, nomVersion]);
@@ -281,7 +276,7 @@ router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async
         }
         const idMalla = mallaCache[mallaKey];
 
-        // Curso — upsert
+
         const [existCurso] = await db.query(
           'SELECT id_curso FROM curso WHERE id_malla=? AND nombre_curso=? AND numero_ciclo=? LIMIT 1',
           [idMalla, nomCurso, numeroCiclo]

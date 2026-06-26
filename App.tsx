@@ -48,11 +48,11 @@ const App: React.FC = () => {
   const handleLogin = (userData: AuthUser) => {
     setUser(userData);
     setActiveView('inicio');
-    // El backend ya registra el login en actividad_usuario al autenticar
+
   };
 
   const handleLogout = useCallback((reason: 'manual' | 'inactivity' = 'manual') => {
-    // Log antes de limpiar la cookie (el backend tambien registra en logout)
+
     logActividad(reason === 'inactivity' ? 'logout_inactividad' : 'logout');
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
     localStorage.removeItem('radar_token');
@@ -82,7 +82,7 @@ const App: React.FC = () => {
   }, [user, handleLogout]);
 
   const handleNavigate = (view: string) => {
-    // Bloquear Gestión para usuarios no-admin (frontend + guard)
+
     if (view === 'gestion' && user?.rol !== 'admin') return;
     setActiveView(view);
     logActividad('nav_modulo', { modulo: view });
@@ -98,7 +98,7 @@ const App: React.FC = () => {
   };
 
   const renderView = () => {
-    // Doble guard en render: si un usuario no-admin llega a 'gestion' por cualquier vía, redirigir
+
     if (activeView === 'gestion' && user?.rol !== 'admin') {
       return <Dashboard themeColors={themeColors} setActiveView={handleNavigate} setRadarTab={setRadarTab} theme={theme} />;
     }

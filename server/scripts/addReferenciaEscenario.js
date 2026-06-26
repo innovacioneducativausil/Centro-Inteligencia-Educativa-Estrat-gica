@@ -1,12 +1,11 @@
-// server/scripts/addReferenciaEscenario.js
-// Migración: agrega la columna referencias_escenario (TEXT) a la tabla escenario
-// Ejecución: node server/scripts/addReferenciaEscenario.js
+
+
 
 import db from '../db.js';
 
 async function run() {
   try {
-    // Verificar si la columna ya existe
+
     const [cols] = await db.query(
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
        WHERE TABLE_SCHEMA = DATABASE()

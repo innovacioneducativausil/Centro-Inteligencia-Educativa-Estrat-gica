@@ -1,7 +1,5 @@
-// server/routes/motorCurricular.js
-// Motor de Impacto Curricular: endpoints para analizar impacto, gestionar brechas
-// y propuestas curriculares con trazabilidad de evidencia.
-// Tablas en: mallas_usil
+
+
 
 import { Router } from 'express';
 import db from '../db_curricular.js';
@@ -111,7 +109,7 @@ router.use(async (req, res, next) => {
   try { await ensureMotorSchema(); next(); } catch (e) { next(e); }
 });
 
-// ── POST /api/curricular/analizar-impacto/:idCarrera ─────────────────────────
+
 router.post('/curricular/analizar-impacto/:idCarrera', adminOrAnalyst, async (req, res) => {
   try {
     const { idCarrera } = req.params;
@@ -125,7 +123,7 @@ router.post('/curricular/analizar-impacto/:idCarrera', adminOrAnalyst, async (re
   } catch (e) { serverError(res, e, 'POST /curricular/analizar-impacto'); }
 });
 
-// ── GET /api/curricular/impactos/:idCarrera ───────────────────────────────────
+
 router.get('/curricular/impactos/:idCarrera', async (req, res) => {
   try {
     const { idCarrera } = req.params;
@@ -144,7 +142,7 @@ router.get('/curricular/impactos/:idCarrera', async (req, res) => {
   } catch (e) { serverError(res, e, 'GET /curricular/impactos'); }
 });
 
-// ── GET /api/curricular/brechas/:idCarrera ────────────────────────────────────
+
 router.get('/curricular/brechas/:idCarrera', async (req, res) => {
   try {
     const { idCarrera } = req.params;
@@ -169,7 +167,7 @@ router.get('/curricular/brechas/:idCarrera', async (req, res) => {
   } catch (e) { serverError(res, e, 'GET /curricular/brechas'); }
 });
 
-// ── GET /api/curricular/propuestas/:idCarrera ─────────────────────────────────
+
 router.get('/curricular/propuestas/:idCarrera', async (req, res) => {
   try {
     const { idCarrera } = req.params;
@@ -192,7 +190,7 @@ router.get('/curricular/propuestas/:idCarrera', async (req, res) => {
   } catch (e) { serverError(res, e, 'GET /curricular/propuestas'); }
 });
 
-// ── POST /api/curricular/propuestas ───────────────────────────────────────────
+
 router.post('/curricular/propuestas', adminOrAnalyst, async (req, res) => {
   try {
     const {
@@ -218,7 +216,7 @@ router.post('/curricular/propuestas', adminOrAnalyst, async (req, res) => {
   } catch (e) { serverError(res, e, 'POST /curricular/propuestas'); }
 });
 
-// ── PUT /api/curricular/propuestas/:id/estado ─────────────────────────────────
+
 router.put('/curricular/propuestas/:id/estado', adminOrAnalyst, async (req, res) => {
   try {
     const { id } = req.params;
@@ -239,7 +237,7 @@ router.put('/curricular/propuestas/:id/estado', adminOrAnalyst, async (req, res)
   } catch (e) { serverError(res, e, 'PUT /curricular/propuestas/:id/estado'); }
 });
 
-// ── POST /api/curricular/propuestas/:id/generar-version-malla ─────────────────
+
 router.post('/curricular/propuestas/:id/generar-version-malla', adminOrAnalyst, async (req, res) => {
   try {
     const { id } = req.params;
@@ -275,7 +273,7 @@ router.post('/curricular/propuestas/:id/generar-version-malla', adminOrAnalyst, 
   } catch (e) { serverError(res, e, 'POST /curricular/propuestas/:id/generar-version-malla'); }
 });
 
-// ── GET /api/curricular/evidencias/:idImpacto ─────────────────────────────────
+
 router.get('/curricular/evidencias/:idImpacto', async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -290,7 +288,7 @@ router.get('/curricular/evidencias/:idImpacto', async (req, res) => {
   } catch (e) { serverError(res, e, 'GET /curricular/evidencias/:idImpacto'); }
 });
 
-// ── GET /api/curricular/kpis-impacto/:idCarrera ───────────────────────────────
+
 router.get('/curricular/kpis-impacto/:idCarrera', async (req, res) => {
   try {
     const { idCarrera } = req.params;

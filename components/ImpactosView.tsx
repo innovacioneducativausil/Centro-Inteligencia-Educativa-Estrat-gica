@@ -21,9 +21,9 @@ const ImpactosView: React.FC<ImpactosViewProps> = ({ themeColors }) => {
     setLoadingAi(true);
     const signalTitles = selectedCourse.affectedBy.map(sid => SIGNALS_DATA.find(s => s.id === sid)?.title || '');
     const result = await analyzeCurricularRedesign(
-      selectedCourse.name, 
-      selectedCourse.summary || '', 
-      signalTitles, 
+      selectedCourse.name,
+      selectedCourse.summary || '',
+      signalTitles,
       selectedCourse.recommendedTools || []
     );
     setAiAnalysis(result);
@@ -40,7 +40,7 @@ const ImpactosView: React.FC<ImpactosViewProps> = ({ themeColors }) => {
 
   const scrollToCycle = (cycle: number) => {
     if (scrollContainerRef.current) {
-      const columnWidth = 420; // Ancho generoso para las columnas de la malla
+      const columnWidth = 420;
       scrollContainerRef.current.scrollTo({
         left: (cycle - 1) * columnWidth,
         behavior: 'smooth'
@@ -56,24 +56,24 @@ const ImpactosView: React.FC<ImpactosViewProps> = ({ themeColors }) => {
 
   return (
     <div className="h-full flex flex-col overflow-hidden relative">
-      {/* HEADER DE LA VISTA */}
+
       <header className="p-8 pb-4 shrink-0 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
           <h3 className="text-4xl font-black tracking-tighter">Malla Curricular Inteligente</h3>
           <p className="opacity-50 text-xs font-black uppercase tracking-[0.3em] text-[#2A9D8F]">Auditoría de Impacto Académico</p>
         </div>
-        
+
         <div className="flex flex-col items-end w-full md:w-auto">
           <div className="flex items-center space-x-3 mb-3">
             <span className="text-[10px] font-black opacity-30 uppercase tracking-widest">Navegación Semestral</span>
             <div className="flex space-x-1.5">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(c => (
-                <button 
-                  key={c} 
+                <button
+                  key={c}
                   onClick={() => scrollToCycle(c)}
                   className={`w-8 h-8 rounded-xl text-[11px] font-black transition-all border ${
-                    Math.round(scrollProgress / 11) + 1 === c 
-                    ? 'bg-[#2A9D8F] text-white border-[#2A9D8F] shadow-lg scale-110' 
+                    Math.round(scrollProgress / 11) + 1 === c
+                    ? 'bg-[#2A9D8F] text-white border-[#2A9D8F] shadow-lg scale-110'
                     : 'bg-black/5 dark:bg-white/5 border-transparent opacity-40 hover:opacity-100'
                   }`}
                 >
@@ -83,17 +83,17 @@ const ImpactosView: React.FC<ImpactosViewProps> = ({ themeColors }) => {
             </div>
           </div>
           <div className="w-72 h-1.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-[#2A9D8F] transition-all duration-300" 
+            <div
+              className="h-full bg-[#2A9D8F] transition-all duration-300"
               style={{ width: `${scrollProgress}%` }}
             />
           </div>
         </div>
       </header>
 
-      {/* MALLA CURRICULAR INTERACTIVA */}
+
       <div className={`flex-1 overflow-hidden border-t ${themeColors.cardBorder} bg-black/[0.02] dark:bg-white/[0.02]`}>
-        <div 
+        <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
           className="h-full flex overflow-x-auto p-8 space-x-8 custom-scrollbar scroll-smooth"
@@ -109,8 +109,8 @@ const ImpactosView: React.FC<ImpactosViewProps> = ({ themeColors }) => {
                     key={course.id}
                     onClick={() => { setSelectedCourse(course); setAiAnalysis(null); }}
                     className={`p-6 rounded-[2rem] border text-left transition-all duration-300 relative group overflow-hidden ${
-                      selectedCourse?.id === course.id 
-                        ? 'ring-4 ring-[#2A9D8F]/20 border-[#2A9D8F] shadow-2xl scale-[1.02] z-10' 
+                      selectedCourse?.id === course.id
+                        ? 'ring-4 ring-[#2A9D8F]/20 border-[#2A9D8F] shadow-2xl scale-[1.02] z-10'
                         : 'shadow-md hover:shadow-xl hover:translate-y-[-4px] hover:border-[#2A9D8F]/30'
                     } ${criticalityConfig[course.criticality].bg} ${criticalityConfig[course.criticality].border} ${themeColors.cardBg}`}
                   >
@@ -134,17 +134,17 @@ const ImpactosView: React.FC<ImpactosViewProps> = ({ themeColors }) => {
         </div>
       </div>
 
-      {/* POP-UP (MODAL DE PANTALLA COMPLETA) */}
+
       {selectedCourse && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-12 animate-in fade-in duration-300">
-          <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-xl" 
-            onClick={() => setSelectedCourse(null)} 
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-xl"
+            onClick={() => setSelectedCourse(null)}
           />
-          
+
           <div className={`relative w-full max-w-[1400px] h-full max-h-[90vh] rounded-[3.5rem] border shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] flex flex-col lg:flex-row gap-0 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 ${themeColors.cardBg} ${themeColors.cardBorder}`}>
-            
-            {/* COLUMNA IZQUIERDA: INFORMACIÓN Y SUMILLA (MUY ANCHA flex-[1.4]) */}
+
+
             <div className="flex-[1.4] overflow-y-auto custom-scrollbar p-12 lg:p-20 border-r border-black/5 dark:border-white/10 space-y-12">
               <section>
                 <div className="flex items-center space-x-4 mb-8 text-[#2A9D8F]">
@@ -182,7 +182,7 @@ const ImpactosView: React.FC<ImpactosViewProps> = ({ themeColors }) => {
               </section>
             </div>
 
-            {/* COLUMNA DERECHA: DISEÑO AI Y TECNOLOGÍAS (flex-1) */}
+
             <div className="flex-1 overflow-y-auto custom-scrollbar p-12 lg:p-20 space-y-12 bg-black/[0.03] dark:bg-white/[0.03]">
               <div className="grid grid-cols-1 gap-12">
                 <section>
@@ -230,7 +230,7 @@ const ImpactosView: React.FC<ImpactosViewProps> = ({ themeColors }) => {
               )}
 
               <div className="pt-10 relative z-10">
-                <button 
+                <button
                   onClick={handleAiRedesign}
                   disabled={loadingAi}
                   className="w-full py-8 rounded-[2.5rem] bg-[#2A9D8F] text-white font-black text-base uppercase tracking-[0.5em] flex items-center justify-center space-x-6 hover:bg-[#258a7e] hover:scale-[1.02] active:scale-95 transition-all shadow-[0_30px_60px_-15px_rgba(42,157,143,0.5)] disabled:opacity-50"
@@ -241,9 +241,9 @@ const ImpactosView: React.FC<ImpactosViewProps> = ({ themeColors }) => {
               </div>
             </div>
 
-            {/* BOTÓN CERRAR (EXTERIOR / FLOTANTE) */}
-            <button 
-              onClick={() => setSelectedCourse(null)} 
+
+            <button
+              onClick={() => setSelectedCourse(null)}
               className="absolute top-10 right-10 p-5 bg-white/10 hover:bg-white/30 dark:bg-white/5 dark:hover:bg-white/10 rounded-full transition-all z-[110] backdrop-blur-2xl shadow-2xl hover:scale-110 active:scale-90 border border-white/20"
             >
               <X size={36} className="text-white" />

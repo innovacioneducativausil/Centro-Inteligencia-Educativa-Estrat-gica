@@ -1,4 +1,4 @@
-// components/MonitoreoView.tsx — Vista de monitoreo de actividad (restringida)
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { ThemeColors } from '../types';
 
@@ -57,7 +57,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
-  // Filtros
+
   const [correoFilter, setCorreoFilter] = useState('');
   const [eventoFilter, setEventoFilter] = useState('');
   const [desdeFilter,  setDesdeFilter]  = useState('');
@@ -65,7 +65,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
   const [correosList,  setCorreosList]  = useState<{ correo: string; nombre: string; rol: string }[]>([]);
   const [eventosList,  setEventosList]  = useState<string[]>([]);
 
-  // Cargar listas de correos y eventos una vez
+
   useEffect(() => {
     fetch('/api/actividad/usuarios', { credentials: 'include' })
       .then(r => r.ok ? r.json() : { data: [] })
@@ -118,7 +118,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
   return (
     <div style={{ padding: '32px 32px 0' }}>
 
-      {/* Header */}
+
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#e2e8f0' : '#0F2A3F', marginBottom: 4 }}>
@@ -139,7 +139,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
         )}
       </div>
 
-      {/* Filtros */}
+
       <div
         style={{
           display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20,
@@ -211,7 +211,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
         </button>
       </div>
 
-      {/* Tabla */}
+
       <div
         style={{
           borderRadius: 12, border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(15,42,63,0.08)'}`,
@@ -306,7 +306,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
         )}
       </div>
 
-      {/* Paginación */}
+
       {pages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, paddingBottom: 32 }}>
           <button

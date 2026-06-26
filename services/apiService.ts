@@ -1,7 +1,5 @@
-// services/apiService.ts
-// Servicio central para llamar al backend Express/MySQL.
-// Usa rutas relativas (/api/*) — el proxy de Vite (dev) y las rewrites de Vercel (prod)
-// enrutan al backend sin necesidad de conocer la URL absoluta de Railway.
+
+
 
 const BASE = '/api';
 
@@ -28,7 +26,6 @@ export async function post<T>(path: string, body: object): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ── Tipos de respuesta ───────────────────────────────────
 
 export interface ApiSignal {
   id: number;
@@ -161,13 +158,13 @@ export interface Estadisticas {
   }[];
 }
 
-// ── Diagnóstico ──────────────────────────────────────────
+
 export const checkHealth   = () => get<{ status: string; timestamp: string }>('/health');
 export const getTables     = () => get<{ database: string; tables: string[] }>('/tables');
 export const describeTable = (table: string) =>
   get<{ table: string; columns: object[] }>(`/describe/${table}`);
 
-// ── Señales ──────────────────────────────────────────────
+
 export const getSenales = (params?: { pestel?: string; sector?: string; q?: string }) => {
   const qs = params ? '?' + new URLSearchParams(
     Object.fromEntries(Object.entries(params).filter(([, v]) => v != null)) as Record<string, string>
@@ -178,7 +175,7 @@ export const getSenales = (params?: { pestel?: string; sector?: string; q?: stri
 export const getSenal = (uuid: string) =>
   get<ApiSignal & { pesteles: string[]; sectores: string[] }>(`/senales/${uuid}`);
 
-// ── Tendencias ───────────────────────────────────────────
+
 export const getTendencias = (params?: { pestel?: string; sector?: string; q?: string }) => {
   const qs = params ? '?' + new URLSearchParams(
     Object.fromEntries(Object.entries(params).filter(([, v]) => v != null)) as Record<string, string>
@@ -186,7 +183,7 @@ export const getTendencias = (params?: { pestel?: string; sector?: string; q?: s
   return get<{ total: number; data: ApiTrend[] }>(`/tendencias${qs}`);
 };
 
-// ── Escenarios ───────────────────────────────────────────
+
 export const getEscenarios = (params?: { pestel?: string; sector?: string; q?: string }) => {
   const qs = params ? '?' + new URLSearchParams(
     Object.fromEntries(Object.entries(params).filter(([, v]) => v != null)) as Record<string, string>
@@ -194,14 +191,14 @@ export const getEscenarios = (params?: { pestel?: string; sector?: string; q?: s
   return get<{ total: number; data: ApiScenario[] }>(`/escenarios${qs}`);
 };
 
-// ── Catálogos ────────────────────────────────────────────
+
 export const getPestel   = () => get<{ total: number; data: PestelItem[] }>('/pestel');
 export const getSectores = () => get<{ total: number; data: SectorItem[] }>('/sectores');
 
-// ── Estadísticas / KPIs ──────────────────────────────────
+
 export const getEstadisticas = () => get<Estadisticas>('/estadisticas');
 
-// ── Cadena Causal ────────────────────────────────────────
+
 export interface CadenaSenal    { uuid: string; titulo: string; descCorta: string; urlImagen: string | null; fuente: string | null; urlFuente: string | null; pestel: string | null; color: string | null; }
 export interface CadenaTendencia { uuid: string; titulo: string; descCorta: string; pestel: string | null; color: string | null; }
 export interface CadenaEscenario { uuid: string; titulo: string; descCorta: string; probabilidad: number | null; pestel: string | null; color: string | null; }

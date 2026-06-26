@@ -1,5 +1,5 @@
-// server/scripts/addOtpColumns.js
-// Migración: agrega columnas OTP a la tabla usuario
+
+
 import db from '../db.js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';

@@ -1,8 +1,6 @@
-/**
- * Script de importación directa de los 4 Excels de empleabilidad.
- * Usa la misma lógica del route importar-tall, sin pasar por HTTP.
- * Ejecutar: node import_excels.js
- */
+
+
+
 import { readFileSync } from 'fs';
 import path from 'path';
 import xlsx from 'xlsx';
@@ -15,7 +13,7 @@ const EXCELS = [
   { file: 'C:\\Users\\ANGIE\\Downloads\\2025.xlsx',      anio: 2025 },
 ];
 
-// ─── Utilidades (copiadas del route) ────────────────────────────────────────
+
 function parseTrabaja(val) {
   if (!val) return false;
   const v = String(val).trim();
@@ -60,7 +58,7 @@ async function upsertGet(table, whereObj, insertObj = {}) {
   return r.insertId;
 }
 
-// ─── Normalización salarial ─────────────────────────────────────────────────
+
 const B = {
   B1: { rango: 'Menos de S/. 1,500',                min: 0,    max: 1499.99 },
   B2: { rango: 'De S/. 1,500 a menos de S/. 3,500', min: 1500, max: 3499.99 },
@@ -121,7 +119,7 @@ async function resolveSalarioId(rawSalario) {
   return retry.length ? retry[0].id_salario : null;
 }
 
-// ─── Detección de columnas tall ──────────────────────────────────────────────
+
 function detectTallCols(headers) {
   const norm2 = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const f = kws => headers.find(h => {
@@ -146,7 +144,7 @@ function detectTallCols(headers) {
   };
 }
 
-// ─── Importar un Excel ───────────────────────────────────────────────────────
+
 async function importExcel({ file, anio }) {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`Importando: ${file}  (año ${anio})`);
@@ -271,13 +269,13 @@ async function importExcel({ file, anio }) {
   console.log(`  ✅ Importados: ${imported}  |  Skipped: ${skipped}  |  Errores: ${errors}`);
 }
 
-// ─── Main ────────────────────────────────────────────────────────────────────
+
 (async () => {
   try {
     for (const excel of EXCELS) {
       await importExcel(excel);
     }
-    // Diagnóstico final
+
     const [enc]  = await db.query('SELECT COUNT(*) as n FROM encuesta_anual');
     const [egr]  = await db.query('SELECT COUNT(*) as n FROM egresado');
     const [csal] = await db.query('SELECT COUNT(*) as n FROM catalogo_salario WHERE rango_min_soles IS NULL AND rango_estandar = descripcion_original');

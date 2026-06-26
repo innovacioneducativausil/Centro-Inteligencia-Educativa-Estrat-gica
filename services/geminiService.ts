@@ -1,11 +1,11 @@
-﻿// services/geminiService.ts
-// Servicio de IA â€” HuggingFace (mÃ©tricas/anÃ¡lisis) + Groq Llama 3.1 (importaciÃ³n PDF)
-// Proyecto: RADAR Observatorio de Carreras â€” metodologÃ­a de prospectiva (WEF Foresight)
+﻿
+
+
 import type { Signal } from '../types';
 
 const AUTH = () => ({ 'Content-Type': 'application/json' });
 
-// Análisis de Disrupción — token HF_API_KEY
+
 async function callHF(prompt: string, maxTokens = 600): Promise<string> {
   const res = await fetch('/api/ai/generate', { method: 'POST', headers: AUTH(), body: JSON.stringify({ prompt, maxTokens }) });
   if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error || `Error ${res.status}`); }
@@ -13,7 +13,7 @@ async function callHF(prompt: string, maxTokens = 600): Promise<string> {
   return data.text || 'No se obtuvo respuesta.';
 }
 
-// Métricas — token HF_API_KEY_METRICS (cuota independiente)
+
 async function callMetrics(prompt: string, maxTokens = 120): Promise<string> {
   const res = await fetch('/api/ai/metrics', { method: 'POST', headers: AUTH(), body: JSON.stringify({ prompt, maxTokens }) });
   if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error || `Error ${res.status}`); }
@@ -21,7 +21,7 @@ async function callMetrics(prompt: string, maxTokens = 120): Promise<string> {
   return data.text || '';
 }
 
-// Matriz de Escenarios Futuros — token HF_API_KEY_ESCENARIOS (cuota independiente)
+
 async function callEscenarios(prompt: string, maxTokens = 1200): Promise<string> {
   const res = await fetch('/api/ai/escenarios', { method: 'POST', headers: AUTH(), body: JSON.stringify({ prompt, maxTokens }) });
   if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error || `Error ${res.status}`); }
@@ -29,7 +29,7 @@ async function callEscenarios(prompt: string, maxTokens = 1200): Promise<string>
   return data.text || 'No se obtuvo respuesta.';
 }
 
-// â”€â”€ Definiciones metodolÃ³gicas WEF (inyectadas en cada prompt) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 const DEF_SENAL = `
 SEÃ‘AL DE CAMBIO (Weak Signal â€” MetodologÃ­a WEF Horizon Scanning):
 Indicio temprano, parcial o incipiente de un cambio potencialmente importante que aÃºn no es ampliamente reconocido ni entendido.
@@ -51,10 +51,7 @@ Articula tendencias, seÃ±ales dÃ©biles, wildcards e incertidumbres en una na
 En el WEF los escenarios sirven para explorar "Â¿quÃ© decisiones deberÃ­a tomar hoy si este futuro se materializara?".
 `.trim();
 
-/**
- * 0) EstimaciÃ³n de Impacto & Urgencia â€” Gemini Flash evalÃºa un elemento y devuelve mÃ©tricas 0-100
- *    Se llama al abrir un card en RadarView (lazy, 1 llamada por item, se cachea en memoria)
- */
+
 export async function estimateImpactUrgency(
   title: string,
   text: string,
@@ -88,10 +85,7 @@ Responde SOLO con JSON vÃ¡lido, sin texto adicional:
   }
 }
 
-/**
- * 1) Resumen estratÃ©gico (Deep Dive) â€” para RadarView, botÃ³n "Generar Deep Dive AI"
- *    Adapta la estructura segÃºn si es seÃ±al, tendencia o escenario
- */
+
 export async function analyzeSignalDeepDive(
   signal: Signal,
   tipo: 'seÃ±al' | 'tendencia' | 'escenario' = 'seÃ±al'
@@ -100,62 +94,47 @@ export async function analyzeSignalDeepDive(
 
   const estructuras: Record<string, string> = {
     'señal': `
-**SÃ­ntesis de la seÃ±al**
 Escribe 2-3 oraciones explicando quÃ© estÃ¡ ocurriendo, dÃ³nde se detecta y por quÃ© es relevante como indicio temprano.
 
-**Riesgos si no se actÃºa a tiempo**
 - Riesgo institucional concreto 1
 - Riesgo institucional concreto 2
 
-**Oportunidades curriculares que abre**
 - Oportunidad curricular 1
 - Oportunidad curricular 2
 
-**Competencias profesionales en juego**
 - Competencia 1
 - Competencia 2
 
-**PrÃ³ximos pasos recomendados**
 - AcciÃ³n institucional concreta 1
 - AcciÃ³n institucional concreta 2`,
 
     tendencia: `
-**SÃ­ntesis de la tendencia**
 Escribe 2-3 oraciones explicando quÃ© patrÃ³n se consolida, con quÃ© velocidad y en quÃ© Ã¡mbitos de la educaciÃ³n superior.
 
-**Impacto en carreras universitarias**
 - Carrera o Ã¡rea afectada 1
 - Carrera o Ã¡rea afectada 2
 
-**Competencias que esta tendencia vuelve crÃ­ticas**
 - Competencia crÃ­tica 1
 - Competencia crÃ­tica 2
 
-**Riesgos curriculares de no adaptarse**
 - Riesgo curricular 1
 - Riesgo curricular 2
 
-**Acciones estratÃ©gicas para la instituciÃ³n**
 - AcciÃ³n estratÃ©gica concreta 1
 - AcciÃ³n estratÃ©gica concreta 2`,
 
     escenario: `
-**SÃ­ntesis del escenario**
 Escribe 2-3 oraciones explicando quÃ© futuro articula este escenario y quÃ© combinaciÃ³n de fuerzas lo harÃ­a posible.
 
-**Condiciones que harÃ­an este escenario probable**
 - Factor o tendencia impulsora 1
 - Factor o tendencia impulsora 2
 
-**Implicaciones para el diseÃ±o curricular**
 - ImplicaciÃ³n curricular 1
 - ImplicaciÃ³n curricular 2
 
-**Perfiles profesionales que emergerÃ­an o desaparecerÃ­an**
 - Perfil profesional emergente o en riesgo 1
 - Perfil profesional emergente o en riesgo 2
 
-**Decisiones institucionales que deberÃ­an tomarse hoy**
 - AcciÃ³n de preparaciÃ³n institucional 1
 - AcciÃ³n de preparaciÃ³n institucional 2`
   };
@@ -164,7 +143,6 @@ Escribe 2-3 oraciones explicando quÃ© futuro articula este escenario y quÃ© 
 Marco metodolÃ³gico que debes aplicar:
 ${definicion}
 
----
 Elemento a analizar:
 - TÃ­tulo: ${signal.title}
 - CategorÃ­a PESTEL: ${signal.category}
@@ -176,19 +154,15 @@ ${estructuras[tipo]}
 `.trim();
 
   const raw = await callHF(prompt, 800);
-  // Limpiar artefactos: lÃ­neas que son solo placeholders sin contenido real
+
   return raw
-    .replace(/^-\s*\[.*?\]\s*$/gm, '')   // elimina "- [texto placeholder]"
-    .replace(/^\[.*?\]\s*$/gm, '')         // elimina "[texto placeholder]" solo en su lÃ­nea
-    .replace(/\n{3,}/g, '\n\n')            // colapsa lÃ­neas vacÃ­as mÃºltiples
+    .replace(/^-\s*\[.*?\]\s*$/gm, '')
+    .replace(/^\[.*?\]\s*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
-/**
- * 2) Racional del Cambio â€” auto-generado al abrir cualquier modal en RadarView
- *    UN pÃ¡rrafo analÃ­tico que explica las raÃ­ces estructurales del cambio.
- *    NO incluye recomendaciones. Es el fundamento teÃ³rico del fenÃ³meno.
- */
+
 export async function generateRazonCambio(
   titulo: string,
   descCorta: string,
@@ -201,7 +175,6 @@ export async function generateRazonCambio(
 Marco metodolÃ³gico:
 ${definicion}
 
----
 Redacta el "Racional del Cambio" para esta ${tipoLabel} en educaciÃ³n superior universitaria.
 
 Escribe UN solo pÃ¡rrafo (3-5 oraciones) que explique ÃšNICAMENTE por quÃ© este cambio estÃ¡ ocurriendo:
@@ -216,9 +189,7 @@ DescripciÃ³n: ${descCorta}
   return callHF(prompt, 300);
 }
 
-/**
- * 3) RediseÃ±o curricular â€” para ImpactosView
- */
+
 export async function analyzeCurricularRedesign(payload: any): Promise<string> {
   const prompt = `
 Usando metodologÃ­a de prospectiva estratÃ©gica (seÃ±ales â†’ tendencias â†’ escenarios), analiza estos datos del RADAR Observatorio de Carreras
@@ -235,19 +206,11 @@ ${JSON.stringify(payload, null, 2)}
   return callHF(prompt, 900);
 }
 
-/**
- * 4) Brief ejecutivo de prospectiva â€” para ReportsView
- */
+
 export async function generateForesightBrief(input: any): Promise<string> {
   const prompt = `
 Genera un brief ejecutivo de prospectiva para la instituciÃ³n universitaria, en espaÃ±ol, basado en datos del RADAR Observatorio de Carreras.
 Estructura:
-**Contexto del entorno**
-**SeÃ±ales clave identificadas**
-**Tendencias dominantes**
-**Escenarios posibles (2-3)**
-**Recomendaciones estratÃ©gicas**
-**PrÃ³ximos pasos institucionales**
 
 DATOS:
 ${JSON.stringify(input, null, 2)}
@@ -256,7 +219,6 @@ ${JSON.stringify(input, null, 2)}
   return callHF(prompt, 900);
 }
 
-// â”€â”€ Tipos para herramientas prospectivas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ScenarioMatrixData {
   driver1: string;
@@ -273,11 +235,7 @@ export interface FuturesWheelData {
   secondOrder: string[][];
 }
 
-/**
- * 5) Matriz de Escenarios Futuros 2Ã—2
- *    Input: tendencia estratÃ©gica
- *    Output: JSON con 2 drivers + 4 escenarios (cuadrantes)
- */
+
 export async function generateScenarioMatrix(
   items: Array<{ name: string; description: string; category: string; type?: string }>
 ): Promise<ScenarioMatrixData> {
@@ -324,9 +282,7 @@ Responde SOLO con JSON vÃ¡lido (sin markdown, sin bloques de cÃ³digo):
   return JSON.parse(match[0]);
 }
 
-/**
- * 6) ExpansiÃ³n de un cuadrante de la Matriz de Escenarios â€” para panel derecho
- */
+
 export async function expandScenarioDetail(
   tendencia: string,
   quadrantLabel: string,
@@ -350,19 +306,15 @@ DESCRIPCIÃ“N BASE: ${scenario.description}
 
 Genera un anÃ¡lisis en espaÃ±ol con exactamente estas 4 secciones (usa los tÃ­tulos tal cual):
 
-**${whyLabel}**
 [2-3 oraciones explicando las fuerzas que lo harÃ­an posible]
 
-**Implicaciones para la universidad**
 - [bullet concreto]
 - [bullet concreto]
 - [bullet concreto]
 
-**SeÃ±ales de alerta temprana**
 - [indicador observable que anunciarÃ­a este escenario]
 - [indicador observable]
 
-**Acciones recomendadas**
 - [acciÃ³n concreta a tomar hoy]
 - [acciÃ³n concreta a tomar hoy]
 `.trim();
@@ -370,7 +322,7 @@ Genera un anÃ¡lisis en espaÃ±ol con exactamente estas 4 secciones (usa los t
   return callEscenarios(prompt, 600);
 }
 
-// â”€â”€ Tipos enriquecidos para importaciÃ³n de artÃ­culos â”€â”€â”€â”€â”€â”€â”€â”€
+
 export interface PropuestaImportacion {
   id:                string;
   tipo:              'senal' | 'tendencia' | 'escenario';
@@ -381,35 +333,35 @@ export interface PropuestaImportacion {
   fuente:            string;
   urlFuente:         string;
   urlsFuente:        string[];
-  urlImagen:         string;           // url_imagen_senal / tendencia / escenario
-  urlVideo:          string;           // url_video_senal  / tendencia / escenario
-  probabilidad:      number | null;    // 1-5, solo escenarios
-  temasRelacionados: string[];         // solo tendencias
-  pestelLetra:       string;           // letra derivada: P E S T A L
-  pestelNombre:      string;           // nombre completo: "TecnolÃ³gico" / "Social; EconÃ³mico"
-  sectorNombre:      string;           // exacto del catÃ¡logo oficial
+  urlImagen:         string;
+  urlVideo:          string;
+  probabilidad:      number | null;
+  temasRelacionados: string[];
+  pestelLetra:       string;
+  pestelNombre:      string;
+  sectorNombre:      string;
   fragmento:         string;
   razonClasificacion: string;
-  nivelEvidencia:    string;           // alto / medio / bajo
-  paisOrigen:        string;           // â†’ pais_origen en DB
-  fechaArticulo:     string;           // â†’ fecha_senal_articulo YYYY-MM-DD
-  // SeÃ±ales
+  nivelEvidencia:    string;
+  paisOrigen:        string;
+  fechaArticulo:     string;
+
   actorPrincipal:    string;
   accionDetectada:   string;
-  lugar:             string | null;    // legacy alias â†’ paisOrigen
-  fechaMencionada:   string | null;    // legacy alias â†’ fechaArticulo
+  lugar:             string | null;
+  fechaMencionada:   string | null;
   cifrasClave:       string[];
   tecnologiaOTema:   string;
-  // Tendencias
+
   definicionOperativa: string;
   fundamentoAnalitico: string;
   senalesSoporte:    string[];
-  nivel:             string;           // macro / sectorial / transversal
-  // Escenarios
+  nivel:             string;
+
   horizonteTemporal: string | null;
   tendenciasSoporte: string[];
-  topico:            string;        // asunto principal del documento (escenarios)
-  referencias:       string[];      // referencias bibliogrÃ¡ficas del bloque (escenarios)
+  topico:            string;
+  referencias:       string[];
 }
 
 export interface RelacionSugerida {
@@ -419,14 +371,10 @@ export interface RelacionSugerida {
   labelOrigen:       string;
   labelDestino:      string;
   aceptada:          boolean;
-  confianzaRelacion: string;           // alto / medio / bajo
+  confianzaRelacion: string;
 }
 
-// â”€â”€ Helpers para importaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/** Extrae URLs Ãºnicas del texto PDF â€” soporta dos formatos:
- *  1. Bloques al pie de pÃ¡gina: [Links pÃ¡g.N: url1 | url2]
- *  2. Marcadores inline:        [â†’url]  (insertados por extractTextFromPDF) */
 export function extractUrlsFromText(texto: string): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -438,7 +386,7 @@ export function extractUrlsFromText(texto: string): string[] {
     }
   };
 
-  // Formato 1: bloques [Links pÃ¡g.N: url1 | url2]
+
   const rxBlock = /\[Links p(?:Ã¡|á)g\.\d+:\s*([^\]]+)\]/gi;
   let m;
   while ((m = rxBlock.exec(texto)) !== null) {
@@ -447,13 +395,13 @@ export function extractUrlsFromText(texto: string): string[] {
     }
   }
 
-  // Formato 2: marcadores inline [â†’url]
+
   const rxInline = /\[(?:Ã¢â€ â€™|â†’|→)(https?:[^\]]+)\]/g;
   while ((m = rxInline.exec(texto)) !== null) {
     addUrl(m[1]);
   }
 
-  // Formato 3: URLs planas pegadas al texto por pdfjs.
+
   const rxPlain = /https?:\/\/[^\s\]\)<>"']+/g;
   while ((m = rxPlain.exec(texto)) !== null) {
     addUrl(m[0]);
@@ -493,12 +441,6 @@ function extractReferenceUrlsByScenario(section: string): string[][] {
   });
 }
 
-/**
- * Extrae la secciÃ³n relevante del PDF segÃºn palabras clave.
- * Si no se encuentra ninguna keyword, devuelve el texto desde minPos.
- * @param minPos   PosiciÃ³n mÃ­nima de bÃºsqueda â€” sirve para saltar la portada y el ToC
- *                 y evitar matches falsos en entradas del Ã­ndice de contenidos.
- */
 function extractSection(texto: string, keywords: string[], maxChars = 8000, minPos = 0): string {
   const lower = texto.toLowerCase();
   for (const kw of keywords) {
@@ -559,7 +501,6 @@ function extractNumberedSectionBlocks(texto: string, sectionNumber: number, minB
   return Array.from(bestByNumber.values()).sort((a, b) => a.number - b.number);
 }
 
-/** Convierte nombre PESTEL completo a letra cÃ³digo (P/E/S/T/A/L) */
 const PESTEL_LETRA: Record<string, string> = {
   'polÃ­tico': 'P', 'politico': 'P',
   'econÃ³mico': 'E', 'economico': 'E',
@@ -622,7 +563,6 @@ function repairMojibake(value: any): string {
       return decoded.replace(/\s+/g, ' ').trim();
     }
   } catch {
-    // Fallback below handles the common mojibake produced by PDF text extraction.
   }
   return text
     .replace(/\u00c3\u00a1/g, 'á').replace(/\u00c3\u00a9/g, 'é')
@@ -965,8 +905,6 @@ function fallbackSignalFromLink(link: LinkEntrada, fuenteDoc: string): any {
   };
 }
 
-// Groq Llama 3.3 70B â€” importaciÃ³n PDF via backend (gratuito, 500k tokens/dÃ­a)
-// Delay entre llamadas para respetar el lÃ­mite de TPM del free tier
 const _sleepImport = (ms: number) => new Promise(r => setTimeout(r, ms));
 async function callImport(prompt: string, maxTokens = 2000): Promise<string> {
   await _sleepImport(5000); // 5s entre llamadas para que el bucket TPM se recargue
@@ -984,19 +922,17 @@ async function callImport(prompt: string, maxTokens = 2000): Promise<string> {
 }
 
 function parseJSON<T>(raw: string, key: string): T[] {
-  // Strip markdown fences if model wraps the JSON
   const clean = raw.replace(/```(?:json)?/gi, '').trim();
 
   const m = clean.match(/\{[\s\S]*\}/);
   if (!m) return [];
 
-  // 1) Happy path â€” full valid JSON
+
   try {
     const parsed = JSON.parse(m[0]);
     if (Array.isArray(parsed[key])) return parsed[key];
-  } catch { /* truncated â€” try recovery */ }
+  } catch {}
 
-  // 2) Truncation recovery: extract every complete {...} object inside the array
   const keyIdx = m[0].indexOf(`"${key}"`);
   if (keyIdx === -1) return [];
   const bracketIdx = m[0].indexOf('[', keyIdx);
@@ -1019,13 +955,7 @@ function parseJSON<T>(raw: string, key: string): T[] {
   return items;
 }
 
-// WEF_SENAL / WEF_TENDENCIA / WEF_ESCENARIO eliminados:
-// cada prompt de importaciÃ³n lleva su propia definiciÃ³n operativa inline.
 
-/**
- * 8a) Extraer SEÃ‘ALES â€” una seÃ±al por URL Ãºnica detectada en el PDF
- *     Adaptado de la plantilla oficial del sistema RADAR
- */
 export async function extraerSenales(
   texto: string,
   fuenteDoc: string,
@@ -1238,10 +1168,7 @@ Devuelve SOLO JSON vÃ¡lido, sin markdown, sin explicaciÃ³n y sin texto adici
   });
 }
 
-/**
- * 8b) Extraer TENDENCIAS â€” patrones de cambio sostenido del documento
- *     Adaptado de la plantilla oficial del sistema RADAR
- */
+
 export async function extraerTendencias(
   texto: string,
   fuenteDoc: string,
@@ -1378,14 +1305,13 @@ Devuelve SOLO JSON valido:
     if (parsed.length > 0) return toTrendProposals(parsed, temasByIndex);
   }
 
-  // Fallback para PDFs sin encabezados 3.N reconocibles.
+
   const seccionTendencias = extractSection(texto, [
     '3 contexto estratÃ©gico', 'contexto estratÃ©gico', 'contexto estrategico',
     'tendencias estratÃ©gicas',
   ], 35000, 3000);
 
-  // Pre-extraer "Temas relacionados:" con regex para no depender del AI.
-  // Esto preserva todos los topicos secundarios del PDF, incluso cuando vienen compactados.
+
   const temasExtraidos = extractTrendRelatedTopics(seccionTendencias);
   const temasHint = temasExtraidos.length > 0
     ? '\n\nTEMAS RELACIONADOS PRE-EXTRAÃDOS (en orden 3.1â†’3.N, usar exactamente estos valores):\n'
@@ -1632,10 +1558,7 @@ Devuelve SOLO JSON vÃ¡lido, sin markdown y sin texto adicional.
   return toTrendProposals(arr, temasExtraidos);
 }
 
-/**
- * 8c) Extraer ESCENARIOS â€” futuros plausibles, previsiones o proyecciones del documento
- *     Adaptado de la plantilla oficial del sistema RADAR
- */
+
 export async function extraerEscenarios(
   texto: string,
   fuenteDoc: string,
@@ -1647,11 +1570,7 @@ export async function extraerEscenarios(
     ? sectors.join('\n')
     : 'Salud\nLogÃ­stica\nFinanzas\nEducaciÃ³n\nEnergÃ­a\nAeroespacial\nIndustria\nTecnologÃ­a de la InformaciÃ³n\nMinerÃ­a y Recursos Naturales\nAgroindustria\nConstrucciÃ³n e Infraestructura\nBiotecnologÃ­a y Ciencias de la Vida\nTurismo y HotelerÃ­a\nTelecomunicaciones\nMedioambiente y Sostenibilidad\nComercio y E-commerce\nGobierno y Sector PÃºblico\nMedios, ComunicaciÃ³n y Entretenimiento\nDefensa y Seguridad';
 
-  // Buscar secciÃ³n "2.1 Previsiones" donde estÃ¡n los escenarios en el PDF.
-  // Se usa minPos=3000 para saltar portada + ToC (pÃ¡gs 1-2, ~2000 chars) y evitar
-  // que el Ã­ndice de contenidos ("2.1 Previsiones  10") sea el primer match.
-  // Palabras clave ordenadas de mÃ¡s especÃ­fica (texto de la intro de la secciÃ³n)
-  // a mÃ¡s genÃ©rica (nombre de la secciÃ³n) como fallback.
+
   const seccionEscenariosBase = extractSection(texto, [
     'describimos las previsiones mÃ¡s probables',
     'describimoslasprevisionesmÃ¡sprobables',
@@ -1666,14 +1585,12 @@ export async function extraerEscenarios(
     .split(/\n?\s*2\.2\s+Escenarios/i)[0]
     .split(/\n?\s*2\.3\s+Implicaciones/i)[0];
 
-  // Pre-procesar indicadores de probabilidad:
-  // pdfjs extrae los cÃ­rculos rellenos como (cid:298) y los vacÃ­os como (cid:102).
-  // Los reemplazamos por â— y â—‹ para que el modelo pueda contarlos.
+
   const seccionEscenariosProc = seccionEscenarios
     .replace(/\(cid:298\)/g, '\u25CF')
     .replace(/\(cid:102\)/g, '\u25CB')
     .replace(/\u012A/g, '\u25CF')
-    // "Probabilidad: ●●●○○" -> "Probabilidad: 3/5" para que el conteo sea determinista.
+
     .replace(/(Probabilidad|Probability):\s*([^\n\r]*)/gi, (m) => {
       const n = parseProbabilityFromSnippet(m);
       return n ? m.replace(/(Probabilidad|Probability):\s*[^\n\r]*/i, (_x, label) => `${label}: ${n}/5`) : m;
@@ -1939,12 +1856,10 @@ Devuelve SOLO JSON vÃ¡lido, sin markdown, sin comentarios y sin texto adiciona
   const raw = await callImport(prompt, 5000);
   const arr = parseJSON<any>(raw, 'escenarios');
 
-  // Pre-compute all probability values in the section text, in order of appearance.
-  // Searches both Spanish "Probabilidad:" and English "Probability:" since PDFs may be either.
-  // Each escenario (index i) gets allProbabilities[i] â€” more reliable than title-based search.
+
   const allProbabilities: (number | null)[] = [];
   {
-    // Collect all occurrence positions from both labels, then sort by position
+
     const positions: number[] = [];
     for (const label of ['Probabilidad:', 'Probability:']) {
       let p = 0;
@@ -2006,10 +1921,10 @@ Devuelve SOLO JSON vÃ¡lido, sin markdown, sin comentarios y sin texto adiciona
       urlImagen:           '',
       urlVideo:            String(p.urlVideo  || ''),
       probabilidad:        (() => {
-        // 1) Scan del texto del PDF (bullets o nÃºmero)
+
         const fromPdf = allProbabilities[i] ?? null;
         if (fromPdf !== null) return fromPdf;
-        // 2) Fallback: valor que el AI devolviÃ³ en el JSON
+
         return typeof p.probabilidad === 'number'
           ? Math.min(5, Math.max(1, Math.round(p.probabilidad)))
           : null;
@@ -2043,10 +1958,7 @@ Devuelve SOLO JSON vÃ¡lido, sin markdown, sin comentarios y sin texto adiciona
   });
 }
 
-/**
- * 8d) Sugerir relaciones â€” jerarquÃ­a WEF: SeÃ±al â†’ Tendencia â†’ Escenario
- *     Adaptado de la plantilla oficial del sistema RADAR (anÃ¡lisis prospectivo)
- */
+
 export async function sugerirRelaciones(
   propuestas: PropuestaImportacion[]
 ): Promise<RelacionSugerida[]> {
@@ -2055,7 +1967,7 @@ export async function sugerirRelaciones(
   const escenarios = propuestas.filter(p => p.tipo === 'escenario');
   if (propuestas.length < 2) return [];
 
-  // Pasa nombre + descCorta como contexto (igual que la plantilla: desc_larga + url_fuente)
+
   const fmt = (arr: PropuestaImportacion[], tipo: string) =>
     arr.length === 0
       ? `  (ningÃºn ${tipo})`
@@ -2113,16 +2025,12 @@ Responde SOLO JSON vÃ¡lido:
       tipo:              r.tipo,
       labelOrigen:       idMap.get(r.idOrigen)  || r.idOrigen,
       labelDestino:      idMap.get(r.idDestino) || r.idDestino,
-      aceptada:          r.confianzaRelacion !== 'bajo',  // pre-acepta alto y medio
+      aceptada:          r.confianzaRelacion !== 'bajo',
       confianzaRelacion: String(r.confianzaRelacion || 'medio'),
     }));
 }
 
-/**
- * 7) Rueda de Futuros â€” consecuencias de 1.er y 2.o orden
- *    Input: tÃ³pico o concepto
- *    Output: JSON con centro + 5 consecuencias x 2 niveles
- */
+
 export async function generateFuturesWheel(topic: string): Promise<FuturesWheelData> {
   const prompt = `
 Eres experto en prospectiva estratÃ©gica. Genera una Rueda de Futuros para educaciÃ³n superior universitaria.

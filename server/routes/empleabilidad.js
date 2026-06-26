@@ -1,5 +1,5 @@
 import { serverError } from '../middleware/errorHandler.js';
-// server/routes/empleabilidad.js
+
 import { Router } from 'express';
 import multer     from 'multer';
 import xlsx       from 'xlsx';
@@ -19,50 +19,43 @@ const upload = multer({
 
 const ANOS = [2022, 2023, 2024, 2025];
 
-// ─── Utilidades ──────────────────────────────────────────────────────────────
 
-/** Busca una columna cuyo nombre contenga todas las palabras clave (case-insensitive) */
 function findCol(headers, ...keywords) {
   return headers.find(h =>
     keywords.every(k => h.toLowerCase().includes(k.toLowerCase()))
   ) ?? null;
 }
 
-/** Extrae el año (2022-2025) que aparezca en el nombre de la columna */
+
 function yearOf(colName) {
   const m = colName?.match(/20(2[2-9])/);
   return m ? parseInt('20' + m[1]) : null;
 }
 
-/**
- * Determina si un egresado trabaja:
- * - Columna Ac Empl: "SI" / "SÍ" / "S"
- * - Columna situación descriptiva: texto que empieza por "trabaj" o "emprend"
- */
+
 function parseTrabaja(val) {
   if (!val) return false;
   const v = String(val).trim();
   const n = v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-  // Negativos primero: "No me encuentro laborando, ni como dependiente o independiente"
-  // contiene palabras laborales, pero debe contar como no trabaja.
+
   if (/no\s+me\s+encuentro\s+laborando/.test(n)) return false;
   if (/^(no|0|false)$/.test(n)) return false;
   if (/no\s+trabaj|sin\s+empleo/.test(n)) return false;
   if (/no\s+labora/.test(n)) return false;
 
-  if (/^s[i]?$/.test(n)) return true;              // SI, S, Sí  (2024/2025 Ac Empl)
-  if (/trabaj/i.test(v))    return true;            // "Trabaja", "Solo trabajo como dependiente"
-  if (/labora/i.test(v))    return true;            // "LABORA" (IE)
-  if (/emprend/i.test(v))   return true;            // "Emprendedor"
-  if (/con\s*empleo/i.test(v)) return true;         // "Con Empleo" (2022)
-  if (/dependiente/i.test(v))  return true;         // "Independiente/Dependiente", "Solo dependiente"
-  if (/independiente/i.test(v)) return true;        // "Solo independiente", "Independiente"
+  if (/^s[i]?$/.test(n)) return true;
+  if (/trabaj/i.test(v))    return true;
+  if (/labora/i.test(v))    return true;
+  if (/emprend/i.test(v))   return true;
+  if (/con\s*empleo/i.test(v)) return true;
+  if (/dependiente/i.test(v))  return true;
+  if (/independiente/i.test(v)) return true;
   if (/^(yes|1|true)$/i.test(v)) return true;
   return false;
 }
 
-/** Normaliza SI/Sí/S/YES/1/TRUE → true; NO/0/FALSE/cualquier otra → false */
+
 function parseSiNo(val) {
   if (val === null || val === undefined) return false;
   if (val === true  || val === 1)  return true;
@@ -71,12 +64,10 @@ function parseSiNo(val) {
   return /^(s|si|yes|true|1)$/.test(v);
 }
 
-/** Limpia espacios y convierte a mayúsculas para comparar */
+
 const norm = v => String(v ?? '').trim().toUpperCase();
 
-/** Normaliza el tipo de programa al valor canónico de tipo_programa.
- *  "Pregrado Ejecutivo" es el nombre visible del programa CPEL — sin esta regla
- *  la detección de 'PRE' lo clasifica erróneamente como PREGRADO. */
+
 function normalizeTipoProg(raw) {
   const n = String(raw ?? '').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   if (!n) return raw;
@@ -87,9 +78,6 @@ function normalizeTipoProg(raw) {
   return norm(raw);
 }
 
-// ─── Normalización de rangos salariales ──────────────────────────────────────
-// Cubre todas las variantes de los Excels 2022-2025, incluyendo typos con mayúsculas
-// (ej: "meNos") que se resuelven por el lookup normalizado (sin acentos, lowercase).
 
 const _SALARY_BANDS = {
   B1: { rango: 'Menos de S/. 1,500',                min: 0,    max: 1499.99 },
@@ -100,13 +88,13 @@ const _SALARY_BANDS = {
 };
 
 const SALARY_NORM_ENTRIES = [
-  // ── 5 bandas canónicas (identity) ────────────────────────────────────────
+
   ['Menos de S/. 1,500',                                    _SALARY_BANDS.B1],
   ['De S/. 1,500 a menos de S/. 3,500',                     _SALARY_BANDS.B2],
   ['De S/. 3,500 a menos de S/. 5,500',                     _SALARY_BANDS.B3],
   ['De S/. 5,500 a menos de S/. 7,500',                     _SALARY_BANDS.B4],
   ['De S/. 7,500 a mas',                                    _SALARY_BANDS.B5],
-  // ── 2022: salarios mínimos con y sin paréntesis ───────────────────────────
+
   ['Sueldo hasta 2 salarios mínimos (sueldo mínimo S/1025)', _SALARY_BANDS.B2],
   ['Sueldo hasta 4 salarios mínimos (hasta S/4100)',         _SALARY_BANDS.B3],
   ['Sueldo superior a 4 salarios mínimos',                   _SALARY_BANDS.B4],
@@ -114,7 +102,7 @@ const SALARY_NORM_ENTRIES = [
   ['Sueldo hasta 4 salarios minimos',                        _SALARY_BANDS.B3],
   ['Sueldo hasta 6 salarios minimos',                        _SALARY_BANDS.B4],
   ['Sueldo mas de 6 salarios minimos',                       _SALARY_BANDS.B5],
-  // ── 2023: granulares S/500 ────────────────────────────────────────────────
+
   ['Menos de S/. 1,025',                                    _SALARY_BANDS.B1],
   ['De S/. 1,025 a menos de S/. 1,500',                     _SALARY_BANDS.B1],
   ['De S/. 1,500 a menos de S/. 2,500',                     _SALARY_BANDS.B2],
@@ -128,17 +116,17 @@ const SALARY_NORM_ENTRIES = [
   ['De S/. 8500 a menos de S/. 9,500',                      _SALARY_BANDS.B5],
   ['Más de S/. 9,500',                                       _SALARY_BANDS.B5],
   ['Mas de S/. 9,500',                                       _SALARY_BANDS.B5],
-  // ── 2024: variante con "a más" ────────────────────────────────────────────
+
   ['De S/. 5,500 a más',                                     _SALARY_BANDS.B4],
   ['De S/. 5,500 a mas',                                     _SALARY_BANDS.B4],
-  // ── 2025: bandas de S/2,000 ───────────────────────────────────────────────
+
   ['Menos de S/. 2,500',                                     _SALARY_BANDS.B2],
   ['De S/. 2,500 a menos de S/. 4,500',                      _SALARY_BANDS.B3],
   ['De S/. 4,500 a menos de S/. 6,500',                      _SALARY_BANDS.B4],
   ['De S/. 6,500 a menos de S/. 8,500',                      _SALARY_BANDS.B4],
   ['De S/. 8,500 a mas',                                     _SALARY_BANDS.B5],
   ['De S/. 8,500 a más',                                      _SALARY_BANDS.B5],
-  // ── Typos / variantes sin punto ───────────────────────────────────────────
+
   ['De S/. 5,500 a menos de S/6,500',                        _SALARY_BANDS.B4],
   ['De S/. 6,500 a menos de S/7,500',                        _SALARY_BANDS.B4],
   ['De S/7,500 a menos de S/8,500',                          _SALARY_BANDS.B5],
@@ -149,10 +137,10 @@ const SALARY_NORM_ENTRIES = [
   ['De S/. 6,000 a mas',                                     _SALARY_BANDS.B5],
 ];
 
-// Lookup exacto (O(1))
+
 const SALARY_MAP_EXACT = new Map(SALARY_NORM_ENTRIES);
 
-// Lookup normalizado: sin acentos, lowercase, espacios simples → tolera typos como "meNos"
+
 const SALARY_MAP_NORM  = new Map(
   SALARY_NORM_ENTRIES.map(([k, v]) => [
     k.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(),
@@ -160,10 +148,7 @@ const SALARY_MAP_NORM  = new Map(
   ])
 );
 
-/**
- * Resuelve un string de rango salarial crudo a su banda canónica.
- * Retorna { rango, min, max } o null si no se reconoce.
- */
+
 function resolveCanonicalSalario(raw) {
   if (!raw) return null;
   const s = String(raw).trim();
@@ -172,20 +157,17 @@ function resolveCanonicalSalario(raw) {
   return SALARY_MAP_NORM.get(n) ?? null;
 }
 
-/**
- * Busca o crea la entrada en catalogo_salario, normalizando al rango canónico.
- * Retorna id_salario (number) o null.
- */
+
 async function resolveSalarioId(rawSalario) {
   if (!rawSalario) return null;
-  // 1. Buscar por descripcion_original exacta en BD
+
   const [existing] = await db.query(
     'SELECT id_salario FROM catalogo_salario WHERE descripcion_original=? LIMIT 1',
     [rawSalario]
   );
   if (existing.length) return existing[0].id_salario;
 
-  // 2. No está en BD → resolver al canónico
+
   const canonico = resolveCanonicalSalario(rawSalario);
   const estandar = canonico?.rango ?? rawSalario;
   const minSoles = canonico?.min   ?? null;
@@ -199,7 +181,7 @@ async function resolveSalarioId(rawSalario) {
   });
   if (ins.insertId) return ins.insertId;
 
-  // Race condition: ya fue insertado por otra fila concurrente
+
   const [retry] = await db.query(
     'SELECT id_salario FROM catalogo_salario WHERE descripcion_original=? LIMIT 1',
     [rawSalario]
@@ -207,11 +189,7 @@ async function resolveSalarioId(rawSalario) {
   return retry.length ? retry[0].id_salario : null;
 }
 
-/**
- * Agrega filtro de año(s) a la cláusula WHERE.
- * Soporta `anio` (un año) y `anios` (lista CSV: "2022,2023,2024").
- * Si ambos están presentes, `anios` tiene precedencia.
- */
+
 function addAnioFilter(where, params, anio, anios) {
   if (anios) {
     const list = String(anios).split(',').map(s => s.trim()).filter(s => /^20\d{2}$/.test(s));
@@ -225,7 +203,7 @@ function addAnioFilter(where, params, anio, anios) {
   }
 }
 
-/** Normaliza ciclos de egreso: "2022-1" → "2022-01", "2023-2" → "2023-02" */
+
 function normalizeCiclo(s) {
   if (!s) return s;
   return s.replace(/^(\d{4})-(\d)$/, '$1-0$2');
@@ -272,14 +250,14 @@ function addCicloFilter(where, params, ciclo) {
   params.push(...variants);
 }
 
-/** Obtiene o crea un registro devolviendo su ID */
+
 async function upsertGet(table, whereObj, insertObj = {}) {
   const conds = Object.entries(whereObj);
   const [rows] = await db.query(
     `SELECT * FROM ${table} WHERE ${conds.map(([k]) => `${k}=?`).join(' AND ')} LIMIT 1`,
     conds.map(([, v]) => v)
   );
-  if (rows.length) return rows[0][Object.keys(rows[0])[0]]; // primer campo = PK
+  if (rows.length) return rows[0][Object.keys(rows[0])[0]];
   const data = { ...whereObj, ...insertObj };
   const [r] = await db.query(`INSERT INTO ${table} SET ?`, data);
   return r.insertId;
@@ -312,7 +290,6 @@ async function upsertEmpleo(idEncuesta, data) {
   }
 }
 
-// ─── Parseo del libro Excel ───────────────────────────────────────────────────
 
 function parseWorkbook(buffer) {
   const wb   = xlsx.read(buffer, { type: 'buffer', cellDates: true });
@@ -324,30 +301,20 @@ function parseWorkbook(buffer) {
   return { headers: Object.keys(raw[0]), rows: raw };
 }
 
-/**
- * Asigna un header (con o sin prefijo de año) a la clave correcta del mapa de año.
- *
- * Formato real del Excel USIL:
- *   Fijo:     DNI | APELLIDOS Y NOMBRES COMPLETOS | Correo | CARRERA | FACULTAD | Programa | CADMISIÓN
- *   2022:     Q_2022.Ac Empl | (sin prefijo) Nombre del centro laboral... | RUBRO | Área... | PUESTO |
- *             PUESTO OFICIAL | NIVEL DE PUESTO | ¿Cuál es tu salario? | SALARIO PROMEDIO |
- *             ¿Tu posición...? | Indique su nivel de satisfacción...
- *   2023-25:  Q_YYYY.Ac Empl | Q_YYYY.Actualmente, ¿cuál es tu situación laboral? |
- *             Q_YYYY.<mismo set> | Q_YYYY.EMPRENDEDOR  (Q_2025: EMPRENDE)
- */
+
 function assignField(map, yr, h) {
   if (!map[yr]) map[yr] = {};
   const hl = h.toLowerCase().trim();
 
-  // Indicador de empleo (SI/NO)
+
   if (hl.includes('ac empl')) { map[yr].acEmpl = h; return; }
 
-  // Descripción completa de la situación laboral (solo 2023+)
+
   if (hl.includes('situaci') && (hl.includes('laboral') || hl.includes('actual'))) {
     map[yr].situacion = h; return;
   }
 
-  // Datos de empleo
+
   if (hl.includes('centro laboral') || (hl.includes('raz') && hl.includes('social'))) {
     map[yr].centroLaboral = h; return;
   }
@@ -356,7 +323,7 @@ function assignField(map, yr, h) {
     map[yr].area = h; return;
   }
 
-  // PUESTO OFICIAL antes que PUESTO (más específico primero)
+
   if (hl.includes('puesto oficial') || hl.includes('sto ofici')) {
     map[yr].puestoOficial = h; return;
   }
@@ -365,46 +332,42 @@ function assignField(map, yr, h) {
     map[yr].puesto = h; return;
   }
 
-  // Salario: preferir columna estandarizada "SALARIO PROMEDIO" sobre pregunta libre
+
   if (hl.trim() === 'salario promedio') { map[yr].salario = h; return; }
   if (hl.includes('salario') && !map[yr].salario) { map[yr].salario = h; return; }
 
-  // Afinidad laboral — múltiples variantes de nombre
+
   if (hl.includes('afinid'))                                              { map[yr].afinidad = h; return; }
   if (hl.includes('posici') && hl.includes('guard'))                     { map[yr].afinidad = h; return; }
   if (hl.includes('relaci') && (hl.includes('carrer') || hl.includes('posici'))) { map[yr].afinidad = h; return; }
   if (hl.includes('guard')  && hl.includes('relaci'))                    { map[yr].afinidad = h; return; }
 
-  // Satisfacción USIL
+
   if (hl.includes('satisf')) { map[yr].satisfaccion = h; return; }
 
-  // Emprendedor: Q_2023.EMPRENDEDOR / Q_2024.EMPRENDEDOR / Q_2025.EMPRENDE
+
   if (hl.includes('emprend') || hl.endsWith('emprende') || hl === 'emprende') { map[yr].emprende = h; return; }
 }
 
-/**
- * Detecta las columnas de cada año en el Excel USIL.
- * Maneja el caso especial de 2022 donde la mayoría de columnas NO tienen prefijo Q_2022.
- */
+
 function detectYearColumns(headers) {
   const map = {};
 
-  // Paso 1: columnas con prefijo Q_YYYY. (todos los años, incluido Q_2022.Ac Empl)
+
   for (const h of headers) {
     const yr = yearOf(h);
     if (!yr) continue;
     assignField(map, yr, h);
   }
 
-  // Paso 2: columnas de 2022 sin prefijo.
-  // Están ubicadas entre Q_2022.Ac Empl y la primera columna Q_2023.
+
   const yr2022Start = headers.findIndex(h => yearOf(h) === 2022);
   if (yr2022Start >= 0) {
     const nextYrIdx = headers.findIndex((h, i) => i > yr2022Start && (yearOf(h) ?? 0) > 2022);
     const endIdx    = nextYrIdx > 0 ? nextYrIdx : headers.length;
     for (let i = yr2022Start + 1; i < endIdx; i++) {
       const h = headers[i];
-      if (yearOf(h)) continue; // ya tiene prefijo, ya fue procesada
+      if (yearOf(h)) continue;
       assignField(map, 2022, h);
     }
   }
@@ -412,14 +375,7 @@ function detectYearColumns(headers) {
   return map;
 }
 
-// ─── IA: Gemini mapea cabeceras → campos de BD ───────────────────────────────
 
-/**
- * Llama a HuggingFace (Qwen 7B) para inferir el mapeo columna Excel → campo de BD.
- * Usa HF_API_KEY_MAPPING si existe; fallback a HF_API_KEY.
- * Retorna { fijos: {colName: campo}, anual: { "2022": {colName: key}, ... }, ignorar: [] }
- * En caso de error retorna null → el import cae al keyword matching.
- */
 async function callHFMapping(headers) {
   const apiKey = process.env.HF_API_KEY_MAPPING || process.env.HF_API_KEY;
   if (!apiKey) return null;
@@ -472,7 +428,6 @@ Excel column pattern                                          → DB key
   (Hierarchical level: Alto / Medio / Operativo — maps to encuesta_anual.nivel_puesto)
 
 "Q_YYYY.¿Cuál es tu salario promedio?"                        → IGNORAR
-  *** ALWAYS IGNORE this open free-text question ***
 
 "Q_YYYY.SALARIO PROMEDIO"                                     → salario
   (Standardized salary range — maps to encuesta_anual.id_salario via catalog)
@@ -536,20 +491,17 @@ Respond with ONLY valid compact JSON, no markdown, no explanation:
     const data = await r.json();
     const text = data.choices?.[0]?.message?.content || '';
 
-    // Qwen a veces envuelve en ```json ... ```
+
     const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
     return JSON.parse(jsonMatch[0]);
   } catch {
-    return null; // fallback silencioso al keyword matching
+    return null;
   }
 }
 
-/**
- * Convierte el JSON de Gemini al formato yearCols usado por el import.
- * yearCols[año][clave] = "Nombre de columna en Excel"
- */
+
 function aiToYearCols(aiMapping) {
   const yearCols = {};
   for (const [yrStr, fields] of Object.entries(aiMapping.anual || {})) {
@@ -562,9 +514,7 @@ function aiToYearCols(aiMapping) {
   return yearCols;
 }
 
-/**
- * Convierte el JSON de Gemini a las variables de columnas fijas.
- */
+
 function aiToFixedCols(aiMapping, headers) {
   const fieldToVar = {
     nro_doc:          'colDoc',
@@ -583,29 +533,22 @@ function aiToFixedCols(aiMapping, headers) {
   return result;
 }
 
-// ─── Detección de formato ─────────────────────────────────────────────────────
-/**
- * Detecta si el Excel es formato "ancho" (Q_YYYY. prefix, multi-año por fila)
- * o "tall/vertical" (una fila por egresado, columnas fijas de encuesta).
- */
+
 function detectFormat(headers) {
   if (headers.some(h => /Q_20[2-9]\d\./i.test(h))) return 'wide';
   const hl = headers.map(h => h.toLowerCase().trim());
   if (hl.some(h => h.includes('año') && h.includes('egreso')) ||
       hl.some(h => h.includes('situaci') && h.includes('laboral')) ||
       hl.some(h => h === 'ac empl')) return 'tall';
-  return 'wide'; // fallback
+  return 'wide';
 }
 
-/**
- * Para el formato tall, extrae anio_encuesta y trimestre del header de Situación Laboral.
- * Ej: "Situación Laboral Q4 2025" → { anio: 2025, trimestre: 'Q4' }
- */
+
 function parseTallMeta(headers) {
   const sitCol = headers.find(h => /situaci.*laboral/i.test(h));
   const anioM  = sitCol?.match(/(20[2-9]\d)/);
   const trimM  = sitCol?.match(/\b(Q[1-4])\b/i);
-  // Si no hay columna de situación laboral (formato Set A), no podemos inferir el año
+
   return {
     anio:      anioM ? parseInt(anioM[1]) : null,
     trimestre: trimM ? trimM[1].toUpperCase() : 'ANUAL',
@@ -613,15 +556,14 @@ function parseTallMeta(headers) {
   };
 }
 
-// Para empleabilidad se conserva un unico corte final por anio en el dashboard.
-// Aunque el archivo venga de Q1/Q2/Q3 o sin trimestre, la carga canonica queda en Q4.
+
 const CANONICAL_TRIMESTRE = 'Q4';
 
-/** Detecta columnas del formato tall */
+
 function detectTallCols(headers) {
-  // Normaliza el header: quita acentos para comparaciones más robustas
+
   const norm2 = s => s.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // "Situación" → "situacion"
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   const f = kws => headers.find(h => {
     const hn = norm2(h);
@@ -635,15 +577,15 @@ function detectTallCols(headers) {
     colFacultad: f(['facult']) || f(['nombre_facult']),
     colCarrera:  f(['carrera']) || f(['nombre_carrera']),
     colEgreso:   headers.find(h => /^egreso$/i.test(h.trim()))
-             || headers.find(h => /cadmisi/i.test(h))   // "CADMISIÓN"
+             || headers.find(h => /cadmisi/i.test(h))
              || f(['id_ciclo']) || f(['ciclo_egreso']) || f(['egreso']),
     colAnioEg:   headers.find(h => /a[ñn]o.?egreso/i.test(norm2(h))) || null,
-    // Situación Laboral — múltiples variantes de nombre
+
     colSit:      f(['situaci', 'laboral'])
                || f(['situacion', 'laboral'])
                || f(['situac'])
                || null,
-    // "Ac Empl" → indicador SI/NO binario (Set A y backup Set B)
+
     colAcEmpl:   headers.find(h => /^ac\s+empl$/i.test(h.trim())) || f(['ac', 'empl']) || null,
     colCorreo:   f(['correo']),
     colAfinidad: f(['afinid'])
@@ -660,7 +602,7 @@ function detectTallCols(headers) {
                || f(['puesto', 'ocupas'])
                || f(['puesto']),
     colPuestoOficial: f(['puesto', 'oficial']),
-    // Preferir columna estandarizada "SALARIO PROMEDIO" sobre la pregunta libre
+
     colSalario:  headers.find(h => /^salario\s+promedio$/i.test(h.trim()))
                || f(['rango', 'salarial']) || f(['rango', 'sal']) || f(['salari']),
     colEmprende: f(['emprend']) || f(['emprende']),
@@ -668,8 +610,7 @@ function detectTallCols(headers) {
   };
 }
 
-// ─── POST /api/empleabilidad/debug-headers ───────────────────────────────────
-// Solo para diagnóstico: devuelve los headers exactos que lee el Excel + detección de columnas
+
 router.post('/empleabilidad/debug-headers', adminOrAnalyst, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
   const { headers } = parseWorkbook(req.file.buffer);
@@ -678,14 +619,14 @@ router.post('/empleabilidad/debug-headers', adminOrAnalyst, upload.single('file'
   res.json({ format, headers, tallCols });
 });
 
-// ─── POST /api/empleabilidad/preview ─────────────────────────────────────────
+
 router.post('/empleabilidad/preview', adminOrAnalyst, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
     const { headers, rows } = parseWorkbook(req.file.buffer);
     const format = detectFormat(headers);
 
-    // ── Formato TALL (vertical): una fila por egresado, columnas fijas ─────────
+
     if (format === 'tall') {
       const cols     = detectTallCols(headers);
       const meta     = parseTallMeta(headers);
@@ -718,7 +659,7 @@ router.post('/empleabilidad/preview', adminOrAnalyst, upload.single('file'), asy
       });
     }
 
-    // ── Formato WIDE (ancho): multi-año por fila con prefijos Q_YYYY. ──────────
+
     const [yearColsKeyword, aiMapping] = await Promise.all([
       Promise.resolve(detectYearColumns(headers)),
       callHFMapping(headers),
@@ -759,10 +700,7 @@ router.post('/empleabilidad/preview', adminOrAnalyst, upload.single('file'), asy
   }
 });
 
-/**
- * Construye un resumen legible del mapeo para mostrar en el modal de preview.
- * [ { columna: "Q_2022.Ac Empl", campo: "Trabaja (2022)", tipo: "anual" }, ... ]
- */
+
 function buildMapeoResumen(yearCols, fixedCols, headers, aiMapping) {
   const LABELS = {
     nro_doc: 'DNI', apellidos_nombres: 'Apellidos y Nombres', correo: 'Correo',
@@ -778,7 +716,7 @@ function buildMapeoResumen(yearCols, fixedCols, headers, aiMapping) {
 
   const rows = [];
 
-  // Fijos
+
   if (fixedCols) {
     for (const [varName, colName] of Object.entries(fixedCols)) {
       const campo = varName.replace('col', '').replace(/([A-Z])/g, '_$1').toLowerCase().slice(1);
@@ -790,14 +728,13 @@ function buildMapeoResumen(yearCols, fixedCols, headers, aiMapping) {
     }
   }
 
-  // Anuales
+
   for (const [yr, fields] of Object.entries(yearCols)) {
     for (const [key, colName] of Object.entries(fields)) {
       rows.push({ columna: colName, campo: `${LABELS[key] || key} (${yr})`, tipo: `año ${yr}` });
     }
   }
 
-  // Ignorados por IA
   if (aiMapping?.ignorar?.length) {
     for (const colName of aiMapping.ignorar) {
       rows.push({ columna: colName, campo: '— ignorada —', tipo: 'ignorar' });
@@ -807,18 +744,14 @@ function buildMapeoResumen(yearCols, fixedCols, headers, aiMapping) {
   return rows;
 }
 
-// ─── POST /api/empleabilidad/importar ────────────────────────────────────────
 router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
 
-    // El Excel ya contiene datos de todos los años — no aplica trimestre
     const trimestre = CANONICAL_TRIMESTRE;
     const fuente    = req.body.fuente || `EXCEL_${new Date().getFullYear()}`;
     const { headers, rows } = parseWorkbook(req.file.buffer);
 
-    // Usar el mapa del preview si el frontend lo envía (contiene IA o keyword);
-    // si no, re-detectar con keyword matching como fallback.
     let yearCols, fixedCols;
     if (req.body.yearCols) {
       try { yearCols = JSON.parse(req.body.yearCols); } catch { yearCols = null; }
@@ -831,7 +764,6 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
     const years = Object.keys(yearCols).map(Number);
     if (!years.length) return res.status(400).json({ error: 'No se detectaron columnas por año (2022-2025)' });
 
-    // Columnas fijas: preferir mapa de IA/preview; fallback a keyword matching
     const colDoc      = fixedCols?.colDoc      || findCol(headers, 'dni') || findCol(headers, 'doc');
     const colNombre   = fixedCols?.colNombre   || findCol(headers, 'apellido') || findCol(headers, 'nombre');
     const colCorreo   = fixedCols?.colCorreo   || findCol(headers, 'correo');
@@ -840,12 +772,10 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
     const colPrograma = fixedCols?.colPrograma || findCol(headers, 'program');
     const colCiclo    = fixedCols?.colCiclo    || findCol(headers, 'cadmisi') || findCol(headers, 'ciclo') || findCol(headers, 'egreso');
 
-    // Validar que colDoc fue encontrada
     if (!colDoc) {
       return res.status(400).json({ error: `No se encontró columna de DNI. Columnas disponibles: ${headers.slice(0,8).join(', ')}` });
     }
 
-    // Debug: verificar columnas resueltas y primera fila
     console.log('[importar] colDoc=%s colCarrera=%s colCiclo=%s years=%j', colDoc, colCarrera, colCiclo, years);
     if (rows.length) {
       const firstKeys = Object.keys(rows[0]).slice(0, 5);
@@ -859,19 +789,15 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       try {
-        // ── 0. Validar DNI primero para evitar queries innecesarias
         const nroDocCheck = String(row[colDoc] ?? '').trim();
         if (!nroDocCheck) { skipped++; continue; }
 
-        // ── 1. Facultad
         const nomFacultad = norm(colFacultad ? row[colFacultad] : 'Sin Facultad') || 'Sin Facultad';
         const idFacultad  = await upsertGet('facultad', { nombre_facultad: nomFacultad });
 
-        // ── 2. Tipo programa
         const nomPrograma = normalizeTipoProg(colPrograma ? row[colPrograma] : 'PREGRADO') || 'PREGRADO';
         const idPrograma  = await upsertGet('tipo_programa', { descripcion: nomPrograma });
 
-        // ── 3. Carrera
         const nomCarrera  = norm(colCarrera ? row[colCarrera] : 'Sin Carrera') || 'Sin Carrera';
         const [cRows] = await db.query(
           'SELECT id_carrera FROM carrera WHERE nombre_carrera=? AND id_tipo_programa=? LIMIT 1',
@@ -885,7 +811,6 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
           idCarrera = cr.insertId;
         }
 
-        // ── 4. Ciclo de egreso
         const rawCiclo    = normalizeCiclo(String(row[colCiclo] ?? '').trim()) || 'SIN-CICLO';
         const anioCiclo   = parseInt(rawCiclo) || new Date().getFullYear();
         const idCiclo     = await upsertGet('ciclo_egreso',
@@ -893,7 +818,6 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
           { anio_egreso: anioCiclo }
         );
 
-        // ── 5. Egresado
         const nroDoc    = nroDocCheck;
         const apellidos = String(row[colNombre] ?? '').trim() || 'Sin Nombre';
         const correo    = colCorreo ? String(row[colCorreo] ?? '').trim() || null : null;
@@ -917,30 +841,22 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
           idEgresado = er.insertId;
         }
 
-        // ── 6. Encuesta por año
         for (const yr of years) {
           const yc = yearCols[yr];
 
-          // Pregunta gatillo: si existe columna "situación laboral" (2023+), usarla como
-          // condición de participación. Si está vacía → el alumno no respondió ese año → skip.
-          // Para 2022 (sin columna situacion) fallback a Ac Empl.
           const situacionRaw = yc.situacion ? String(row[yc.situacion] ?? '').trim() : '';
           const acEmplVal    = row[yc.acEmpl] ?? null;
           const acEmplStr    = String(acEmplVal ?? '').trim();
 
           if (yc.situacion) {
-            // 2023+: skip si no respondió la situación laboral
             if (!situacionRaw) continue;
           } else {
-            // 2022: skip si Ac Empl vacío
             if (!acEmplStr) continue;
           }
 
           const situacion     = situacionRaw || acEmplStr;
           const trabaja       = parseTrabaja(situacionRaw || acEmplStr) ? 1 : 0;
 
-          // EMPRENDEDOR: valores "SI"/"NO"/"EMPRENDE" — NULL si no respondió
-          // Nota: el Excel 2025 usa "EMPRENDE" (texto) como valor afirmativo
           const empRaw        = yc.emprende ? String(row[yc.emprende] ?? '').trim() : '';
           const esEmprendedor = empRaw !== '' ? (/^emprende$/i.test(empRaw) || parseSiNo(empRaw) ? 1 : 0) : null;
 
@@ -948,11 +864,9 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
           const nivelPuesto   = String(row[yc.nivelPuesto] ?? '').trim() || null;
           const satisfaccion  = String(row[yc.satisfaccion] ?? '').trim() || null;
 
-          // Normalizar salario → siempre mapea al rango canónico
           const rawSalario = String(row[yc.salario] ?? '').trim();
           const idSalario  = await resolveSalarioId(rawSalario);
 
-          // Upsert encuesta_anual
           const [encRows] = await db.query(
             'SELECT id_encuesta FROM encuesta_anual WHERE id_egresado=? AND anio_encuesta=? AND trimestre=? LIMIT 1',
             [idEgresado, yr, trimestre]
@@ -977,7 +891,6 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
             idEncuesta = er.insertId;
           }
 
-          // Upsert empleo (solo si trabaja)
           if (trabaja) {
             const centroLaboral = String(row[yc.centroLaboral] ?? '').trim() || null;
             const rubro         = String(row[yc.rubro]         ?? '').trim() || null;
@@ -985,7 +898,6 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
             const puestoLibre   = String(row[yc.puesto]        ?? '').trim() || null;
             const puestoOficial = String(row[yc.puestoOficial] ?? '').trim() || null;
 
-            // Normalizar puesto
             let idPuesto = null;
             if (puestoOficial) {
               const [pRows] = await db.query(
@@ -994,7 +906,6 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
               if (pRows.length) {
                 idPuesto = pRows[0].id_puesto;
               } else {
-                // Buscar coincidencia parcial
                 const [pRows2] = await db.query(
                   'SELECT id_puesto FROM catalogo_puesto WHERE ? LIKE CONCAT("%", texto_busqueda, "%") LIMIT 1',
                   [puestoOficial]
@@ -1033,9 +944,6 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
   }
 });
 
-// ─── POST /api/empleabilidad/importar-tall ────────────────────────────────────
-// Formato vertical: una fila por egresado, columnas fijas (DNI, Carrera, AÑO EGRESO,
-// Situación Laboral Q4 YYYY, Afinidad Laboral, Nivel Puesto, Rango Salarial, Emprendedor, Satisfacción USIL)
 router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
@@ -1053,7 +961,6 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
     }
     const trimestre = CANONICAL_TRIMESTRE;
 
-    // Debug: verificar columnas detectadas y primera fila
     console.log('[importar-tall] cols=%j', cols);
     console.log('[importar-tall] anioEncuesta=%s trimestre=%s totalRows=%d', anioEncuesta, trimestre, rows.length);
     if (rows.length) {
@@ -1065,7 +972,6 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
 
     let imported = 0, skipped = 0;
     const errors = [];
-    // skipDetails: { razon: { count, registros:[{dni,nombre}] } }
     const skipDetails = {};
     const addSkip = (razon, dni, nombre) => {
       if (!skipDetails[razon]) skipDetails[razon] = { count: 0, registros: [] };
@@ -1080,12 +986,10 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
         const nroDoc = String(row[cols.colDoc] ?? '').trim();
         if (!nroDoc) { addSkip('sin_dni', '', ''); skipped++; continue; }
 
-        // ── Lookups de catálogos ──────────────────────────────────────────────
         const nomFac  = String(row[cols.colFacultad] ?? '').trim();
         const nomProg = normalizeTipoProg(String(row[cols.colPrograma] ?? '').trim());
         const nomCar  = String(row[cols.colCarrera]  ?? '').trim();
 
-        // ── Egresado — buscar primero por DNI ────────────────────────────────
         const apellidos = String(row[cols.colNombre] ?? '').trim() || 'Sin Nombre';
         const correo    = cols.colCorreo ? String(row[cols.colCorreo] ?? '').trim() || null : null;
         const [egRows] = await db.query(
@@ -1096,12 +1000,10 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
         let idEgresado, idCarrera, idCiclo;
 
         if (egRows.length) {
-          // Egresado ya existe — usar su carrera/ciclo actuales como base
           idEgresado = egRows[0].id_egresado;
           idCarrera  = egRows[0].id_carrera;
           idCiclo    = egRows[0].id_ciclo_egreso;
 
-          // Actualizar carrera/ciclo/correo solo si el Excel los trae
           if (nomCar) {
             const idFac  = nomFac  ? await upsertGet('facultad',     { nombre_facultad: nomFac  }) : null;
             const idProg = nomProg ? await upsertGet('tipo_programa', { descripcion: nomProg     }) : null;
@@ -1122,7 +1024,6 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
             }
           }
 
-          // Actualizar registro con cualquier dato nuevo del Excel
           const updFields = ['apellidos_nombres=?'];
           const updParams = [apellidos];
           if (idCarrera)  { updFields.push('id_carrera=?');         updParams.push(idCarrera); }
@@ -1132,7 +1033,6 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
           await db.query(`UPDATE egresado SET ${updFields.join(',')} WHERE id_egresado=?`, updParams);
 
         } else {
-          // Egresado nuevo — si no trae carrera, asignar "OTRO" para que cuente en estadísticas generales
           const nomCarEfectivo = nomCar || 'OTRO';
           if (!nomCar) {
             addSkip('sin_carrera_asignado_otro', nroDoc, apellidos);
@@ -1141,7 +1041,6 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
           const idFac  = nomFac  ? await upsertGet('facultad',     { nombre_facultad: nomFac  }) : null;
           const idProg = nomProg ? await upsertGet('tipo_programa', { descripcion: nomProg     }) : null;
 
-          // Siempre crear carrera si no existe (upsertGet), nunca saltear por carrera nueva
           if (idFac && idProg) {
             idCarrera = await upsertGet('carrera',
               { nombre_carrera: nomCarEfectivo, id_tipo_programa: idProg },
@@ -1170,10 +1069,8 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
           idEgresado = er.insertId;
         }
 
-        // Seguridad: si después de todo no hay idEgresado, saltear
         if (!idEgresado) { addSkip('sin_egresado', nroDoc, apellidos); skipped++; continue; }
 
-        // ── Campos de encuesta ────────────────────────────────────────────────
         const sitVal      = cols.colSit     ? String(row[cols.colSit]     ?? '').trim() : '';
         const acEmplVal   = cols.colAcEmpl  ? String(row[cols.colAcEmpl]  ?? '').trim() : '';
         const afinVal     = String(row[cols.colAfinidad]  ?? '').trim();
@@ -1182,24 +1079,18 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
         const emprendeVal = String(row[cols.colEmprende]  ?? '').trim();
         const satisfVal   = String(row[cols.colSatisf]    ?? '').trim() || null;
 
-        // Gatillo: la columna de situación laboral (Set B) o Ac Empl (Set A)
         const gatillo = sitVal || acEmplVal;
 
-        // Si no hay gatillo ni ningún otro campo → fila sin datos de encuesta
         const hayDatosEncuesta = gatillo || afinVal || nivelVal || salarioVal || satisfVal || emprendeVal;
         if (!hayDatosEncuesta) { addSkip('sin_datos_encuesta', nroDoc, apellidos); skipped++; continue; }
 
-        // NULL = no respondió esa pregunta (no confundir con "respondió No")
         const trabaja       = gatillo ? (parseTrabaja(gatillo) ? 1 : 0) : null;
         const esEmprendedor = emprendeVal !== '' ? (/^emprende$/i.test(emprendeVal) || parseSiNo(emprendeVal) ? 1 : 0) : null;
         const afinidad      = afinVal ? (parseSiNo(afinVal) ? 'SI' : 'NO') : null;
-        // Situación: texto descriptivo si existe, sino normalizar Ac Empl binario
         const situacion     = sitVal || (acEmplVal ? (parseSiNo(acEmplVal) ? 'Trabaja' : 'No trabaja') : null);
 
-        // Normalizar salario → siempre mapea al rango canónico
         const idSalario = await resolveSalarioId(salarioVal);
 
-        // ── Upsert encuesta_anual ─────────────────────────────────────────────
         const [encRows] = await db.query(
           'SELECT id_encuesta FROM encuesta_anual WHERE id_egresado=? AND anio_encuesta=? AND trimestre=? LIMIT 1',
           [idEgresado, anioEncuesta, trimestre]
@@ -1241,7 +1132,6 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
       }
     }
 
-    // Construir skipReasons (conteos simples) y skipDetails (con lista de registros)
     const skipReasons = {};
     for (const [k, v] of Object.entries(skipDetails)) skipReasons[k] = v.count;
     console.log('[importar-tall] resultado: imported=%d skipped=%d skipReasons=%j errors=%d', imported, skipped, skipReasons, errors.length);
@@ -1252,7 +1142,6 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
   }
 });
 
-// ─── GET /api/empleabilidad/resumen ──────────────────────────────────────────
 router.get('/empleabilidad/resumen', async (req, res) => {
   try {
     const { anio, anios, trimestre, facultad, carrera, programa, ciclo } = req.query;
@@ -1269,10 +1158,8 @@ router.get('/empleabilidad/resumen', async (req, res) => {
       SELECT
         COUNT(ea.id_encuesta)                                                        AS total_encuestados,
         SUM(ea.trabaja)                                                              AS total_trabajan,
-        -- Emprendedores: solo entre quienes respondieron esa pregunta (IS NOT NULL)
         SUM(CASE WHEN ea.es_emprendedor = 1 THEN 1 ELSE 0 END)                      AS total_emprendedores,
         SUM(CASE WHEN ea.es_emprendedor IS NOT NULL THEN 1 ELSE 0 END)              AS respondieron_emprende,
-        -- Afinidad: todos quienes respondieron la pregunta (independiente de trabaja)
         SUM(CASE WHEN ea.afinidad_laboral = 'SI'  THEN 1 ELSE 0 END)       AS con_afinidad,
         SUM(CASE WHEN ea.afinidad_laboral IS NOT NULL THEN 1 ELSE 0 END)   AS respondieron_afinidad
       FROM encuesta_anual ea
@@ -1293,8 +1180,6 @@ router.get('/empleabilidad/resumen', async (req, res) => {
     const totalEmprendedores = Number(r.total_emprendedores) || 0;
     let tasaEmprendimiento = total > 0 ? Math.round(totalEmprendedores / total * 100) : 0;
 
-    // Ajustes puntuales del informe: estos tres porcentajes provienen de bases
-    // separadas a la carga Q4 usada por el resto del tablero.
     const isProgramOnly = anio && !anios && programa && !facultad && !carrera && !ciclo;
     const programaKey = String(programa || '').trim().toUpperCase();
     const tasaEmprendimientoInforme = {
@@ -1321,7 +1206,6 @@ router.get('/empleabilidad/resumen', async (req, res) => {
   }
 });
 
-// ─── GET /api/empleabilidad/rangos ────────────────────────────────────────────
 router.get('/empleabilidad/rangos', async (req, res) => {
   try {
     const { anio, anios, trimestre, facultad, carrera, programa, ciclo } = req.query;
@@ -1356,19 +1240,14 @@ router.get('/empleabilidad/rangos', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
-// ─── POST /api/empleabilidad/admin/normalizar-salarios ───────────────────────
-// Normaliza variantes de rango salarial que se auto-insertaron sin mapeo canónico.
-// Seguro ejecutar múltiples veces (idempotente).
 router.post('/empleabilidad/admin/normalizar-salarios', adminOrAnalyst, async (req, res) => {
   try {
-    // Catálogo completo: todas las variantes de Excel 2022-2025 → 5 bandas canónicas
     const variantes = SALARY_NORM_ENTRIES.map(([desc, b]) => [desc, b.rango, b.min, b.max]);
 
     let upserted = 0;
     let fixed = 0;
 
     for (const [desc, estandar, minSoles, maxSoles] of variantes) {
-      // Insertar si no existe; si existe actualizar rango_estandar y rango_min_soles
       const [existing] = await db.query(
         'SELECT id_salario, rango_estandar, rango_min_soles FROM catalogo_salario WHERE descripcion_original = ? LIMIT 1',
         [desc]
@@ -1388,7 +1267,6 @@ router.post('/empleabilidad/admin/normalizar-salarios', adminOrAnalyst, async (r
       }
     }
 
-    // Diagnóstico: entradas que aún tienen rango_min_soles NULL (sin clasificar)
     const [sinClasificar] = await db.query(`
       SELECT cs.descripcion_original, cs.rango_estandar, COUNT(ea.id_encuesta) AS registros
       FROM catalogo_salario cs
@@ -1401,8 +1279,6 @@ router.post('/empleabilidad/admin/normalizar-salarios', adminOrAnalyst, async (r
   } catch (e) { serverError(res, e); }
 });
 
-// Recalcula flags laborales ya importados cuando la situacion contiene texto descriptivo.
-// Corrige casos como "No me encuentro laborando, ni como dependiente o independiente".
 router.post('/empleabilidad/admin/normalizar-laboral', adminOrAnalyst, async (req, res) => {
   try {
     const [r] = await db.query(`
@@ -1423,8 +1299,6 @@ router.post('/empleabilidad/admin/normalizar-laboral', adminOrAnalyst, async (re
   } catch (e) { serverError(res, e); }
 });
 
-// ─── GET /api/empleabilidad/admin/diagnostico ─────────────────────────────────
-// Diagnóstico de es_emprendedor y afinidad_laboral por año y programa
 router.get('/empleabilidad/admin/diagnostico', adminOrAnalyst, async (req, res) => {
   try {
     const [rows] = await db.query(`
@@ -1453,7 +1327,6 @@ router.get('/empleabilidad/admin/diagnostico', adminOrAnalyst, async (req, res) 
   } catch (e) { serverError(res, e); }
 });
 
-// ─── GET /api/empleabilidad/nivel-puesto ─────────────────────────────────────
 router.get('/empleabilidad/nivel-puesto', async (req, res) => {
   try {
     const { anio, anios, trimestre, facultad, carrera, programa, ciclo } = req.query;
@@ -1487,7 +1360,6 @@ router.get('/empleabilidad/nivel-puesto', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
-// ─── GET /api/empleabilidad/satisfaccion ─────────────────────────────────────
 router.get('/empleabilidad/satisfaccion', async (req, res) => {
   try {
     const { anio, anios, trimestre, facultad, carrera, programa, ciclo } = req.query;
@@ -1522,7 +1394,6 @@ router.get('/empleabilidad/satisfaccion', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
-// ─── GET /api/empleabilidad/filtros ──────────────────────────────────────────
 router.get('/empleabilidad/filtros', async (req, res) => {
   try {
     const { anio, anios, facultad, carrera, programa } = req.query;
@@ -1588,8 +1459,6 @@ router.get('/empleabilidad/filtros', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
-// ─── GET /api/empleabilidad/egresados ────────────────────────────────────────
-// tipo: laboral | emprendedor | busqueda
 router.get('/empleabilidad/egresados', async (req, res) => {
   try {
     const { tipo = 'laboral', anio, anios, facultad, carrera, programa, ciclo, q } = req.query;
@@ -1600,7 +1469,6 @@ router.get('/empleabilidad/egresados', async (req, res) => {
     const where = ['ea.encuestado = 1'];
     const params = [];
 
-    // Filtro por tipo de egresado
     if (tipo === 'laboral')          { where.push('ea.trabaja = 1', '(ea.es_emprendedor = 0 OR ea.es_emprendedor IS NULL)'); }
     else if (tipo === 'emprendedor') { where.push('ea.es_emprendedor = 1'); }
     else if (tipo === 'busqueda')    { where.push('ea.trabaja = 0', '(ea.es_emprendedor = 0 OR ea.es_emprendedor IS NULL)'); }
@@ -1659,8 +1527,6 @@ router.get('/empleabilidad/egresados', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
-// ─── GET /api/empleabilidad/stats-tab ────────────────────────────────────────
-// Estadísticas agregadas para dashboards de Laboral / Emprendedor / Búsqueda
 router.get('/empleabilidad/stats-tab', async (req, res) => {
   try {
     const { tipo = 'laboral', anio, anios, facultad, carrera, programa, ciclo } = req.query;
@@ -1735,8 +1601,6 @@ router.get('/empleabilidad/stats-tab', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
-// ── GET /api/empleabilidad/informes ──────────────────────────────────────────
-// Devuelve los informes descargables con filtros opcionales: anio, unidad, facultad
 router.get('/empleabilidad/informes', async (req, res) => {
   try {
     const { anio, unidad, facultad } = req.query;
@@ -1754,7 +1618,6 @@ router.get('/empleabilidad/informes', async (req, res) => {
       params
     );
 
-    // Catálogos para los selectores del frontend
     const [[años]]    = await Promise.all([
       db.query('SELECT DISTINCT anio FROM informe_empleabilidad WHERE activo=1 ORDER BY anio DESC'),
     ]);

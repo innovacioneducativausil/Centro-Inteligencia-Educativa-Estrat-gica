@@ -1,4 +1,4 @@
-// server/server.js — Servidor principal Express
+
 import express    from 'express';
 import cors       from 'cors';
 import helmet     from 'helmet';
@@ -11,7 +11,7 @@ import { dirname, join }  from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, '../.env') });
 
-// ── Verificar variables críticas al arrancar ─────────────
+
 if (!process.env.JWT_SECRET) {
   console.error('❌ FATAL: JWT_SECRET no está definido en .env. El servidor no puede arrancar de forma segura.');
   process.exit(1);
@@ -45,10 +45,10 @@ import actividadRouter from './routes/actividad.js';
 const app  = express();
 const PORT = process.env.API_PORT || 3001;
 
-// Necesario para Railway/Vercel (proxy inverso)
+
 app.set('trust proxy', 1);
 
-// ── Orígenes permitidos (configurable por env) ───────────
+
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
   : [
@@ -57,9 +57,9 @@ const allowedOrigins = process.env.CORS_ORIGINS
       'https://centro-inteligencia-educativa-estra.vercel.app',
     ];
 
-// ── Helmet: cabeceras HTTP de seguridad ──────────────────
+
 app.use(helmet({
-  crossOriginEmbedderPolicy: false, // necesario si sirves assets externos
+  crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -75,10 +75,10 @@ app.use(helmet({
   },
 }));
 
-// ── CORS ─────────────────────────────────────────────────
+
 app.use(cors({
   origin: (origin, cb) => {
-    // Permitir requests sin origin (curl, Postman, mismo servidor)
+
     if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error(`Origin no permitido: ${origin}`));
   },
@@ -86,11 +86,10 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json({ limit: '1mb' })); // límite explícito al body JSON
+app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
-// ── Rate limiting ─────────────────────────────────────────
-// Límite general: 200 req / 15 min por IP
+
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -99,7 +98,7 @@ const generalLimiter = rateLimit({
   message: { error: 'Demasiadas solicitudes. Espera unos minutos e intenta de nuevo.' },
 });
 
-// Límite estricto para auth: 20 req / 15 min por IP
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -111,17 +110,17 @@ const authLimiter = rateLimit({
 app.use('/api', generalLimiter);
 app.use('/api/auth', authLimiter);
 
-// ── Health check ──────────────────────────────────────────
+
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' }); // sin timestamp para no filtrar info del servidor
+  res.json({ status: 'ok' });
 });
 
-// ── Rutas públicas (sin JWT) ──────────────────────────────
+
 app.use('/api', authRouter);
-// info solo accesible con JWT (expone esquema de BD)
+
 app.use('/api', requireAuth, infoRouter);
 
-// ── Rutas protegidas (requieren JWT) ────────────────────
+
 app.use('/api', requireAuth, senalesRouter);
 app.use('/api', requireAuth, tendenciasRouter);
 app.use('/api', requireAuth, escenariosRouter);
@@ -139,13 +138,13 @@ app.use('/api', requireAuth, benchmarkingRouter);
 app.use('/api', requireAuth, motorCurricularRouter);
 app.use('/api', requireAuth, actividadRouter);
 
-// ── 404 genérico ─────────────────────────────────────────
+
 app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 
-// ── Error handler global (last) ───────────────────────────
+
 app.use(globalErrorHandler);
 
-// ── Arrancar servidor ───────────────────────────────────
+
 ensureArchiveSupport()
   .then(() => ensureRadarSchemaSupport())
   .then(() => ensureActividadSupport())
@@ -160,11 +159,11 @@ setInterval(() => {
 }, 24 * 60 * 60 * 1000);
 
 app.listen(PORT, () => {
-  console.log(`🚀 API corriendo en http://localhost:${PORT}`);
+  console.log(`???? API corriendo en http://localhost:${PORT}`);
   console.log(`   Health:       http://localhost:${PORT}/api/health`);
-  console.log(`   Señales:      http://localhost:${PORT}/api/senales`);
+  console.log(`   Se??ales:      http://localhost:${PORT}/api/senales`);
   console.log(`   Tendencias:   http://localhost:${PORT}/api/tendencias`);
   console.log(`   Escenarios:   http://localhost:${PORT}/api/escenarios`);
-  console.log(`   Estadísticas: http://localhost:${PORT}/api/estadisticas`);
+  console.log(`   Estad??sticas: http://localhost:${PORT}/api/estadisticas`);
   console.log(`   Papelera:      limpieza automatica a ${getArchiveRetentionDays()} dias`);
 });

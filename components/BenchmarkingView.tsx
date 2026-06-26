@@ -1,4 +1,4 @@
-﻿// components/BenchmarkingView.tsx
+﻿
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ThemeColors } from '../types';
 import { BRAND_COLORS } from '../constants';
@@ -661,7 +661,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 
   return (
     <div style={{ padding: 0, color: text }}>
-      {/* Sub-tabs */}
+
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {TIPOS_VISIBLES.map(t => (
           <button key={t} onClick={() => setTipo(t)}
@@ -837,7 +837,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, alignItems: 'start' }}>
 
-        {/* Panel izquierdo: Universidades */}
+
         <div style={{ display: 'none' }}>
           <div style={{ background: USIL, color: '#fff', padding: '10px 14px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -876,7 +876,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           </div>
         </div>
 
-        {/* Panel derecho: Carrera + Programas + Comparativa */}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {selectedCarrera && !isReferenceView && (
@@ -935,7 +935,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
           )}
 
-          {/* Tabla de programas */}
+
           {programError && selectedCarrera && !isReferenceView && (
             <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8,
               padding: '10px 14px', marginBottom: -4, color: '#991b1b', fontSize: 12, fontWeight: 700 }}>
@@ -1311,7 +1311,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
           )}
 
-          {/* Tabla comparativa de competencias */}
+
           {!isReferenceView && competencias.length > 0 && (
             <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
               <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
@@ -1358,7 +1358,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         </div>
       </div>
 
-      {/* Modal: agregar universidad */}
+
       {showAddUniv && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100,
           display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1405,7 +1405,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         </div>
       )}
 
-      {/* Modal: agregar programa */}
+
       {showAddProg && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100,
           display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1468,7 +1468,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         </div>
       )}
 
-      {/* Modal: carga manual de texto */}
+
       {showManualText !== null && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100,
           display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1521,4 +1521,3 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 };
 
 export default BenchmarkingView;
-

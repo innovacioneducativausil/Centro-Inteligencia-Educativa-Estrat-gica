@@ -1,14 +1,11 @@
 import { serverError } from '../middleware/errorHandler.js';
-// server/routes/escenarios.js
+
 import { Router } from 'express';
 import db from '../db.js';
 
 const router = Router();
 
-/**
- * GET /api/escenarios
- * Query params opcionales: pestel, sector, q
- */
+
 router.get('/escenarios', async (req, res) => {
   try {
     const { pestel, sector, q } = req.query;
@@ -94,7 +91,7 @@ router.get('/escenarios', async (req, res) => {
       probability:    row.probabilidad ?? null,
       topico:         row.topico_nombre || null,
       autor:          row.autor || null,
-      // url_fuente puede ser JSON array o URL simple
+
       referencias:    (() => {
         const raw = row.url_fuente;
         if (!raw) return [];
@@ -102,7 +99,7 @@ router.get('/escenarios', async (req, res) => {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed)) return parsed.filter(Boolean);
           if (typeof parsed === 'string' && parsed) return [parsed];
-        } catch { /* no es JSON válido */ }
+        } catch {}
         return [raw];
       })(),
     }));

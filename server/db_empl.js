@@ -1,4 +1,4 @@
-// server/db_empl.js — Conexión a la BD de empleabilidad (base separada)
+
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';

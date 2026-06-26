@@ -1,7 +1,5 @@
-// server/services/motorImpactoCurricularService.js
-// Motor de Impacto Curricular: cruza evidencia de Radar, Empleabilidad,
-// Mercado Laboral y Benchmarking para detectar brechas y generar propuestas.
-// No genera recomendación sin evidencia. Toda propuesta es trazable.
+
+
 
 import dbRadar      from '../db.js';
 import dbEmpl       from '../db_empl.js';
@@ -209,8 +207,7 @@ async function analizarImpacto(idCarrera, idMallaVersion, pesos = {}, usuarioCre
       try {
         const parsed = JSON.parse(curso.brechas_detectadas || '[]');
         if (Array.isArray(parsed)) brechas.push(...parsed);
-      } catch { /* brechas_detectadas no es JSON válido */ }
-
+      } catch {}
       if (!brechas.length && !hayMercado && !hayBenchmark) continue;
 
       const cursoBrechas = [

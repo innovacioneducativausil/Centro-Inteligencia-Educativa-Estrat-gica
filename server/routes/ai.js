@@ -1,12 +1,12 @@
 ﻿import { serverError } from '../middleware/errorHandler.js';
-// server/routes/ai.js
-// Proxy HuggingFace: modelo pesado (7B) para anÃ¡lisis largos, modelo ligero (1.5B) para mÃ©tricas cortas
+
+
 import { Router } from 'express';
 import { adminOrAnalyst } from '../middleware/roles.js';
 import { isSafePublicHttpUrl } from '../utils/security.js';
 
 const router = Router();
-// Sin guard de rol — accesible a todos los usuarios autenticados (admin y usuario)
+
 
 const RETRYABLE_CODES = new Set(['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'UND_ERR_SOCKET', 'ENOTFOUND']);
 
@@ -26,8 +26,8 @@ async function fetchWithRetry(url, options, maxRetries = 3, baseDelayMs = 800) {
   throw lastErr;
 }
 
-const HF_MODEL_HEAVY  = 'Qwen/Qwen2.5-7B-Instruct:together';   // anÃ¡lisis, escenarios, deep dive
-const HF_MODEL_LIGHT  = 'Qwen/Qwen2.5-7B-Instruct:together';   // mÃ©tricas â€” token separado para cuota independiente
+const HF_MODEL_HEAVY  = 'Qwen/Qwen2.5-7B-Instruct:together';
+const HF_MODEL_LIGHT  = 'Qwen/Qwen2.5-7B-Instruct:together';
 const HF_URL          = 'https://router.huggingface.co/v1/chat/completions';
 
 const RADAR_SYSTEM = `Eres un analista experto del RADAR Observatorio de Carreras, sistema de inteligencia prospectiva para educaciÃ³n superior universitaria (metodologÃ­a WEF Foresight / Horizon Scanning).
@@ -38,10 +38,7 @@ MetodologÃ­a que aplicas:
 - ESCENARIO: simulaciÃ³n de futuro posible y plausible (no predicciÃ³n). Articula tendencias, seÃ±ales y wildcards en narrativa coherente para stress-testing estratÃ©gico.
 Responde siempre en espaÃ±ol, con lenguaje ejecutivo, preciso y orientado a la acciÃ³n institucional universitaria.`;
 
-/**
- * POST /api/ai/generate
- * Body: { prompt: string, maxTokens?: number }
- */
+
 router.post('/ai/generate', async (req, res) => {
   const apiKey = process.env.HF_API_KEY;
   if (!apiKey || apiKey === 'hf_TU_TOKEN_AQUI') {
@@ -89,11 +86,7 @@ router.post('/ai/generate', async (req, res) => {
   }
 });
 
-/**
- * POST /api/ai/escenarios
- * Matriz de Escenarios Futuros 2x2 — token HF_API_KEY_ESCENARIOS (cuota independiente)
- * Body: { prompt: string, maxTokens?: number }
- */
+
 router.post('/ai/escenarios', async (req, res) => {
   const apiKey = process.env.HF_API_KEY_ESCENARIOS || process.env.HF_API_KEY;
   if (!apiKey || apiKey === 'hf_TU_TOKEN_AQUI') {
@@ -138,11 +131,7 @@ router.post('/ai/escenarios', async (req, res) => {
   }
 });
 
-/**
- * POST /api/ai/metrics
- * Usa Qwen 1.5B â€” ligero y rÃ¡pido, cuota separada del 7B, ideal para JSON corto (impact/urgency)
- * Body: { prompt: string, maxTokens?: number }
- */
+
 router.post('/ai/metrics', async (req, res) => {
   const apiKey = process.env.HF_API_KEY_METRICS || process.env.HF_API_KEY;
   if (!apiKey || apiKey === 'hf_TU_TOKEN_AQUI') {
@@ -190,12 +179,7 @@ router.post('/ai/metrics', async (req, res) => {
   }
 });
 
-/**
- * POST /api/ai/importar
- * Token dedicado (HF_API_KEY_IMPORT) para extracciÃ³n de artÃ­culos.
- * Cae en HF_API_KEY si no estÃ¡ configurado.
- * Body: { prompt: string, maxTokens?: number }
- */
+
 router.post('/ai/importar', async (req, res) => {
   const hfProviders = [
     { name: 'HF_API_KEY_IMPORT2', key: process.env.HF_API_KEY_IMPORT2 },
@@ -234,7 +218,7 @@ router.post('/ai/importar', async (req, res) => {
     temperature: 0.3,
   });
 
-  // 1) HF_API_KEY_IMPORT2
+
   if (hfKey1) {
     try {
       const text = await callProvider(HF_URL, { Authorization: `Bearer ${hfKey1}`, 'Content-Type': 'application/json' }, hfBody());
@@ -245,7 +229,7 @@ router.post('/ai/importar', async (req, res) => {
     }
   }
 
-  // 2) HF_API_KEY_IMPORT
+
   if (hfKey2) {
     try {
       const text = await callProvider(HF_URL, { Authorization: `Bearer ${hfKey2}`, 'Content-Type': 'application/json' }, hfBody());
@@ -256,7 +240,6 @@ router.post('/ai/importar', async (req, res) => {
     }
   }
 
-  // 3) HF_API_KEY_IMPORT3
 
   if (hfKey3) {
     try {
@@ -268,7 +251,7 @@ router.post('/ai/importar', async (req, res) => {
     }
   }
 
-  // 4) Groq fallback (con retry automatico si hay TPM limit)
+
   if (!groqKey) {
     return res.status(503).json({ error: 'HuggingFace fallÃ³ y no hay GROQ_API_KEY configurada.' });
   }
@@ -296,11 +279,7 @@ router.post('/ai/importar', async (req, res) => {
   }
 });
 
-/**
- * GET /api/ai/og-image?url=https://...
- * Fetches the og:image meta tag from an article URL.
- * Used to auto-populate url_imagen_senal after AI extraction.
- */
+
 router.get('/ai/og-image', async (req, res) => {
   const { url } = req.query;
   if (!url || typeof url !== 'string' || !(await isSafePublicHttpUrl(url))) {
@@ -426,10 +405,7 @@ function pickArticleImage(html, baseUrl) {
   try { return new URL(htmlAttrDecode(image), baseUrl).href; } catch { return null; }
 }
 
-/**
- * GET /api/ai/article-metadata?url=https://...
- * Extracts publication date and image from source article metadata.
- */
+
 router.get('/ai/article-metadata', async (req, res) => {
   const { url } = req.query;
   if (!url || typeof url !== 'string' || !(await isSafePublicHttpUrl(url))) {

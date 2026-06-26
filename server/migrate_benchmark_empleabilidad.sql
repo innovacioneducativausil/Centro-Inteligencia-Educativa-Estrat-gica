@@ -1,7 +1,3 @@
--- ============================================================
--- TABLAS PARA BENCHMARKING UNIVERSITARIO
--- Base de datos: empleabilidad_usil
--- ============================================================
 
 USE empleabilidad_usil;
 

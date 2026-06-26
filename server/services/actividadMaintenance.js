@@ -1,5 +1,5 @@
-// server/services/actividadMaintenance.js
-// Crea la tabla actividad_usuario si no existe (se llama al arrancar el servidor).
+
+
 import db from '../db.js';
 
 export async function ensureActividadSupport() {

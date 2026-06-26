@@ -1,14 +1,13 @@
-// server/routes/actividad.js — Registro y consulta de actividad de usuarios
+
 import { Router } from 'express';
 import db from '../db.js';
 
 const router = Router();
 
-// Únicos correos que pueden leer el monitoreo completo
+
 const MONITOR_CORREOS = new Set(['acastroh@usil.edu.pe', 'mmontoyar@usil.edu.pe']);
 
-// ── POST /api/actividad ────────────────────────────────────
-// Registra un evento de actividad. Accesible a todos los usuarios autenticados.
+
 router.post('/actividad', async (req, res) => {
   try {
     const { evento, modulo, elementoUuid, elementoTipo, elementoTitulo, metadata } = req.body;
@@ -47,8 +46,7 @@ router.post('/actividad', async (req, res) => {
   }
 });
 
-// ── GET /api/actividad ─────────────────────────────────────
-// Lee el log de actividad. Solo para correos autorizados.
+
 router.get('/actividad', async (req, res) => {
   if (!MONITOR_CORREOS.has(req.user.correo)) {
     return res.status(403).json({ error: 'Acceso denegado.' });
@@ -90,8 +88,7 @@ router.get('/actividad', async (req, res) => {
   }
 });
 
-// ── GET /api/actividad/usuarios ────────────────────────────
-// Lista todos los usuarios de la BD (para el filtro). Solo para correos autorizados.
+
 router.get('/actividad/usuarios', async (req, res) => {
   if (!MONITOR_CORREOS.has(req.user.correo)) {
     return res.status(403).json({ error: 'Acceso denegado.' });
@@ -110,8 +107,7 @@ router.get('/actividad/usuarios', async (req, res) => {
   }
 });
 
-// ── GET /api/actividad/eventos ─────────────────────────────
-// Lista de tipos de evento únicos. Solo para correos autorizados.
+
 router.get('/actividad/eventos', async (req, res) => {
   if (!MONITOR_CORREOS.has(req.user.correo)) {
     return res.status(403).json({ error: 'Acceso denegado.' });

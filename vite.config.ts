@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        // Todas las llamadas a /api/* se redirigen al servidor Express
+
         '/api': {
         target: 'http://localhost:3002',
           changeOrigin: true,

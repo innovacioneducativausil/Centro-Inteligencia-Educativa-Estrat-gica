@@ -1,5 +1,5 @@
-// components/CadenaView.tsx — Cadena Causal por tópico
-// Visualiza Señal → Tendencia → Escenario con relaciones auto-inferidas por similitud de texto
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { ThemeColors } from '../types';
@@ -17,7 +17,7 @@ const probDots = (n: number | null) => {
   return '●'.repeat(n) + '○'.repeat(5 - n);
 };
 
-// ── Relation auto-inference by keyword similarity ─────────────────────────────
+
 const STOPWORDS = new Set([
   'the','a','an','in','of','for','to','and','or','is','are','with','by','as','at','on',
   'that','this','their','they','have','been','will','from','but','not','more','its',
@@ -28,19 +28,19 @@ const STOPWORDS = new Set([
 function tokenize(text: string): string[] {
   return (text || '')
     .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents for matching
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .filter(w => w.length > 3 && !STOPWORDS.has(w));
 }
 
 function inferRelaciones(topico: CadenaTopico): CadenaRelacion[] {
-  // If DB already has relations, use them
+
   if (topico.relaciones.length > 0) return topico.relaciones;
 
   const rels: CadenaRelacion[] = [];
 
-  // señal → tendencia: connect if >= 1 keyword in common
+
   for (const senal of topico.senales) {
     const sWords = new Set(tokenize(`${senal.titulo} ${senal.descCorta || ''}`));
     const sid = String(senal.uuid);
@@ -57,7 +57,7 @@ function inferRelaciones(topico: CadenaTopico): CadenaRelacion[] {
     }
   }
 
-  // tendencia → escenario: connect if >= 1 keyword in common
+
   for (const tend of topico.tendencias) {
     const tWords = new Set(tokenize(`${tend.titulo} ${tend.descCorta || ''}`));
     const tid = String(tend.uuid);
@@ -74,7 +74,7 @@ function inferRelaciones(topico: CadenaTopico): CadenaRelacion[] {
     }
   }
 
-  // señal → escenario (direct): sin tendencias o escenario huérfano
+
   if (topico.tendencias.length === 0) {
     for (const senal of topico.senales) {
       const sWords = new Set(tokenize(`${senal.titulo} ${senal.descCorta || ''}`));
@@ -112,11 +112,7 @@ function inferRelaciones(topico: CadenaTopico): CadenaRelacion[] {
   return rels;
 }
 
-// offsetTop/offsetLeft de cada card ya son relativos al inner container (position:relative)
-// que es exactamente el espacio de coordenadas del SVG (position:absolute top:0 left:0).
-// No se necesita traversal — usar directamente.
 
-// ── Compact node components (no image, no desc — just label + title) ──────────
 const SenalNode = ({ s, color, nodeRef }: { s: any; color: string; nodeRef: (el: HTMLDivElement | null) => void }) => (
   <div ref={nodeRef} className="rounded-lg border p-2 mb-2"
     style={{ borderLeft: `3px solid ${color}`, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
@@ -165,7 +161,7 @@ const EscenarioNode = ({ e, color, nodeRef }: { e: any; color: string; nodeRef: 
   </div>
 );
 
-// ── Main CadenaView ───────────────────────────────────────────────────────────
+
 const AUTH = () => ({ 'Content-Type': 'application/json' });
 
 const CadenaView: React.FC<Props> = () => {
@@ -176,7 +172,7 @@ const CadenaView: React.FC<Props> = () => {
   const [inferring, setInferring] = useState(false);
   const [inferMsg, setInferMsg]   = useState<string | null>(null);
 
-  // Tracks which idTopico values have already had auto-inference triggered this session
+
   const autoInferredRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
@@ -186,13 +182,13 @@ const CadenaView: React.FC<Props> = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // uuid → DOM element (scroll-independent offset computation)
+
   const nodeRefs    = useRef<Map<string, HTMLDivElement>>(new Map());
-  const gridRef     = useRef<HTMLDivElement>(null);   // the 3-col grid (non-scrolling)
+  const gridRef     = useRef<HTMLDivElement>(null);
   const [svgH, setSvgH] = useState(0);
   const [lines, setLines] = useState<{ x1: number; y1: number; x2: number; y2: number; color: string }[]>([]);
 
-  // Siempre usar String() para keys — MySQL devuelve enteros pero la interfaz dice string
+
   const setNodeRef = useCallback((uuid: string | number) => (el: HTMLDivElement | null) => {
     const key = String(uuid);
     if (el) nodeRefs.current.set(key, el);
@@ -210,7 +206,7 @@ const CadenaView: React.FC<Props> = () => {
       const elA = nodeRefs.current.get(String(rel.idA));
       const elB = nodeRefs.current.get(String(rel.idB));
       if (!elA || !elB) continue;
-      // offsetTop/offsetLeft son relativos al inner container = espacio SVG
+
       const x1 = elA.offsetLeft + elA.offsetWidth;
       const y1 = elA.offsetTop  + elA.offsetHeight / 2;
       const x2 = elB.offsetLeft;
@@ -236,7 +232,7 @@ const CadenaView: React.FC<Props> = () => {
       });
       const data = await res.json();
       if (!res.ok) { setInferMsg(`Error: ${data.error || res.statusText}`); return; }
-      // Actualiza el tópico con las relaciones recién guardadas
+
       setTopicos(prev => prev.map((t, i) =>
         i === selected ? { ...t, relaciones: data.relaciones } : t
       ));
@@ -248,31 +244,30 @@ const CadenaView: React.FC<Props> = () => {
     }
   }, [topicos, selected]);
 
-  // Keep a stable ref so the auto-inference effect never captures a stale closure
+
   const handleInferirRef = useRef(handleInferirRelaciones);
   handleInferirRef.current = handleInferirRelaciones;
 
-  // Auto-infer: whenever the selected topic has NO DB relations, trigger immediately.
-  // Uses a Set to ensure each topic is only queued once per session.
+
   useEffect(() => {
     const topico = topicos[selected];
     if (!topico) return;
-    if (topico.relaciones.length > 0) return;          // already has relations
-    if (autoInferredRef.current.has(topico.idTopico)) return; // already queued
+    if (topico.relaciones.length > 0) return;
+    if (autoInferredRef.current.has(topico.idTopico)) return;
     const hasContent = topico.senales.length > 0 || topico.tendencias.length > 0 || topico.escenarios.length > 0;
-    if (!hasContent) return;                            // nothing to relate
+    if (!hasContent) return;
     autoInferredRef.current.add(topico.idTopico);
     handleInferirRef.current();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, topicos.length]); // fires when user switches topic or list first loads
 
-  // Clear refs when topico changes
+  }, [selected, topicos.length]);
+
+
   useEffect(() => { nodeRefs.current.clear(); }, [selected]);
 
-  // Recompute after render
+
   useEffect(() => {
     const t1 = setTimeout(recomputeLines, 120);
-    const t2 = setTimeout(recomputeLines, 400); // second pass after images load
+    const t2 = setTimeout(recomputeLines, 400);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [recomputeLines, topicos, selected]);
 
@@ -294,7 +289,7 @@ const CadenaView: React.FC<Props> = () => {
   return (
     <div className="space-y-4">
 
-      {/* Tópico selector — solo nombre, sin conteos */}
+
       <div className="flex flex-wrap gap-2">
         {topicos.map((t, i) => (
           <button key={t.idTopico} onClick={() => setSelected(i)}
@@ -309,7 +304,7 @@ const CadenaView: React.FC<Props> = () => {
         ))}
       </div>
 
-      {/* Legend + Inferir button */}
+
       <div className="flex items-center flex-wrap gap-4 text-[11px] px-1" style={{ color: '#94A3B8' }}>
         <span className="flex items-center gap-1.5">
           <span className="w-5 h-0.5 rounded inline-block" style={{ background: '#0D9488' }} />
@@ -323,7 +318,7 @@ const CadenaView: React.FC<Props> = () => {
           <span className="w-5 h-0.5 rounded inline-block" style={{ background: '#F59E0B' }} />
           Señal → Escenario
         </span>
-        {/* Auto-inference status indicator */}
+
         {(inferring || inferMsg) && (
           <div className="flex items-center gap-2 ml-auto">
             {inferring ? (
@@ -344,7 +339,7 @@ const CadenaView: React.FC<Props> = () => {
         )}
       </div>
 
-      {/* Chain diagram — horizontal scroll + pan with mouse wheel */}
+
       <div className="overflow-x-auto" style={{ cursor: 'grab' }}
         onMouseDown={e => {
           const el = e.currentTarget;
@@ -355,13 +350,13 @@ const CadenaView: React.FC<Props> = () => {
           window.addEventListener('mousemove', onMove);
           window.addEventListener('mouseup', onUp);
         }}>
-        {/* Inner div: grid + SVG overlay, position relative */}
+
         <div style={{ position: 'relative', minWidth: 1080 }}>
 
-          {/* SVG lines — absolute, matches grid height */}
+
           <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: svgH, pointerEvents: 'none' }}>
             {lines.map((l, i) => {
-              // Control points 30% of the way in (tight S-curve, less crossing)
+
               const dx = (l.x2 - l.x1) * 0.4;
               return (
                 <path key={i}
@@ -373,10 +368,10 @@ const CadenaView: React.FC<Props> = () => {
             })}
           </svg>
 
-          {/* 3-column grid — fixed column widths with wide gap for clear line routing */}
+
           <div ref={gridRef} style={{ display: 'grid', gridTemplateColumns: '320px 320px 320px', gap: 60 }}>
 
-            {/* Headers */}
+
             <div className="text-center pb-2 mb-1" style={{ borderBottom: '1px solid #e2e8f0' }}>
               <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#0D9488' }}>Fuentes · Señales</p>
               <p className="text-[9px]" style={{ color: '#94A3B8' }}>{topico.senales.length} señales</p>
@@ -390,7 +385,7 @@ const CadenaView: React.FC<Props> = () => {
               <p className="text-[9px]" style={{ color: '#94A3B8' }}>{topico.escenarios.length} escenarios</p>
             </div>
 
-            {/* Señales */}
+
             <div className="pt-2">
               {topico.senales.length === 0
                 ? <p className="text-xs text-center py-4" style={{ color: '#94A3B8' }}>Sin señales</p>
@@ -401,7 +396,7 @@ const CadenaView: React.FC<Props> = () => {
                 ))}
             </div>
 
-            {/* Tendencias */}
+
             <div className="pt-2">
               {topico.tendencias.length === 0
                 ? <p className="text-xs text-center py-4" style={{ color: '#94A3B8' }}>Sin tendencias</p>
@@ -412,7 +407,7 @@ const CadenaView: React.FC<Props> = () => {
                 ))}
             </div>
 
-            {/* Escenarios */}
+
             <div className="pt-2">
               {topico.escenarios.length === 0
                 ? <p className="text-xs text-center py-4" style={{ color: '#94A3B8' }}>Sin escenarios</p>
@@ -423,9 +418,9 @@ const CadenaView: React.FC<Props> = () => {
                 ))}
             </div>
 
-          </div>{/* grid */}
-        </div>{/* inner */}
-      </div>{/* outer scroll */}
+          </div>
+        </div>
+      </div>
 
     </div>
   );

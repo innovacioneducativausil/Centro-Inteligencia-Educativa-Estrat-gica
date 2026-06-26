@@ -1,10 +1,5 @@
-// server/scripts/setPassword.js
-// Genera hash bcrypt y actualiza la contraseña de un usuario en la BD.
-// Uso: node scripts/setPassword.js <correo> <nueva_contraseña>
-//
-// Ejemplos:
-//   node scripts/setPassword.js admin@usil.edu MiClave2025!
-//   node scripts/setPassword.js  (sin args → lista usuarios existentes)
+
+
 
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
@@ -14,12 +9,12 @@ import { dirname, resolve } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, '../../.env') });
 
-// Importar pool después de cargar .env
+
 const { default: db } = await import('../db.js');
 
 const [,, correo, password] = process.argv;
 
-// Sin argumentos → listar usuarios
+
 if (!correo) {
   console.log('\n📋  Usuarios en la base de datos:\n');
   const [rows] = await db.query(
@@ -44,7 +39,7 @@ if (!password) {
   process.exit(1);
 }
 
-// Verificar que el usuario existe
+
 const [[user]] = await db.query(
   'SELECT id_usuario, nombre_usuario FROM usuario WHERE correo_usuario = ?',
   [correo.trim().toLowerCase()]
@@ -55,10 +50,10 @@ if (!user) {
   process.exit(1);
 }
 
-// Generar hash bcrypt (factor de coste 10)
+
 const hash = await bcrypt.hash(password, 10);
 
-// Actualizar en la BD
+
 await db.query(
   'UPDATE usuario SET password_hash = ? WHERE id_usuario = ?',
   [hash, user.id_usuario]

@@ -1,4 +1,4 @@
-// server/routes/auth.js
+
 import { Router }       from 'express';
 import bcrypt           from 'bcryptjs';
 import jwt              from 'jsonwebtoken';
@@ -7,7 +7,7 @@ import db               from '../db.js';
 import { sendOtpEmail } from '../mailer.js';
 
 const router = Router();
-const JWT_SECRET  = process.env.JWT_SECRET;   // falla en startup si no está (ver server.js)
+const JWT_SECRET  = process.env.JWT_SECRET;
 const JWT_EXPIRES = process.env.JWT_EXPIRES || '8h';
 const AUTH_COOKIE = 'radar_token';
 const COOKIE_MAX_AGE_MS = 8 * 60 * 60 * 1000;
@@ -23,7 +23,7 @@ function authCookieOptions() {
   };
 }
 
-// ── Rol → etiqueta legible ───────────────────────────────
+
 const ROL_LABELS = {
   admin:   'Administrador',
   usuario: 'Usuario',
@@ -36,7 +36,7 @@ async function logActividad(db, idUsuario, correo, evento, ip) {
        VALUES (?, ?, ?, ?, NOW())`,
       [idUsuario, correo, evento, ip || null]
     );
-  } catch { /* silencioso — no bloquear login/logout */ }
+  } catch {}
 }
 
 function buildAuthUser(user) {
@@ -90,10 +90,7 @@ function getClientIp(req) {
   return (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null;
 }
 
-/**
- * POST /api/auth/login
- * body: { correo: string, password: string }
- */
+
 router.post('/auth/login', async (req, res) => {
   try {
     const { correo, password } = req.body;
@@ -139,11 +136,7 @@ router.post('/auth/login', async (req, res) => {
   }
 });
 
-/**
- * POST /api/auth/login/verify-otp
- * body: { correo: string, otp: string }
- * Valida el OTP de login. Solo entonces emite la cookie/JWT de sesion.
- */
+
 router.post('/auth/login/verify-otp', async (req, res) => {
   try {
     const { correo, otp } = req.body;
@@ -220,11 +213,7 @@ router.post('/auth/login/verify-otp', async (req, res) => {
   }
 });
 
-/**
- * POST /api/auth/login/resend-otp
- * body: { correo: string }
- * Reenvia el OTP solo si existe un login pendiente para ese correo.
- */
+
 router.post('/auth/login/resend-otp', async (req, res) => {
   try {
     const { correo } = req.body;
@@ -252,10 +241,7 @@ router.post('/auth/login/resend-otp', async (req, res) => {
   }
 });
 
-/**
- * GET /api/auth/me
- * Devuelve el usuario autenticado a partir del JWT (útil para validar sesión al recargar).
- */
+
 router.get('/auth/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -271,7 +257,7 @@ router.get('/auth/me', async (req, res) => {
       return res.status(401).json({ error: 'Token inválido o expirado.' });
     }
 
-    // Refrescar datos desde la BD (por si el rol cambió)
+
     const [[user]] = await db.query(
       `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo
        FROM usuario WHERE id_usuario = ? AND activo = 1`,
@@ -284,7 +270,7 @@ router.get('/auth/me', async (req, res) => {
 
     const nombre = user.nombre_corto || user.nombre_usuario;
 
-    // Si el rol cambió desde que se emitió el JWT, emitir cookie renovada
+
     if (user.rol !== payload.rol) {
       const newToken = jwt.sign(
         { id: user.id_usuario, nombre, correo: user.correo_usuario, rol: user.rol },
@@ -316,12 +302,7 @@ router.get('/auth/me', async (req, res) => {
   }
 });
 
-/**
- * POST /api/auth/forgot-password
- * body: { correo: string }
- * Genera un token seguro, lo guarda en la BD con expiración de 1 hora
- * y envía el correo con el enlace de restablecimiento.
- */
+
 router.post('/auth/forgot-password', async (req, res) => {
   try {
     const { correo } = req.body;
@@ -337,19 +318,19 @@ router.post('/auth/forgot-password', async (req, res) => {
       [correo.trim().toLowerCase()]
     );
 
-    // Respuesta siempre igual (evita enumerar qué correos existen)
+
     if (!user || !user.activo) {
       return res.json({
         message: 'Hemos enviado un código de verificación a tu correo institucional.',
       });
     }
 
-    // Generar OTP de 6 dígitos criptográficamente seguro
+
     const otp     = crypto.randomInt(100000, 999999).toString();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
-    const expires = new Date(Date.now() + OTP_EXPIRES_MS); // 5 minutos
+    const expires = new Date(Date.now() + OTP_EXPIRES_MS);
 
-    // Guardar hash del OTP, invalidar token anterior
+
     await db.query(
       `UPDATE usuario
        SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = 'reset',
@@ -370,11 +351,7 @@ router.post('/auth/forgot-password', async (req, res) => {
   }
 });
 
-/**
- * POST /api/auth/verify-otp
- * body: { correo: string, otp: string }
- * Valida el OTP, controla intentos y expiry. Si es válido, devuelve un reset token.
- */
+
 router.post('/auth/verify-otp', async (req, res) => {
   try {
     const { correo, otp } = req.body;
@@ -394,12 +371,12 @@ router.post('/auth/verify-otp', async (req, res) => {
       [correo.trim().toLowerCase()]
     );
 
-    // Respuesta genérica si no existe OTP (sin revelar info)
+
     if (!user || !user.otp_hash || user.otp_purpose !== 'reset') {
       return res.status(400).json({ error: 'Solicita un nuevo código de verificación.' });
     }
 
-    // Bloqueo por exceso de intentos (5 máx — HU003)
+
     if (user.otp_attempts >= 5) {
       console.warn(`[VERIFY OTP] Cuenta bloqueada temporalmente: ${correo}`);
       return res.status(429).json({
@@ -408,7 +385,7 @@ router.post('/auth/verify-otp', async (req, res) => {
       });
     }
 
-    // Verificar expiración (5 minutos)
+
     if (new Date() > new Date(user.otp_expires)) {
       return res.status(400).json({
         error: 'El código ha expirado. Solicita uno nuevo.',
@@ -416,7 +393,7 @@ router.post('/auth/verify-otp', async (req, res) => {
       });
     }
 
-    // Validar hash del OTP
+
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     if (otpHash !== user.otp_hash) {
       await db.query(
@@ -433,9 +410,9 @@ router.post('/auth/verify-otp', async (req, res) => {
       });
     }
 
-    // OTP válido — generar reset token y limpiar OTP
+
     const resetToken   = crypto.randomBytes(32).toString('hex');
-    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000);
 
     await db.query(
       `UPDATE usuario
@@ -454,11 +431,7 @@ router.post('/auth/verify-otp', async (req, res) => {
   }
 });
 
-/**
- * GET /api/auth/verify-reset-token/:token
- * Valida si un token de reset es válido y no ha expirado.
- * Usado por el frontend al cargar la página con ?reset_token=...
- */
+
 router.get('/auth/verify-reset-token/:token', async (req, res) => {
   try {
     const { token } = req.params;
@@ -491,11 +464,7 @@ router.get('/auth/verify-reset-token/:token', async (req, res) => {
   }
 });
 
-/**
- * POST /api/auth/reset-password
- * body: { token: string, newPassword: string }
- * Valida el token, actualiza la contraseña y lo invalida.
- */
+
 router.post('/auth/reset-password', async (req, res) => {
   try {
     const { token, newPassword } = req.body;
@@ -514,7 +483,7 @@ router.post('/auth/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'La contraseña debe contener al menos un número.' });
     }
 
-    // Buscar usuario por token válido y no expirado
+
     const [[user]] = await db.query(
       `SELECT id_usuario, correo_usuario, password_hash
        FROM usuario
@@ -531,7 +500,7 @@ router.post('/auth/reset-password', async (req, res) => {
       });
     }
 
-    // Verificar que la nueva contraseña sea diferente a la actual
+
     const samePassword = await bcrypt.compare(newPassword, user.password_hash);
     if (samePassword) {
       return res.status(400).json({
@@ -541,7 +510,7 @@ router.post('/auth/reset-password', async (req, res) => {
 
     const hash = await bcrypt.hash(newPassword, 10);
 
-    // Actualizar contraseña e invalidar el token
+
     await db.query(
       `UPDATE usuario
        SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL,
@@ -559,20 +528,16 @@ router.post('/auth/reset-password', async (req, res) => {
   }
 });
 
-/**
- * POST /api/auth/logout
- * El token se invalida en el cliente (borrando localStorage).
- * Este endpoint solo confirma la operación.
- */
+
 router.post('/auth/logout', (req, res) => {
-  // Intentar extraer usuario del token para loguear el cierre de sesión
+
   const cookieToken = req.cookies?.[AUTH_COOKIE];
   if (cookieToken) {
     try {
       const payload = jwt.verify(cookieToken, JWT_SECRET);
       const logoutIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null;
       logActividad(db, payload.id, payload.correo, 'logout', logoutIp);
-    } catch { /* token ya expirado — no bloquear */ }
+    } catch {}
   }
   res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(), maxAge: undefined });
   res.json({ message: 'Sesión cerrada correctamente.' });

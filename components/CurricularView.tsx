@@ -108,7 +108,7 @@ interface ImportResult {
 
 type TabCurricular = 'mapa' | 'silabos' | 'benchmarking' | 'impacto';
 
-// ── Mapa Sílabos — vista base (interfaz preparada, datos futuros) ─────────────
+
 function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrerasFiltradas, selFacultad, filtros }: {
   card: string; text: string; muted: string; border: string; isDark: boolean;
   selCarrera: string; selFacultad: string;
@@ -123,7 +123,7 @@ function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrer
     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   };
 
-  // Sílabos de ejemplo (vacíos hasta que se integre el backend)
+
   const silabosEjemplo = selCarrera !== 'Todas' ? [
     { ciclo: 1, curso: 'Fundamentos de la Carrera',   estado: 'Pendiente', creditos: 4, codigo: 'FND101' },
     { ciclo: 1, curso: 'Matemática Básica',            estado: 'Pendiente', creditos: 3, codigo: 'MAT101' },
@@ -138,7 +138,7 @@ function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrer
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Filtros adicionales sílabos */}
+
       <div style={{ ...cardStyle, padding: '14px 18px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ minWidth: 120 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Ciclo</div>
@@ -155,7 +155,7 @@ function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrer
         </div>
       </div>
 
-      {/* Tabla de sílabos */}
+
       <div style={{ ...cardStyle, overflow: 'hidden' }}>
         <div style={{ padding: '12px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted }}>Sílabos de cursos</span>
@@ -202,7 +202,7 @@ function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrer
         )}
       </div>
 
-      {/* Info pendiente */}
+
       <div style={{ padding: '12px 16px', borderRadius: 10, background: isDark ? 'rgba(59,130,246,0.08)' : '#eff6ff', border: `1px solid ${isDark ? 'rgba(59,130,246,0.2)' : '#bfdbfe'}`, fontSize: 11, color: isDark ? '#93c5fd' : '#1d4ed8', fontWeight: 500 }}>
         <span className="material-symbols-outlined" style={{ fontSize: 14, verticalAlign: 'middle', marginRight: 6 }}>info</span>
         Esta vista está preparada para integrar sílabos por carrera, ciclo y curso. Permite en el futuro analizar contenidos, competencias y relación con el mercado laboral.
@@ -214,7 +214,7 @@ function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrer
 const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRole }) => {
   const [activeTab, setActiveTab]  = useState<TabCurricular>('mapa');
 
-  // Filtros
+
   const [filtros,      setFiltros]     = useState<FiltrosData>({ facultades: [], carreras: [] });
   const [selFacultad,  setSelFacultad] = useState('Todas');
   const [selCarrera,   setSelCarrera]  = useState('Todas');
@@ -222,7 +222,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   const [mallas,       setMallas]      = useState<MallaOpcion[]>([]);
   const [selMallaId,   setSelMallaId]  = useState<number | null>(null);
 
-  // Datos
+
   const [ciclos,       setCiclos]      = useState<CicloData[]>([]);
   const [kpis,         setKpis]        = useState<KPIs>(EMPTY_KPIS);
   const [loading,      setLoading]     = useState(false);
@@ -230,7 +230,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   const [selectedCurso, setSelectedCurso] = useState<Curso | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Import modal
+
   const [showImport,    setShowImport]    = useState(false);
   const [importFile,    setImportFile]    = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
@@ -304,7 +304,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
         setSelectedCurso(primero);
       }
       if (!kpisData.error) setKpis(kpisData);
-    } catch { /* sin datos */ }
+    } catch {}
     setLoading(false);
   }, [selMallaId]);
 
@@ -333,7 +333,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
     setSelCarreraId(found?.id_carrera ?? null);
   };
 
-  // Import handlers
+
   const openImportModal = () => {
     setShowImport(true);
     setImportFile(null);
@@ -399,7 +399,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   return (
     <div style={{ padding: '14px 20px', background: bg, minHeight: '100%', color: text, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-      {/* ── Advertencia: Módulo en construcción ──── */}
+
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 16px', borderRadius: 10,
@@ -419,7 +419,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
         </div>
       </div>
 
-      {/* ── TABS PRINCIPALES (arriba, igual que Empleabilidad/Mercado) ──── */}
+
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
         {([
           { key: 'mapa',        label: 'Mapa Curricular',    icon: 'map' },
@@ -439,7 +439,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
         })}
       </div>
 
-      {/* ── FILTROS (solo para mapa y sílabos) ──────────────────────────── */}
+
       {(activeTab === 'mapa' || activeTab === 'silabos') && (
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end',
           background: card, borderRadius: 12, border: `1px solid ${border}`, padding: '14px 18px' }}>
@@ -468,19 +468,19 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
         </div>
       )}
 
-      {/* ── TAB: BENCHMARKING ────────────────────────────────────────── */}
+
       {activeTab === 'benchmarking' && (
         <BenchmarkingView themeColors={C} userRole={userRole} />
       )}
 
-      {/* ── TAB: MAPA SÍLABOS ────────────────────────────────────────── */}
+
       {activeTab === 'silabos' && (
         <MapaSilabosView card={card} text={text} muted={muted} border={border} isDark={isDark}
           selCarrera={selCarrera} carrerasFiltradas={carrerasFiltradas}
           selFacultad={selFacultad} filtros={filtros} />
       )}
 
-      {/* ── TAB: IMPACTO CURRICULAR ────────────────────────────────────── */}
+
       {activeTab === 'impacto' && (
         <ImpactoCurricularView
           themeColors={C}
@@ -492,10 +492,10 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
         />
       )}
 
-      {/* ── TAB: MAPA CURRICULAR ──────────────────────────────────────── */}
+
       {activeTab === 'mapa' && (
         <>
-          {/* KPI CARDS */}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
             {[
               { label: 'En Riesgo / Crítico',     value: `${kpis.pctRiesgo}%`,       badge: `${kpis.criticos} cursos`,  note: 'Cursos con obsolescencia alta o riesgo.',     accent: '#ef4444', badgeBg: '#fee2e2', badgeText: '#991b1b' },
@@ -518,7 +518,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
             ))}
           </div>
 
-          {/* MAIN CONTENT GRID */}
+
           {selMallaId === null ? (
             <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, padding: 40,
               textAlign: 'center', color: muted, fontSize: 13 }}>
@@ -528,7 +528,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12, flex: 1, minHeight: 0 }}>
 
-              {/* MAPA DE MALLA */}
+
               <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`,
                 padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0 }}>
@@ -605,7 +605,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                 </div>
               </div>
 
-              {/* PANEL DE ANÁLISIS */}
+
               <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`,
                 display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
                 <div style={{ background: USIL, color: '#fff', padding: '14px 16px', flexShrink: 0 }}>
@@ -791,7 +791,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
-      {/* IMPORT MODAL */}
+
       {showImport && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 50,
           display: 'flex', alignItems: 'center', justifyContent: 'center' }}

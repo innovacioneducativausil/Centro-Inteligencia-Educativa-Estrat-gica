@@ -23,7 +23,7 @@ import {
 import html2canvas from 'html2canvas';
 import { ThemeColors } from '../types';
 
-// ── Directorio de informes laborales (fuente: Excel por carrera) ─────────────
+
 interface InformeLaboralEntry {
   facultad: string;
   carrera: string;
@@ -169,7 +169,7 @@ function RecommendationBlock({ icon, title, items }: { icon: React.ReactNode; ti
   );
 }
 
-// ── 6 pasos fijos (coinciden con las imágenes de referencia) ─────────────────
+
 const PASOS_FIJOS: MetodoPaso[] = [
   { orden: 1, titulo: 'Búsqueda Automatizada',   descripcion: 'Rastreo de miles de ofertas laborales en principales portales de empleo.' },
   { orden: 2, titulo: 'Recolección de Datos',    descripcion: 'Extracción y estructuración de la información de vacantes activas.' },
@@ -179,7 +179,7 @@ const PASOS_FIJOS: MetodoPaso[] = [
   { orden: 6, titulo: 'Aplicación Estratégica',  descripcion: 'Traducción de hallazgos del mercado en recomendaciones académicas.' },
 ];
 
-// ── Iconos por orden de paso ──────────────────────────────────────────────────
+
 const STEP_ICONS: Record<number, React.ReactNode> = {
   1: <Search        className="h-6 w-6" />,
   2: <Database      className="h-6 w-6" />,
@@ -207,11 +207,11 @@ const APLICACIONES = [
 ];
 
 function MetodologiaView({ steps: _steps, onVerInformes }: { steps: MetodoPaso[]; onVerInformes: () => void }) {
-  // Siempre usamos los 6 pasos estándar del diseño de referencia
+
   const steps = PASOS_FIJOS;
   return (
     <div className="space-y-6">
-      {/* ── Hero ─────────────────────────────────────────────────── */}
+
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-500">
           <span className="material-symbols-outlined text-[13px]">calendar_today</span>
@@ -225,23 +225,23 @@ function MetodologiaView({ steps: _steps, onVerInformes }: { steps: MetodoPaso[]
         </p>
       </div>
 
-      {/* ── Sección pasos ────────────────────────────────────────── */}
+
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-1 text-xl font-black text-[#002D72]">¿Cómo se elaboraron los informes?</h2>
         <p className="mb-6 text-sm font-medium text-slate-500">
           Los informes fueron construidos mediante análisis automatizado de ofertas laborales, procesamiento con
           Inteligencia Artificial y extracción de patrones relevantes para la gestión académica.
         </p>
-        {/* Pasos horizontales */}
+
         <div className="flex flex-wrap items-start gap-2 lg:flex-nowrap">
           {steps.map((step, idx) => (
             <React.Fragment key={step.orden}>
               <div className="flex-1 min-w-[130px] rounded-xl border border-slate-100 bg-slate-50 p-4 relative">
-                {/* Número badge */}
+
                 <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#00A3E0] text-[10px] font-black text-white">
                   {step.orden}
                 </span>
-                {/* Icono */}
+
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#002D72] shadow-sm border border-slate-100">
                   {STEP_ICONS[step.orden] ?? <BarChart3 className="h-5 w-5" />}
                 </div>
@@ -256,10 +256,10 @@ function MetodologiaView({ steps: _steps, onVerInformes }: { steps: MetodoPaso[]
         </div>
       </div>
 
-      {/* ── Insights + Aplicación ─────────────────────────────────── */}
+
       <div className="grid gap-5 lg:grid-cols-2">
 
-        {/* Insights clave extraídos */}
+
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-2">
             <div className="h-6 w-1 rounded-full bg-[#00A3E0]" />
@@ -278,9 +278,9 @@ function MetodologiaView({ steps: _steps, onVerInformes }: { steps: MetodoPaso[]
           </div>
         </div>
 
-        {/* Aplicación Académica Estratégica */}
+
         <div className="rounded-2xl bg-[#002D72] p-6 text-white shadow-sm relative overflow-hidden">
-          {/* Ícono decorativo */}
+
           <GraduationCap className="absolute right-5 top-5 h-20 w-20 text-white/10" />
           <div className="mb-5 flex items-center gap-2">
             <div className="h-6 w-1 rounded-full bg-[#00A3E0]" />
@@ -331,7 +331,7 @@ function mergeFiltros(fromApi: FiltroFacultad[], fromExcel: FiltroFacultad[]): F
   const result = new Map<string, Set<string>>();
   [...fromApi, ...fromExcel].forEach(fac => {
     const normFac = stripAccents(fac.nombre);
-    // Find existing key by normalized comparison
+
     let existingKey: string | undefined;
     for (const k of result.keys()) {
       if (stripAccents(k) === normFac) { existingKey = k; break; }
@@ -362,14 +362,14 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
   const [error, setError] = useState<string | null>(null);
   const isDark = themeColors.bg?.includes('950') || themeColors.bg?.includes('slate-900') || false;
 
-  // Export dropdown
+
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const exportBtnRef = useRef<HTMLDivElement>(null);
   const informeRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar dropdown al hacer click fuera
+
   useEffect(() => {
     if (!exportOpen) return;
     const handler = (e: MouseEvent) => {
@@ -432,7 +432,7 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
         const excelFiltros = buildFiltrosFromExcel();
         setFacultades(mergeFiltros(filters.facultades, excelFiltros));
         setMetodologia(metodo.data);
-        // No auto-seleccionar: el usuario debe elegir facultad y carrera
+
       })
       .catch((e) => alive && setError(e.message))
       .finally(() => alive && setLoading(false));
@@ -459,7 +459,7 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
 
   const handleFacultad = (value: string) => {
     setFacultad(value);
-    setCarrera(''); // limpiar carrera al cambiar facultad
+    setCarrera('');
     setInforme(null);
   };
 
@@ -477,7 +477,7 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
     <div className="min-h-full overflow-x-hidden p-4 md:p-6" style={{ background: bg }}>
       <div className="mx-auto max-w-[1500px] space-y-5">
 
-        {/* Tabs de navegación */}
+
         <div className="flex flex-wrap items-center gap-2">
           {[
             { key: 'metodologia', label: 'Como se elaboraron', icon: Lightbulb },
@@ -502,10 +502,10 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
           )}
         </div>
 
-        {/* ── TABS: INFORME / METODOLOGIA ───────────────────────────────── */}
+
         {(
           <>
-            {/* Header y selector solo en tab informe */}
+
             {tab === 'informe' && (
               <>
                 <header className="rounded-xl border border-slate-200 bg-[#002D72] p-5 text-white shadow-sm">
@@ -553,7 +553,7 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
                       </select>
                     </label>
 
-                    {/* Botón Exportar informe con dropdown */}
+
                     <div className="flex flex-col gap-1">
                       <div ref={exportBtnRef} className="relative">
                         <button

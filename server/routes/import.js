@@ -1,5 +1,5 @@
 import { serverError } from '../middleware/errorHandler.js';
-// server/routes/import.js — Importación masiva de señales desde Excel
+
 import { Router }     from 'express';
 import multer         from 'multer';
 import xlsx           from 'xlsx';
@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 import db             from '../db.js';
 import { sanitizeRichHtml, validateExcelUpload } from '../utils/security.js';
 
-// Lista canónica de países válidos
+
 const COUNTRIES = [
   'Afganistán','Albania','Alemania','Andorra','Angola','Antigua y Barbuda',
   'Arabia Saudita','Argelia','Argentina','Armenia','Australia','Austria',
@@ -42,16 +42,16 @@ const COUNTRIES = [
   'Trinidad y Tobago','Túnez','Turkmenistán','Turquía','Tuvalu',
   'Ucrania','Uganda','Uruguay','Uzbekistán','Vanuatu','Venezuela',
   'Vietnam','Yemen','Yibuti','Zambia','Zimbabue',
-  // Regiones globales existentes
+
   'Global','Europa','América Latina','Asia Pacífico','Oriente Medio','África Subsahariana',
-  // Regiones adicionales
+
   'Palestina','Caribe','África','África Oriental','África Austral','Norte de África',
   'Sudeste Asiático','Asia Central','Asia del Sur','Asia del Sudeste','Asia-Pacífico',
   'Medio Oriente','América del Norte','América del Sur','América Central',
   'Oceanía','Europa del Este','Europa Occidental',
 ];
 
-/** Quita tildes/diacríticos y pasa a minúsculas para comparación flexible */
+
 const stripAccents = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
 async function findDuplicateTitleOrName(table, idColumn, titleColumn, nameColumn, titulo, nombre) {
@@ -66,11 +66,11 @@ async function findDuplicateTitleOrName(table, idColumn, titleColumn, nameColumn
   return dup || null;
 }
 
-// Mapas de lookup
+
 const COUNTRIES_MAP      = new Map(COUNTRIES.map(c => [c.normalize('NFC').toLowerCase(), c]));
 const COUNTRIES_STRIPPED = new Map(COUNTRIES.map(c => [stripAccents(c), c]));
 
-// Alias en inglés o variantes comunes → nombre canónico en español
+
 const COUNTRY_ALIASES = new Map([
   ['united states','Estados Unidos'],['usa','Estados Unidos'],['us','Estados Unidos'],
   ['u.s.','Estados Unidos'],['u.s.a.','Estados Unidos'],
@@ -85,7 +85,7 @@ const COUNTRY_ALIASES = new Map([
   ['africa','África'],['europa','Europa'],['global','Global'],
 ]);
 
-// Aliases PESTEL: nombres alternativos → nombre canónico de la BD
+
 const PESTEL_ALIASES = new Map([
   ['energía','Ecológico'],   ['energia','Ecológico'],
   ['medio ambiente','Ecológico'], ['medioambiente','Ecológico'], ['ambiental','Ecológico'],
@@ -97,7 +97,7 @@ const PESTEL_ALIASES = new Map([
   ['legal','Legal'], ['regulatorio','Legal'], ['normativo','Legal'],
 ]);
 
-// Frases que indican "sin país determinado" → se ignoran silenciosamente (sin aviso)
+
 const SKIP_PHRASES = new Set([
   'no determinable desde la fuente','no determinable','nd','n/a','na',
   'sin informacion','sin información','no aplica','no aplica','desconocido',
@@ -105,22 +105,19 @@ const SKIP_PHRASES = new Set([
   'international','internacional',
 ]);
 
-/**
- * Fuzzy-resuelve un sector: exacto NFC → sin tildes → substring.
- * Ej: "Gobierno" → "Gobierno y Sector Público", "Medioambiente" → "Medio Ambiente"
- */
+
 function fuzzyResolveSector(token, sectorByName, sectorById) {
   if (!token) return null;
   if (/^\d+$/.test(token) && sectorById.has(token)) return token;
   const norm     = token.normalize('NFC').toLowerCase().trim();
   const stripped = stripAccents(token);
-  // 1. Coincidencia exacta NFC
+
   if (sectorByName[norm]) return sectorByName[norm];
-  // 2. Sin tildes exacto
+
   for (const [key, id] of Object.entries(sectorByName)) {
     if (stripAccents(key) === stripped) return id;
   }
-  // 3. Substring: "Gobierno" ⊆ "Gobierno y Sector Público"
+
   for (const [key, id] of Object.entries(sectorByName)) {
     const ks = stripAccents(key);
     if (ks.includes(stripped) || stripped.includes(ks)) return id;
@@ -128,8 +125,7 @@ function fuzzyResolveSector(token, sectorByName, sectorById) {
   return null;
 }
 
-/** Resuelve pais_origen: acepta valor único o multi-valor separado por ; o /
- *  Retorna el nombre canónico, null si no se encuentra, o '__skip__' si es frase ignorable */
+
 function resolvePais(val) {
   if (!val) return null;
   const parts = val.split(/\s*[;/]\s*/).map(p => p.trim()).filter(Boolean);
@@ -137,23 +133,20 @@ function resolvePais(val) {
   for (const part of parts) {
     const nfcKey      = part.normalize('NFC').toLowerCase().trim();
     const strippedKey = stripAccents(part);
-    // ¿Frase ignorable?
+
     if (SKIP_PHRASES.has(nfcKey) || SKIP_PHRASES.has(strippedKey)) continue;
     allSkip = false;
-    // 1. Coincidencia exacta NFC
+
     if (COUNTRIES_MAP.has(nfcKey))      return COUNTRIES_MAP.get(nfcKey);
-    // 2. Coincidencia sin tildes
+
     if (COUNTRIES_STRIPPED.has(strippedKey)) return COUNTRIES_STRIPPED.get(strippedKey);
-    // 3. Alias inglés/variantes
+
     if (COUNTRY_ALIASES.has(strippedKey))    return COUNTRY_ALIASES.get(strippedKey);
   }
   return allSkip ? '__skip__' : null;
 }
 
-/**
- * Resuelve un nombre de tópico: lo crea en el catálogo si no existe,
- * y devuelve su id_topico. Retorna null si el nombre está vacío.
- */
+
 async function resolveTopico(nombre) {
   if (!nombre?.trim()) return null;
   const n = nombre.trim();
@@ -165,24 +158,20 @@ async function resolveTopico(nombre) {
 const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits:  { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits:  { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const error = validateExcelUpload(file);
     cb(error ? new Error(error) : null, !error);
   },
 });
 
-/** Capitaliza la primera letra de un string y deja el resto tal cual. */
+
 function capitalizeFirst(str) {
   if (!str) return str;
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-/**
- * Normaliza la primera palabra de un título de tendencia al infinitivo.
- * Convierte gerundios y formas conjugadas comunes → infinitivo español.
- * Ejemplos: "mejorando" → "mejorar", "creciendo" → "crecer", "expandirá" → "expandir"
- */
+
 function normalizeVerbInfinitive(titulo) {
   if (!titulo) return titulo;
   const words = titulo.split(' ');
@@ -190,19 +179,19 @@ function normalizeVerbInfinitive(titulo) {
   const low = first.toLowerCase();
   let stem, suffix;
 
-  // Gerundios: -ando → -ar (verbos -ar), -iendo → -er (verbos -er/-ir)
+
   if (low.endsWith('ando')) {
     stem = low.slice(0, -4); suffix = 'ar';
   } else if (low.endsWith('iendo')) {
-    // Casos -ir: vivir, seguir, servir, etc. — difícil sin diccionario; defaulteamos -er
-    // Excepción: si el stem termina en 'u' precedido de consonante → -ir (construir, huir)
+
+
     const s = low.slice(0, -5);
     stem = s; suffix = s.endsWith('u') ? 'ir' : 'er';
   } else if (low.endsWith('yendo')) {
-    // ir → yendo; huir → huyendo
+
     stem = low.slice(0, -5); suffix = stem.length === 0 ? 'ir' : 'ir';
   }
-  // Futuro: -ará → -ar, -erá → -er, -irá → -ir
+
   else if (low.endsWith('ará') || low.endsWith('ara')) {
     stem = low.slice(0, -3); suffix = 'ar';
   } else if (low.endsWith('erá') || low.endsWith('era')) {
@@ -210,16 +199,16 @@ function normalizeVerbInfinitive(titulo) {
   } else if (low.endsWith('irá') || low.endsWith('ira')) {
     stem = low.slice(0, -3); suffix = 'ir';
   }
-  // Participios: -ado → -ar, -ido → -ir/-er
+
   else if (low.endsWith('ado')) {
     stem = low.slice(0, -3); suffix = 'ar';
   } else if (low.endsWith('ido')) {
     stem = low.slice(0, -3); suffix = 'ir';
   }
 
-  if (!stem && stem !== '') return titulo; // no hubo match
+  if (!stem && stem !== '') return titulo;
   const infinitive = stem + suffix;
-  // Capitalizar primera letra
+
   const normalized = infinitive.charAt(0).toUpperCase() + infinitive.slice(1);
   return [normalized, ...words.slice(1)].join(' ');
 }
@@ -233,11 +222,11 @@ function requireRole(...roles) {
 }
 const adminOnly = requireRole('admin', 'analista');
 
-/** Parsea un valor a fecha YYYY-MM-DD, devuelve null si inválido */
+
 function parseDate(val) {
   if (!val) return null;
   if (val instanceof Date) return isNaN(val.getTime()) ? null : val.toISOString().slice(0, 10);
-  // Excel serial number
+
   if (typeof val === 'number') {
     const d = xlsx.SSF.parse_date_code(val);
     if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
@@ -246,22 +235,22 @@ function parseDate(val) {
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
-// ─── POST /api/admin/senales/import ────────────────────────
+
 router.post('/admin/senales/import', adminOnly, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo.' });
 
   try {
-    // ── 1. Parsear Excel ──────────────────────────────────
+
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
     const sheet    = workbook.Sheets[workbook.SheetNames[0]];
-    // Normalizar claves: quitar espacios accidentales en los encabezados
+
     const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' })
       .map(row => Object.fromEntries(Object.entries(row).map(([k, v]) => [k.trim(), v])));
 
     if (rows.length === 0)
       return res.status(400).json({ error: 'El archivo no contiene filas de datos.' });
 
-    // ── 2. Cargar catálogos para lookup por nombre o por ID ──
+
     const [pestels] = await db.query('SELECT id_pestel, nombre_pestel FROM pestel WHERE activo = 1');
     const [sectors] = await db.query('SELECT id_sector, nombre_sector FROM sector WHERE activo = 1');
 
@@ -277,7 +266,7 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
     );
     const sectorById = new Set(sectors.map(s => String(s.id_sector)));
 
-    /** Resuelve un token a su ID: numérico directo → nombre exacto → alias PESTEL */
+
     const resolvePestel = token => {
       if (/^\d+$/.test(token) && pestelById.has(token)) return Number(token);
       const direct = pestelByName[normalize(token)];
@@ -287,24 +276,24 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
     };
     const resolveSector = token => fuzzyResolveSector(token, sectorByName, sectorById);
 
-    // ── 3. Procesar filas ─────────────────────────────────
+
     let imported = 0;
     const errors   = [];
     const warnings = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row    = rows[i];
-      const rowNum = i + 2; // fila 1 = cabecera, fila 2 = primera de datos
+      const rowNum = i + 2;
 
       try {
-        // Campos obligatorios
+
         const titulo   = String(row.titulo_senal   || '').trim();
         const descCorta = String(row.desc_corta_senal || '').trim();
 
         if (!titulo)    { errors.push({ fila: rowNum, error: 'titulo_senal es obligatorio' });    continue; }
         if (!descCorta) { errors.push({ fila: rowNum, error: 'desc_corta_senal es obligatorio' }); continue; }
 
-        // Campos opcionales
+
         const nombre      = capitalizeFirst(String(row.nombre_senal || titulo).trim()).slice(0, 180);
         const descLargaRaw = String(row.desc_larga_senal || '').trim();
       const descLarga   = sanitizeRichHtml(descLargaRaw.slice(0, 10000)) || null;
@@ -358,7 +347,7 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
           ]
         );
 
-        // ── PESTEL (IDs numéricos o nombres, separados por ; o ,) ──
+
         const pestelRaw = String(row.id_pestel || row.pestel || row.nombre_pestel || '').trim();
         if (pestelRaw) {
           const tokens = pestelRaw.split(/[;,]/).map(n => n.trim()).filter(Boolean);
@@ -374,7 +363,7 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
           }
         }
 
-        // ── Sectores (IDs numéricos o nombres, separados por ; o ,) ──
+
         const sectorRaw = String(row.id_sector || row.sector || '').trim();
         if (sectorRaw) {
           const tokens = sectorRaw.split(/[;,]/).map(n => n.trim()).filter(Boolean);
@@ -404,7 +393,7 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
   }
 });
 
-// ─── POST /api/admin/tendencias/import ─────────────────────
+
 router.post('/admin/tendencias/import', adminOnly, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo.' });
 
@@ -457,7 +446,7 @@ router.post('/admin/tendencias/import', adminOnly, upload.single('file'), async 
           else warnings.push({ fila: rowNum, aviso: `pais_origen "${paisRaw}" no está en la lista de países, se ignoró` });
         }
         const logica     = String(row.logica                || '').trim() || null;
-        // Tópico principal (1) + tópicos relacionados (N, separados por ;)
+
         const topicoPrincipalNombre = String(row.topico_principal || '').trim() || null;
         const idTopicoPrincipal = await resolveTopico(topicoPrincipalNombre);
         const topicoRelacRaw = String(row.topico_relacionado || '').trim();
@@ -501,7 +490,7 @@ router.post('/admin/tendencias/import', adminOnly, upload.single('file'), async 
             else warnings.push({ fila: rowNum, aviso: `Sector "${t}" no encontrado, se ignoró` });
           }
         }
-        // Tópicos relacionados
+
         if (topicoRelacRaw) {
           for (const tn of topicoRelacRaw.split(/\s*;\s*/).map(t => t.trim()).filter(Boolean)) {
             const rid = await resolveTopico(tn);
@@ -522,7 +511,7 @@ router.post('/admin/tendencias/import', adminOnly, upload.single('file'), async 
   }
 });
 
-// ─── POST /api/admin/escenarios/import ─────────────────────
+
 router.post('/admin/escenarios/import', adminOnly, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo.' });
 
@@ -565,7 +554,7 @@ router.post('/admin/escenarios/import', adminOnly, upload.single('file'), async 
         const descLargaRaw = String(row.desc_larga_escenario || '').trim();
       const descLarga  = sanitizeRichHtml(descLargaRaw.slice(0, 10000)) || null;
         const fuente     = String(row.fuente_escenario      || '').trim() || null;
-        // url_fuente puede tener múltiples URLs separadas por ; → se almacena como JSON array
+
         const urlFuenteRaw = String(row.url_fuente || '').trim();
         const urlFuenteArr = urlFuenteRaw ? urlFuenteRaw.split(/\s*;\s*/).map(u => u.trim()).filter(Boolean) : [];
         const urlFuente  = urlFuenteArr.length ? JSON.stringify(urlFuenteArr) : null;
@@ -635,8 +624,7 @@ router.post('/admin/escenarios/import', adminOnly, upload.single('file'), async 
   }
 });
 
-// ─── POST /api/admin/relaciones/import ─────────────────────
-// Excel con columnas: origen_tipo, origen_nombre, destino_tipo, destino_nombre
+
 router.post('/admin/relaciones/import', adminOnly, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo.' });
   try {
@@ -649,10 +637,10 @@ router.post('/admin/relaciones/import', adminOnly, upload.single('file'), async 
     if (rows.length === 0)
       return res.status(400).json({ error: 'La hoja no contiene filas de datos.' });
 
-    /** Normaliza tipo: quita tildes para que "señal" → "senal" */
+
     const normalizeType = t => stripAccents(t.toLowerCase().trim());
 
-    /** Resuelve nombre → id: prueba exact, luego truncado a 100 chars, luego LIKE */
+
     async function resolveItem(tipo, nombre) {
       if (!nombre?.trim()) return null;
       const n = nombre.trim();
@@ -663,15 +651,15 @@ router.post('/admin/relaciones/import', adminOnly, upload.single('file'), async 
       };
       const m = map[tipo];
       if (!m) return null;
-      // 1. Coincidencia exacta
+
       const [[r1]] = await db.query(`SELECT ${m[1]} AS id FROM ${m[0]} WHERE ${m[2]} = ?`, [n]);
       if (r1?.id) return r1.id;
-      // 2. Nombre truncado a 180 chars (pudo haberse recortado al importar)
+
       if (n.length > 180) {
         const [[r2]] = await db.query(`SELECT ${m[1]} AS id FROM ${m[0]} WHERE ${m[2]} = ?`, [n.slice(0, 180)]);
         if (r2?.id) return r2.id;
       }
-      // 3. LIKE con los primeros 170 chars (por si el nombre en BD fue truncado)
+
       const [[r3]] = await db.query(`SELECT ${m[1]} AS id FROM ${m[0]} WHERE ${m[2]} LIKE ?`, [n.slice(0, 170) + '%']);
       return r3?.id ?? null;
     }
@@ -687,7 +675,7 @@ router.post('/admin/relaciones/import', adminOnly, upload.single('file'), async 
         const destinoTipo    = normalizeType(String(row.destino_tipo   || ''));
         const destinoNombres = String(row.destino_nombre || '').split(';').map(s => s.trim()).filter(Boolean);
 
-        // Fila completamente vacía → saltar silenciosamente
+
         if (!origenTipo && !origenNombre && !destinoTipo && destinoNombres.length === 0) continue;
         if (!origenTipo || !origenNombre || !destinoTipo || destinoNombres.length === 0) {
           errors.push({ fila: rowNum, error: 'Faltan columnas obligatorias: origen_tipo, origen_nombre, destino_tipo, destino_nombre' });
@@ -705,7 +693,7 @@ router.post('/admin/relaciones/import', adminOnly, upload.single('file'), async 
           const destinoId = await resolveItem(destinoTipo, destNombre);
           if (!destinoId) { warnings.push({ fila: rowNum, aviso: `No se encontró ${destinoTipo} con nombre "${destNombre}"` }); continue; }
 
-          // Determinar tabla puente (ordenada canónicamente: senal < tendencia < escenario)
+
           const pair = [origenTipo, destinoTipo].sort().join('_');
           if (pair === 'senal_tendencia') {
             const senId  = origenTipo === 'senal'     ? origenId : destinoId;

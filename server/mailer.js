@@ -1,4 +1,4 @@
-// server/mailer.js — Servicio de envío de correos (Nodemailer + Gmail SMTP)
+
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -7,7 +7,7 @@ import { dirname, join }  from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, '../.env') });
 
-// Crea el transporter solo si las credenciales están configuradas
+
 function createTransporter() {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
@@ -60,12 +60,7 @@ async function sendWithResend({ to, html, text }) {
   return true;
 }
 
-/**
- * Envía el correo con el código OTP de 6 dígitos.
- * Si SMTP no está configurado, imprime el código en consola (modo desarrollo).
- *
- * @param {{ to: string, nombre: string, otp: string }} opts
- */
+
 export async function sendOtpEmail({ to, nombre, otp }) {
   const transporter = createTransporter();
 
@@ -75,7 +70,7 @@ export async function sendOtpEmail({ to, nombre, otp }) {
     return;
   }
 
-  // Formatear el código con espacios para mejor legibilidad: 123 456
+
   const otpFormatted = `${otp.slice(0, 3)} ${otp.slice(3)}`;
 
   const html = `
@@ -88,7 +83,6 @@ export async function sendOtpEmail({ to, nombre, otp }) {
         <table width="560" cellpadding="0" cellspacing="0"
           style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
 
-          <!-- Header azul -->
           <tr>
             <td style="background:#0045ad;padding:32px 40px;text-align:center;">
               <p style="margin:0;color:rgba(255,255,255,0.7);font-size:11px;
@@ -102,7 +96,6 @@ export async function sendOtpEmail({ to, nombre, otp }) {
             </td>
           </tr>
 
-          <!-- Cuerpo -->
           <tr>
             <td style="padding:40px;">
               <h2 style="margin:0 0 8px;color:#0f172a;font-size:20px;font-weight:700;">
@@ -113,7 +106,6 @@ export async function sendOtpEmail({ to, nombre, otp }) {
                 Ingresa el siguiente código de 6 dígitos en la plataforma:
               </p>
 
-              <!-- Código OTP destacado -->
               <table cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td align="center" style="padding:8px 0 32px;">
@@ -132,7 +124,6 @@ export async function sendOtpEmail({ to, nombre, otp }) {
                 </tr>
               </table>
 
-              <!-- Info box -->
               <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;
                            padding:16px 20px;margin-bottom:24px;">
                 <p style="margin:0 0 4px;color:#92400e;font-size:14px;font-weight:700;">
@@ -149,7 +140,6 @@ export async function sendOtpEmail({ to, nombre, otp }) {
             </td>
           </tr>
 
-          <!-- Footer -->
           <tr>
             <td style="background:#f8fafc;border-top:1px solid #e2e8f0;
                         padding:20px 40px;text-align:center;">

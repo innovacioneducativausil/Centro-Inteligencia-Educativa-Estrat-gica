@@ -1,4 +1,4 @@
-// constants.tsx
+
 import { Sector } from './types';
 import type { ThemeColors, Signal } from './types';
 
@@ -33,9 +33,7 @@ export const BRAND_COLORS = {
   label: '#B9B9B9',
 } as const;
 
-/**
- * THEMES: Debe cumplir todas las llaves de ThemeColors (según tu types.ts).
- */
+
 export const THEMES: Record<'light' | 'dark', ThemeColors> = {
   light: {
     bg: 'bg-[#F9F9F9]',
@@ -91,9 +89,7 @@ export const THEMES: Record<'light' | 'dark', ThemeColors> = {
   }
 };
 
-/**
- * KPI_DATA: Dashboard lo usa para mostrar tarjetas KPI con mini chart.
- */
+
 export const KPI_DATA = {
   newSignals: {
     value: 12,
@@ -117,10 +113,7 @@ export const KPI_DATA = {
   }
 };
 
-/**
- * BUBBLE_CHART_DATA: Dashboard lo usa en el ScatterChart.
- * Importante: id, urgency, maturity, impact (y tu Dashboard usa urgency/maturity/impact).
- */
+
 export const BUBBLE_CHART_DATA = [
   { id: 1, urgency: 72, maturity: 40, impact: 88 },
   { id: 2, urgency: 55, maturity: 62, impact: 78 },
@@ -129,10 +122,7 @@ export const BUBBLE_CHART_DATA = [
   { id: 5, urgency: 84, maturity: 55, impact: 86 }
 ];
 
-/**
- * CATEGORY_STYLES: Dashboard usa CATEGORY_STYLES[selectedSignal.category]
- * Colores actualizados para buen contraste en modo claro y oscuro.
- */
+
 export const CATEGORY_STYLES: Record<string, string> = {
   Default:          'bg-slate-500/10  border-slate-400/40  text-slate-600',
   Tecnología:       'bg-sky-500/10    border-sky-400/40    text-sky-700',
@@ -152,10 +142,7 @@ export const CATEGORY_STYLES: Record<string, string> = {
   'Tendencia Social':'bg-teal-500/10  border-teal-400/40   text-teal-700',
 };
 
-/**
- * SIGNALS_DATA: ahora SÍ cumple tu interfaz Signal completa (types.ts).
- * Nota: valores placeholder, pero tipados correctamente.
- */
+
 export const SIGNALS_DATA: Signal[] = [
   {
     id: 1,
@@ -201,19 +188,14 @@ export const SIGNALS_DATA: Signal[] = [
   }
 ];
 
-/**
- * USIL_CAREERS_DATA: lo importa EmpleabilidadView.tsx.
- * Como no pegaste EmpleabilidadView todavía, dejo estructura simple.
- */
+
 export const USIL_CAREERS_DATA = [
   { career: 'Ingeniería de Software', employabilityIndex: 0.78, demand: 'Alta', notes: 'Placeholder' },
   { career: 'Ingeniería Industrial', employabilityIndex: 0.71, demand: 'Media', notes: 'Placeholder' },
   { career: 'Medicina', employabilityIndex: 0.82, demand: 'Alta', notes: 'Placeholder' }
 ];
 
-/**
- * CURRICULUM_DATA: lo importa ImpactosView.tsx.
- */
+
 export const CURRICULUM_DATA = [
   { course: 'Algoritmos', semester: 3, skills: ['Estructuras de datos', 'Complejidad'] },
   { course: 'Bases de Datos', semester: 4, skills: ['Modelado', 'SQL', 'Normalización'] },

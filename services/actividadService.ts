@@ -1,4 +1,4 @@
-// services/actividadService.ts — Registra eventos de actividad (fire-and-forget).
+
 export function logActividad(
   evento: string,
   opts: {
@@ -14,5 +14,5 @@ export function logActividad(
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({ evento, ...opts }),
-  }).catch(() => {}); // nunca bloquear la UI por un fallo de logging
+  }).catch(() => {});
 }

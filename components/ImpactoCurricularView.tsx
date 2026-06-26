@@ -1,4 +1,4 @@
-// components/ImpactoCurricularView.tsx
+
 import React, { useCallback, useEffect, useState } from 'react';
 import { ThemeColors } from '../types';
 
@@ -100,6 +100,12 @@ const MODULO_BADGE: Record<string, { bg: string; text: string }> = {
   empleabilidad:  { bg: '#dcfce7', text: '#166534' },
   mercado_laboral:{ bg: '#ffedd5', text: '#9a3412' },
   benchmarking:   { bg: '#f0fdf4', text: '#065f46' },
+};
+
+const normalizeKey = (value: unknown) => String(value ?? '').trim().toLowerCase();
+const formatBadgeText = (value: unknown, fallback = 'Sin clasificar') => {
+  const text = String(value ?? '').trim();
+  return text ? text.replace(/_/g, ' ') : fallback;
 };
 
 async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
@@ -220,7 +226,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
   return (
     <div style={{ color: text, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-      {/* Header y controles */}
+
       <div style={{ background: USIL, borderRadius: 10, padding: '14px 18px', color: '#fff',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div>
@@ -256,7 +262,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
         </div>
       </div>
 
-      {/* Panel de pesos */}
+
       {showPesos && (
         <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: '14px 18px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: USIL, marginBottom: 10 }}>
@@ -291,7 +297,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
         </div>
       )}
 
-      {/* KPI cards */}
+
       {kpis && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10 }}>
           {[
@@ -313,7 +319,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
         </div>
       )}
 
-      {/* Tabs: Impactos | Brechas | Propuestas */}
+
       <div style={{ display: 'flex', gap: 4, borderBottom: `2px solid ${border}`, paddingBottom: 0 }}>
         {([
           { key: 'impactos',   label: `Impactos (${impactos.length})` },
@@ -330,13 +336,13 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
         {loading && <span style={{ marginLeft: 8, fontSize: 10, color: muted, alignSelf: 'center' }}>Cargando...</span>}
       </div>
 
-      {/* Panel de dos columnas: lista + evidencias */}
+
       <div style={{ display: 'grid', gridTemplateColumns: selectedImpacto ? '1fr 320px' : '1fr', gap: 12, alignItems: 'start' }}>
 
-        {/* Lista principal */}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
-          {/* TAB: IMPACTOS */}
+
           {tab === 'impactos' && (
             impactos.length === 0 ? (
               <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`,
@@ -379,7 +385,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
             })
           )}
 
-          {/* TAB: BRECHAS */}
+
           {tab === 'brechas' && (
             brechas.length === 0 ? (
               <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`,
@@ -387,7 +393,8 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
                 {loading ? 'Cargando...' : 'Sin brechas detectadas.'}
               </div>
             ) : brechas.map(b => {
-              const cfg = PRIORIDAD_BADGE[b.prioridad] ?? PRIORIDAD_BADGE.media;
+              const prioridad = normalizeKey(b.prioridad) || 'media';
+              const cfg = PRIORIDAD_BADGE[prioridad] ?? PRIORIDAD_BADGE.media;
               return (
                 <div key={b.id_brecha}
                   onClick={() => loadEvidencias(b.id_impacto)}
@@ -398,14 +405,16 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
                       <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 8,
                           background: cfg.bg, color: cfg.text }}>
-                          {b.prioridad.toUpperCase()}
+                          {formatBadgeText(prioridad, 'media').toUpperCase()}
                         </span>
                         <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 8,
                           background: '#f3f4f6', color: '#374151' }}>
-                          {b.tipo_brecha.replace(/_/g, ' ')}
+                          {formatBadgeText(b.tipo_brecha)}
                         </span>
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{b.descripcion_brecha}</div>
+                      <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>
+                        {b.descripcion_brecha || 'Brecha detectada sin descripción registrada.'}
+                      </div>
                       {b.competencia_afectada && (
                         <div style={{ fontSize: 11, color: muted }}>Competencia: {b.competencia_afectada}</div>
                       )}
@@ -426,7 +435,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
             })
           )}
 
-          {/* TAB: PROPUESTAS */}
+
           {tab === 'propuestas' && (
             propuestas.length === 0 ? (
               <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`,
@@ -511,7 +520,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
           )}
         </div>
 
-        {/* Panel de evidencias */}
+
         {selectedImpacto && (
           <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden',
             position: 'sticky', top: 10 }}>
@@ -572,7 +581,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
         )}
       </div>
 
-      {/* Modal: observación */}
+
       {showObs && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100,
           display: 'flex', alignItems: 'center', justifyContent: 'center' }}
