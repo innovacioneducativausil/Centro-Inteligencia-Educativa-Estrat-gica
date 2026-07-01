@@ -41,6 +41,23 @@ const EMPTY = {
   password: '',
 };
 
+async function requestJson(url: string, init?: RequestInit) {
+  try {
+    const res = await fetch(url, init);
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  } catch (err) {
+    await new Promise(resolve => window.setTimeout(resolve, 900));
+    try {
+      const res = await fetch(url, init);
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
+    } catch {
+      throw new Error('No se pudo conectar con la API. Espera unos segundos y vuelve a guardar.');
+    }
+  }
+}
+
 const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, onVolver }) => {
   const isDark = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
   const [rows, setRows] = useState<UserRow[]>([]);
@@ -63,8 +80,7 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
       if (q) params.set('q', q);
       if (rol) params.set('rol', rol);
       if (estado) params.set('estado', estado);
-      const res = await fetch(`/api/admin/usuarios?${params}`, { credentials: 'include' });
-      const data = await res.json();
+      const { res, data } = await requestJson(`/api/admin/usuarios?${params}`, { credentials: 'include' });
       if (!res.ok) throw new Error(data.error || 'Error al cargar usuarios.');
       setRows(data.data || []);
     } catch (err) {
@@ -83,13 +99,12 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
     setSaveMessage(null);
     setTempPassword(null);
     try {
-      const res = await fetch('/api/admin/usuarios', {
+      const { res, data } = await requestJson('/api/admin/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(form),
       });
-      const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo crear el usuario.');
       setForm(EMPTY);
       setSaveMessage({ type: 'ok', text: 'Usuario creado y guardado en la BD.' });
@@ -109,7 +124,7 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
     setSavingUserId(user.id);
     try {
       const next = { ...user, ...changes };
-      const res = await fetch(`/api/admin/usuarios/${user.id}`, {
+      const { res, data } = await requestJson(`/api/admin/usuarios/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -121,7 +136,6 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
           modulosPermitidos: next.modulosPermitidos,
         }),
       });
-      const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo actualizar.');
       setRows(prev => prev.map(r => r.id === user.id ? data.user : r));
       setSaveMessage({ type: 'ok', text: `Cambios guardados en la BD para ${data.user.correo}.` });
@@ -139,11 +153,10 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
     setError(null);
     setSaveMessage(null);
     try {
-      const res = await fetch(`/api/admin/usuarios/${user.id}/reset-password`, {
+      const { res, data } = await requestJson(`/api/admin/usuarios/${user.id}/reset-password`, {
         method: 'POST',
         credentials: 'include',
       });
-      const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo resetear.');
       setTempPassword(`${user.correo}: ${data.tempPassword}`);
       setSaveMessage({ type: 'ok', text: `Contrasena temporal guardada para ${user.correo}.` });
