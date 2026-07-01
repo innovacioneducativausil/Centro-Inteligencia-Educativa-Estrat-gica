@@ -20,6 +20,7 @@ interface UserRow {
 }
 
 const ROLES = ['usuario', 'lector', 'analista', 'editor'];
+const EDIT_ROLES = ['admin', ...ROLES];
 
 const EMPTY = {
   nombre: '',
@@ -137,7 +138,7 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
             Usuarios y Accesos
           </h2>
           <p style={{ fontSize: 12, color: '#94a3b8' }}>
-            Gestion de usuarios no administradores. Los cambios quedan guardados en la BD actual y auditados en Monitor.
+            Gestion de usuarios y accesos. Los cambios quedan guardados en la BD actual y auditados en Monitor.
           </p>
         </div>
         {onVolver && (
@@ -208,8 +209,7 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
                     <td style={{ padding: 12, color: isDark ? '#cbd5e1' : '#334155', fontWeight: 600 }}>{user.correo}</td>
                     <td style={{ padding: 12 }}>
                       <select className={inputCls} disabled={!user.gestionable} value={user.rol} onChange={e => updateUser(user, { rol: e.target.value })}>
-                        {user.rol === 'admin' && <option value="admin">admin</option>}
-                        {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                        {EDIT_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </td>
                     <td style={{ padding: 12 }}>

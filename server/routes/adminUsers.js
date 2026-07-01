@@ -6,6 +6,7 @@ import { auditEvent } from '../services/auditService.js';
 
 const router = Router();
 const MANAGED_ROLES = new Set(['usuario', 'lector', 'analista', 'editor']);
+const EDITABLE_ROLES = new Set(['admin', 'usuario', 'lector', 'analista', 'editor']);
 
 function adminOnly(req, res, next) {
   if (req.user?.rol !== 'admin') {
@@ -41,7 +42,7 @@ function safeUser(row) {
     passwordChangedAt: row.password_changed_at,
     failedLoginAttempts: Number(row.failed_login_attempts || 0),
     lockedUntil: row.locked_until,
-    gestionable: MANAGED_ROLES.has(row.rol),
+    gestionable: EDITABLE_ROLES.has(row.rol),
   };
 }
 
@@ -145,17 +146,13 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
     const { id } = req.params;
     const [[existing]] = await db.query('SELECT id_usuario, correo_usuario, rol FROM usuario WHERE id_usuario = ? LIMIT 1', [id]);
     if (!existing) return res.status(404).json({ error: 'Usuario no encontrado.' });
-    if (!MANAGED_ROLES.has(existing.rol)) {
-      return res.status(403).json({ error: 'Los administradores no se gestionan desde esta consola.' });
-    }
-
     const nombre = String(req.body.nombre || '').trim();
     const nombreCorto = String(req.body.nombreCorto || nombre.split(' ')[0] || '').trim();
     const rol = String(req.body.rol || existing.rol).trim();
     const activo = req.body.activo === true || req.body.activo === 1;
 
     if (!nombre) return res.status(400).json({ error: 'Nombre es requerido.' });
-    if (!MANAGED_ROLES.has(rol)) return res.status(400).json({ error: 'Rol no permitido.' });
+    if (!EDITABLE_ROLES.has(rol)) return res.status(400).json({ error: 'Rol no permitido.' });
 
     await db.query(
       `UPDATE usuario
@@ -194,10 +191,6 @@ router.post('/admin/usuarios/:id/reset-password', adminOnly, async (req, res) =>
     const { id } = req.params;
     const [[existing]] = await db.query('SELECT id_usuario, correo_usuario, rol FROM usuario WHERE id_usuario = ? LIMIT 1', [id]);
     if (!existing) return res.status(404).json({ error: 'Usuario no encontrado.' });
-    if (!MANAGED_ROLES.has(existing.rol)) {
-      return res.status(403).json({ error: 'Los administradores no se gestionan desde esta consola.' });
-    }
-
     const tempPassword = `Usil${randomInt(100000, 999999)}!`;
     const hash = await bcrypt.hash(tempPassword, 10);
     await db.query(
