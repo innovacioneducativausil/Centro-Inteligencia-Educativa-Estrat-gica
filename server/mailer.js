@@ -67,7 +67,7 @@ export async function sendOtpEmail({ to, nombre, otp }) {
   if (!transporter) {
     console.warn('\n⚠️  [MAILER] SMTP no configurado. Configura SMTP_USER y SMTP_PASS en .env');
     console.warn(`   OTP para ${to}: ${otp}\n`);
-    return;
+    return { fallback: true };
   }
 
 
@@ -171,8 +171,10 @@ export async function sendOtpEmail({ to, nombre, otp }) {
 
   } catch (err) {
     console.error(`[MAILER] No se pudo enviar OTP a ${to}:`, err.message);
-    throw new Error('No se pudo enviar el codigo OTP. Verifica la configuracion SMTP.');
+    console.warn(`[MAILER] Fallback OTP para ${to}: ${otp}`);
+    return { fallback: true };
   }
 
   console.log(`[MAILER] ✉️  OTP enviado a: ${to}`);
+  return { sent: true };
 }
