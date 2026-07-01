@@ -147,12 +147,28 @@ app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 app.use(globalErrorHandler);
 
 
-ensureArchiveSupport()
-  .then(() => ensureRadarSchemaSupport())
-  .then(() => ensureActividadSupport())
-  .then(() => runUserMigration())
-  .then(() => cleanupExpiredArchives())
-  .catch(err => console.error('[SCHEMA] No se pudo preparar soporte de esquema:', err.message));
+async function startServer() {
+  try {
+    await ensureArchiveSupport();
+    await ensureRadarSchemaSupport();
+    await ensureActividadSupport();
+    await runUserMigration();
+    await cleanupExpiredArchives();
+  } catch (err) {
+    console.error('[SCHEMA] No se pudo preparar soporte de esquema:', err.message);
+    process.exit(1);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`???? API corriendo en http://localhost:${PORT}`);
+    console.log(`   Health:       http://localhost:${PORT}/api/health`);
+    console.log(`   Se??ales:      http://localhost:${PORT}/api/senales`);
+    console.log(`   Tendencias:   http://localhost:${PORT}/api/tendencias`);
+    console.log(`   Escenarios:   http://localhost:${PORT}/api/escenarios`);
+    console.log(`   Estad??sticas: http://localhost:${PORT}/api/estadisticas`);
+    console.log(`   Papelera:      limpieza automatica a ${getArchiveRetentionDays()} dias`);
+  });
+}
 
 setInterval(() => {
   cleanupExpiredArchives().catch(err => {
@@ -160,12 +176,4 @@ setInterval(() => {
   });
 }, 24 * 60 * 60 * 1000);
 
-app.listen(PORT, () => {
-  console.log(`???? API corriendo en http://localhost:${PORT}`);
-  console.log(`   Health:       http://localhost:${PORT}/api/health`);
-  console.log(`   Se??ales:      http://localhost:${PORT}/api/senales`);
-  console.log(`   Tendencias:   http://localhost:${PORT}/api/tendencias`);
-  console.log(`   Escenarios:   http://localhost:${PORT}/api/escenarios`);
-  console.log(`   Estad??sticas: http://localhost:${PORT}/api/estadisticas`);
-  console.log(`   Papelera:      limpieza automatica a ${getArchiveRetentionDays()} dias`);
-});
+startServer();
