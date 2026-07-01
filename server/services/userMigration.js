@@ -4,8 +4,8 @@
 import db from '../db.js';
 
 
-const HASH_USUARIO2026 = '$2b$10$.uvMqDT.FrLCvDpQYrvAr.zL84/e0UPxti5nqKfwj86ugrUUB5wbW';
-const HASH_USIL_ADMIN_2026 = '$2b$10$x3pu2mItMxMq6kJKO/FqZ.ojLMhe8tTO3Zp.EM/0MBvicesjcjoiG';
+const HASH_USUARIO2026 = '$2b$10$TcGMVTczjVtjsCBGlNv2HeqBZZBm9ooqtz1pN2NOYSXRx5IYWPccC';
+const HASH_USIL_ADMIN_2026 = HASH_USUARIO2026;
 
 const USUARIOS_NUEVOS = [
   { id: '6d1a4b91-bbb9-4ff6-bcd0-62700b5fcc09', nombre: 'Paolo Tejada Pinto',       corto: 'Paolo',    correo: 'ptejada@usil.edu.pe'   },
