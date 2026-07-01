@@ -18,7 +18,7 @@ const USUARIOS_NUEVOS = [
 const USUARIOS_ADMIN = [
   { nombre: 'Krios Valverde', corto: 'Krios', correo: 'kriosv@usil.edu.pe' },
   { nombre: 'Wlimer Campos',  corto: 'Wlimer', correo: 'wcampos@usil.edu.pe' },
-  { nombre: 'M Montoya',      corto: 'M Montoya', correo: 'mmontoyar@usil.edu.pe' },
+  { nombre: 'Michael Montoya Ruiz', corto: 'Michael', correo: 'mmontoyar@usil.edu.pe' },
 ];
 
 const USUARIOS_SOLICITADOS = [
@@ -114,6 +114,12 @@ export async function runUserMigration() {
 
   await ensureUsuarioColumns();
   await normalizeAllUsers();
+  await db.query(
+    `UPDATE usuario
+        SET activo = 1, email_verificado = 1, failed_login_attempts = 0, locked_until = NULL,
+            fecha_actualizacion = NOW()
+      WHERE rol = 'admin'`
+  );
 
 
   try {

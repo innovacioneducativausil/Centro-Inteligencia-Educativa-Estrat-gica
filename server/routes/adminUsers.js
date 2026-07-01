@@ -144,7 +144,7 @@ router.post('/admin/usuarios', adminOnly, async (req, res) => {
 router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const [[existing]] = await db.query('SELECT id_usuario, correo_usuario, rol FROM usuario WHERE id_usuario = ? LIMIT 1', [id]);
+    const [[existing]] = await db.query('SELECT id_usuario, correo_usuario, rol, activo FROM usuario WHERE id_usuario = ? LIMIT 1', [id]);
     if (!existing) return res.status(404).json({ error: 'Usuario no encontrado.' });
     const nombre = String(req.body.nombre || '').trim();
     const nombreCorto = String(req.body.nombreCorto || nombre.split(' ')[0] || '').trim();
@@ -153,6 +153,12 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
 
     if (!nombre) return res.status(400).json({ error: 'Nombre es requerido.' });
     if (!EDITABLE_ROLES.has(rol)) return res.status(400).json({ error: 'Rol no permitido.' });
+    if (id === req.user.id && !activo) {
+      return res.status(400).json({ error: 'No puedes desactivar tu propia cuenta.' });
+    }
+    if (id === req.user.id && rol !== 'admin') {
+      return res.status(400).json({ error: 'No puedes quitarte el rol administrador a ti mismo.' });
+    }
 
     await db.query(
       `UPDATE usuario
