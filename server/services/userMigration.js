@@ -53,6 +53,44 @@ async function ensureUsuarioColumns() {
   }
 }
 
+async function normalizeAllUsers() {
+  await db.query(`
+    UPDATE usuario
+       SET correo_usuario = LOWER(TRIM(correo_usuario)),
+           nombre_corto = COALESCE(NULLIF(TRIM(nombre_corto), ''), SUBSTRING_INDEX(TRIM(nombre_usuario), ' ', 1)),
+           rol = CASE
+             WHEN rol IN ('admin', 'usuario', 'lector', 'analista', 'editor') THEN rol
+             ELSE 'usuario'
+           END,
+           activo = COALESCE(activo, 1),
+           email_verificado = COALESCE(email_verificado, 1),
+           failed_login_attempts = COALESCE(failed_login_attempts, 0),
+           otp_attempts = COALESCE(otp_attempts, 0),
+           fecha_actualizacion = COALESCE(fecha_actualizacion, NOW()),
+           fecha_creacion = COALESCE(fecha_creacion, NOW())
+  `);
+
+  const [badHashes] = await db.query(
+    `SELECT id_usuario, correo_usuario
+       FROM usuario
+      WHERE password_hash IS NULL
+         OR CHAR_LENGTH(password_hash) < 60`
+  );
+  for (const u of badHashes) {
+    await db.query(
+      `UPDATE usuario
+          SET password_hash = ?,
+              password_changed_at = COALESCE(password_changed_at, NOW()),
+              fecha_actualizacion = NOW()
+        WHERE id_usuario = ?`,
+      [HASH_USUARIO2026, u.id_usuario]
+    );
+    console.log(`[USER MIGRATION] Hash corregido para ${u.correo_usuario}`);
+  }
+
+  console.log('[USER MIGRATION] Normalizacion global de usuarios OK');
+}
+
 export async function runUserMigration() {
   console.log('[USER MIGRATION] Iniciando...');
 
@@ -75,6 +113,7 @@ export async function runUserMigration() {
 
 
   await ensureUsuarioColumns();
+  await normalizeAllUsers();
 
 
   try {
