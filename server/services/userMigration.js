@@ -18,6 +18,7 @@ const USUARIOS_NUEVOS = [
 const USUARIOS_ADMIN = [
   { nombre: 'Krios Valverde', corto: 'Krios', correo: 'kriosv@usil.edu.pe' },
   { nombre: 'Wlimer Campos',  corto: 'Wlimer', correo: 'wcampos@usil.edu.pe' },
+  { nombre: 'M Montoya',      corto: 'M Montoya', correo: 'mmontoyar@usil.edu.pe' },
 ];
 
 const USUARIOS_SOLICITADOS = [
@@ -26,6 +27,31 @@ const USUARIOS_SOLICITADOS = [
   { nombre: 'C Chumbes',  corto: 'C Chumbes',  correo: 'cchumbes@usil.edu.pe',  rol: 'usuario' },
   { nombre: 'Innovacion Educativa', corto: 'Innovacion', correo: 'innovacioneducativa@usil.edu.pe', rol: 'admin', hash: HASH_USIL_ADMIN_2026 },
 ];
+
+async function ensureUsuarioColumns() {
+  const [columns] = await db.query(
+    `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario'`
+  );
+  const existing = new Set(columns.map(c => c.COLUMN_NAME));
+  const required = [
+    ['otp_hash', 'ADD COLUMN otp_hash VARCHAR(64) NULL'],
+    ['otp_expires', 'ADD COLUMN otp_expires DATETIME NULL'],
+    ['otp_attempts', 'ADD COLUMN otp_attempts TINYINT NOT NULL DEFAULT 0'],
+    ['otp_purpose', 'ADD COLUMN otp_purpose VARCHAR(20) NULL'],
+    ['failed_login_attempts', 'ADD COLUMN failed_login_attempts TINYINT NOT NULL DEFAULT 0'],
+    ['locked_until', 'ADD COLUMN locked_until DATETIME NULL'],
+    ['password_changed_at', 'ADD COLUMN password_changed_at DATETIME NULL'],
+  ];
+  const toAdd = required
+    .filter(([name]) => !existing.has(name))
+    .map(([, ddl]) => ddl);
+
+  if (toAdd.length) {
+    await db.query(`ALTER TABLE usuario ${toAdd.join(', ')}`);
+    console.log(`[USER MIGRATION] Columnas usuario agregadas (${toAdd.length})`);
+  }
+}
 
 export async function runUserMigration() {
   console.log('[USER MIGRATION] Iniciando...');
@@ -48,28 +74,7 @@ export async function runUserMigration() {
   }
 
 
-  try {
-    const [columns] = await db.query(
-      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario'`
-    );
-    const existing = new Set(columns.map(c => c.COLUMN_NAME));
-    const toAdd = [];
-    if (!existing.has('otp_hash'))     toAdd.push('ADD COLUMN otp_hash VARCHAR(64) NULL');
-    if (!existing.has('otp_expires'))  toAdd.push('ADD COLUMN otp_expires DATETIME NULL');
-    if (!existing.has('otp_attempts')) toAdd.push('ADD COLUMN otp_attempts TINYINT NOT NULL DEFAULT 0');
-    if (!existing.has('otp_purpose'))  toAdd.push('ADD COLUMN otp_purpose VARCHAR(20) NULL');
-    if (!existing.has('failed_login_attempts')) toAdd.push('ADD COLUMN failed_login_attempts TINYINT NOT NULL DEFAULT 0');
-    if (!existing.has('locked_until')) toAdd.push('ADD COLUMN locked_until DATETIME NULL');
-    if (!existing.has('password_changed_at')) toAdd.push('ADD COLUMN password_changed_at DATETIME NULL');
-
-    if (toAdd.length) {
-      await db.query(`ALTER TABLE usuario ${toAdd.join(', ')}`);
-      console.log(`[USER MIGRATION] Paso 1c: columnas OTP agregadas (${toAdd.length})`);
-    }
-  } catch (e) {
-    console.warn('[USER MIGRATION] Paso 1c (OTP columns):', e.message);
-  }
+  await ensureUsuarioColumns();
 
 
   try {
