@@ -7,6 +7,9 @@ import { auditEvent } from '../services/auditService.js';
 const router = Router();
 const MANAGED_ROLES = new Set(['usuario', 'lector', 'analista', 'editor']);
 const EDITABLE_ROLES = new Set(['admin', 'usuario', 'lector', 'analista', 'editor']);
+const ALL_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral', 'informes', 'gestion'];
+const DEFAULT_USER_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral'];
+const DEFAULT_ADMIN_MODULES = ALL_MODULES;
 
 function adminOnly(req, res, next) {
   if (req.user?.rol !== 'admin') {
@@ -27,6 +30,18 @@ function validatePassword(password) {
   return null;
 }
 
+function parseModules(raw, rol) {
+  const allowed = rol === 'admin' ? ALL_MODULES : ALL_MODULES.filter(m => m !== 'gestion');
+  if (!raw) return rol === 'admin' ? DEFAULT_ADMIN_MODULES : DEFAULT_USER_MODULES;
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const filtered = Array.isArray(parsed) ? parsed.filter(m => allowed.includes(m)) : [];
+    return filtered.length ? filtered : (rol === 'admin' ? DEFAULT_ADMIN_MODULES : DEFAULT_USER_MODULES);
+  } catch {
+    return rol === 'admin' ? DEFAULT_ADMIN_MODULES : DEFAULT_USER_MODULES;
+  }
+}
+
 function safeUser(row) {
   return {
     id: row.id_usuario,
@@ -42,6 +57,7 @@ function safeUser(row) {
     passwordChangedAt: row.password_changed_at,
     failedLoginAttempts: Number(row.failed_login_attempts || 0),
     lockedUntil: row.locked_until,
+    modulosPermitidos: parseModules(row.modulos_permitidos, row.rol),
     gestionable: EDITABLE_ROLES.has(row.rol),
   };
 }
@@ -69,14 +85,14 @@ router.get('/admin/usuarios', adminOnly, async (req, res) => {
     const [rows] = await db.query(
       `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
               email_verificado, ultimo_acceso, fecha_creacion, fecha_actualizacion,
-              password_changed_at, failed_login_attempts, locked_until
+              password_changed_at, failed_login_attempts, locked_until, modulos_permitidos
        FROM usuario
        ${where}
        ORDER BY rol = 'admin' DESC, activo DESC, correo_usuario ASC
        LIMIT 200`,
       params
     );
-    res.json({ data: rows.map(safeUser), roles: [...MANAGED_ROLES] });
+    res.json({ data: rows.map(safeUser), roles: [...MANAGED_ROLES], modulos: ALL_MODULES });
   } catch (err) {
     console.error('[GET /admin/usuarios]', err);
     res.status(500).json({ error: 'Error interno.' });
@@ -90,6 +106,7 @@ router.post('/admin/usuarios', adminOnly, async (req, res) => {
     const correo = normalizeEmail(req.body.correo);
     const rol = String(req.body.rol || 'usuario').trim();
     const password = String(req.body.password || '');
+    const modulos = parseModules(req.body.modulosPermitidos, rol);
 
     if (!nombre || !correo || !password) {
       return res.status(400).json({ error: 'Nombre, correo y contrasena son requeridos.' });
@@ -115,6 +132,7 @@ router.post('/admin/usuarios', adminOnly, async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, 1, 1, NOW(), NOW(), NOW())`,
       [id, nombre, nombreCorto, correo, hash, rol]
     );
+    await db.query('UPDATE usuario SET modulos_permitidos = ? WHERE id_usuario = ?', [JSON.stringify(modulos), id]);
 
     await auditEvent(req, {
       evento: 'usuario_creado',
@@ -124,13 +142,13 @@ router.post('/admin/usuarios', adminOnly, async (req, res) => {
       entidadId: id,
       elementoTitulo: correo,
       detalle: `Usuario creado con rol ${rol}`,
-      metadata: { rol },
+      metadata: { rol, modulos },
     });
 
     const [[created]] = await db.query(
       `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
               email_verificado, ultimo_acceso, fecha_creacion, fecha_actualizacion,
-              password_changed_at, failed_login_attempts, locked_until
+              password_changed_at, failed_login_attempts, locked_until, modulos_permitidos
        FROM usuario WHERE id_usuario = ?`,
       [id]
     );
@@ -150,6 +168,7 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
     const nombreCorto = String(req.body.nombreCorto || nombre.split(' ')[0] || '').trim();
     const rol = String(req.body.rol || existing.rol).trim();
     const activo = req.body.activo === true || req.body.activo === 1;
+    const modulos = parseModules(req.body.modulosPermitidos, rol);
 
     if (!nombre) return res.status(400).json({ error: 'Nombre es requerido.' });
     if (!EDITABLE_ROLES.has(rol)) return res.status(400).json({ error: 'Rol no permitido.' });
@@ -159,12 +178,15 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
     if (id === req.user.id && rol !== 'admin') {
       return res.status(400).json({ error: 'No puedes quitarte el rol administrador a ti mismo.' });
     }
+    if (id === req.user.id && !modulos.includes('gestion')) {
+      return res.status(400).json({ error: 'No puedes quitarte tu acceso al modulo Gestion.' });
+    }
 
     await db.query(
       `UPDATE usuario
-       SET nombre_usuario = ?, nombre_corto = ?, rol = ?, activo = ?, fecha_actualizacion = NOW()
+       SET nombre_usuario = ?, nombre_corto = ?, rol = ?, activo = ?, modulos_permitidos = ?, fecha_actualizacion = NOW()
        WHERE id_usuario = ?`,
-      [nombre, nombreCorto, rol, activo ? 1 : 0, id]
+      [nombre, nombreCorto, rol, activo ? 1 : 0, JSON.stringify(modulos), id]
     );
 
     await auditEvent(req, {
@@ -175,13 +197,13 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
       entidadId: id,
       elementoTitulo: existing.correo_usuario,
       detalle: `Usuario actualizado. Rol ${rol}. Activo ${activo ? 'si' : 'no'}`,
-      metadata: { rol, activo },
+      metadata: { rol, activo, modulos },
     });
 
     const [[updated]] = await db.query(
       `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
               email_verificado, ultimo_acceso, fecha_creacion, fecha_actualizacion,
-              password_changed_at, failed_login_attempts, locked_until
+              password_changed_at, failed_login_attempts, locked_until, modulos_permitidos
        FROM usuario WHERE id_usuario = ?`,
       [id]
     );

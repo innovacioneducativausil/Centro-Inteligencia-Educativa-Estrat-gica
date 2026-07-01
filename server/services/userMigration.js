@@ -42,6 +42,7 @@ async function ensureUsuarioColumns() {
     ['failed_login_attempts', 'ADD COLUMN failed_login_attempts TINYINT NOT NULL DEFAULT 0'],
     ['locked_until', 'ADD COLUMN locked_until DATETIME NULL'],
     ['password_changed_at', 'ADD COLUMN password_changed_at DATETIME NULL'],
+    ['modulos_permitidos', 'ADD COLUMN modulos_permitidos JSON NULL'],
   ];
   const toAdd = required
     .filter(([name]) => !existing.has(name))

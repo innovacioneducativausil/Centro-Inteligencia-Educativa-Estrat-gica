@@ -10,6 +10,7 @@ export interface AuthUser {
   rol: 'admin' | 'usuario' | 'editor' | 'analista' | 'lector';
   rolLabel: string;
   iniciales: string;
+  modulosPermitidos?: string[];
 }
 
 interface LoginViewProps {

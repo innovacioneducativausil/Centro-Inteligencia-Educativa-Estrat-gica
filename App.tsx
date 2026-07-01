@@ -14,6 +14,12 @@ import { logActividad } from './services/actividadService';
 
 type PendingNotif = { uuid: string; tipo: 'senal' | 'tendencia' | 'escenario' } | null;
 const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_USER_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral'];
+
+const defaultModulesFor = (authUser?: AuthUser | null) => [
+  ...DEFAULT_USER_MODULES,
+  ...(authUser?.rol === 'admin' ? ['informes', 'gestion'] : []),
+];
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState('inicio');
@@ -81,9 +87,16 @@ const App: React.FC = () => {
     };
   }, [user, handleLogout]);
 
+  const canView = useCallback((view: string) => {
+    if (!user) return false;
+    const allowed = user.modulosPermitidos?.length ? user.modulosPermitidos : defaultModulesFor(user);
+    return allowed.includes(view);
+  }, [user]);
+
   const handleNavigate = (view: string) => {
 
     if (view === 'gestion' && user?.rol !== 'admin') return;
+    if (!canView(view)) return;
     setActiveView(view);
     logActividad('nav_modulo', { modulo: view });
   };
@@ -99,7 +112,7 @@ const App: React.FC = () => {
 
   const renderView = () => {
 
-    if (activeView === 'gestion' && user?.rol !== 'admin') {
+    if ((activeView === 'gestion' && user?.rol !== 'admin') || !canView(activeView)) {
       return <Dashboard themeColors={themeColors} setActiveView={handleNavigate} setRadarTab={setRadarTab} theme={theme} />;
     }
     switch (activeView) {

@@ -17,10 +17,21 @@ interface UserRow {
   failedLoginAttempts: number;
   lockedUntil: string | null;
   gestionable: boolean;
+  modulosPermitidos: string[];
 }
 
 const ROLES = ['usuario', 'lector', 'analista', 'editor'];
 const EDIT_ROLES = ['admin', ...ROLES];
+const MODULES = [
+  { key: 'inicio', label: 'Inicio' },
+  { key: 'radar', label: 'Radar' },
+  { key: 'empleabilidad', label: 'Empleo' },
+  { key: 'impactos', label: 'Impactos' },
+  { key: 'curricular', label: 'Curricular' },
+  { key: 'mercadoLaboral', label: 'Mercado' },
+  { key: 'informes', label: 'Informes' },
+  { key: 'gestion', label: 'Gestion' },
+];
 
 const EMPTY = {
   nombre: '',
@@ -40,6 +51,8 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
   const [estado, setEstado] = useState('');
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
@@ -67,6 +80,7 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
     e.preventDefault();
     setSaving(true);
     setError(null);
+    setSaveMessage(null);
     setTempPassword(null);
     try {
       const res = await fetch('/api/admin/usuarios', {
@@ -78,9 +92,12 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo crear el usuario.');
       setForm(EMPTY);
+      setSaveMessage({ type: 'ok', text: 'Usuario creado y guardado en la BD.' });
       await fetchUsers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo crear el usuario.');
+      const message = err instanceof Error ? err.message : 'No se pudo crear el usuario.';
+      setError(message);
+      setSaveMessage({ type: 'error', text: message });
     } finally {
       setSaving(false);
     }
@@ -88,6 +105,8 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
 
   const updateUser = async (user: UserRow, changes: Partial<UserRow>) => {
     setError(null);
+    setSaveMessage(null);
+    setSavingUserId(user.id);
     try {
       const next = { ...user, ...changes };
       const res = await fetch(`/api/admin/usuarios/${user.id}`, {
@@ -99,19 +118,26 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
           nombreCorto: next.nombreCorto,
           rol: next.rol,
           activo: next.activo,
+          modulosPermitidos: next.modulosPermitidos,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo actualizar.');
       setRows(prev => prev.map(r => r.id === user.id ? data.user : r));
+      setSaveMessage({ type: 'ok', text: `Cambios guardados en la BD para ${data.user.correo}.` });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo actualizar.');
+      const message = err instanceof Error ? err.message : 'No se pudo actualizar.';
+      setError(message);
+      setSaveMessage({ type: 'error', text: message });
+    } finally {
+      setSavingUserId(null);
     }
   };
 
   const resetPassword = async (user: UserRow) => {
     setTempPassword(null);
     setError(null);
+    setSaveMessage(null);
     try {
       const res = await fetch(`/api/admin/usuarios/${user.id}/reset-password`, {
         method: 'POST',
@@ -120,10 +146,25 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo resetear.');
       setTempPassword(`${user.correo}: ${data.tempPassword}`);
+      setSaveMessage({ type: 'ok', text: `Contrasena temporal guardada para ${user.correo}.` });
       await fetchUsers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo resetear.');
+      const message = err instanceof Error ? err.message : 'No se pudo resetear.';
+      setError(message);
+      setSaveMessage({ type: 'error', text: message });
     }
+  };
+
+  const toggleModule = (user: UserRow, moduleKey: string) => {
+    if (!user.gestionable) return;
+    setRows(prev => prev.map(row => {
+      if (row.id !== user.id) return row;
+      const current = new Set(row.modulosPermitidos || []);
+      if (current.has(moduleKey)) current.delete(moduleKey);
+      else current.add(moduleKey);
+      if (current.size === 0) current.add('inicio');
+      return { ...row, modulosPermitidos: [...current] };
+    }));
   };
 
   const inputCls = `px-3 py-2 text-xs rounded-lg border outline-none ${
@@ -181,6 +222,20 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
       </div>
 
       {error && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+      {saveMessage && (
+        <div style={{
+          color: saveMessage.type === 'ok' ? '#166534' : '#991b1b',
+          background: saveMessage.type === 'ok' ? '#dcfce7' : '#fee2e2',
+          border: `1px solid ${saveMessage.type === 'ok' ? '#86efac' : '#fecaca'}`,
+          borderRadius: 8,
+          padding: '8px 10px',
+          fontSize: 12,
+          marginBottom: 12,
+          fontWeight: 700,
+        }}>
+          {saveMessage.text}
+        </div>
+      )}
       {tempPassword && (
         <div style={{ color: '#166534', background: '#dcfce7', border: '1px solid #86efac', borderRadius: 8, padding: '8px 10px', fontSize: 12, marginBottom: 12 }}>
           Contrasena temporal generada: <strong>{tempPassword}</strong>
@@ -195,7 +250,7 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9' }}>
-                  {['Usuario', 'Correo', 'Rol', 'Estado', 'Ultimo acceso', 'Seguridad', 'Acciones'].map(h => (
+                  {['Usuario', 'Correo', 'Rol', 'Estado', 'Ultimo acceso', 'Modulos', 'Seguridad', 'Acciones'].map(h => (
                     <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 10, fontWeight: 800, color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase' }}>{h}</th>
                   ))}
                 </tr>
@@ -219,13 +274,47 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
                       </button>
                     </td>
                     <td style={{ padding: 12, color: '#94a3b8' }}>{user.ultimoAcceso ? new Date(user.ultimoAcceso).toLocaleString('es-PE') : '-'}</td>
+                    <td style={{ padding: 12, minWidth: 320 }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {MODULES.map(module => {
+                          const checked = (user.modulosPermitidos || []).includes(module.key);
+                          const disabled = !user.gestionable || (module.key === 'gestion' && user.rol !== 'admin');
+                          return (
+                            <label key={module.key}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                border: `1px solid ${checked ? '#93c5fd' : '#e2e8f0'}`,
+                                borderRadius: 999,
+                                padding: '4px 8px',
+                                fontSize: 10,
+                                fontWeight: 800,
+                                color: checked ? '#1d4ed8' : '#64748b',
+                                background: checked ? '#eff6ff' : isDark ? '#0f172a' : '#fff',
+                                opacity: disabled ? 0.55 : 1,
+                                cursor: disabled ? 'default' : 'pointer',
+                              }}>
+                              <input
+                                type="checkbox"
+                                disabled={disabled}
+                                checked={checked}
+                                onChange={() => toggleModule(user, module.key)}
+                                style={{ accentColor: '#0036DC' }}
+                              />
+                              {module.label}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </td>
                     <td style={{ padding: 12, color: '#94a3b8' }}>
                       {user.lockedUntil ? 'Bloqueado' : `${user.failedLoginAttempts} intentos fallidos`}
                     </td>
                     <td style={{ padding: 12, display: 'flex', gap: 8 }}>
-                      <button disabled={!user.gestionable} onClick={() => updateUser(user, {})}
-                        style={{ border: '1px solid #bfdbfe', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 800, color: '#1d4ed8', background: '#eff6ff', cursor: user.gestionable ? 'pointer' : 'default' }}>
-                        Guardar
+                      <button disabled={!user.gestionable || savingUserId === user.id} onClick={() => updateUser(user, {})}
+                        style={{ border: '1px solid #bfdbfe', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 800, color: '#1d4ed8', background: '#eff6ff', cursor: user.gestionable && savingUserId !== user.id ? 'pointer' : 'default' }}>
+                        {savingUserId === user.id ? 'Guardando' : 'Guardar'}
                       </button>
                       <button disabled={!user.gestionable} onClick={() => resetPassword(user)}
                         style={{ border: '1px solid #fed7aa', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 800, color: '#9a3412', background: '#fff7ed', cursor: user.gestionable ? 'pointer' : 'default' }}>

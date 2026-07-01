@@ -32,6 +32,22 @@ const ROL_LABELS = {
   usuario: 'Usuario',
 };
 
+const DEFAULT_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral'];
+const ADMIN_MODULES = [...DEFAULT_MODULES, 'informes', 'gestion'];
+const ALL_MODULES = [...ADMIN_MODULES];
+
+function parseAllowedModules(raw, rol) {
+  const allowed = rol === 'admin' ? ALL_MODULES : ALL_MODULES.filter(m => m !== 'gestion');
+  if (!raw) return rol === 'admin' ? ADMIN_MODULES : DEFAULT_MODULES;
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const filtered = Array.isArray(parsed) ? parsed.filter(m => allowed.includes(m)) : [];
+    return filtered.length ? filtered : (rol === 'admin' ? ADMIN_MODULES : DEFAULT_MODULES);
+  } catch {
+    return rol === 'admin' ? ADMIN_MODULES : DEFAULT_MODULES;
+  }
+}
+
 function buildAuthUser(user) {
   const nombre = user.nombre_corto || user.nombre_usuario;
   return {
@@ -41,6 +57,7 @@ function buildAuthUser(user) {
     correo:      user.correo_usuario,
     rol:         user.rol,
     rolLabel:    ROL_LABELS[user.rol] || user.rol,
+    modulosPermitidos: parseAllowedModules(user.modulos_permitidos, user.rol),
     iniciales:   nombre
       .split(' ')
       .slice(0, 2)
@@ -98,7 +115,7 @@ router.post('/auth/login', async (req, res) => {
 
     const [[user]] = await db.query(
       `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario,
-              password_hash, rol, activo, email_verificado, failed_login_attempts, locked_until
+              password_hash, rol, activo, email_verificado, failed_login_attempts, locked_until, modulos_permitidos
        FROM usuario
        WHERE correo_usuario = ?
        LIMIT 1`,
@@ -209,7 +226,7 @@ router.post('/auth/login/verify-otp', async (req, res) => {
 
     const [[user]] = await db.query(
       `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
-              otp_hash, otp_expires, otp_attempts, otp_purpose
+              otp_hash, otp_expires, otp_attempts, otp_purpose, modulos_permitidos
        FROM usuario
        WHERE correo_usuario = ? AND activo = 1
        LIMIT 1`,
@@ -352,7 +369,8 @@ router.get('/auth/me', async (req, res) => {
 
 
     const [[user]] = await db.query(
-      `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo
+      `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
+              modulos_permitidos
        FROM usuario WHERE id_usuario = ? AND activo = 1`,
       [payload.id]
     );
@@ -381,6 +399,7 @@ router.get('/auth/me', async (req, res) => {
         correo:      user.correo_usuario,
         rol:         user.rol,
         rolLabel:    ROL_LABELS[user.rol] || user.rol,
+        modulosPermitidos: parseAllowedModules(user.modulos_permitidos, user.rol),
         iniciales:   nombre
           .split(' ')
           .slice(0, 2)

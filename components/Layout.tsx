@@ -114,6 +114,16 @@ const Layout: React.FC<LayoutProps> = ({
   const fmtDate   = (d: string | null) => d ? new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '';
 
   const NEW_BADGE_KEYS = new Set(['curricular', 'mercadoLaboral']);
+  const defaultModules = [
+    'inicio',
+    'radar',
+    'empleabilidad',
+    'impactos',
+    'curricular',
+    'mercadoLaboral',
+    ...(isAdmin ? ['informes', 'gestion'] : []),
+  ];
+  const allowedModules = new Set(user.modulosPermitidos?.length ? user.modulosPermitidos : defaultModules);
 
   const navItems = [
     { key: 'inicio', label: 'Inicio', icon: Home, short: 'Inicio' },
@@ -125,7 +135,7 @@ const Layout: React.FC<LayoutProps> = ({
       { key: 'informes', label: 'Informes', icon: FileText, short: 'Informes' },
     ] : []),
     ...(isAdmin ? [{ name: 'Gestión', icon: Settings2, short: 'Gestión' }] : []),
-  ];
+  ].filter(item => allowedModules.has(('key' in item ? item.key : 'gestion') as string));
 
   const fontStyle = { fontFamily: "'Montserrat', system-ui, -apple-system, sans-serif" };
 
