@@ -127,12 +127,14 @@ const RadarPanel: React.FC<{ view: View }> = ({ view }) => {
 const USILHeader: React.FC = () => (
   <div className="flex items-center justify-between mb-5">
     <div className="flex items-center gap-3">
-      <div className="p-2.5 rounded-xl text-white shadow-md" style={{ backgroundColor: BRAND_COLORS.active }}>
-        <span className="material-symbols-outlined" style={{ fontSize: 26 }}>school</span>
-      </div>
+      <img
+        src="/Usil.jpg"
+        alt="USIL"
+        className="h-14 w-14 rounded-xl object-cover shadow-md"
+      />
       <div className="flex flex-col">
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">USIL</h2>
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Institutional Access</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Universidad San Ignacio de Loyola</span>
       </div>
     </div>
     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200"

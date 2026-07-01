@@ -138,9 +138,13 @@ const Layout: React.FC<LayoutProps> = ({
 
         <div
           title="USIL Radar Prospectivo"
-          style={{ width: 36, height: 36, background: `linear-gradient(135deg,${BRAND_COLORS.active},${BRAND_COLORS.button})`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, flexShrink: 0, cursor: 'default' }}
+          style={{ width: 40, height: 40, borderRadius: 12, overflow: 'hidden', boxShadow: '0 8px 18px rgba(0,0,0,0.22)', marginBottom: 16, flexShrink: 0, cursor: 'default' }}
         >
-          <TrendingUp style={{ width: 18, height: 18, color: 'white' }} strokeWidth={2.5} />
+          <img
+            src="/Usil.jpg"
+            alt="USIL"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
         </div>
 
 
