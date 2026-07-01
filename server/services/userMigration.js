@@ -59,6 +59,9 @@ export async function runUserMigration() {
     if (!existing.has('otp_expires'))  toAdd.push('ADD COLUMN otp_expires DATETIME NULL');
     if (!existing.has('otp_attempts')) toAdd.push('ADD COLUMN otp_attempts TINYINT NOT NULL DEFAULT 0');
     if (!existing.has('otp_purpose'))  toAdd.push('ADD COLUMN otp_purpose VARCHAR(20) NULL');
+    if (!existing.has('failed_login_attempts')) toAdd.push('ADD COLUMN failed_login_attempts TINYINT NOT NULL DEFAULT 0');
+    if (!existing.has('locked_until')) toAdd.push('ADD COLUMN locked_until DATETIME NULL');
+    if (!existing.has('password_changed_at')) toAdd.push('ADD COLUMN password_changed_at DATETIME NULL');
 
     if (toAdd.length) {
       await db.query(`ALTER TABLE usuario ${toAdd.join(', ')}`);

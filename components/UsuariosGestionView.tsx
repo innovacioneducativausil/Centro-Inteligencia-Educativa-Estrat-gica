@@ -1,0 +1,246 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { ThemeColors } from '../types';
+
+interface UsuariosGestionViewProps {
+  themeColors: ThemeColors;
+  onVolver?: () => void;
+}
+
+interface UserRow {
+  id: string;
+  nombre: string;
+  nombreCorto: string;
+  correo: string;
+  rol: string;
+  activo: boolean;
+  ultimoAcceso: string | null;
+  failedLoginAttempts: number;
+  lockedUntil: string | null;
+  gestionable: boolean;
+}
+
+const ROLES = ['usuario', 'lector', 'analista', 'editor'];
+
+const EMPTY = {
+  nombre: '',
+  nombreCorto: '',
+  correo: '',
+  rol: 'usuario',
+  password: '',
+};
+
+const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, onVolver }) => {
+  const isDark = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
+  const [rows, setRows] = useState<UserRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [q, setQ] = useState('');
+  const [rol, setRol] = useState('');
+  const [estado, setEstado] = useState('');
+  const [form, setForm] = useState(EMPTY);
+  const [saving, setSaving] = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (rol) params.set('rol', rol);
+      if (estado) params.set('estado', estado);
+      const res = await fetch(`/api/admin/usuarios?${params}`, { credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al cargar usuarios.');
+      setRows(data.data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar usuarios.');
+    } finally {
+      setLoading(false);
+    }
+  }, [q, rol, estado]);
+
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const createUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    setTempPassword(null);
+    try {
+      const res = await fetch('/api/admin/usuarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo crear el usuario.');
+      setForm(EMPTY);
+      await fetchUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo crear el usuario.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateUser = async (user: UserRow, changes: Partial<UserRow>) => {
+    setError(null);
+    try {
+      const next = { ...user, ...changes };
+      const res = await fetch(`/api/admin/usuarios/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          nombre: next.nombre,
+          nombreCorto: next.nombreCorto,
+          rol: next.rol,
+          activo: next.activo,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo actualizar.');
+      setRows(prev => prev.map(r => r.id === user.id ? data.user : r));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo actualizar.');
+    }
+  };
+
+  const resetPassword = async (user: UserRow) => {
+    setTempPassword(null);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/usuarios/${user.id}/reset-password`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo resetear.');
+      setTempPassword(`${user.correo}: ${data.tempPassword}`);
+      await fetchUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo resetear.');
+    }
+  };
+
+  const inputCls = `px-3 py-2 text-xs rounded-lg border outline-none ${
+    isDark ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
+  }`;
+
+  return (
+    <div style={{ padding: '32px 32px 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 24 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#e2e8f0' : '#0F2A3F', marginBottom: 4 }}>
+            Usuarios y Accesos
+          </h2>
+          <p style={{ fontSize: 12, color: '#94a3b8' }}>
+            Gestion de usuarios no administradores. Los cambios quedan guardados en la BD actual y auditados en Monitor.
+          </p>
+        </div>
+        {onVolver && (
+          <button type="button" onClick={onVolver}
+            style={{ border: '1px solid #cbd5e1', background: isDark ? '#0f172a' : '#fff', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', height: 34 }}>
+            Volver a Gestion
+          </button>
+        )}
+      </div>
+
+      <form onSubmit={createUser}
+        style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr 1.3fr .7fr .9fr auto', gap: 10, padding: 14, borderRadius: 12, background: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(15,42,63,0.07)'}`, marginBottom: 16 }}>
+        <input className={inputCls} placeholder="Nombre completo" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} />
+        <input className={inputCls} placeholder="Nombre corto" value={form.nombreCorto} onChange={e => setForm({ ...form, nombreCorto: e.target.value })} />
+        <input className={inputCls} placeholder="correo@usil.edu.pe" value={form.correo} onChange={e => setForm({ ...form, correo: e.target.value })} />
+        <select className={inputCls} value={form.rol} onChange={e => setForm({ ...form, rol: e.target.value })}>
+          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <input className={inputCls} placeholder="Temporal123!" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
+        <button disabled={saving} style={{ border: 'none', borderRadius: 8, padding: '0 14px', background: '#0036DC', color: '#fff', fontSize: 12, fontWeight: 800, cursor: saving ? 'default' : 'pointer' }}>
+          {saving ? 'Guardando' : 'Crear'}
+        </button>
+      </form>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        <input className={inputCls} placeholder="Buscar usuario" value={q} onChange={e => setQ(e.target.value)} style={{ minWidth: 260 }} />
+        <select className={inputCls} value={rol} onChange={e => setRol(e.target.value)}>
+          <option value="">Todos los roles</option>
+          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          <option value="admin">admin</option>
+        </select>
+        <select className={inputCls} value={estado} onChange={e => setEstado(e.target.value)}>
+          <option value="">Todos</option>
+          <option value="activo">Activos</option>
+          <option value="inactivo">Inactivos</option>
+        </select>
+        <button onClick={fetchUsers} style={{ border: 'none', borderRadius: 8, padding: '0 14px', background: '#0D9488', color: '#fff', fontSize: 12, fontWeight: 800 }}>
+          Actualizar
+        </button>
+      </div>
+
+      {error && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+      {tempPassword && (
+        <div style={{ color: '#166534', background: '#dcfce7', border: '1px solid #86efac', borderRadius: 8, padding: '8px 10px', fontSize: 12, marginBottom: 12 }}>
+          Contrasena temporal generada: <strong>{tempPassword}</strong>
+        </div>
+      )}
+
+      <div style={{ borderRadius: 12, border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(15,42,63,0.08)'}`, background: isDark ? '#1e293b' : 'white', overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 32, textAlign: 'center', fontSize: 13, color: '#94a3b8' }}>Cargando usuarios...</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9' }}>
+                  {['Usuario', 'Correo', 'Rol', 'Estado', 'Ultimo acceso', 'Seguridad', 'Acciones'].map(h => (
+                    <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 10, fontWeight: 800, color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(user => (
+                  <tr key={user.id} style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}` }}>
+                    <td style={{ padding: 12 }}>
+                      <input className={inputCls} disabled={!user.gestionable} value={user.nombre} onChange={e => setRows(prev => prev.map(r => r.id === user.id ? { ...r, nombre: e.target.value } : r))} />
+                    </td>
+                    <td style={{ padding: 12, color: isDark ? '#cbd5e1' : '#334155', fontWeight: 600 }}>{user.correo}</td>
+                    <td style={{ padding: 12 }}>
+                      <select className={inputCls} disabled={!user.gestionable} value={user.rol} onChange={e => updateUser(user, { rol: e.target.value })}>
+                        {user.rol === 'admin' && <option value="admin">admin</option>}
+                        {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <button disabled={!user.gestionable} onClick={() => updateUser(user, { activo: !user.activo })}
+                        style={{ border: 'none', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 800, background: user.activo ? '#dcfce7' : '#fee2e2', color: user.activo ? '#166534' : '#991b1b', cursor: user.gestionable ? 'pointer' : 'default' }}>
+                        {user.activo ? 'Activo' : 'Inactivo'}
+                      </button>
+                    </td>
+                    <td style={{ padding: 12, color: '#94a3b8' }}>{user.ultimoAcceso ? new Date(user.ultimoAcceso).toLocaleString('es-PE') : '-'}</td>
+                    <td style={{ padding: 12, color: '#94a3b8' }}>
+                      {user.lockedUntil ? 'Bloqueado' : `${user.failedLoginAttempts} intentos fallidos`}
+                    </td>
+                    <td style={{ padding: 12, display: 'flex', gap: 8 }}>
+                      <button disabled={!user.gestionable} onClick={() => updateUser(user, {})}
+                        style={{ border: '1px solid #bfdbfe', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 800, color: '#1d4ed8', background: '#eff6ff', cursor: user.gestionable ? 'pointer' : 'default' }}>
+                        Guardar
+                      </button>
+                      <button disabled={!user.gestionable} onClick={() => resetPassword(user)}
+                        style={{ border: '1px solid #fed7aa', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 800, color: '#9a3412', background: '#fff7ed', cursor: user.gestionable ? 'pointer' : 'default' }}>
+                        Reset
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default UsuariosGestionView;

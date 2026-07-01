@@ -5,6 +5,7 @@ import { ThemeColors } from '../types';
 import { AuthUser } from './LoginView';
 import ImportarView from './ImportarView';
 import MonitoreoView from './MonitoreoView';
+import UsuariosGestionView from './UsuariosGestionView';
 import { sanitizeRichHtml } from '../services/sanitizeHtml';
 
 
@@ -140,7 +141,7 @@ const COUNTRIES = [
   'Oceanía','Europa del Este','Europa Occidental',
 ];
 
-type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar' | 'monitoreo';
+type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar' | 'monitoreo' | 'usuarios';
 
 interface GestionViewProps {
   themeColors: ThemeColors;
@@ -149,14 +150,14 @@ interface GestionViewProps {
 
 
 const ALLOWED_ROLES = ['admin'];
-const MONITOR_CORREOS = ['acastroh@usil.edu.pe', 'mmontoyar@usil.edu.pe'];
 const PAGE_LIMIT    = 10;
 
-const TAB_CONFIG: Record<Tab, { label: string; nueva: string }> = {
+const TAB_CONFIG: Record<Exclude<Tab, 'monitoreo'>, { label: string; nueva: string }> = {
   senales:    { label: 'SEÑALES',    nueva: 'Nueva Señal'    },
   tendencias: { label: 'TENDENCIAS', nueva: 'Nueva Tendencia' },
   escenarios: { label: 'ESCENARIOS', nueva: 'Nuevo Escenario' },
   importar:   { label: 'IMPORTAR',   nueva: ''               },
+  usuarios:   { label: 'USUARIOS',   nueva: ''               },
 };
 
 
@@ -275,7 +276,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
 
   const fetchData = useCallback(async () => {
-    if (!canAccess || activeTab === 'importar' || activeTab === 'monitoreo') return;
+    if (!canAccess || activeTab === 'importar' || activeTab === 'monitoreo' || activeTab === 'usuarios') return;
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({
@@ -689,6 +690,10 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
   if (activeTab === 'monitoreo') {
     return <MonitoreoView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+  }
+
+  if (activeTab === 'usuarios') {
+    return <UsuariosGestionView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
   }
 
 
@@ -1635,7 +1640,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
       <div className="mb-6">
         <div className={`inline-flex p-1 rounded-xl shadow-sm border ${themeColors.cardBg} ${themeColors.cardBorder}`}>
-          {(Object.keys(TAB_CONFIG) as Tab[]).map(tab => {
+          {(Object.keys(TAB_CONFIG) as Exclude<Tab, 'monitoreo'>[]).map(tab => {
             const isImportar = tab === 'importar';
             const isActive   = activeTab === tab;
             return (
@@ -1657,20 +1662,18 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
             );
           })}
 
-          {MONITOR_CORREOS.includes(user.correo) && (
-            <button
-              onClick={() => switchTab('monitoreo')}
-              className={`px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5 ${
-                activeTab === 'monitoreo'
-                  ? 'text-white shadow-sm'
-                  : `opacity-60 hover:opacity-90 ${themeColors.text}`
-              }`}
-              style={activeTab === 'monitoreo' ? { background: '#0f766e' } : undefined}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>monitoring</span>
-              MONITOREO
-            </button>
-          )}
+          <button
+            onClick={() => switchTab('monitoreo')}
+            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+              activeTab === 'monitoreo'
+                ? 'text-white shadow-sm'
+                : `opacity-60 hover:opacity-90 ${themeColors.text}`
+            }`}
+            style={activeTab === 'monitoreo' ? { background: '#0f766e' } : undefined}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>monitoring</span>
+            MONITOREO
+          </button>
         </div>
       </div>
 

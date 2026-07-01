@@ -5,6 +5,7 @@ import { Router }      from 'express';
 import { randomUUID }  from 'crypto';
 import db from '../db.js';
 import { sanitizeRichHtml, normalizePositiveInt } from '../utils/security.js';
+import { auditEvent } from '../services/auditService.js';
 
 const router = Router();
 
@@ -101,6 +102,25 @@ function requireRole(...roles) {
   };
 }
 const adminOnly = requireRole('admin');
+
+router.use((req, res, next) => {
+  const shouldAudit = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
+  if (!shouldAudit) return next();
+  res.on('finish', () => {
+    if (res.statusCode >= 200 && res.statusCode < 400) {
+      auditEvent(req, {
+        evento: 'gestion_cambio',
+        accion: req.method.toLowerCase(),
+        modulo: 'gestion',
+        entidad: req.path.split('/').filter(Boolean)[1] || 'admin',
+        entidadId: req.params.uuid || req.params.resource || null,
+        detalle: `${req.method} ${req.originalUrl}`,
+        metadata: { params: req.params },
+      });
+    }
+  });
+  next();
+});
 
 
 function parsePagination(query) {

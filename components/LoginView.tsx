@@ -387,6 +387,9 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     if (!/[0-9]/.test(newPassword)) {
       setResetError('La contraseña debe contener al menos un número.'); return;
     }
+    if (!/[^A-Za-z0-9]/.test(newPassword)) {
+      setResetError('La contrasena debe contener al menos un simbolo.'); return;
+    }
     if (newPassword !== confirmPassword) {
       setResetError('Las contraseñas no coinciden. Por favor verifica.'); return;
     }
