@@ -21,6 +21,7 @@ export async function auditEvent(req, {
   rol = null,
 } = {}) {
   if (!evento) return;
+  if (req) req.auditLogged = true;
   const user = req?.user || {};
   const ip = getClientIp(req);
   const userAgent = req?.headers?.['user-agent'] || null;

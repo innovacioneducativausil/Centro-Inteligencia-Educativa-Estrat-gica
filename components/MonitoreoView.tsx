@@ -44,6 +44,8 @@ const EVENTO_LABELS: Record<string, string> = {
   usuario_creado: 'Usuario creado',
   usuario_actualizado: 'Usuario actualizado',
   usuario_password_reseteado: 'Password reseteado',
+  api_mutacion: 'Cambio tecnico',
+  auditoria_exportada: 'Auditoria exportada',
 };
 
 const EVENTO_COLOR: Record<string, string> = {
@@ -66,6 +68,8 @@ const EVENTO_COLOR: Record<string, string> = {
   usuario_creado: '#16a34a',
   usuario_actualizado: '#3b82f6',
   usuario_password_reseteado: '#f97316',
+  api_mutacion: '#0f766e',
+  auditoria_exportada: '#14b8a6',
 };
 
 function fmtFecha(s: string) {
@@ -92,6 +96,11 @@ function metadataSummary(value: string | null) {
   if (data.anio) parts.push(`Año: ${data.anio}`);
   if (data.unidad) parts.push(`Unidad: ${data.unidad}`);
   if (data.facultad) parts.push(`Facultad: ${data.facultad}`);
+  if (data.ruta) parts.push(`Ruta: ${data.ruta}`);
+  if (data.estadoHttp) parts.push(`HTTP: ${data.estadoHttp}`);
+  if (data.datos && typeof data.datos === 'object' && Object.keys(data.datos).length) {
+    parts.push(`Datos: ${Object.keys(data.datos).slice(0, 6).join(', ')}`);
+  }
   if (Array.isArray(data.cambios) && data.cambios.length) {
     parts.push(`Cambios: ${data.cambios.map((c: any) => c.campo).join(', ')}`);
   }
@@ -102,6 +111,22 @@ function metadataValue(value: string | null, key: string) {
   const data = parseMetadata(value);
   if (!data || typeof data !== 'object') return '';
   return typeof data[key] === 'string' || typeof data[key] === 'number' ? String(data[key]) : '';
+}
+
+function userAgentSummary(value: string | null) {
+  if (!value) return '-';
+  const browser = /Edg\//.test(value) ? 'Edge'
+    : /Chrome\//.test(value) ? 'Chrome'
+    : /Firefox\//.test(value) ? 'Firefox'
+    : /Safari\//.test(value) ? 'Safari'
+    : 'Navegador';
+  const os = /Windows/i.test(value) ? 'Windows'
+    : /Android/i.test(value) ? 'Android'
+    : /iPhone|iPad/i.test(value) ? 'iOS'
+    : /Mac OS/i.test(value) ? 'macOS'
+    : /Linux/i.test(value) ? 'Linux'
+    : 'SO no identificado';
+  return `${browser} / ${os}`;
 }
 
 function cleanElementLabel(value: string) {
@@ -302,7 +327,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9' }}>
-                  {['Usuario', 'Evento', 'Accion', 'Modulo', 'Vista', 'Elemento', 'Detalle', 'IP', 'Fecha y hora'].map(h => (
+                  {['Usuario', 'Evento', 'Accion', 'Modulo', 'Vista', 'Elemento', 'Detalle', 'IP', 'Dispositivo', 'Fecha y hora'].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 800, fontSize: 10, textTransform: 'uppercase', color: isDark ? '#94a3b8' : '#64748b', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0'}`, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -341,6 +366,9 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
                         </span>
                       </td>
                       <td style={{ padding: '9px 14px', color: isDark ? '#64748b' : '#94a3b8', fontFamily: 'monospace', fontSize: 11 }}>{r.ip || '-'}</td>
+                      <td style={{ padding: '9px 14px', color: isDark ? '#64748b' : '#94a3b8', minWidth: 150 }}>
+                        <span title={r.user_agent || ''}>{userAgentSummary(r.user_agent)}</span>
+                      </td>
                       <td style={{ padding: '9px 14px', color: isDark ? '#64748b' : '#94a3b8', whiteSpace: 'nowrap' }}>{fmtFecha(r.fecha_hora)}</td>
                     </tr>
                   );

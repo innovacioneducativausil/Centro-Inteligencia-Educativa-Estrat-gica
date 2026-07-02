@@ -50,6 +50,12 @@ function cleanAuditLabel(value: string) {
   return raw;
 }
 
+function isAuditDownloadLink(href: string, label: string) {
+  const haystack = `${href} ${label}`.toLowerCase();
+  return /\.(pdf|xlsx?|csv|docx?|pptx?|png|jpe?g|zip)(\?|#|$)/i.test(href)
+    || /(informe|reporte|descarga|exportar|download|documento|malla|brochure|fuente)/i.test(haystack);
+}
+
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState(() => {
     const stored = localStorage.getItem('radar_active_view');
@@ -154,17 +160,21 @@ const App: React.FC = () => {
       if (!el) return;
       const label = getClickLabel(el);
       if (!label) return;
-      logActividad('ui_click', {
+      const anchor = el instanceof HTMLAnchorElement ? el : el.closest('a');
+      const href = anchor instanceof HTMLAnchorElement ? anchor.href : '';
+      const isDownload = href ? isAuditDownloadLink(href, label) : false;
+      logActividad(isDownload ? 'descargar_informe' : 'ui_click', {
         accion: 'click',
         modulo: activeView,
         vista: activeView,
-        elementoTipo: el.tagName.toLowerCase() === 'a' ? 'enlace' : 'boton',
+        elementoTipo: href ? 'enlace' : 'boton',
         elementoTitulo: label.slice(0, 180),
-        detalle: `Modulo ${activeView} | Vista ${activeView} | Click: ${label.slice(0, 180)}`,
+        detalle: `Modulo ${activeView} | Vista ${activeView} | ${isDownload ? 'Documento/enlace abierto' : 'Click'}: ${label.slice(0, 180)}`,
         metadata: {
           vista: activeView,
           etiqueta: label.slice(0, 180),
-          href: el instanceof HTMLAnchorElement ? el.href : undefined,
+          href: href || undefined,
+          tipoRegistro: isDownload ? 'descarga_o_documento' : 'click_interfaz',
         },
       });
     };

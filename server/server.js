@@ -36,6 +36,7 @@ import mercadoLaboralRouter from './routes/mercadoLaboral.js';
 import benchmarkingRouter    from './routes/benchmarking.js';
 import motorCurricularRouter from './routes/motorCurricular.js';
 import { requireAuth }        from './middleware/auth.js';
+import { auditMutatingRequests } from './middleware/auditMutations.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { cleanupExpiredArchives, ensureArchiveSupport, getArchiveRetentionDays } from './services/archiveMaintenance.js';
 import { ensureRadarSchemaSupport } from './services/schemaMaintenance.js';
@@ -118,6 +119,8 @@ app.get('/api/health', (_req, res) => {
 
 
 app.use('/api', authRouter);
+
+app.use('/api', requireAuth, auditMutatingRequests);
 
 app.use('/api', requireAuth, infoRouter);
 

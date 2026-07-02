@@ -24,9 +24,9 @@ function buildActividadFilters(query) {
   if (query.desde) { conds.push('fecha_hora >= ?'); params.push(query.desde + ' 00:00:00'); }
   if (query.hasta) { conds.push('fecha_hora <= ?'); params.push(query.hasta + ' 23:59:59'); }
   if (query.q) {
-    conds.push('(correo LIKE ? OR evento LIKE ? OR accion LIKE ? OR modulo LIKE ? OR detalle LIKE ? OR elemento_titulo LIKE ? OR ip LIKE ?)');
+    conds.push('(correo LIKE ? OR evento LIKE ? OR accion LIKE ? OR modulo LIKE ? OR detalle LIKE ? OR elemento_titulo LIKE ? OR ip LIKE ? OR user_agent LIKE ? OR CAST(metadata AS CHAR) LIKE ?)');
     const like = `%${query.q}%`;
-    params.push(like, like, like, like, like, like, like);
+    params.push(like, like, like, like, like, like, like, like, like);
   }
 
   return {
@@ -41,7 +41,7 @@ function csvCell(value) {
 }
 
 function actividadCsv(rows) {
-  const headers = ['fecha_hora', 'correo', 'rol', 'evento', 'accion', 'modulo', 'entidad', 'entidad_id', 'elemento_tipo', 'elemento_titulo', 'detalle', 'ip', 'user_agent'];
+  const headers = ['fecha_hora', 'correo', 'rol', 'evento', 'accion', 'modulo', 'entidad', 'entidad_id', 'elemento_tipo', 'elemento_titulo', 'detalle', 'ip', 'user_agent', 'metadata'];
   return [
     headers.join(','),
     ...rows.map(row => headers.map(header => csvCell(row[header])).join(',')),
