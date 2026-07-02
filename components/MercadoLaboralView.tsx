@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { ThemeColors } from '../types';
+import { logActividad } from '../services/actividadService';
 
 
 interface InformeLaboralEntry {
@@ -403,6 +404,12 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
         link.download = `Informe_Mercado_Laboral_${carrera.replace(/\s+/g,'_')}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
+        logActividad('descargar_informe', {
+          modulo: 'mercadoLaboral',
+          elementoTipo: 'informe',
+          elementoTitulo: carrera,
+          metadata: { formato: 'png', facultad, carrera, tipo },
+        });
       } catch {
         setExportMsg('Error al generar la imagen. Intente de nuevo.');
       } finally {
@@ -419,6 +426,12 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
 
     const url = tipo === 'infografia' ? entry.urlInfografia : entry.urlInformeCompleto;
     window.open(url, '_blank', 'noopener,noreferrer');
+    logActividad('descargar_informe', {
+      modulo: 'mercadoLaboral',
+      elementoTipo: 'informe',
+      elementoTitulo: carrera,
+      metadata: { formato: 'externo', facultad, carrera, tipo, url },
+    });
   };
 
   useEffect(() => {

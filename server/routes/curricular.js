@@ -5,6 +5,7 @@ import xlsx   from 'xlsx';
 import db from '../db_curricular.js';
 import { adminOrAnalyst } from '../middleware/roles.js';
 import { validateExcelUpload, validateWorkbookShape } from '../utils/security.js';
+import { auditEvent } from '../services/auditService.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -298,6 +299,14 @@ router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async
       }
     }
 
+    await auditEvent(req, {
+      evento: 'importacion_curricular',
+      accion: 'importar',
+      modulo: 'curricular',
+      entidad: 'malla_curricular',
+      detalle: `Importacion curricular: ${imported}/${rows.length} filas importadas`,
+      metadata: { archivo: req.file.originalname, imported, skipped, total: rows.length, errors: errors.length },
+    });
     res.json({ success: true, imported, skipped, total: rows.length, errors });
   } catch (e) { serverError(res, e); }
 });

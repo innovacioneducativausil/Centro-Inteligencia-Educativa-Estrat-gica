@@ -6,6 +6,7 @@ import xlsx           from 'xlsx';
 import { randomUUID } from 'crypto';
 import db             from '../db.js';
 import { sanitizeRichHtml, validateExcelUpload } from '../utils/security.js';
+import { auditEvent } from '../services/auditService.js';
 
 
 const COUNTRIES = [
@@ -386,6 +387,14 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
     }
 
     console.log(`[IMPORT] Señales: ${imported}/${rows.length} importadas (by ${req.user.correo}), ${warnings.length} avisos`);
+    await auditEvent(req, {
+      evento: 'importacion_senales',
+      accion: 'importar',
+      modulo: 'gestion',
+      entidad: 'senal',
+      detalle: `Importacion de senales: ${imported}/${rows.length} filas importadas`,
+      metadata: { archivo: req.file.originalname, imported, total: rows.length, errors: errors.length, warnings: warnings.length },
+    });
     res.json({ success: true, imported, total: rows.length, errors, warnings });
   } catch (err) {
     console.error('[POST /admin/senales/import]', err);
@@ -504,6 +513,14 @@ router.post('/admin/tendencias/import', adminOnly, upload.single('file'), async 
     }
 
     console.log(`[IMPORT] Tendencias: ${imported}/${rows.length} importadas (by ${req.user.correo}), ${warnings.length} avisos`);
+    await auditEvent(req, {
+      evento: 'importacion_tendencias',
+      accion: 'importar',
+      modulo: 'gestion',
+      entidad: 'tendencia',
+      detalle: `Importacion de tendencias: ${imported}/${rows.length} filas importadas`,
+      metadata: { archivo: req.file.originalname, imported, total: rows.length, errors: errors.length, warnings: warnings.length },
+    });
     res.json({ success: true, imported, total: rows.length, errors, warnings });
   } catch (err) {
     console.error('[POST /admin/tendencias/import]', err);
@@ -617,6 +634,14 @@ router.post('/admin/escenarios/import', adminOnly, upload.single('file'), async 
     }
 
     console.log(`[IMPORT] Escenarios: ${imported}/${rows.length} importados (by ${req.user.correo}), ${warnings.length} avisos`);
+    await auditEvent(req, {
+      evento: 'importacion_escenarios',
+      accion: 'importar',
+      modulo: 'gestion',
+      entidad: 'escenario',
+      detalle: `Importacion de escenarios: ${imported}/${rows.length} filas importadas`,
+      metadata: { archivo: req.file.originalname, imported, total: rows.length, errors: errors.length, warnings: warnings.length },
+    });
     res.json({ success: true, imported, total: rows.length, errors, warnings });
   } catch (err) {
     console.error('[POST /admin/escenarios/import]', err);
@@ -716,6 +741,14 @@ router.post('/admin/relaciones/import', adminOnly, upload.single('file'), async 
     }
 
     console.log(`[IMPORT] Relaciones: ${imported}/${rows.length} importadas (by ${req.user.correo}), ${warnings.length} avisos`);
+    await auditEvent(req, {
+      evento: 'importacion_relaciones',
+      accion: 'importar',
+      modulo: 'gestion',
+      entidad: 'relacion',
+      detalle: `Importacion de relaciones: ${imported}/${rows.length} filas procesadas`,
+      metadata: { archivo: req.file.originalname, imported, total: rows.length, errors: errors.length, warnings: warnings.length },
+    });
     res.json({ success: true, imported, total: rows.length, errors, warnings });
   } catch (err) {
     console.error('[POST /admin/relaciones/import]', err);

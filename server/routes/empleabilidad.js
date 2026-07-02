@@ -6,6 +6,7 @@ import xlsx       from 'xlsx';
 import db         from '../db_empl.js';
 import { adminOrAnalyst } from '../middleware/roles.js';
 import { validateExcelUpload, validateWorkbookShape } from '../utils/security.js';
+import { auditEvent } from '../services/auditService.js';
 
 const router = Router();
 const upload = multer({
@@ -937,6 +938,14 @@ router.post('/empleabilidad/importar', adminOrAnalyst, upload.single('file'), as
       }
     }
 
+    await auditEvent(req, {
+      evento: 'importacion_empleabilidad',
+      accion: 'importar',
+      modulo: 'empleabilidad',
+      entidad: 'egresado',
+      detalle: `Importacion de empleabilidad: ${imported}/${rows.length} filas importadas`,
+      metadata: { archivo: req.file.originalname, imported, skipped, total: rows.length, errors: errors.length, formato: 'wide' },
+    });
     res.json({ success: true, imported, skipped, total: rows.length, errors: errors.slice(0, 20) });
   } catch (e) {
     console.error('[POST /empleabilidad/importar]', e);
@@ -1135,6 +1144,14 @@ router.post('/empleabilidad/importar-tall', adminOrAnalyst, upload.single('file'
     const skipReasons = {};
     for (const [k, v] of Object.entries(skipDetails)) skipReasons[k] = v.count;
     console.log('[importar-tall] resultado: imported=%d skipped=%d skipReasons=%j errors=%d', imported, skipped, skipReasons, errors.length);
+    await auditEvent(req, {
+      evento: 'importacion_empleabilidad_tall',
+      accion: 'importar',
+      modulo: 'empleabilidad',
+      entidad: 'egresado',
+      detalle: `Importacion de empleabilidad tall: ${imported}/${rows.length} filas importadas`,
+      metadata: { archivo: req.file.originalname, imported, skipped, total: rows.length, errors: errors.length, formato: 'tall', anioEncuesta },
+    });
     res.json({ success: true, imported, skipped, total: rows.length, skipReasons, skipDetails, errors });
   } catch (e) {
     console.error('[POST /empleabilidad/importar-tall]', e);

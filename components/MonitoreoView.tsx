@@ -87,11 +87,15 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
   const [error, setError] = useState<string | null>(null);
   const [correoFilter, setCorreoFilter] = useState('');
   const [eventoFilter, setEventoFilter] = useState('');
+  const [accionFilter, setAccionFilter] = useState('');
   const [moduloFilter, setModuloFilter] = useState('');
+  const [ipFilter, setIpFilter] = useState('');
+  const [qFilter, setQFilter] = useState('');
   const [desdeFilter, setDesdeFilter] = useState('');
   const [hastaFilter, setHastaFilter] = useState('');
   const [correosList, setCorreosList] = useState<{ correo: string; nombre: string; rol: string }[]>([]);
   const [eventosList, setEventosList] = useState<string[]>([]);
+  const [accionesList, setAccionesList] = useState<string[]>([]);
   const [modulosList, setModulosList] = useState<string[]>([]);
 
   useEffect(() => {
@@ -103,6 +107,11 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
     fetch('/api/actividad/eventos', { credentials: 'include' })
       .then(r => r.ok ? r.json() : { data: [] })
       .then(j => setEventosList(j.data || []))
+      .catch(() => {});
+
+    fetch('/api/actividad/acciones', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { data: [] })
+      .then(j => setAccionesList(j.data || []))
       .catch(() => {});
 
     fetch('/api/actividad/modulos', { credentials: 'include' })
@@ -118,7 +127,10 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
       const params = new URLSearchParams({ page: String(page), limit: String(PAGE_LIMIT) });
       if (correoFilter) params.set('correo', correoFilter);
       if (eventoFilter) params.set('evento', eventoFilter);
+      if (accionFilter) params.set('accion', accionFilter);
       if (moduloFilter) params.set('modulo', moduloFilter);
+      if (ipFilter) params.set('ip', ipFilter);
+      if (qFilter) params.set('q', qFilter);
       if (desdeFilter) params.set('desde', desdeFilter);
       if (hastaFilter) params.set('hasta', hastaFilter);
 
@@ -136,17 +148,38 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
     } finally {
       setLoading(false);
     }
-  }, [page, correoFilter, eventoFilter, moduloFilter, desdeFilter, hastaFilter]);
+  }, [page, correoFilter, eventoFilter, accionFilter, moduloFilter, ipFilter, qFilter, desdeFilter, hastaFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const resetFiltros = () => {
     setCorreoFilter('');
     setEventoFilter('');
+    setAccionFilter('');
     setModuloFilter('');
+    setIpFilter('');
+    setQFilter('');
     setDesdeFilter('');
     setHastaFilter('');
     setPage(1);
+  };
+
+  const buildFilterParams = () => {
+    const params = new URLSearchParams();
+    if (correoFilter) params.set('correo', correoFilter);
+    if (eventoFilter) params.set('evento', eventoFilter);
+    if (accionFilter) params.set('accion', accionFilter);
+    if (moduloFilter) params.set('modulo', moduloFilter);
+    if (ipFilter) params.set('ip', ipFilter);
+    if (qFilter) params.set('q', qFilter);
+    if (desdeFilter) params.set('desde', desdeFilter);
+    if (hastaFilter) params.set('hasta', hastaFilter);
+    return params;
+  };
+
+  const exportCsv = () => {
+    const qs = buildFilterParams().toString();
+    window.open(`/api/actividad/export${qs ? `?${qs}` : ''}`, '_blank', 'noopener,noreferrer');
   };
 
   const inputCls = `px-3 py-1.5 text-xs rounded-lg border outline-none transition-all ${
@@ -195,13 +228,26 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
         <input type="date" value={desdeFilter} onChange={e => { setDesdeFilter(e.target.value); setPage(1); }} className={inputCls} />
         <input type="date" value={hastaFilter} onChange={e => { setHastaFilter(e.target.value); setPage(1); }} className={inputCls} />
 
-        {(correoFilter || eventoFilter || moduloFilter || desdeFilter || hastaFilter) && (
+        <input value={qFilter} onChange={e => { setQFilter(e.target.value); setPage(1); }} className={inputCls} placeholder="Buscar detalle, IP o usuario" style={{ minWidth: 220 }} />
+
+        <select value={accionFilter} onChange={e => { setAccionFilter(e.target.value); setPage(1); }} className={inputCls} style={{ minWidth: 180 }}>
+          <option value="">Todas las acciones</option>
+          {accionesList.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+
+        <input value={ipFilter} onChange={e => { setIpFilter(e.target.value); setPage(1); }} className={inputCls} placeholder="IP" style={{ width: 140 }} />
+
+        {(correoFilter || eventoFilter || accionFilter || moduloFilter || ipFilter || qFilter || desdeFilter || hastaFilter) && (
           <button onClick={resetFiltros} style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
             Limpiar filtros
           </button>
         )}
 
-        <button onClick={fetchData} style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: 'white', background: '#0D9488', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}>
+        <button onClick={exportCsv} style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: '#0f766e', background: '#ccfbf1', border: '1px solid #99f6e4', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}>
+          Exportar CSV
+        </button>
+
+        <button onClick={fetchData} style={{ fontSize: 11, fontWeight: 800, color: 'white', background: '#0D9488', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}>
           Actualizar
         </button>
       </div>

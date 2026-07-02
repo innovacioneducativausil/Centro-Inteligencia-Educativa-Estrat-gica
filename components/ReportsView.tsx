@@ -3,6 +3,7 @@ import { Download, TrendingUp, Zap, BarChart2, CheckCircle2, Loader2, Sparkles, 
 import { ThemeColors } from '../types';
 import { SIGNALS_DATA } from '../constants';
 import { generateForesightBrief } from '../services/geminiService';
+import { logActividad } from '../services/actividadService';
 
 interface ReportsViewProps {
   themeColors: ThemeColors;
@@ -38,6 +39,14 @@ const ReportsView: React.FC<ReportsViewProps> = ({ themeColors }) => {
 
   const handleGenerate = async (id: string) => {
     setGenerating(id);
+    if (id !== 'ai-insights') {
+      logActividad('descargar_informe', {
+        modulo: 'informes',
+        elementoTipo: 'reporte',
+        elementoTitulo: reportCards.find(report => report.id === id)?.title || id,
+        metadata: { formato: 'pdf', reporte: id },
+      });
+    }
     try {
       if (id === 'ai-insights') {
         const topics = SIGNALS_DATA.map(s => `${s.category}: ${s.title}`);
