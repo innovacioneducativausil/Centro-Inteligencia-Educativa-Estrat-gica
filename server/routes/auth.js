@@ -186,25 +186,58 @@ router.post('/auth/login', async (req, res) => {
 
     await db.query(
       `UPDATE usuario
-       SET failed_login_attempts = 0, locked_until = NULL, fecha_actualizacion = NOW()
+       SET failed_login_attempts = 0,
+           locked_until = NULL,
+           otp_hash = NULL,
+           otp_expires = NULL,
+           otp_attempts = 0,
+           otp_purpose = NULL,
+           ultimo_acceso = NOW(),
+           fecha_actualizacion = NOW()
        WHERE id_usuario = ?`,
       [user.id_usuario]
     );
-    await createOtpForUser(user, 'login');
+
+    /*
+     * MFA de login suspendido temporalmente:
+     * Los correos institucionales estan bloqueando/no recibiendo el OTP.
+     * No eliminar este flujo; reactivarlo cuando TI habilite el envio SMTP.
+     *
+     * await createOtpForUser(user, 'login');
+     * await auditEvent(req, {
+     *   evento: 'login_otp_generado',
+     *   accion: 'login',
+     *   modulo: 'auth',
+     *   idUsuario: user.id_usuario,
+     *   correo: user.correo_usuario,
+     *   rol: user.rol,
+     *   detalle: 'Credenciales validas, OTP enviado',
+     * });
+     *
+     * return res.json({
+     *   requiresOtp: true,
+     *   correo: user.correo_usuario,
+     *   message: 'Codigo de verificacion enviado a tu correo institucional.',
+     * });
+     */
+
+    const token = signAuthToken(user);
+    res.cookie(AUTH_COOKIE, token, authCookieOptions());
     await auditEvent(req, {
-      evento: 'login_otp_generado',
+      evento: 'login_exitoso',
       accion: 'login',
       modulo: 'auth',
       idUsuario: user.id_usuario,
       correo: user.correo_usuario,
       rol: user.rol,
-      detalle: 'Credenciales validas, OTP enviado',
+      detalle: 'Credenciales validas. MFA temporalmente suspendido por bloqueo de correos OTP.',
     });
 
     res.json({
-      requiresOtp: true,
-      correo: user.correo_usuario,
-      message: 'Codigo de verificacion enviado a tu correo institucional.',
+      token,
+      user: buildAuthUser(user),
+      mfaDisabled: true,
+      message: 'MFA temporalmente suspendido. Inicio de sesion autorizado con credenciales validas.',
     });
   } catch (err) {
     console.error('[POST /auth/login]', err);
