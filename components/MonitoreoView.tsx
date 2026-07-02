@@ -104,6 +104,30 @@ function metadataValue(value: string | null, key: string) {
   return typeof data[key] === 'string' || typeof data[key] === 'number' ? String(data[key]) : '';
 }
 
+function cleanElementLabel(value: string) {
+  const raw = value.replace(/\s+/g, ' ').trim();
+  const iconPrefixes = [
+    'monitoring',
+    'compare',
+    'download',
+    'open_in_new',
+    'filter_alt_off',
+    'home',
+    'search',
+    'work_outline',
+    'dashboard',
+    'bar_chart',
+    'settings',
+    'tune',
+  ];
+  for (const icon of iconPrefixes) {
+    if (raw.startsWith(icon) && raw.length > icon.length) {
+      return raw.slice(icon.length).replace(/^[\s_-]+/, '').trim();
+    }
+  }
+  return raw;
+}
+
 const PAGE_LIMIT = 50;
 
 const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) => {
@@ -301,7 +325,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
               <tbody>
                 {rows.map((r, i) => {
                   const vista = metadataValue(r.metadata, 'vista') || r.modulo || '-';
-                  const elemento = r.elemento_titulo || metadataValue(r.metadata, 'etiqueta') || metadataValue(r.metadata, 'usuarioObjetivo') || '-';
+                  const elemento = cleanElementLabel(r.elemento_titulo || metadataValue(r.metadata, 'etiqueta') || metadataValue(r.metadata, 'usuarioObjetivo') || '-');
                   const extra = r.evento === 'ui_click' ? '' : metadataSummary(r.metadata);
                   const detalleBase = [r.elemento_titulo, r.detalle].filter(Boolean).join(' - ')
                     || (r.entidad ? `${r.entidad}${r.entidad_id ? ` ${r.entidad_id}` : ''}` : '');

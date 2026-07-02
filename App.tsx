@@ -24,9 +24,19 @@ const defaultModulesFor = (authUser?: AuthUser | null) => [
 function getClickLabel(el: HTMLElement) {
   const explicit = el.getAttribute('aria-label') || el.getAttribute('title');
   if (explicit?.trim()) return explicit.replace(/\s+/g, ' ').trim();
-  const clone = el.cloneNode(true) as HTMLElement;
-  clone.querySelectorAll('svg, [aria-hidden="true"], .material-symbols-outlined, .material-icons').forEach(node => node.remove());
-  return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+  const readText = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+    if (!(node instanceof HTMLElement)) return '';
+    const className = node.className || '';
+    const isIcon = node.tagName.toLowerCase() === 'svg'
+      || node.getAttribute('aria-hidden') === 'true'
+      || String(className).includes('material-symbol')
+      || String(className).includes('material-icons')
+      || String(className).includes('lucide');
+    if (isIcon) return '';
+    return Array.from(node.childNodes).map(readText).join(' ');
+  };
+  return readText(el).replace(/\s+/g, ' ').trim();
 }
 
 const App: React.FC = () => {
