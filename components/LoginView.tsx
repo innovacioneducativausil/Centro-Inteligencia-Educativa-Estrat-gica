@@ -148,7 +148,7 @@ const USILHeader: React.FC = () => (
 
 const PageFooter: React.FC = () => (
   <div className="mt-4 text-center space-y-2">
-    <p className="text-xs font-medium text-slate-400">© 2024 Universidad San Ignacio de Loyola.</p>
+    <p className="text-xs font-medium text-slate-400">© 2025 Universidad San Ignacio de Loyola.</p>
     <div className="flex justify-center gap-5 text-xs">
       <a href="https://wa.link/odvsxk" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-700 underline underline-offset-2">Soporte Técnico</a>
       <span className="text-slate-300">|</span>
@@ -517,7 +517,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               <Card>
                 <div className="mb-5 relative z-10">
                   <h1 className="text-3xl font-bold mb-2 tracking-tight text-slate-900 leading-tight">
-                    Radar de <br /><span style={{ color: BRAND_COLORS.active }}>Prospección</span>
+                    <span style={{ color: BRAND_COLORS.active }}>CIEE</span>
                   </h1>
                   <p className="text-sm text-slate-500 leading-relaxed">
                     Ingrese sus credenciales institucionales para acceder al sistema.

@@ -5,7 +5,7 @@ import db from '../db.js';
 
 
 const HASH_USUARIO2026 = '$2b$10$TcGMVTczjVtjsCBGlNv2HeqBZZBm9ooqtz1pN2NOYSXRx5IYWPccC';
-const HASH_USIL_ADMIN_2026 = HASH_USUARIO2026;
+const HASH_USIL_ADMIN_2026 = '$2b$10$VFWnxWhh5OLch4n2vLZ2y..Y5FULqqvqleWKG/8EDEZllZCYY/oaC';
 
 const USUARIOS_NUEVOS = [
   { id: '6d1a4b91-bbb9-4ff6-bcd0-62700b5fcc09', nombre: 'Paolo Tejada Pinto',       corto: 'Paolo',    correo: 'ptejada@usil.edu.pe'   },
@@ -223,7 +223,8 @@ export async function runUserMigration() {
         const [r] = await db.query(
           `UPDATE usuario
            SET nombre_usuario = ?, nombre_corto = ?, password_hash = ?, rol = ?,
-               activo = 1, email_verificado = 1, fecha_actualizacion = NOW()
+               activo = 1, email_verificado = 1, failed_login_attempts = 0,
+               locked_until = NULL, password_changed_at = NOW(), fecha_actualizacion = NOW()
            WHERE correo_usuario = ?`,
           [u.nombre, u.corto, u.hash || HASH_USUARIO2026, u.rol, u.correo]
         );

@@ -43,9 +43,9 @@ async function sendWithResend({ to, html, text }) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: `USIL Radar <${fromEmail}>`,
+      from: `USIL CIEE <${fromEmail}>`,
       to,
-      subject: 'Codigo de verificacion - USIL Radar',
+      subject: 'Codigo de verificacion - USIL CIEE',
       html,
       text,
     }),
@@ -91,7 +91,7 @@ export async function sendOtpEmail({ to, nombre, otp }) {
               </p>
               <h1 style="margin:8px 0 0;color:#ffffff;font-size:22px;font-weight:800;
                           letter-spacing:-0.5px;">
-                Radar de Prospección
+                CIEE
               </h1>
             </td>
           </tr>
@@ -144,7 +144,7 @@ export async function sendOtpEmail({ to, nombre, otp }) {
             <td style="background:#f8fafc;border-top:1px solid #e2e8f0;
                         padding:20px 40px;text-align:center;">
               <p style="margin:0;color:#94a3b8;font-size:11px;">
-                © 2024 Universidad San Ignacio de Loyola · Sistema de Acceso Restringido
+                © 2025 Universidad San Ignacio de Loyola · Sistema de Acceso Restringido
               </p>
             </td>
           </tr>
@@ -162,9 +162,9 @@ export async function sendOtpEmail({ to, nombre, otp }) {
     if (sentByResend) return;
 
     await transporter.sendMail({
-      from:    `"USIL Radar de Prospeccion" <${process.env.SMTP_USER}>`,
+      from:    `"USIL CIEE" <${process.env.SMTP_USER}>`,
       to,
-      subject: 'Codigo de verificacion - USIL Radar',
+      subject: 'Codigo de verificacion - USIL CIEE',
       html,
       text,
     });
