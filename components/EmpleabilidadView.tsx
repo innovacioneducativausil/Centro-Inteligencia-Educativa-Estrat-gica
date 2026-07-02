@@ -1163,6 +1163,79 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
 
   const solo2022    = selAños.length === 1 && selAños[0] === '2022';
 
+  const statItemRows = (items: StatItem[]) => items.map(it => ({ etiqueta: it.label, total: it.total, porcentaje: it.pct }));
+  const statItemColumns = [
+    { header: 'Etiqueta', key: 'etiqueta', width: 40 },
+    { header: 'Total', key: 'total', width: 12 },
+    { header: '% ', key: 'porcentaje', width: 12 },
+  ];
+
+  const handleExportTabExcel = async () => {
+    const cfg = TABS.find(t => t.key === activeTab)!;
+    const filtrosMeta = { anios: selAños, facultad: selFacultad, carrera: selCarrera, programas: selProgramas, ciclos: selCiclos };
+
+    if (activeTab === 'resumen') {
+      await downloadExcel('Empleabilidad_Informacion_General', [
+        {
+          name: 'KPIs',
+          columns: [{ header: 'Indicador', key: 'indicador', width: 34 }, { header: 'Valor', key: 'valor', width: 18 }],
+          rows: [
+            { indicador: 'Total encuestados', valor: resumen.totalEncuestados },
+            { indicador: 'Egresados colocados laboralmente', valor: resumen.egresadosColocados },
+            { indicador: 'Alumni con empleo afín a su carrera', valor: resumen.alumniAfinCarrera },
+            { indicador: 'Total emprendedores', valor: resumen.totalEmprendedores },
+            { indicador: 'Tasa de empleabilidad (%)', valor: resumen.tasaEmpleabilidad },
+            { indicador: 'Tasa de emprendimiento (%)', valor: resumen.tasaEmprendimiento },
+            { indicador: 'Tasa de afinidad (%)', valor: resumen.tasaAfinidad },
+          ],
+        },
+        {
+          name: 'Rango salarial',
+          columns: [{ header: 'Rango', key: 'rango', width: 30 }, { header: 'Total', key: 'total', width: 12 }, { header: '%', key: 'pct', width: 10 }],
+          rows: rangos.map(r => ({ rango: r.rango, total: r.total, pct: r.pct })),
+        },
+        {
+          name: 'Nivel de puesto',
+          columns: [{ header: 'Nivel', key: 'nivel', width: 30 }, { header: 'Total', key: 'total', width: 12 }, { header: '%', key: 'pct', width: 10 }],
+          rows: niveles.map(n => ({ nivel: n.nivel, total: n.total, pct: n.pct })),
+        },
+        {
+          name: 'Satisfacción USIL',
+          columns: [{ header: 'Nivel', key: 'nivel', width: 30 }, { header: 'Total', key: 'total', width: 12 }, { header: '%', key: 'pct', width: 10 }],
+          rows: satisf.map(s => ({ nivel: s.nivel, total: s.total, pct: s.pct })),
+        },
+      ]);
+    } else {
+      const S = tabStats;
+      await downloadExcel(`Empleabilidad_${cfg.label.replace(/\s+/g, '_')}`, [
+        {
+          name: 'KPIs',
+          columns: [{ header: 'Indicador', key: 'indicador', width: 34 }, { header: 'Valor', key: 'valor', width: 18 }],
+          rows: [
+            { indicador: cfg.label, valor: S.total },
+            { indicador: 'Tasa de afinidad (%)', valor: S.tasaAfinidad },
+          ],
+        },
+        { name: 'Nivel de puesto',   columns: statItemColumns, rows: statItemRows(S.nivelPuesto) },
+        { name: 'Satisfacción',      columns: statItemColumns, rows: statItemRows(S.satisfaccion) },
+        { name: 'Rango salarial',    columns: statItemColumns, rows: statItemRows(S.rangos) },
+        { name: 'Top rubros',        columns: statItemColumns, rows: statItemRows(S.topRubros) },
+        { name: 'Top empresas',      columns: statItemColumns, rows: statItemRows(S.topEmpresas) },
+        { name: 'Top áreas',         columns: statItemColumns, rows: statItemRows(S.topAreas) },
+        { name: 'Top carreras',      columns: statItemColumns, rows: statItemRows(S.topCarreras) },
+        { name: 'Top facultades',    columns: statItemColumns, rows: statItemRows(S.topFacultades) },
+      ]);
+    }
+
+    logActividad('descargar_informe', {
+      modulo: 'empleabilidad',
+      vista: activeTab,
+      elementoTipo: 'reporte',
+      elementoTitulo: cfg.label,
+      metadata: { formato: 'xlsx', vista: activeTab, filtros: filtrosMeta },
+    });
+  };
+
   return (
     <div style={{ padding: '14px 20px', background: bg, minHeight: '100%', color: text, overflowX: 'hidden' }}>
 
@@ -1187,7 +1260,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
       </div>
 
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 10, borderBottom: `2px solid ${border}`, paddingBottom: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginBottom: 10, borderBottom: `2px solid ${border}`, paddingBottom: 0 }}>
         {TABS.map(t => {
           const active = activeTab === t.key;
           return (
@@ -1206,6 +1279,16 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
             </button>
           );
         })}
+
+        {activeTab !== 'descarga' && (
+          <button onClick={handleExportTabExcel}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', marginBottom: 8,
+              padding: '7px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+              background: ACCENT, color: '#fff', fontSize: 11, fontWeight: 700 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>download</span>
+            Exportar Excel
+          </button>
+        )}
       </div>
 
 

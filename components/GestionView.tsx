@@ -190,6 +190,10 @@ function authHeaders() {
   return { 'Content-Type': 'application/json' };
 }
 
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function getEstadoInfo(id: number): { label: string; slug: string } {
   const map: Record<number, { label: string; slug: string }> = {
     1: { label: 'Publicado',   slug: 'publicado' },
@@ -305,35 +309,121 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleExportListadoExcel = async () => {
-    if (!pageData) return;
-    const label = TAB_CONFIG[activeTab as Exclude<Tab, 'monitoreo'>]?.label || activeTab;
-    await downloadExcel(`Listado_${label.replace(/\s+/g, '_')}`, [{
-      name: label.slice(0, 31),
-      columns: [
-        { header: 'Título', key: 'titulo', width: 45 },
-        { header: 'Sector', key: 'sector', width: 25 },
-        { header: 'PESTEL', key: 'pestel', width: 20 },
-        { header: 'Fuente', key: 'fuente', width: 30 },
-        { header: 'Fecha', key: 'fecha', width: 16 },
-        { header: 'Estado', key: 'estado', width: 16 },
-      ],
-      rows: pageData.data.map(item => ({
-        titulo: item.titulo,
-        sector: item.sector || item.sectors.join(', ') || '',
-        pestel: item.pestel || item.pestels.map(p => p.nombre).join(', ') || '',
-        fuente: item.fuente || '',
-        fecha: item.fecha || '',
-        estado: item.estado.label,
-      })),
-    }]);
+  const [exportingListado, setExportingListado] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
-    logActividad('descargar_informe', {
-      modulo: 'gestion',
-      elementoTipo: 'listado',
-      elementoTitulo: label,
-      metadata: { formato: 'xlsx', tab: activeTab, total: pageData.data.length, pagina: pageData.page },
-    });
+  const handleExportListadoExcel = async () => {
+    if (!pageData || exportingListado) return;
+    setExportingListado(true);
+    setExportError(null);
+    try {
+      const label = TAB_CONFIG[activeTab as Exclude<Tab, 'monitoreo'>]?.label || activeTab;
+
+      const listParams = new URLSearchParams({
+        limit: '50',
+        ...(search                  && { q:       search                }),
+        ...(estadoFilter            && { estado:  estadoFilter           }),
+        ...(pestelFilter.length > 0 && { pestel:  pestelFilter.join(',') }),
+        ...(sectorFilter.length > 0 && { sector:  sectorFilter.join(',') }),
+        ...(activeTab === 'escenarios' && horizonteFilter && { horizonte: horizonteFilter }),
+      });
+
+      let allItems: AdminItem[] = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      do {
+        listParams.set('page', String(currentPage));
+        const res = await fetch(`/api/admin/${activeTab}?${listParams}`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('No se pudo obtener el listado completo.');
+        const pd: PageData = await res.json();
+        allItems = allItems.concat(pd.data);
+        totalPages = pd.pages;
+        currentPage++;
+      } while (currentPage <= totalPages);
+
+      const BATCH = 6;
+      const details: Record<string, any>[] = [];
+      for (let i = 0; i < allItems.length; i += BATCH) {
+        const batch = allItems.slice(i, i + BATCH);
+        const batchDetails = await Promise.all(batch.map(async item => {
+          try {
+            const r = await fetch(`/api/admin/${activeTab}/${item.uuid}`, { headers: authHeaders() });
+            if (!r.ok) return item;
+            const d = await r.json();
+            return { ...item, ...d };
+          } catch {
+            return item;
+          }
+        }));
+        details.push(...batchDetails);
+      }
+
+      await downloadExcel(`Listado_${label.replace(/\s+/g, '_')}`, [{
+        name: label.slice(0, 31),
+        columns: [
+          { header: 'Título', key: 'titulo', width: 45 },
+          { header: 'Descripción corta', key: 'descCorta', width: 60 },
+          { header: 'Descripción larga', key: 'descLarga', width: 80 },
+          { header: 'Razón de cambio', key: 'razonCambio', width: 40 },
+          { header: 'Sector', key: 'sector', width: 25 },
+          { header: 'PESTEL', key: 'pestel', width: 20 },
+          { header: 'Tópico', key: 'topico', width: 25 },
+          { header: 'Fuente', key: 'fuente', width: 30 },
+          { header: 'URL Fuente', key: 'urlFuente', width: 50 },
+          { header: 'Imagen URL', key: 'imagenUrl', width: 50 },
+          { header: 'Video URL', key: 'videoUrl', width: 50 },
+          { header: 'Autor', key: 'autor', width: 20 },
+          { header: 'País de origen', key: 'paisOrigen', width: 18 },
+          { header: 'Horizonte', key: 'horizonte', width: 14 },
+          { header: 'Probabilidad', key: 'probabilidad', width: 14 },
+          { header: 'Estado', key: 'estado', width: 16 },
+          { header: 'Fecha creación', key: 'fechaCreacion', width: 16 },
+          { header: 'Fecha publicación', key: 'fechaPublicacion', width: 16 },
+          { header: 'Fecha actualización', key: 'fechaActualizacion', width: 16 },
+          { header: 'Señales relacionadas', key: 'senalesRel', width: 50 },
+          { header: 'Tendencias relacionadas', key: 'tendenciasRel', width: 50 },
+          { header: 'Escenarios relacionados', key: 'escenariosRel', width: 50 },
+        ],
+        rows: details.map(d => ({
+          titulo: d.titulo ?? d.tituloDes ?? '',
+          descCorta: d.descCorta ?? d.descripcion ?? '',
+          descLarga: stripHtml(d.descLarga || ''),
+          razonCambio: d.razonCambio || '',
+          sector: d.sector || (d.sectors || []).join(', ') || '',
+          pestel: d.pestel || (d.pestels || []).map((p: any) => p.nombre).join(', ') || '',
+          topico: d.topico || '',
+          fuente: d.fuente || '',
+          urlFuente: d.urlFuente || '',
+          imagenUrl: d.imagenUrl || '',
+          videoUrl: d.videoUrl || '',
+          autor: d.autor || '',
+          paisOrigen: d.paisOrigen || '',
+          horizonte: d.horizonte || '',
+          probabilidad: d.probabilidad ?? '',
+          estado: d.estado?.label || '',
+          fechaCreacion: d.fechaCreacion || '',
+          fechaPublicacion: d.fechaPublicacion || '',
+          fechaActualizacion: d.fechaActualizacion || '',
+          senalesRel: (d.senalesRelacionadas || []).map((x: any) => x.titulo).join(', '),
+          tendenciasRel: (d.tendenciasRelacionadas || []).map((x: any) => x.titulo).join(', '),
+          escenariosRel: (d.escenariosRelacionados || []).map((x: any) => x.titulo).join(', '),
+        })),
+      }]);
+
+      logActividad('descargar_informe', {
+        modulo: 'gestion',
+        elementoTipo: 'listado',
+        elementoTitulo: label,
+        metadata: {
+          formato: 'xlsx', tab: activeTab, total: details.length,
+          filtros: { search, estadoFilter, pestelFilter, sectorFilter, horizonteFilter },
+        },
+      });
+    } catch (e: unknown) {
+      setExportError(e instanceof Error ? e.message : 'Error al exportar el listado.');
+    } finally {
+      setExportingListado(false);
+    }
   };
 
 
@@ -1854,15 +1944,24 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
           </div>
 
           {pageData && pageData.data.length > 0 && (
-            <button onClick={handleExportListadoExcel}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-full border outline-none transition-all sm:ml-auto"
+            <button onClick={handleExportListadoExcel} disabled={exportingListado}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-full border outline-none transition-all sm:ml-auto disabled:opacity-60"
               style={{ fontSize: 13, background: '#1978e5', color: '#fff', borderColor: '#1978e5' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span>
-              Exportar Excel
+              {exportingListado
+                ? <Loader2 size={14} className="animate-spin" />
+                : <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span>
+              }
+              {exportingListado ? 'Exportando…' : 'Exportar Excel'}
             </button>
           )}
 
         </div>
+
+        {exportError && (
+          <div className="px-6 py-2 text-xs font-semibold" style={{ color: '#ef4444' }}>
+            {exportError}
+          </div>
+        )}
 
 
         {loading ? (
