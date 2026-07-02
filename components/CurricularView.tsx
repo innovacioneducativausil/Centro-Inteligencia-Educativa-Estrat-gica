@@ -107,6 +107,7 @@ interface ImportResult {
 }
 
 type TabCurricular = 'mapa' | 'silabos' | 'benchmarking' | 'impacto';
+const VALID_CURRICULAR_TABS: TabCurricular[] = ['mapa', 'silabos', 'benchmarking', 'impacto'];
 
 
 function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrerasFiltradas, selFacultad, filtros }: {
@@ -212,7 +213,10 @@ function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrer
 }
 
 const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRole }) => {
-  const [activeTab, setActiveTab]  = useState<TabCurricular>('mapa');
+  const [activeTab, setActiveTab]  = useState<TabCurricular>(() => {
+    const stored = localStorage.getItem('radar_curricular_tab') as TabCurricular | null;
+    return stored && VALID_CURRICULAR_TABS.includes(stored) ? stored : 'mapa';
+  });
 
 
   const [filtros,      setFiltros]     = useState<FiltrosData>({ facultades: [], carreras: [] });
@@ -246,6 +250,10 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   const muted  = isDark ? '#94a3b8' : '#64748b';
   const border = isDark ? 'rgba(148,163,184,0.15)' : '#e2e8f0';
   const canImport = userRole === 'admin' || userRole === 'analista';
+  const switchTab = (tab: TabCurricular) => {
+    localStorage.setItem('radar_curricular_tab', tab);
+    setActiveTab(tab);
+  };
 
   const headers = {};
 
@@ -429,7 +437,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
         ] as { key: TabCurricular; label: string; icon: string }[]).map(t => {
           const active = activeTab === t.key;
           return (
-            <button key={t.key} onClick={() => setActiveTab(t.key)}
+            <button key={t.key} onClick={() => switchTab(t.key)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 40, padding: '0 16px', borderRadius: 8, border: active ? 'none' : `1px solid ${border}`, cursor: 'pointer', fontSize: 12, fontWeight: 700, transition: 'all .15s',
                 background: active ? USIL : card, color: active ? '#fff' : muted }}>
               <span className="material-symbols-outlined" style={{ fontSize: 15 }}>{t.icon}</span>
@@ -776,7 +784,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
                 <div style={{ padding: '10px 14px', borderTop: `1px solid ${border}`, flexShrink: 0 }}>
                   <button
-                    onClick={() => setActiveTab('impacto')}
+                    onClick={() => switchTab('impacto')}
                     style={{ width: '100%', padding: '10px', borderRadius: 8, border: 'none',
                       background: USIL, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
                       boxShadow: '0 2px 8px rgba(0,40,85,0.25)' }}>

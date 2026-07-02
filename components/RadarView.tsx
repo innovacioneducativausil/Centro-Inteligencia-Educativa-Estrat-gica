@@ -127,6 +127,8 @@ function toScenario(s: ApiScenario): Signal {
 type ViewMode = 'cards' | 'tabla' | 'matriz' | 'cluster' | 'timeline';
 type SortOrder = 'recientes' | 'impacto' | 'horizonte' | 'az';
 type QuickFilter = 'todas' | 'urgentes' | 'ia' | 'curricula' | 'empleabilidad';
+type RadarTab = 'señales' | 'tendencias' | 'escenarios' | 'cadena';
+const VALID_RADAR_VIEWS: ViewMode[] = ['cards', 'tabla', 'matriz', 'cluster', 'timeline'];
 
 const VIEWS_FOR_TAB: Record<string, { id: ViewMode; symbol: string; label: string }[]> = {
   señales:    [{ id: 'cards', symbol: '⊞', label: 'Cartillas' }, { id: 'timeline', symbol: '⟶', label: 'Tiempo' }],
@@ -135,8 +137,11 @@ const VIEWS_FOR_TAB: Record<string, { id: ViewMode; symbol: string; label: strin
 };
 
 const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRadarTab, pendingNotif, onPendingNotifConsumed }) => {
-  const [activeTab, setActiveTab] = useState<'señales' | 'tendencias' | 'escenarios' | 'cadena'>(activeTabProp || 'señales');
-  const [activeView, setActiveView] = useState<ViewMode>('cards');
+  const [activeTab, setActiveTab] = useState<RadarTab>(activeTabProp || 'señales');
+  const [activeView, setActiveView] = useState<ViewMode>(() => {
+    const stored = localStorage.getItem('radar_view_mode') as ViewMode | null;
+    return stored && VALID_RADAR_VIEWS.includes(stored) ? stored : 'cards';
+  });
   const [sortOrder, setSortOrder] = useState<SortOrder>('recientes');
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('todas');
   const [searchInput, setSearchInput] = useState('');
@@ -177,6 +182,19 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
     if (activeTabProp) setActiveTab(activeTabProp);
   }, [activeTabProp]);
 
+  useEffect(() => {
+    localStorage.setItem('radar_view_mode', activeView);
+  }, [activeView]);
+
+  const handleTabChange = (tab: RadarTab) => {
+    setActiveTab(tab);
+    if (tab !== 'cadena') setRadarTab?.(tab);
+  };
+
+  const handleViewChange = (view: ViewMode) => {
+    setActiveView(view);
+    localStorage.setItem('radar_view_mode', view);
+  };
 
   useEffect(() => {
     const valid = VIEWS_FOR_TAB[activeTab]?.map(v => v.id) ?? ['cards'];
@@ -447,7 +465,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
           ] as const).map(tab => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id as any); if (tab.id !== 'cadena') setRadarTab?.(tab.id as any); }}
+              onClick={() => handleTabChange(tab.id as RadarTab)}
               style={{
                 padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                 border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
@@ -474,7 +492,7 @@ const RadarView: React.FC<RadarViewProps> = ({ themeColors, activeTabProp, setRa
               <button
                 key={v.id}
                 title={v.label}
-                onClick={() => setActiveView(v.id)}
+                onClick={() => handleViewChange(v.id)}
                 style={{
                   width: 30, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', border: 'none', fontSize: 13, lineHeight: 1,

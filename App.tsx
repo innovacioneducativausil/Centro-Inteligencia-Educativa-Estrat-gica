@@ -17,6 +17,7 @@ const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_USER_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral'];
 const INACTIVITY_WARNING_MS = 60 * 1000;
 const VALID_VIEWS = new Set(['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral', 'informes', 'gestion']);
+const VALID_RADAR_TABS = new Set(['señales', 'tendencias', 'escenarios']);
 
 const defaultModulesFor = (authUser?: AuthUser | null) => [
   ...DEFAULT_USER_MODULES,
@@ -54,7 +55,10 @@ const App: React.FC = () => {
     const stored = localStorage.getItem('radar_active_view');
     return stored && VALID_VIEWS.has(stored) ? stored : 'inicio';
   });
-  const [radarTab, setRadarTab] = useState<any>('señales');
+  const [radarTab, setRadarTab] = useState<any>(() => {
+    const stored = localStorage.getItem('radar_tab');
+    return stored && VALID_RADAR_TABS.has(stored) ? stored : 'señales';
+  });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -135,6 +139,12 @@ const App: React.FC = () => {
       localStorage.setItem('radar_active_view', activeView);
     }
   }, [user, activeView]);
+
+  useEffect(() => {
+    if (user && VALID_RADAR_TABS.has(radarTab)) {
+      localStorage.setItem('radar_tab', radarTab);
+    }
+  }, [user, radarTab]);
 
   useEffect(() => {
     if (!user) return;

@@ -353,7 +353,12 @@ function mergeFiltros(fromApi: FiltroFacultad[], fromExcel: FiltroFacultad[]): F
 }
 
 const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, userRole }) => {
-  const [tab, setTab] = useState<'informe' | 'metodologia'>('metodologia');
+  type MercadoTab = 'informe' | 'metodologia';
+  const validMercadoTabs: MercadoTab[] = ['informe', 'metodologia'];
+  const [tab, setTab] = useState<MercadoTab>(() => {
+    const stored = localStorage.getItem('radar_mercado_tab') as MercadoTab | null;
+    return stored && validMercadoTabs.includes(stored) ? stored : 'metodologia';
+  });
   const [facultades, setFacultades] = useState<FiltroFacultad[]>([]);
   const [facultad, setFacultad] = useState('');
   const [carrera, setCarrera] = useState('');
@@ -369,6 +374,10 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const exportBtnRef = useRef<HTMLDivElement>(null);
   const informeRef = useRef<HTMLDivElement>(null);
+  const switchTab = (nextTab: MercadoTab) => {
+    localStorage.setItem('radar_mercado_tab', nextTab);
+    setTab(nextTab);
+  };
 
 
   useEffect(() => {
@@ -500,7 +509,7 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
             return (
               <button
                 key={item.key}
-                onClick={() => setTab(item.key as typeof tab)}
+                onClick={() => switchTab(item.key as MercadoTab)}
                 className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-black transition ${active ? 'bg-[#002D72] text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
               >
                 <item.icon className="h-4 w-4" />
@@ -608,7 +617,7 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
             )}
 
             {tab === 'metodologia' ? (
-              <MetodologiaView steps={metodologia} onVerInformes={() => setTab('informe')} />
+              <MetodologiaView steps={metodologia} onVerInformes={() => switchTab('informe')} />
             ) : loading ? (
               <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-[#002D72]" />

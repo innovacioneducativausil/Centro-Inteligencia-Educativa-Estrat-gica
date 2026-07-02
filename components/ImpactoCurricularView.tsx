@@ -116,6 +116,7 @@ async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
 }
 
 type TabMotor = 'impactos' | 'brechas' | 'propuestas';
+const VALID_IMPACTO_TABS: TabMotor[] = ['impactos', 'brechas', 'propuestas'];
 
 const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
   themeColors, userRole, idCarrera, idMallaVersion, nombreCarrera, nombreMalla,
@@ -134,7 +135,10 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
   const [propuestas, setPropuestas] = useState<Propuesta[]>([]);
   const [evidencias, setEvidencias] = useState<Evidencia[]>([]);
   const [selectedImpacto, setSelectedImpacto] = useState<number | null>(null);
-  const [tab, setTab]               = useState<TabMotor>('impactos');
+  const [tab, setTab]               = useState<TabMotor>(() => {
+    const stored = localStorage.getItem('radar_impacto_curricular_tab') as TabMotor | null;
+    return stored && VALID_IMPACTO_TABS.includes(stored) ? stored : 'impactos';
+  });
   const [analyzing, setAnalyzing]   = useState(false);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
@@ -162,6 +166,11 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
     } catch (e: any) { setError(e.message); }
     setLoading(false);
   }, [idCarrera, idMallaVersion]);
+
+  const switchTab = (nextTab: TabMotor) => {
+    localStorage.setItem('radar_impacto_curricular_tab', nextTab);
+    setTab(nextTab);
+  };
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -326,7 +335,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
           { key: 'brechas',    label: `Brechas (${brechas.length})` },
           { key: 'propuestas', label: `Propuestas (${propuestas.length})` },
         ] as { key: TabMotor; label: string }[]).map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
+          <button key={t.key} onClick={() => switchTab(t.key)}
             style={{ padding: '8px 16px', border: 'none', borderBottom: tab === t.key ? `2px solid ${USIL}` : '2px solid transparent',
               background: 'transparent', color: tab === t.key ? USIL : muted,
               fontWeight: tab === t.key ? 800 : 600, fontSize: 12, cursor: 'pointer', marginBottom: -2 }}>

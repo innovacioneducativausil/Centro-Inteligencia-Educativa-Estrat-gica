@@ -919,6 +919,7 @@ const TABS: { key: TabEmpl; label: string; icon: string; color: string }[] = [
   { key: 'busqueda',    label: 'Egresados en Búsqueda Laboral',  icon: 'manage_search', color: '#0891B2' },
   { key: 'descarga',    label: 'Descarga de informes',           icon: 'download',      color: '#0F766E' },
 ];
+const VALID_EMPLEABILIDAD_TABS = TABS.map(t => t.key);
 
 const EMPTY_RESUMEN: Resumen = {
   totalEncuestados: 0, egresadosColocados: 0, alumniAfinCarrera: 0,
@@ -927,7 +928,10 @@ const EMPTY_RESUMEN: Resumen = {
 
 const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, userRole }) => {
   const [showImport, setShowImport] = useState(false);
-  const [activeTab,  setActiveTab]  = useState<TabEmpl>('resumen');
+  const [activeTab,  setActiveTab]  = useState<TabEmpl>(() => {
+    const stored = localStorage.getItem('radar_empleabilidad_tab') as TabEmpl | null;
+    return stored && VALID_EMPLEABILIDAD_TABS.includes(stored) ? stored : 'resumen';
+  });
   const canImport = userRole === 'admin' || userRole === 'analista' || userRole === 'editor';
 
 
@@ -1039,6 +1043,11 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const switchTab = (tab: TabEmpl) => {
+    localStorage.setItem('radar_empleabilidad_tab', tab);
+    setActiveTab(tab);
+  };
+
 
   useEffect(() => {
     if (activeTab !== 'resumen' && activeTab !== 'descarga') {
@@ -1143,7 +1152,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
         {TABS.map(t => {
           const active = activeTab === t.key;
           return (
-            <button key={t.key} onClick={() => setActiveTab(t.key)}
+            <button key={t.key} onClick={() => switchTab(t.key)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '8px 16px', border: 'none', cursor: 'pointer',
