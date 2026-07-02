@@ -83,3 +83,45 @@ export function auditMutatingRequests(req, res, next) {
 
   next();
 }
+
+const DETAIL_ID = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+)$/i;
+
+function detailIdFromPath(path = '') {
+  const segments = path.replace(/^\/api\/?/, '').split('/').filter(Boolean);
+  return [...segments].reverse().find(part => DETAIL_ID.test(part)) || null;
+}
+
+// Solo audita GET a un recurso puntual (segmento uuid/numerico en la ruta), no listados/filtros,
+// para no saturar actividad_usuario con cada carga de tabla.
+export function auditReadRequests(req, res, next) {
+  if (req.method !== 'GET') return next();
+  if (req.path.startsWith('/actividad')) return next();
+
+  const entidadId = detailIdFromPath(req.originalUrl);
+  if (!entidadId) return next();
+
+  res.on('finish', () => {
+    if (res.statusCode < 200 || res.statusCode >= 300) return;
+    setImmediate(() => {
+      if (req.auditLogged) return;
+      const modulo = moduleFromPath(req.originalUrl);
+      const entidad = entityFromPath(req.originalUrl);
+      auditEvent(req, {
+        evento: 'acceso_lectura',
+        accion: 'ver_detalle',
+        modulo,
+        entidad,
+        entidadId,
+        elementoTipo: entidad,
+        elementoTitulo: entidadId,
+        detalle: `GET ${req.originalUrl}`,
+        metadata: {
+          ruta: req.originalUrl,
+          estadoHttp: res.statusCode,
+        },
+      });
+    });
+  });
+
+  next();
+}

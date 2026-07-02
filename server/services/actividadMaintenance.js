@@ -2,6 +2,8 @@
 
 import db from '../db.js';
 
+const RETENTION_DAYS = Math.max(30, Number(process.env.ACTIVIDAD_RETENTION_DAYS || 365));
+
 export async function ensureActividadSupport() {
   try {
     await db.query(`
@@ -48,4 +50,24 @@ export async function ensureActividadSupport() {
   } catch (err) {
     console.error('[ACTIVIDAD] Error al preparar tabla:', err.message);
   }
+}
+
+export async function cleanupOldActividad() {
+  try {
+    const [result] = await db.query(
+      `DELETE FROM actividad_usuario WHERE fecha_hora < DATE_SUB(NOW(), INTERVAL ${RETENTION_DAYS} DAY)`
+    );
+    const deleted = result.affectedRows || 0;
+    if (deleted > 0) {
+      console.log(`[ACTIVIDAD] Retencion: ${deleted} registros eliminados (> ${RETENTION_DAYS} dias)`);
+    }
+    return deleted;
+  } catch (err) {
+    console.error('[ACTIVIDAD] Error en limpieza de retencion:', err.message);
+    return 0;
+  }
+}
+
+export function getActividadRetentionDays() {
+  return RETENTION_DAYS;
 }

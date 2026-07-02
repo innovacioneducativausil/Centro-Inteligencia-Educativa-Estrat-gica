@@ -36,11 +36,11 @@ import mercadoLaboralRouter from './routes/mercadoLaboral.js';
 import benchmarkingRouter    from './routes/benchmarking.js';
 import motorCurricularRouter from './routes/motorCurricular.js';
 import { requireAuth }        from './middleware/auth.js';
-import { auditMutatingRequests } from './middleware/auditMutations.js';
+import { auditMutatingRequests, auditReadRequests } from './middleware/auditMutations.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { cleanupExpiredArchives, ensureArchiveSupport, getArchiveRetentionDays } from './services/archiveMaintenance.js';
 import { ensureRadarSchemaSupport } from './services/schemaMaintenance.js';
-import { ensureActividadSupport } from './services/actividadMaintenance.js';
+import { ensureActividadSupport, cleanupOldActividad, getActividadRetentionDays } from './services/actividadMaintenance.js';
 import { runUserMigration } from './services/userMigration.js';
 import actividadRouter from './routes/actividad.js';
 
@@ -120,7 +120,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api', authRouter);
 
-app.use('/api', requireAuth, auditMutatingRequests);
+app.use('/api', requireAuth, auditMutatingRequests, auditReadRequests);
 
 app.use('/api', requireAuth, infoRouter);
 
@@ -157,6 +157,7 @@ async function startServer() {
     await ensureActividadSupport();
     await runUserMigration();
     await cleanupExpiredArchives();
+    await cleanupOldActividad();
   } catch (err) {
     console.error('[SCHEMA] No se pudo preparar soporte de esquema:', err.message);
     process.exit(1);
@@ -170,12 +171,16 @@ async function startServer() {
     console.log(`   Escenarios:   http://localhost:${PORT}/api/escenarios`);
     console.log(`   Estad??sticas: http://localhost:${PORT}/api/estadisticas`);
     console.log(`   Papelera:      limpieza automatica a ${getArchiveRetentionDays()} dias`);
+    console.log(`   Auditoria:     retencion de ${getActividadRetentionDays()} dias`);
   });
 }
 
 setInterval(() => {
   cleanupExpiredArchives().catch(err => {
     console.error('[ARCHIVE] Error en limpieza programada:', err.message);
+  });
+  cleanupOldActividad().catch(err => {
+    console.error('[ACTIVIDAD] Error en limpieza programada:', err.message);
   });
 }, 24 * 60 * 60 * 1000);
 
