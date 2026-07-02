@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ThemeColors } from '../types';
 import ImpactoCurricularView from './ImpactoCurricularView';
 import BenchmarkingView from './BenchmarkingView';
+import { downloadExcel } from '../services/excelExport';
+import { logActividad } from '../services/actividadService';
 
 interface CurricularViewProps {
   themeColors: ThemeColors;
@@ -404,6 +406,60 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
   const mallaActual = mallas.find(m => m.id_malla === selMallaId);
 
+  const handleExportMapaExcel = async () => {
+    if (!mallaActual) return;
+    const cursosRows = ciclos.flatMap(c => c.cursos.map(curso => ({
+      ciclo: c.numero,
+      curso: curso.nombre,
+      codigo: curso.codigo || '',
+      creditos: curso.creditos ?? '',
+      tipo: curso.tipoCurso,
+      estado: curso.estado ? EST[curso.estado].label : '',
+      alineacion: curso.pct ?? '',
+      tendencias: curso.tendencias.join(', '),
+      gaps: curso.gaps.join(', '),
+    })));
+
+    await downloadExcel(`Malla_${mallaActual.nombre_carrera.replace(/\s+/g, '_')}`, [
+      {
+        name: 'KPIs',
+        columns: [{ header: 'Indicador', key: 'indicador', width: 30 }, { header: 'Valor', key: 'valor', width: 20 }],
+        rows: [
+          { indicador: 'Carrera', valor: mallaActual.nombre_carrera },
+          { indicador: 'Facultad', valor: mallaActual.nombre_facultad },
+          { indicador: 'Versión de malla', valor: mallaActual.nombre_version },
+          { indicador: '% en riesgo/crítico', valor: kpis.pctRiesgo },
+          { indicador: '% alineado', valor: kpis.pctAlineado },
+          { indicador: 'Total cursos', valor: kpis.totalCursos },
+          { indicador: 'Oportunidades', valor: kpis.oportunidades },
+          { indicador: 'Críticos', valor: kpis.criticos },
+        ],
+      },
+      {
+        name: 'Cursos',
+        columns: [
+          { header: 'Ciclo', key: 'ciclo', width: 10 },
+          { header: 'Curso', key: 'curso', width: 40 },
+          { header: 'Código', key: 'codigo', width: 14 },
+          { header: 'Créditos', key: 'creditos', width: 12 },
+          { header: 'Tipo', key: 'tipo', width: 16 },
+          { header: 'Estado', key: 'estado', width: 18 },
+          { header: '% Alineación', key: 'alineacion', width: 14 },
+          { header: 'Tendencias', key: 'tendencias', width: 40 },
+          { header: 'Gaps', key: 'gaps', width: 40 },
+        ],
+        rows: cursosRows,
+      },
+    ]);
+
+    logActividad('descargar_informe', {
+      modulo: 'curricular',
+      elementoTipo: 'malla',
+      elementoTitulo: mallaActual.nombre_carrera,
+      metadata: { formato: 'xlsx', carrera: mallaActual.nombre_carrera, idMalla: mallaActual.id_malla },
+    });
+  };
+
   return (
     <div style={{ padding: '14px 20px', background: bg, minHeight: '100%', color: text, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
@@ -503,6 +559,17 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
       {activeTab === 'mapa' && (
         <>
+
+          {mallaActual && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={handleExportMapaExcel}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 8,
+                  border: 'none', background: USIL, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
+                Exportar Excel
+              </button>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
             {[

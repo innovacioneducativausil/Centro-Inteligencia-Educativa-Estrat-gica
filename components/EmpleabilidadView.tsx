@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ThemeColors } from '../types';
 import { logActividad } from '../services/actividadService';
+import { downloadExcel } from '../services/excelExport';
 
 interface EmpleabilidadViewProps {
   themeColors: ThemeColors;
@@ -779,6 +780,34 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
     return `Estudio de Empleabilidad ${r.unidad}${fac} ${r.año}`;
   };
 
+  const handleExportResultsExcel = async () => {
+    await downloadExcel('Estudios_Empleabilidad', [{
+      name: 'Estudios',
+      columns: [
+        { header: 'Estudio', key: 'estudio', width: 50 },
+        { header: 'Año', key: 'anio', width: 10 },
+        { header: 'Unidad', key: 'unidad', width: 20 },
+        { header: 'Facultad', key: 'facultad', width: 40 },
+        { header: 'Enlace', key: 'enlace', width: 60 },
+      ],
+      rows: results.map(r => ({
+        estudio: getName(r),
+        anio: r.año,
+        unidad: r.unidad,
+        facultad: isConsolidatedFaculty(r.facultad) ? 'Estudios consolidados' : r.facultad,
+        enlace: r.link.trim(),
+      })),
+    }]);
+
+    logActividad('descargar_informe', {
+      modulo: 'empleabilidad',
+      vista: 'descarga_informes',
+      elementoTipo: 'listado',
+      elementoTitulo: 'Estudios de empleabilidad (filtrado)',
+      metadata: { formato: 'xlsx', total: results.length, anio: dlAnio, unidad: dlUnidad, facultad: dlFacultad },
+    });
+  };
+
   const selStyle: React.CSSProperties = {
     fontSize: 12, padding: '6px 10px', borderRadius: 6, fontWeight: 600,
     border: `1.5px solid ${border}`, background: card, color: text, cursor: 'pointer',
@@ -846,10 +875,20 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
           <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted }}>
             Informes disponibles
           </span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: muted }}>
-            Informes encontrados:&nbsp;
-            <span style={{ fontWeight: 900, color: DL, fontSize: 14 }}>{results.length}</span>
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: muted }}>
+              Informes encontrados:&nbsp;
+              <span style={{ fontWeight: 900, color: DL, fontSize: 14 }}>{results.length}</span>
+            </span>
+            {results.length > 0 && (
+              <button onClick={handleExportResultsExcel}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7,
+                  background: DL, color: '#fff', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span>
+                Exportar a Excel
+              </button>
+            )}
+          </div>
         </div>
 
         {results.length === 0 ? (

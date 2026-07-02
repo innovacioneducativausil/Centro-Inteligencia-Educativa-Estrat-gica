@@ -24,6 +24,7 @@ import {
 import html2canvas from 'html2canvas';
 import { ThemeColors } from '../types';
 import { logActividad } from '../services/actividadService';
+import { downloadExcel } from '../services/excelExport';
 
 
 interface InformeLaboralEntry {
@@ -408,54 +409,47 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
       }
       setExporting(true);
       try {
-        const { default: ExcelJS } = await import('exceljs');
-        const wb = new ExcelJS.Workbook();
-
-        const resumen = wb.addWorksheet('Resumen');
-        resumen.columns = [{ header: 'Campo', key: 'campo', width: 26 }, { header: 'Valor', key: 'valor', width: 80 }];
-        resumen.addRows([
-          { campo: 'Facultad', valor: informe.informe.facultad },
-          { campo: 'Carrera', valor: informe.informe.carrera },
-          { campo: 'Periodo', valor: informe.informe.periodo },
-          { campo: 'Descripción', valor: informe.informe.descripcion || '' },
-          { campo: 'Objetivo', valor: informe.informe.objetivoFinal || '' },
+        await downloadExcel(`Informe_Mercado_Laboral_${carrera.replace(/\s+/g, '_')}`, [
+          {
+            name: 'Resumen',
+            columns: [{ header: 'Campo', key: 'campo', width: 26 }, { header: 'Valor', key: 'valor', width: 80 }],
+            rows: [
+              { campo: 'Facultad', valor: informe.informe.facultad },
+              { campo: 'Carrera', valor: informe.informe.carrera },
+              { campo: 'Periodo', valor: informe.informe.periodo },
+              { campo: 'Descripción', valor: informe.informe.descripcion || '' },
+              { campo: 'Objetivo', valor: informe.informe.objetivoFinal || '' },
+            ],
+          },
+          {
+            name: 'Puestos',
+            columns: [{ header: 'Orden', key: 'orden', width: 10 }, { header: 'Puesto', key: 'nombre', width: 40 }, { header: 'Descripción', key: 'descripcion', width: 60 }, { header: 'Vacantes', key: 'vacantes', width: 14 }],
+            rows: informe.mercado.puestos.map(p => ({ orden: p.orden, nombre: p.nombre, descripcion: p.descripcion || '', vacantes: p.vacantes || '' })),
+          },
+          {
+            name: 'Habilidades',
+            columns: [{ header: 'Categoría', key: 'categoria', width: 30 }, { header: 'Habilidad', key: 'habilidad', width: 50 }],
+            rows: informe.mercado.habilidades.flatMap(h => h.habilidades.map(x => ({ categoria: h.categoria, habilidad: x }))),
+          },
+          {
+            name: 'Herramientas',
+            columns: [{ header: 'Orden', key: 'orden', width: 10 }, { header: 'Herramienta', key: 'nombre', width: 40 }, { header: 'Descripción', key: 'descripcion', width: 60 }],
+            rows: informe.mercado.herramientas.map(h => ({ orden: h.orden, nombre: h.nombre, descripcion: h.descripcion || '' })),
+          },
+          {
+            name: 'Tendencias',
+            columns: [{ header: 'Orden', key: 'orden', width: 10 }, { header: 'Tendencia', key: 'titulo', width: 40 }, { header: 'Descripción', key: 'descripcion', width: 60 }],
+            rows: informe.mercado.tendencias.map(t => ({ orden: t.orden, titulo: t.titulo, descripcion: t.descripcion || '' })),
+          },
+          {
+            name: 'Recomendaciones',
+            columns: [{ header: 'Tipo', key: 'tipo', width: 22 }, { header: 'Recomendación', key: 'texto', width: 80 }],
+            rows: [
+              ...informe.mercado.recomendacionesEstudiante.map(texto => ({ tipo: 'Estudiante', texto })),
+              ...informe.mercado.recomendacionesCurriculares.map(texto => ({ tipo: 'Curricular', texto })),
+            ],
+          },
         ]);
-
-        const puestos = wb.addWorksheet('Puestos');
-        puestos.columns = [{ header: 'Orden', key: 'orden', width: 10 }, { header: 'Puesto', key: 'nombre', width: 40 }, { header: 'Descripción', key: 'descripcion', width: 60 }, { header: 'Vacantes', key: 'vacantes', width: 14 }];
-        puestos.addRows(informe.mercado.puestos.map(p => ({ orden: p.orden, nombre: p.nombre, descripcion: p.descripcion || '', vacantes: p.vacantes || '' })));
-
-        const habilidades = wb.addWorksheet('Habilidades');
-        habilidades.columns = [{ header: 'Categoría', key: 'categoria', width: 30 }, { header: 'Habilidad', key: 'habilidad', width: 50 }];
-        habilidades.addRows(informe.mercado.habilidades.flatMap(h => h.habilidades.map(x => ({ categoria: h.categoria, habilidad: x }))));
-
-        const herramientas = wb.addWorksheet('Herramientas');
-        herramientas.columns = [{ header: 'Orden', key: 'orden', width: 10 }, { header: 'Herramienta', key: 'nombre', width: 40 }, { header: 'Descripción', key: 'descripcion', width: 60 }];
-        herramientas.addRows(informe.mercado.herramientas.map(h => ({ orden: h.orden, nombre: h.nombre, descripcion: h.descripcion || '' })));
-
-        const tendencias = wb.addWorksheet('Tendencias');
-        tendencias.columns = [{ header: 'Orden', key: 'orden', width: 10 }, { header: 'Tendencia', key: 'titulo', width: 40 }, { header: 'Descripción', key: 'descripcion', width: 60 }];
-        tendencias.addRows(informe.mercado.tendencias.map(t => ({ orden: t.orden, titulo: t.titulo, descripcion: t.descripcion || '' })));
-
-        const recomendaciones = wb.addWorksheet('Recomendaciones');
-        recomendaciones.columns = [{ header: 'Tipo', key: 'tipo', width: 22 }, { header: 'Recomendación', key: 'texto', width: 80 }];
-        recomendaciones.addRows([
-          ...informe.mercado.recomendacionesEstudiante.map(texto => ({ tipo: 'Estudiante', texto })),
-          ...informe.mercado.recomendacionesCurriculares.map(texto => ({ tipo: 'Curricular', texto })),
-        ]);
-
-        for (const ws of wb.worksheets) {
-          ws.getRow(1).font = { bold: true };
-        }
-
-        const buffer = await wb.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.download = `Informe_Mercado_Laboral_${carrera.replace(/\s+/g, '_')}.xlsx`;
-        link.href = url;
-        link.click();
-        URL.revokeObjectURL(url);
 
         logActividad('descargar_informe', {
           modulo: 'mercadoLaboral',

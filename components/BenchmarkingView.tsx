@@ -2,6 +2,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ThemeColors } from '../types';
 import { BRAND_COLORS } from '../constants';
+import { downloadExcel } from '../services/excelExport';
+import { logActividad } from '../services/actividadService';
 
 interface BenchmarkingViewProps {
   themeColors: ThemeColors;
@@ -475,6 +477,40 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     ? cobertura
     : carreras.map(c => ({ ...c, benchmarking: {} as CoberturaCarrera['benchmarking'] }));
   const carreraSeleccionada = coverageRows.find(c => c.id_carrera === selectedCarrera) || carreras.find(c => c.id_carrera === selectedCarrera);
+
+  const handleExportProgramasExcel = async () => {
+    const nombreCarrera = carreraSeleccionada?.nombre_carrera || 'Carrera';
+    await downloadExcel(`Benchmarking_${nombreCarrera.replace(/\s+/g, '_')}`, [{
+      name: 'Programas',
+      columns: [
+        { header: 'Universidad', key: 'universidad', width: 40 },
+        { header: 'Tipo', key: 'tipo', width: 24 },
+        { header: 'País', key: 'pais', width: 16 },
+        { header: 'Programa', key: 'programa', width: 40 },
+        { header: 'Modalidad', key: 'modalidad', width: 18 },
+        { header: 'Duración', key: 'duracion', width: 16 },
+        { header: 'Estado', key: 'estado', width: 16 },
+        { header: 'URL', key: 'url', width: 60 },
+      ],
+      rows: programas.map(p => ({
+        universidad: p.nombre_universidad,
+        tipo: p.tipo_benchmark,
+        pais: p.pais,
+        programa: p.nombre_programa,
+        modalidad: p.modalidad || '',
+        duracion: p.duracion || '',
+        estado: p.estado_extraccion,
+        url: p.url_programa || '',
+      })),
+    }]);
+
+    logActividad('descargar_informe', {
+      modulo: 'benchmarking',
+      elementoTipo: 'comparacion',
+      elementoTitulo: nombreCarrera,
+      metadata: { formato: 'xlsx', carrera: nombreCarrera, total: programas.length },
+    });
+  };
   const coberturaTipoTotal = coverageRows.reduce((acc, c) => acc + (c.benchmarking?.[tipo]?.total_programas ?? 0), 0);
   const selectedCareerName = carreraSeleccionada?.nombre_carrera || '';
   const isReferenceView = TIPOS_REFERENCIA.includes(tipo);
@@ -891,24 +927,35 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   {carreraSeleccionada?.nombre_facultad ? ` (${carreraSeleccionada.nombre_facultad})` : ''}
                 </div>
               </div>
-              {canEdit && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {programas.length > 0 && (
-                    <button onClick={() => handleDescubrirFuente(programas.map(p => p.id_programa_benchmark).slice(0, 10))}
-                      disabled={!!actionLoading[-1]}
-                      style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`,
-                        background: card, color: actionLoading[-1] ? muted : USIL, fontWeight: 700, fontSize: 12,
-                        cursor: actionLoading[-1] ? 'not-allowed' : 'pointer' }}>
-                      {actionLoading[-1] ? 'Buscando...' : 'Buscar fuentes de la carrera'}
-                    </button>
-                  )}
-                  <button onClick={() => setShowAddProg(true)}
-                    style={{ padding: '8px 14px', borderRadius: 8, border: 'none',
-                      background: USIL, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                    + Agregar programa
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {programas.length > 0 && (
+                  <button onClick={handleExportProgramasExcel}
+                    style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`,
+                      background: card, color: USIL, fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>download</span>
+                    Exportar Excel
                   </button>
-                </div>
-              )}
+                )}
+                {canEdit && (
+                  <>
+                    {programas.length > 0 && (
+                      <button onClick={() => handleDescubrirFuente(programas.map(p => p.id_programa_benchmark).slice(0, 10))}
+                        disabled={!!actionLoading[-1]}
+                        style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`,
+                          background: card, color: actionLoading[-1] ? muted : USIL, fontWeight: 700, fontSize: 12,
+                          cursor: actionLoading[-1] ? 'not-allowed' : 'pointer' }}>
+                        {actionLoading[-1] ? 'Buscando...' : 'Buscar fuentes de la carrera'}
+                      </button>
+                    )}
+                    <button onClick={() => setShowAddProg(true)}
+                      style={{ padding: '8px 14px', borderRadius: 8, border: 'none',
+                        background: USIL, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                      + Agregar programa
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           )}
 

@@ -7,6 +7,8 @@ import ImportarView from './ImportarView';
 import MonitoreoView from './MonitoreoView';
 import UsuariosGestionView from './UsuariosGestionView';
 import { sanitizeRichHtml } from '../services/sanitizeHtml';
+import { downloadExcel } from '../services/excelExport';
+import { logActividad } from '../services/actividadService';
 
 
 interface AdminDetail extends AdminItem {
@@ -302,6 +304,37 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   }, [canAccess, activeTab, page, search, estadoFilter, pestelFilter, sectorFilter, horizonteFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleExportListadoExcel = async () => {
+    if (!pageData) return;
+    const label = TAB_CONFIG[activeTab as Exclude<Tab, 'monitoreo'>]?.label || activeTab;
+    await downloadExcel(`Listado_${label.replace(/\s+/g, '_')}`, [{
+      name: label.slice(0, 31),
+      columns: [
+        { header: 'Título', key: 'titulo', width: 45 },
+        { header: 'Sector', key: 'sector', width: 25 },
+        { header: 'PESTEL', key: 'pestel', width: 20 },
+        { header: 'Fuente', key: 'fuente', width: 30 },
+        { header: 'Fecha', key: 'fecha', width: 16 },
+        { header: 'Estado', key: 'estado', width: 16 },
+      ],
+      rows: pageData.data.map(item => ({
+        titulo: item.titulo,
+        sector: item.sector || item.sectors.join(', ') || '',
+        pestel: item.pestel || item.pestels.map(p => p.nombre).join(', ') || '',
+        fuente: item.fuente || '',
+        fecha: item.fecha || '',
+        estado: item.estado.label,
+      })),
+    }]);
+
+    logActividad('descargar_informe', {
+      modulo: 'gestion',
+      elementoTipo: 'listado',
+      elementoTitulo: label,
+      metadata: { formato: 'xlsx', tab: activeTab, total: pageData.data.length, pagina: pageData.page },
+    });
+  };
 
 
   useEffect(() => {
@@ -1819,6 +1852,15 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               </div>
             )}
           </div>
+
+          {pageData && pageData.data.length > 0 && (
+            <button onClick={handleExportListadoExcel}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-full border outline-none transition-all sm:ml-auto"
+              style={{ fontSize: 13, background: '#1978e5', color: '#fff', borderColor: '#1978e5' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span>
+              Exportar Excel
+            </button>
+          )}
 
         </div>
 
