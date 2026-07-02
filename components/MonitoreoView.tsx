@@ -20,6 +20,7 @@ interface ActividadRow {
   detalle: string | null;
   ip: string | null;
   user_agent: string | null;
+  metadata: string | null;
   fecha_hora: string;
 }
 
@@ -27,6 +28,7 @@ const EVENTO_LABELS: Record<string, string> = {
   login: 'Inicio de sesion',
   logout: 'Cierre de sesion',
   nav_modulo: 'Acceso a modulo',
+  ui_click: 'Click en interfaz',
   ver_senal: 'Ver senal',
   ver_tendencia: 'Ver tendencia',
   ver_escenario: 'Ver escenario',
@@ -48,6 +50,7 @@ const EVENTO_COLOR: Record<string, string> = {
   login: '#10b981',
   logout: '#94a3b8',
   nav_modulo: '#3b82f6',
+  ui_click: '#64748b',
   ver_senal: '#0D9488',
   ver_tendencia: '#8b5cf6',
   ver_escenario: '#f59e0b',
@@ -73,6 +76,26 @@ function fmtFecha(s: string) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function parseMetadata(value: string | null) {
+  if (!value) return null;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+function metadataSummary(value: string | null) {
+  const data = parseMetadata(value);
+  if (!data || typeof data !== 'object') return '';
+  const parts: string[] = [];
+  if (data.vista) parts.push(`Vista: ${data.vista}`);
+  if (data.usuarioObjetivo) parts.push(`Usuario afectado: ${data.usuarioObjetivo}`);
+  if (data.anio) parts.push(`Año: ${data.anio}`);
+  if (data.unidad) parts.push(`Unidad: ${data.unidad}`);
+  if (data.facultad) parts.push(`Facultad: ${data.facultad}`);
+  if (Array.isArray(data.cambios) && data.cambios.length) {
+    parts.push(`Cambios: ${data.cambios.map((c: any) => c.campo).join(', ')}`);
+  }
+  return parts.join(' | ');
 }
 
 const PAGE_LIMIT = 50;
@@ -271,7 +294,10 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const detalle = r.detalle || r.elemento_titulo || (r.entidad ? `${r.entidad}${r.entidad_id ? ` ${r.entidad_id}` : ''}` : '');
+                  const extra = metadataSummary(r.metadata);
+                  const detalleBase = [r.elemento_titulo, r.detalle].filter(Boolean).join(' - ')
+                    || (r.entidad ? `${r.entidad}${r.entidad_id ? ` ${r.entidad_id}` : ''}` : '');
+                  const detalle = [detalleBase, extra].filter(Boolean).join(' | ');
                   return (
                     <tr key={r.id} style={{ background: i % 2 === 0 ? (isDark ? 'transparent' : 'white') : (isDark ? 'rgba(255,255,255,0.02)' : '#fafafa'), borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'}` }}>
                       <td style={{ padding: '9px 14px', color: isDark ? '#cbd5e1' : '#1e293b', fontWeight: 600 }}>
@@ -285,8 +311,8 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
                       </td>
                       <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b' }}>{r.accion || '-'}</td>
                       <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b' }}>{r.modulo || '-'}</td>
-                      <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b', maxWidth: 360 }}>
-                        <span title={detalle} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b', minWidth: 420, maxWidth: 620 }}>
+                        <span title={detalle} style={{ display: 'block', lineHeight: 1.45, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
                           {r.elemento_tipo && <strong>[{r.elemento_tipo}] </strong>}
                           {detalle || '-'}
                         </span>

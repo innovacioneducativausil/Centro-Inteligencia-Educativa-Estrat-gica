@@ -886,9 +886,11 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
                     <a href={r.link.trim()} target="_blank" rel="noopener noreferrer"
                       onClick={() => logActividad('descargar_informe', {
                         modulo: 'empleabilidad',
+                        vista: 'descarga_informes',
                         elementoTipo: 'informe',
                         elementoTitulo: getName(r),
-                        metadata: { anio: r['aÃ±o'], unidad: r.unidad, facultad: r.facultad, url: r.link.trim() },
+                        detalle: `Modulo Empleo | Vista Descarga de informes | Informe: ${getName(r)}`,
+                        metadata: { vista: 'descarga_informes', anio: r['aÃ±o'], unidad: r.unidad, facultad: r.facultad, url: r.link.trim() },
                       })}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 14px',
                         borderRadius: 7, background: DL, color: '#fff', fontSize: 11, fontWeight: 700,

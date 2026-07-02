@@ -87,6 +87,32 @@ const App: React.FC = () => {
     };
   }, [user, handleLogout]);
 
+  useEffect(() => {
+    if (!user) return;
+    const handler = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const el = target?.closest('button, a, [role="button"]') as HTMLElement | null;
+      if (!el) return;
+      const label = (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!label) return;
+      logActividad('ui_click', {
+        accion: 'click',
+        modulo: activeView,
+        vista: activeView,
+        elementoTipo: el.tagName.toLowerCase() === 'a' ? 'enlace' : 'boton',
+        elementoTitulo: label.slice(0, 180),
+        detalle: `Modulo ${activeView} | Vista ${activeView} | Click: ${label.slice(0, 180)}`,
+        metadata: {
+          vista: activeView,
+          etiqueta: label.slice(0, 180),
+          href: el instanceof HTMLAnchorElement ? el.href : undefined,
+        },
+      });
+    };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
+  }, [user, activeView]);
+
   const canView = useCallback((view: string) => {
     if (!user) return false;
     const allowed = user.modulosPermitidos?.length ? user.modulosPermitidos : defaultModulesFor(user);

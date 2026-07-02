@@ -51,19 +51,25 @@ function actividadCsv(rows) {
 
 router.post('/actividad', async (req, res) => {
   try {
-    const { evento, modulo, elementoUuid, elementoTipo, elementoTitulo, metadata } = req.body;
+    const { evento, accion, modulo, vista, elementoUuid, elementoTipo, elementoTitulo, detalle, metadata } = req.body;
     if (!evento || typeof evento !== 'string') {
       return res.status(400).json({ error: 'evento es requerido.' });
     }
 
+    const auditMetadata = {
+      ...(metadata && typeof metadata === 'object' ? metadata : {}),
+      ...(vista ? { vista } : {}),
+    };
+
     await auditEvent(req, {
       evento,
-      accion: evento,
+      accion: accion || evento,
       modulo,
       entidadId: elementoUuid,
       elementoTipo,
       elementoTitulo,
-      metadata,
+      detalle,
+      metadata: Object.keys(auditMetadata).length ? auditMetadata : null,
     });
 
     res.json({ ok: true });

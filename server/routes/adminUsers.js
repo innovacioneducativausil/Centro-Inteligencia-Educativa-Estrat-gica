@@ -162,7 +162,11 @@ router.post('/admin/usuarios', adminOnly, async (req, res) => {
 router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const [[existing]] = await db.query('SELECT id_usuario, correo_usuario, rol, activo FROM usuario WHERE id_usuario = ? LIMIT 1', [id]);
+    const [[existing]] = await db.query(
+      `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo, modulos_permitidos
+       FROM usuario WHERE id_usuario = ? LIMIT 1`,
+      [id]
+    );
     if (!existing) return res.status(404).json({ error: 'Usuario no encontrado.' });
     const nombre = String(req.body.nombre || '').trim();
     const nombreCorto = String(req.body.nombreCorto || nombre.split(' ')[0] || '').trim();
@@ -189,15 +193,29 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
       [nombre, nombreCorto, rol, activo ? 1 : 0, JSON.stringify(modulos), id]
     );
 
+    const prevModules = parseModules(existing.modulos_permitidos, existing.rol);
+    const cambios = [];
+    if (existing.nombre_usuario !== nombre) cambios.push({ campo: 'nombre', antes: existing.nombre_usuario, despues: nombre });
+    if ((existing.nombre_corto || '') !== nombreCorto) cambios.push({ campo: 'nombre_corto', antes: existing.nombre_corto || '', despues: nombreCorto });
+    if (existing.rol !== rol) cambios.push({ campo: 'rol', antes: existing.rol, despues: rol });
+    if (Boolean(existing.activo) !== Boolean(activo)) cambios.push({ campo: 'activo', antes: Boolean(existing.activo), despues: Boolean(activo) });
+    const prevModulesKey = [...prevModules].sort().join(',');
+    const nextModulesKey = [...modulos].sort().join(',');
+    if (prevModulesKey !== nextModulesKey) cambios.push({ campo: 'modulos_permitidos', antes: prevModules, despues: modulos });
+    const cambiosTexto = cambios.length
+      ? cambios.map(c => `${c.campo}: "${Array.isArray(c.antes) ? c.antes.join('|') : c.antes}" -> "${Array.isArray(c.despues) ? c.despues.join('|') : c.despues}"`).join('; ')
+      : 'sin cambios de datos';
+
     await auditEvent(req, {
       evento: 'usuario_actualizado',
       accion: 'editar_usuario',
       modulo: 'gestion_usuarios',
       entidad: 'usuario',
       entidadId: id,
-      elementoTitulo: existing.correo_usuario,
-      detalle: `Usuario actualizado. Rol ${rol}. Activo ${activo ? 'si' : 'no'}`,
-      metadata: { rol, activo, modulos },
+      elementoTipo: 'usuario',
+      elementoTitulo: `${nombre} (${existing.correo_usuario})`,
+      detalle: `Vista Usuarios y Accesos. Usuario modificado: ${existing.correo_usuario}. Cambios: ${cambiosTexto}`,
+      metadata: { vista: 'usuarios_y_accesos', usuarioObjetivo: existing.correo_usuario, cambios, rol, activo, modulos },
     });
 
     const [[updated]] = await db.query(
