@@ -21,6 +21,14 @@ const defaultModulesFor = (authUser?: AuthUser | null) => [
   ...(authUser?.rol === 'admin' ? ['informes', 'gestion'] : []),
 ];
 
+function getClickLabel(el: HTMLElement) {
+  const explicit = el.getAttribute('aria-label') || el.getAttribute('title');
+  if (explicit?.trim()) return explicit.replace(/\s+/g, ' ').trim();
+  const clone = el.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('svg, [aria-hidden="true"], .material-symbols-outlined, .material-icons').forEach(node => node.remove());
+  return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState('inicio');
   const [radarTab, setRadarTab] = useState<any>('señales');
@@ -93,7 +101,7 @@ const App: React.FC = () => {
       const target = event.target as HTMLElement | null;
       const el = target?.closest('button, a, [role="button"]') as HTMLElement | null;
       if (!el) return;
-      const label = (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').replace(/\s+/g, ' ').trim();
+      const label = getClickLabel(el);
       if (!label) return;
       logActividad('ui_click', {
         accion: 'click',
