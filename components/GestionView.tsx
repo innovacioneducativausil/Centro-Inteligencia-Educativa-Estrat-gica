@@ -200,7 +200,10 @@ function getEstadoInfo(id: number): { label: string; slug: string } {
 
 
 const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
-  const [activeTab,    setActiveTab]    = useState<Tab>('senales');
+  const [activeTab,    setActiveTab]    = useState<Tab>(() => {
+    const stored = localStorage.getItem('radar_gestion_tab') as Tab | null;
+    return stored && ['senales', 'tendencias', 'escenarios', 'importar', 'monitoreo', 'usuarios'].includes(stored) ? stored : 'senales';
+  });
   const [pageData,     setPageData]     = useState<PageData | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
@@ -391,6 +394,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   };
 
   const switchTab = (tab: Tab) => {
+    localStorage.setItem('radar_gestion_tab', tab);
     setActiveTab(tab); setPage(1); setSearch(''); setEstadoFilter('');
     setPestelFilter([]); setSectorFilter([]); setHorizonteFilter('');
     setImportResult(null);

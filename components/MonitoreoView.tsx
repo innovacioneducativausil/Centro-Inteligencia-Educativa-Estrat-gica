@@ -106,24 +106,9 @@ function metadataValue(value: string | null, key: string) {
 
 function cleanElementLabel(value: string) {
   const raw = value.replace(/\s+/g, ' ').trim();
-  const iconPrefixes = [
-    'monitoring',
-    'compare',
-    'download',
-    'open_in_new',
-    'filter_alt_off',
-    'home',
-    'search',
-    'work_outline',
-    'dashboard',
-    'bar_chart',
-    'settings',
-    'tune',
-  ];
-  for (const icon of iconPrefixes) {
-    if (raw.startsWith(icon) && raw.length > icon.length) {
-      return raw.slice(icon.length).replace(/^[\s_-]+/, '').trim();
-    }
+  const iconToken = raw.match(/^([a-z][a-z0-9_]{2,})(?=[A-ZÁÉÍÓÚÑ])/);
+  if (iconToken) {
+    return raw.slice(iconToken[1].length).replace(/^[\s_-]+/, '').trim();
   }
   return raw;
 }

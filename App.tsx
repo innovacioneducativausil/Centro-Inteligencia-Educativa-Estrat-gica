@@ -15,6 +15,8 @@ import { logActividad } from './services/actividadService';
 type PendingNotif = { uuid: string; tipo: 'senal' | 'tendencia' | 'escenario' } | null;
 const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_USER_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral'];
+const INACTIVITY_WARNING_MS = 60 * 1000;
+const VALID_VIEWS = new Set(['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral', 'informes', 'gestion']);
 
 const defaultModulesFor = (authUser?: AuthUser | null) => [
   ...DEFAULT_USER_MODULES,
@@ -36,16 +38,29 @@ function getClickLabel(el: HTMLElement) {
     if (isIcon) return '';
     return Array.from(node.childNodes).map(readText).join(' ');
   };
-  return readText(el).replace(/\s+/g, ' ').trim();
+  return cleanAuditLabel(readText(el));
+}
+
+function cleanAuditLabel(value: string) {
+  const raw = value.replace(/\s+/g, ' ').trim();
+  if (!raw) return '';
+  const iconToken = raw.match(/^([a-z][a-z0-9_]{2,})(?=[A-ZÁÉÍÓÚÑ])/);
+  if (iconToken) return raw.slice(iconToken[1].length).replace(/^[\s_-]+/, '').trim();
+  return raw;
 }
 
 const App: React.FC = () => {
-  const [activeView, setActiveView] = useState('inicio');
+  const [activeView, setActiveView] = useState(() => {
+    const stored = localStorage.getItem('radar_active_view');
+    return stored && VALID_VIEWS.has(stored) ? stored : 'inicio';
+  });
   const [radarTab, setRadarTab] = useState<any>('señales');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [pendingNotif, setPendingNotif] = useState<PendingNotif>(null);
+  const [sessionMessage, setSessionMessage] = useState<string | null>(null);
+  const [inactivityWarning, setInactivityWarning] = useState(false);
 
   const themeColors = useMemo(() => THEMES[theme], [theme]);
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -71,7 +86,9 @@ const App: React.FC = () => {
 
   const handleLogin = (userData: AuthUser) => {
     setUser(userData);
-    setActiveView('inicio');
+    setSessionMessage(null);
+    const stored = localStorage.getItem('radar_active_view');
+    setActiveView(stored && VALID_VIEWS.has(stored) ? stored : 'inicio');
 
   };
 
@@ -80,6 +97,9 @@ const App: React.FC = () => {
     logActividad(reason === 'inactivity' ? 'logout_inactividad' : 'logout');
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
     localStorage.removeItem('radar_token');
+    if (reason === 'inactivity') {
+      setSessionMessage('Tu sesion se cerro por inactividad. Vuelve a iniciar sesion para continuar.');
+    }
     setUser(null);
     setActiveView('inicio');
   }, []);
@@ -88,8 +108,12 @@ const App: React.FC = () => {
     if (!user) return;
 
     let timeoutId: ReturnType<typeof setTimeout>;
+    let warningId: ReturnType<typeof setTimeout>;
     const resetTimer = () => {
+      setInactivityWarning(false);
+      window.clearTimeout(warningId);
       window.clearTimeout(timeoutId);
+      warningId = window.setTimeout(() => setInactivityWarning(true), Math.max(0, INACTIVITY_TIMEOUT_MS - INACTIVITY_WARNING_MS));
       timeoutId = window.setTimeout(() => handleLogout('inactivity'), INACTIVITY_TIMEOUT_MS);
     };
     const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
@@ -100,10 +124,17 @@ const App: React.FC = () => {
     });
 
     return () => {
+      window.clearTimeout(warningId);
       window.clearTimeout(timeoutId);
       activityEvents.forEach(eventName => window.removeEventListener(eventName, resetTimer));
     };
   }, [user, handleLogout]);
+
+  useEffect(() => {
+    if (user && VALID_VIEWS.has(activeView)) {
+      localStorage.setItem('radar_active_view', activeView);
+    }
+  }, [user, activeView]);
 
   useEffect(() => {
     if (!user) return;
@@ -213,7 +244,16 @@ const App: React.FC = () => {
   }
 
   if (!user) {
-    return <LoginView onLogin={handleLogin} />;
+    return (
+      <>
+        {sessionMessage && (
+          <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 2000, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', borderRadius: 12, padding: '10px 16px', fontSize: 13, fontWeight: 800, boxShadow: '0 12px 30px rgba(15,23,42,0.12)' }}>
+            {sessionMessage}
+          </div>
+        )}
+        <LoginView onLogin={handleLogin} />
+      </>
+    );
   }
 
   return (
@@ -229,6 +269,11 @@ const App: React.FC = () => {
       onLogout={handleLogout}
       onNotifClick={handleNotifClick}
     >
+      {inactivityWarning && (
+        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 2000, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', borderRadius: 12, padding: '10px 14px', fontSize: 12, fontWeight: 800, boxShadow: '0 12px 30px rgba(15,23,42,0.12)' }}>
+          Tu sesion se cerrara pronto por inactividad.
+        </div>
+      )}
       {renderView()}
     </Layout>
   );
