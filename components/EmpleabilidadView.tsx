@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ThemeColors } from '../types';
+import { logActividad } from '../services/actividadService';
 
 interface EmpleabilidadViewProps {
   themeColors: ThemeColors;
@@ -883,6 +884,12 @@ function DescargaInformes({ card, text, muted, border, isDark }: {
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     <a href={r.link.trim()} target="_blank" rel="noopener noreferrer"
+                      onClick={() => logActividad('descargar_informe', {
+                        modulo: 'empleabilidad',
+                        elementoTipo: 'informe',
+                        elementoTitulo: getName(r),
+                        metadata: { anio: r['aÃ±o'], unidad: r.unidad, facultad: r.facultad, url: r.link.trim() },
+                      })}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 14px',
                         borderRadius: 7, background: DL, color: '#fff', fontSize: 11, fontWeight: 700,
                         textDecoration: 'none', transition: 'opacity .15s' }}
