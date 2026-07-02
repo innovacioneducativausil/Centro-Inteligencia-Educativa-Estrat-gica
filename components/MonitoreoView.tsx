@@ -98,6 +98,12 @@ function metadataSummary(value: string | null) {
   return parts.join(' | ');
 }
 
+function metadataValue(value: string | null, key: string) {
+  const data = parseMetadata(value);
+  if (!data || typeof data !== 'object') return '';
+  return typeof data[key] === 'string' || typeof data[key] === 'number' ? String(data[key]) : '';
+}
+
 const PAGE_LIMIT = 50;
 
 const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) => {
@@ -232,18 +238,18 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
         )}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20, padding: '14px 16px', borderRadius: 12, background: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(15,42,63,0.07)'}` }}>
-        <select value={correoFilter} onChange={e => { setCorreoFilter(e.target.value); setPage(1); }} className={inputCls} style={{ minWidth: 220 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(210px, 1.4fr) minmax(160px, .8fr) minmax(150px, .8fr) 140px 140px minmax(180px, 1fr) minmax(150px, .8fr) 110px auto auto', alignItems: 'center', gap: 10, marginBottom: 20, padding: '14px 16px', borderRadius: 12, background: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(15,42,63,0.07)'}`, overflowX: 'auto' }}>
+        <select value={correoFilter} onChange={e => { setCorreoFilter(e.target.value); setPage(1); }} className={inputCls} style={{ width: '100%' }}>
           <option value="">Todos los usuarios</option>
           {correosList.map(u => <option key={u.correo} value={u.correo}>{u.nombre} - {u.correo} ({u.rol})</option>)}
         </select>
 
-        <select value={eventoFilter} onChange={e => { setEventoFilter(e.target.value); setPage(1); }} className={inputCls} style={{ minWidth: 180 }}>
+        <select value={eventoFilter} onChange={e => { setEventoFilter(e.target.value); setPage(1); }} className={inputCls} style={{ width: '100%' }}>
           <option value="">Todos los eventos</option>
           {eventosList.map(e => <option key={e} value={e}>{EVENTO_LABELS[e] || e}</option>)}
         </select>
 
-        <select value={moduloFilter} onChange={e => { setModuloFilter(e.target.value); setPage(1); }} className={inputCls} style={{ minWidth: 180 }}>
+        <select value={moduloFilter} onChange={e => { setModuloFilter(e.target.value); setPage(1); }} className={inputCls} style={{ width: '100%' }}>
           <option value="">Todos los modulos</option>
           {modulosList.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
@@ -251,26 +257,26 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
         <input type="date" value={desdeFilter} onChange={e => { setDesdeFilter(e.target.value); setPage(1); }} className={inputCls} />
         <input type="date" value={hastaFilter} onChange={e => { setHastaFilter(e.target.value); setPage(1); }} className={inputCls} />
 
-        <input value={qFilter} onChange={e => { setQFilter(e.target.value); setPage(1); }} className={inputCls} placeholder="Buscar detalle, IP o usuario" style={{ minWidth: 220 }} />
+        <input value={qFilter} onChange={e => { setQFilter(e.target.value); setPage(1); }} className={inputCls} placeholder="Buscar detalle, IP o usuario" style={{ width: '100%' }} />
 
-        <select value={accionFilter} onChange={e => { setAccionFilter(e.target.value); setPage(1); }} className={inputCls} style={{ minWidth: 180 }}>
+        <select value={accionFilter} onChange={e => { setAccionFilter(e.target.value); setPage(1); }} className={inputCls} style={{ width: '100%' }}>
           <option value="">Todas las acciones</option>
           {accionesList.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
 
-        <input value={ipFilter} onChange={e => { setIpFilter(e.target.value); setPage(1); }} className={inputCls} placeholder="IP" style={{ width: 140 }} />
+        <input value={ipFilter} onChange={e => { setIpFilter(e.target.value); setPage(1); }} className={inputCls} placeholder="IP" style={{ width: '100%' }} />
 
         {(correoFilter || eventoFilter || accionFilter || moduloFilter || ipFilter || qFilter || desdeFilter || hastaFilter) && (
-          <button onClick={resetFiltros} style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
+          <button onClick={resetFiltros} style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', whiteSpace: 'nowrap' }}>
             Limpiar filtros
           </button>
         )}
 
-        <button onClick={exportCsv} style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: '#0f766e', background: '#ccfbf1', border: '1px solid #99f6e4', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}>
+        <button onClick={exportCsv} style={{ fontSize: 11, fontWeight: 800, color: '#0f766e', background: '#ccfbf1', border: '1px solid #99f6e4', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
           Exportar CSV
         </button>
 
-        <button onClick={fetchData} style={{ fontSize: 11, fontWeight: 800, color: 'white', background: '#0D9488', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}>
+        <button onClick={fetchData} style={{ fontSize: 11, fontWeight: 800, color: 'white', background: '#0D9488', border: 'none', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
           Actualizar
         </button>
       </div>
@@ -287,17 +293,21 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9' }}>
-                  {['Usuario', 'Evento', 'Accion', 'Modulo', 'Detalle', 'IP', 'Fecha y hora'].map(h => (
+                  {['Usuario', 'Evento', 'Accion', 'Modulo', 'Vista', 'Elemento', 'Detalle', 'IP', 'Fecha y hora'].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 800, fontSize: 10, textTransform: 'uppercase', color: isDark ? '#94a3b8' : '#64748b', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0'}`, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const extra = metadataSummary(r.metadata);
+                  const vista = metadataValue(r.metadata, 'vista') || r.modulo || '-';
+                  const elemento = r.elemento_titulo || metadataValue(r.metadata, 'etiqueta') || metadataValue(r.metadata, 'usuarioObjetivo') || '-';
+                  const extra = r.evento === 'ui_click' ? '' : metadataSummary(r.metadata);
                   const detalleBase = [r.elemento_titulo, r.detalle].filter(Boolean).join(' - ')
                     || (r.entidad ? `${r.entidad}${r.entidad_id ? ` ${r.entidad_id}` : ''}` : '');
-                  const detalle = [detalleBase, extra].filter(Boolean).join(' | ');
+                  const detalle = r.evento === 'ui_click'
+                    ? `[${r.elemento_tipo || 'boton'}]`
+                    : [detalleBase, extra].filter(Boolean).join(' | ');
                   return (
                     <tr key={r.id} style={{ background: i % 2 === 0 ? (isDark ? 'transparent' : 'white') : (isDark ? 'rgba(255,255,255,0.02)' : '#fafafa'), borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'}` }}>
                       <td style={{ padding: '9px 14px', color: isDark ? '#cbd5e1' : '#1e293b', fontWeight: 600 }}>
@@ -311,9 +321,13 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
                       </td>
                       <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b' }}>{r.accion || '-'}</td>
                       <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b' }}>{r.modulo || '-'}</td>
-                      <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b', minWidth: 420, maxWidth: 620 }}>
+                      <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b', whiteSpace: 'nowrap' }}>{vista}</td>
+                      <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b', minWidth: 180, maxWidth: 260 }}>
+                        <span title={elemento} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{elemento}</span>
+                      </td>
+                      <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b', minWidth: 260, maxWidth: 460 }}>
                         <span title={detalle} style={{ display: 'block', lineHeight: 1.45, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
-                          {r.elemento_tipo && <strong>[{r.elemento_tipo}] </strong>}
+                          {r.evento !== 'ui_click' && r.elemento_tipo && <strong>[{r.elemento_tipo}] </strong>}
                           {detalle || '-'}
                         </span>
                       </td>
