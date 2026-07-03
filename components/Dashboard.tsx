@@ -440,6 +440,10 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
                   >
                     Observatorio Activo
                   </h3>
+                  {/*----------------TI-06----------------*/}
+                  <p className="text-[9px] font-semibold mt-0.5" style={{ color: C.onSurfaceVariant }}>
+                    {lastUpdated ? `Actualizado ${tiempoRelativo(lastUpdated)}` : 'Actualizando...'}
+                  </p>
                 </div>
                 <div className="w-2.5 h-2.5 rounded-full animate-pulse-dot" style={{ background: '#22c55e' }} />
               </div>
