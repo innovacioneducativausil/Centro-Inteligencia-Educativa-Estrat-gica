@@ -356,7 +356,11 @@ function mergeFiltros(fromApi: FiltroFacultad[], fromExcel: FiltroFacultad[]): F
 
 const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, userRole }) => {
   type MercadoTab = 'informe' | 'metodologia';
-  const [tab, setTab] = useState<MercadoTab>('metodologia');
+  const validMercadoTabs: MercadoTab[] = ['informe', 'metodologia'];
+  const [tab, setTab] = useState<MercadoTab>(() => {
+    const stored = localStorage.getItem('radar_mercado_tab') as MercadoTab | null;
+    return stored && validMercadoTabs.includes(stored) ? stored : 'metodologia';
+  });
   const [facultades, setFacultades] = useState<FiltroFacultad[]>([]);
   const [facultad, setFacultad] = useState('');
   const [carrera, setCarrera] = useState('');

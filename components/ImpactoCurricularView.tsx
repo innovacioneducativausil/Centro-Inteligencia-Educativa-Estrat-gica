@@ -116,6 +116,7 @@ async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
 }
 
 type TabMotor = 'impactos' | 'brechas' | 'propuestas';
+const VALID_IMPACTO_TABS: TabMotor[] = ['impactos', 'brechas', 'propuestas'];
 
 const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
   themeColors, userRole, idCarrera, idMallaVersion, nombreCarrera, nombreMalla,
@@ -134,7 +135,10 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
   const [propuestas, setPropuestas] = useState<Propuesta[]>([]);
   const [evidencias, setEvidencias] = useState<Evidencia[]>([]);
   const [selectedImpacto, setSelectedImpacto] = useState<number | null>(null);
-  const [tab, setTab]               = useState<TabMotor>('impactos');
+  const [tab, setTab]               = useState<TabMotor>(() => {
+    const stored = localStorage.getItem('radar_impacto_curricular_tab') as TabMotor | null;
+    return stored && VALID_IMPACTO_TABS.includes(stored) ? stored : 'impactos';
+  });
   const [analyzing, setAnalyzing]   = useState(false);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
@@ -164,6 +168,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
   }, [idCarrera, idMallaVersion]);
 
   const switchTab = (nextTab: TabMotor) => {
+    localStorage.setItem('radar_impacto_curricular_tab', nextTab);
     setTab(nextTab);
   };
 
