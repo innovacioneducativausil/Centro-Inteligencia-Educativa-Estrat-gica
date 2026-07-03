@@ -104,6 +104,7 @@ function requireRole(...roles) {
 const adminOnly = requireRole('admin');
 
 router.use((req, res, next) => {
+  if (!req.path.startsWith('/admin')) return next();
   const shouldAudit = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
   if (!shouldAudit) return next();
   res.on('finish', () => {

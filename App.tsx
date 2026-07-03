@@ -119,6 +119,21 @@ function getStoredAuditView(activeView: string) {
   return (stored && maps[activeView]?.[stored]) || titleCaseAudit(activeView);
 }
 
+function auditViewForClick(activeView: string, label: string) {
+  if (activeView !== 'gestion') return getStoredAuditView(activeView);
+  const tabLabels: Record<string, string> = {
+    señales: 'Señales',
+    senales: 'Señales',
+    tendencias: 'Tendencias',
+    escenarios: 'Escenarios',
+    importar: 'Importar',
+    usuarios: 'Usuarios y Accesos',
+    monitoreo: 'Monitoreo',
+  };
+  const key = label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return tabLabels[key] || getStoredAuditView(activeView);
+}
+
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState(() => {
     const stored = localStorage.getItem('radar_active_view');
@@ -226,7 +241,7 @@ const App: React.FC = () => {
       const anchor = el instanceof HTMLAnchorElement ? el : el.closest('a');
       const href = anchor instanceof HTMLAnchorElement ? anchor.href : '';
       const isDownload = href ? isAuditDownloadLink(href, label) : false;
-      const auditView = getStoredAuditView(activeView);
+      const auditView = auditViewForClick(activeView, label);
       logActividad(isDownload ? 'descargar_informe' : 'ui_click', {
         accion: 'click',
         modulo: activeView,
@@ -242,8 +257,8 @@ const App: React.FC = () => {
         },
       });
     };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
   }, [user, activeView]);
 
   const canView = useCallback((view: string) => {
@@ -256,6 +271,9 @@ const App: React.FC = () => {
 
     if (view === 'gestion' && user?.rol !== 'admin') return;
     if (!canView(view)) return;
+    if (view === 'gestion') {
+      localStorage.setItem('radar_gestion_tab', 'senales');
+    }
     setActiveView(view);
     logActividad('nav_modulo', { modulo: view });
   };
