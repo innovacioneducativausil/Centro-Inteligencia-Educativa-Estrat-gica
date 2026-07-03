@@ -50,12 +50,25 @@ const Layout: React.FC<LayoutProps> = ({
 
   const isAdmin = user.rol === 'admin';
 
+  //----------------TI-08 / TI-23 / TI-31----------------
+  const [umbralAlerts, setUmbralAlerts] = useState<{ id_alerta: number; mensaje: string; fecha_generada: string }[]>([]);
+  const fetchUmbralAlerts = () => {
+    if (!isAdmin) return;
+    fetch('/api/alertas/generadas?pendientes=1', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => setUmbralAlerts(j.data || []))
+      .catch(() => {});
+  };
 
   useEffect(() => {
     fetch('/api/admin/notificaciones', { credentials: 'include' })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { setNotifs(j.data || []); setNotifsLoaded(true); })
       .catch(() => {});
+    fetchUmbralAlerts();
+    //----------------TI-08 / TI-23 / TI-31----------------
+    const interval = setInterval(fetchUmbralAlerts, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
 
@@ -76,7 +89,15 @@ const Layout: React.FC<LayoutProps> = ({
         const res = await fetch('/api/admin/notificaciones', { credentials: 'include' });
         if (res.ok) { const j = await res.json(); setNotifs(j.data || []); setNotifsLoaded(true); }
       } catch {}
+      fetchUmbralAlerts();
     }
+  };
+
+  //----------------TI-08 / TI-23 / TI-31----------------
+  const irAAlertas = () => {
+    try { localStorage.setItem('radar_gestion_tab', 'alertas'); } catch {}
+    setActiveView('gestion');
+    setBellOpen(false);
   };
 
 
@@ -88,8 +109,8 @@ const Layout: React.FC<LayoutProps> = ({
   );
 
   const unreadCount = useMemo(() =>
-    publishedNotifs.filter(n => !seenIds.has(n.id)).length,
-    [publishedNotifs, seenIds]
+    publishedNotifs.filter(n => !seenIds.has(n.id)).length + umbralAlerts.length,
+    [publishedNotifs, seenIds, umbralAlerts]
   );
 
   const markSeen = (id: string) => {
@@ -242,6 +263,26 @@ const Layout: React.FC<LayoutProps> = ({
                   </button>
                 )}
               </div>
+              {/*----------------TI-08 / TI-23 / TI-31----------------*/}
+              {umbralAlerts.length > 0 && (
+                <div style={{ borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,42,63,0.06)'}` }}>
+                  <div style={{ padding: '8px 16px 4px', fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#ef4444' }}>
+                    Alertas por umbral
+                  </div>
+                  {umbralAlerts.slice(0, 5).map(a => (
+                    <div
+                      key={a.id_alerta}
+                      onClick={irAAlertas}
+                      style={{ padding: '8px 16px', cursor: 'pointer', borderLeft: '3px solid #ef4444', background: theme === 'dark' ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.06)' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = theme === 'dark' ? 'rgba(239,68,68,0.14)' : 'rgba(239,68,68,0.12)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = theme === 'dark' ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.06)'; }}
+                    >
+                      <p style={{ fontSize: 11, fontWeight: 600, color: theme === 'dark' ? '#fecaca' : '#991b1b', lineHeight: 1.4 }}>{a.mensaje}</p>
+                      <p style={{ fontSize: 9, color: BRAND_COLORS.body, marginTop: 2 }}>{fmtDate(a.fecha_generada)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                 {publishedNotifs.length === 0 ? (
                   <p style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: BRAND_COLORS.body }}>No hay actividad reciente</p>
