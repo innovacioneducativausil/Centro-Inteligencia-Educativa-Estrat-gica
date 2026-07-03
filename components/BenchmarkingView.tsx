@@ -625,7 +625,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     courses.forEach(course => {
       const cycle = course.ciclo ? String(course.ciclo) : 'S/C';
       const list = map.get(cycle) || [];
-      list.push({ nombre: course.nombre, meta: course.meta });
+      list.push({ nombre: cleanCourseName(course.nombre), meta: course.meta });
       map.set(cycle, list);
     });
     return Array.from(map.entries()).sort(([a], [b]) => {
@@ -634,6 +634,15 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
       return a.localeCompare(b, 'es');
     });
+  };
+
+  const cleanCourseName = (name: string) => {
+    const cleaned = String(name || '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\bdiv[_-]ngcontent\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return cleaned || 'Curso sin nombre';
   };
 
   const courseKey = (name: string) => normalizeText(name).replace(/[^a-z0-9]/g, '');
@@ -647,7 +656,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     const grouped = groupCoursesByCycle(courses);
     return (
       <div style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden', background: card,
-        height: 430, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <div style={{ padding: '10px 12px', background: isDark ? '#0f172a' : BRAND_COLORS.surface,
           borderBottom: `1px solid ${border}`, flex: '0 0 auto' }}>
           <div style={{ fontWeight: 800, color: accent, fontSize: 12 }}>{title}</div>
@@ -656,17 +665,16 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         {grouped.length === 0 ? (
           <div style={{ padding: 16, color: muted, fontSize: 12 }}>No hay cursos cargados para esta malla.</div>
         ) : (
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', overflowY: 'hidden',
-            padding: 10, flex: '1 1 auto', minHeight: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+            gap: 8, padding: 10 }}>
             {grouped.map(([cycle, items]) => (
-              <div key={`${title}-${cycle}`} style={{ minWidth: 170, flex: '0 0 170px',
-                height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <div key={`${title}-${cycle}`} style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ background: accent, color: '#fff', padding: '5px 8px',
                   fontWeight: 800, fontSize: 11, borderRadius: '6px 6px 0 0', flex: '0 0 auto' }}>
-                  Ciclo {cycle}
+                  Ciclo {cycle} <span style={{ opacity: 0.75, fontWeight: 700 }}>({items.length})</span>
                 </div>
                 <div style={{ border: `1px solid ${border}`, borderTop: 'none', borderRadius: '0 0 6px 6px',
-                  overflowY: 'auto', overflowX: 'hidden', flex: '1 1 auto', minHeight: 0 }}>
+                  overflow: 'visible' }}>
                   {items.map((course, idx) => (
                     <div key={`${cycle}-${course.nombre}-${idx}`}
                       style={{ padding: '7px 8px', borderBottom: idx < items.length - 1 ? `1px solid ${border}` : 'none',
@@ -1249,7 +1257,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   {programasReferencia.map(p => {
                     const cursosExternos = (p.cursos || []).map(curso => ({
                       ciclo: curso.ciclo,
-                      nombre: curso.nombre_curso,
+                      nombre: cleanCourseName(curso.nombre_curso),
                       meta: curso.area_formacion || curso.fuente_url || null,
                     }));
                     const usilKeys = new Set(cursosUsil.map(c => courseKey(c.nombre)));

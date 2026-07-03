@@ -529,6 +529,16 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               {carrerasFiltradas.map(c => <option key={c.id_carrera}>{c.nombre_carrera}</option>)}
             </select>
           </div>
+          {activeTab === 'mapa' && mallaActual && (
+            <button onClick={handleExportMapaExcel}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                height: 40, padding: '0 16px', borderRadius: 8, border: 'none',
+                background: USIL, color: '#fff', fontSize: 12, fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
+              Exportar Excel
+            </button>
+          )}
         </div>
       )}
 
@@ -559,18 +569,6 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
       {activeTab === 'mapa' && (
         <>
-
-          {mallaActual && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={handleExportMapaExcel}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 8,
-                  border: 'none', background: USIL, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
-                Exportar Excel
-              </button>
-            </div>
-          )}
-
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
             {[
               { label: 'En Riesgo / Crítico',     value: `${kpis.pctRiesgo}%`,       badge: `${kpis.criticos} cursos`,  note: 'Cursos con obsolescencia alta o riesgo.',     accent: '#ef4444', badgeBg: '#fee2e2', badgeText: '#991b1b' },

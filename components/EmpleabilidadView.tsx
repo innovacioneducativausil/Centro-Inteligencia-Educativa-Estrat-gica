@@ -1177,6 +1177,64 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
   const text   = isDark ? '#f1f5f9' : '#1e293b';
   const muted  = isDark ? '#94a3b8' : '#64748b';
   const border = isDark ? 'rgba(148,163,184,0.15)' : '#e2e8f0';
+  const filterBoxStyle: React.CSSProperties = {
+    background: card,
+    borderRadius: 10,
+    border: `1px solid ${border}`,
+    padding: '12px 14px',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(5, minmax(150px, 1fr)) auto',
+    gap: 12,
+    alignItems: 'end',
+    marginBottom: 12,
+  };
+  const filterLabelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: 9,
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    color: muted,
+    marginBottom: 6,
+  };
+  const filterSelectStyle: React.CSSProperties = {
+    width: '100%',
+    height: 36,
+    padding: '0 10px',
+    borderRadius: 7,
+    border: `1px solid ${border}`,
+    background: isDark ? '#0f172a' : '#f8fafc',
+    color: text,
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: 'pointer',
+  };
+  const setProgramaFilter = (value: string) => {
+    setSelProgramas(value === 'Todas' ? [...programasList] : [value]);
+    setSelCiclos([]);
+    setSelFacultad('Todas');
+    setSelCarrera('Todas');
+  };
+  const setAnioFilter = (value: string) => {
+    setSelAños(value === 'Todos' ? filtros.años.map(String) : [value]);
+    setSelCiclos([]);
+    setSelCarrera('Todas');
+  };
+  const setCicloFilter = (value: string) => {
+    setSelCiclos(value === 'Todos' ? [] : [value]);
+  };
+  const setFacultadFilter = (value: string) => {
+    setSelFacultad(value);
+    setSelCarrera('Todas');
+    setSelCiclos([]);
+  };
+  const clearEmpleabilidadFilters = () => {
+    setSelProgramas([...programasList]);
+    setSelAños(filtros.años.map(String));
+    setSelCiclos([]);
+    setSelFacultad('Todas');
+    setSelCarrera('Todas');
+  };
 
   const cardStyle: React.CSSProperties = {
     background: card, borderRadius: 12, border: `1px solid ${border}`,
@@ -1321,77 +1379,71 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
       </div>
 
 
-      {activeTab !== 'descarga' && <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-
-        {programasList.length > 0 && (
-          <div style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '7px 12px', background: card }}>
-            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Programa</div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 10, fontWeight: 600, marginBottom: 3 }}>
-              <input type="checkbox" checked={selectAll} onChange={toggleAll} style={{ accentColor: ACCENT }} />
-              Seleccionar todo
-            </label>
-            {programasList.map(p => (
-              <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 10, fontWeight: 600, marginBottom: 2 }}>
-                <input type="checkbox" checked={selProgramas.includes(p)}
-                  onChange={() => toggleArr(selProgramas, p, setSelProgramas)}
-                  style={{ accentColor: ACCENT }} />
-                {normalizeProg(p)}
-              </label>
-            ))}
+      {activeTab !== 'descarga' && (
+        <div style={filterBoxStyle}>
+          <div>
+            <label style={filterLabelStyle}>Programa</label>
+            <select
+              value={selProgramas.length === 1 ? selProgramas[0] : 'Todas'}
+              onChange={e => setProgramaFilter(e.target.value)}
+              style={filterSelectStyle}
+            >
+              <option value="Todas">Todos</option>
+              {programasList.map(p => <option key={p} value={p}>{normalizeProg(p)}</option>)}
+            </select>
           </div>
-        )}
 
-        {filtros.años.length > 0 && (
-          <div style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '7px 12px', background: card }}>
-            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Año Encuesta</div>
-            {filtros.años.map(a => (
-              <label key={a} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 10, fontWeight: 600, marginBottom: 2 }}>
-                <input type="checkbox" checked={selAños.includes(String(a))}
-                  onChange={() => toggleArr(selAños, String(a), setSelAños)}
-                  style={{ accentColor: ACCENT }} />
-                {a}
-              </label>
-            ))}
+          <div>
+            <label style={filterLabelStyle}>Año Encuesta</label>
+            <select
+              value={selAños.length === 1 ? selAños[0] : 'Todos'}
+              onChange={e => setAnioFilter(e.target.value)}
+              style={filterSelectStyle}
+            >
+              <option value="Todos">Todos</option>
+              {filtros.años.map(a => <option key={a} value={String(a)}>{a}</option>)}
+            </select>
           </div>
-        )}
 
-        {filtros.ciclos.length > 0 && (
-          <div style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '7px 12px', background: card, flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Ciclo Egreso</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {filtros.ciclos.map(c => {
-                const active = selCiclos.includes(c.codigo);
-                return (
-                  <button key={c.codigo} onClick={() => toggleArr(selCiclos, c.codigo, setSelCiclos)}
-                    style={{ fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 5, cursor: 'pointer',
-                      border: `1.5px solid ${active ? ACCENT : '#d1d5db'}`,
-                      background: active ? ACCENT : 'transparent',
-                      color: active ? '#fff' : text, transition: 'all .15s' }}>
-                    {c.label || c.codigo}
-                  </button>
-                );
-              })}
-            </div>
+          <div>
+            <label style={filterLabelStyle}>Ciclo Egreso</label>
+            <select
+              value={selCiclos.length === 1 ? selCiclos[0] : 'Todos'}
+              onChange={e => setCicloFilter(e.target.value)}
+              style={filterSelectStyle}
+            >
+              <option value="Todos">Todos</option>
+              {filtros.ciclos.map(c => <option key={c.codigo} value={c.codigo}>{c.label || c.codigo}</option>)}
+            </select>
           </div>
-        )}
 
-        <div style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '7px 12px', background: card, minWidth: 160 }}>
-          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Facultad</div>
-          <select value={selFacultad} onChange={e => setSelFacultad(e.target.value)}
-            style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px', borderRadius: 5, width: '100%',
-              border: `1px solid ${border}`, background: card, color: text, cursor: 'pointer', marginBottom: 8 }}>
-            <option>Todas</option>
-            {filtros.facultades.map(f => <option key={f}>{f}</option>)}
-          </select>
-          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 5 }}>Carrera</div>
-          <select value={selCarrera} onChange={e => setSelCarrera(e.target.value)}
-            style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px', borderRadius: 5, width: '100%',
-              border: `1px solid ${border}`, background: card, color: text, cursor: 'pointer' }}>
-            <option>Todas</option>
-            {filtros.carreras.map(c => <option key={c}>{c}</option>)}
-          </select>
+          <div>
+            <label style={filterLabelStyle}>Facultad</label>
+            <select value={selFacultad} onChange={e => setFacultadFilter(e.target.value)} style={filterSelectStyle}>
+              <option>Todas</option>
+              {filtros.facultades.map(f => <option key={f}>{f}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={filterLabelStyle}>Carrera</label>
+            <select value={selCarrera} onChange={e => setSelCarrera(e.target.value)} style={filterSelectStyle}>
+              <option>Todas</option>
+              {filtros.carreras.map(c => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <button
+            onClick={clearEmpleabilidadFilters}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 12px',
+              borderRadius: 7, border: `1px solid ${border}`, background: card, color: muted,
+              fontSize: 11, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>filter_alt_off</span>
+            Limpiar filtros
+          </button>
         </div>
-      </div>}
+      )}
 
 
       {activeTab === 'resumen' && (

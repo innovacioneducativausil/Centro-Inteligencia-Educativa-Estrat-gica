@@ -20,6 +20,21 @@ export async function downloadExcel(filename: string, sheets: ExcelSheetSpec[]):
     ws.columns = sheet.columns;
     ws.addRows(sheet.rows);
     ws.getRow(1).font = { bold: true };
+    ws.getRow(1).alignment = { vertical: 'middle', wrapText: true };
+    ws.eachRow((row, rowNumber) => {
+      row.eachCell((cell) => {
+        cell.alignment = { vertical: 'top', wrapText: true };
+      });
+      if (rowNumber > 1) {
+        const values = Array.isArray(row.values) ? row.values.slice(1) : Object.values(row.values || {});
+        const maxLength = Math.max(
+          1,
+          ...values.map(value => String(value ?? '').length)
+        );
+        row.height = Math.min(120, Math.max(18, Math.ceil(maxLength / 80) * 16));
+      }
+    });
+    ws.views = [{ state: 'frozen', ySplit: 1 }];
   }
 
   const buffer = await wb.xlsx.writeBuffer();
