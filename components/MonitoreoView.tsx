@@ -107,6 +107,11 @@ function metadataSummary(value: string | null) {
   if (Array.isArray(data.cambios) && data.cambios.length) {
     parts.push(`Cambios: ${data.cambios.map((c: any) => c.campo).join(', ')}`);
   }
+  //----------------TI-09----------------
+  if (data.antes && typeof data.antes === 'object' && Object.keys(data.antes).length) {
+    const antesTexto = Object.entries(data.antes).map(([k, v]) => `${k}=${v}`).join(', ');
+    parts.push(`Antes: ${antesTexto}`);
+  }
   return parts.join(' | ');
 }
 
