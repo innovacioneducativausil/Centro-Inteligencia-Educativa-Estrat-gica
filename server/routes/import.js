@@ -49,7 +49,7 @@ const COUNTRIES = [
   'Palestina','Caribe','África','África Oriental','África Austral','Norte de África',
   'Sudeste Asiático','Asia Central','Asia del Sur','Asia del Sudeste','Asia-Pacífico',
   'Medio Oriente','América del Norte','América del Sur','América Central',
-  'Oceanía','Europa del Este','Europa Occidental',
+  'Oceanía','Europa del Este','Europa Occidental','Antártida',
 ];
 
 
@@ -84,6 +84,7 @@ const COUNTRY_ALIASES = new Map([
   ['sub-saharan africa','África Subsahariana'],['subsaharan africa','África Subsahariana'],
   ['caribbean','Caribe'],['asia pacific','Asia Pacífico'],['asia-pacific','Asia-Pacífico'],
   ['africa','África'],['europa','Europa'],['global','Global'],
+  ['antarctica','Antártida'],['antartida','Antártida'],
 ]);
 
 

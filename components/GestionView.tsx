@@ -140,7 +140,7 @@ const COUNTRIES = [
   'Palestina','Caribe','África','África Oriental','África Austral','Norte de África',
   'Sudeste Asiático','Asia Central','Asia del Sur','Asia del Sudeste','Asia-Pacífico',
   'Medio Oriente','América del Norte','América del Sur','América Central',
-  'Oceanía','Europa del Este','Europa Occidental',
+  'Oceanía','Europa del Este','Europa Occidental','Antártida',
 ];
 
 type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar' | 'monitoreo' | 'usuarios';
