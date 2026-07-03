@@ -1,11 +1,13 @@
 import db from '../db.js';
 
+//----------------TI-44 / TI-59----------------
 export function getClientIp(req) {
   return (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '')
     .split(',')[0]
     .trim() || null;
 }
 
+//----------------TI-44 / TI-59----------------
 export async function auditEvent(req, {
   evento,
   modulo = null,

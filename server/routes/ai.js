@@ -30,6 +30,7 @@ const HF_MODEL_HEAVY  = 'Qwen/Qwen2.5-7B-Instruct:together';
 const HF_MODEL_LIGHT  = 'Qwen/Qwen2.5-7B-Instruct:together';
 const HF_URL          = 'https://router.huggingface.co/v1/chat/completions';
 
+//----------------OBS-05----------------
 const RADAR_SYSTEM = `Eres un analista experto del RADAR Observatorio de Carreras, sistema de inteligencia prospectiva para educaciÃ³n superior universitaria (metodologÃ­a WEF Foresight / Horizon Scanning).
 Tu rol: apoyar a directores acadÃ©micos y diseÃ±adores curriculares a anticipar cambios que afectan las carreras universitarias y el mercado laboral del futuro.
 MetodologÃ­a que aplicas:
@@ -39,6 +40,7 @@ MetodologÃ­a que aplicas:
 Responde siempre en espaÃ±ol, con lenguaje ejecutivo, preciso y orientado a la acciÃ³n institucional universitaria.`;
 
 
+//----------------OBS-05----------------
 router.post('/ai/generate', async (req, res) => {
   const apiKey = process.env.HF_API_KEY;
   if (!apiKey || apiKey === 'hf_TU_TOKEN_AQUI') {

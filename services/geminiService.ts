@@ -5,7 +5,7 @@ import type { Signal } from '../types';
 
 const AUTH = () => ({ 'Content-Type': 'application/json' });
 
-
+//----------------OBS-05----------------
 async function callHF(prompt: string, maxTokens = 600): Promise<string> {
   const res = await fetch('/api/ai/generate', { method: 'POST', headers: AUTH(), body: JSON.stringify({ prompt, maxTokens }) });
   if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error || `Error ${res.status}`); }

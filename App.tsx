@@ -79,6 +79,7 @@ function auditKey(value: string) {
   return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 }
 
+//----------------TI-44 / TI-59----------------
 const AUDIT_VIEW_CLICK_LABELS: Record<string, Record<string, string>> = {
   gestion: {
     senales: 'Señales',
@@ -245,6 +246,7 @@ const App: React.FC = () => {
 
   const handleLogout = useCallback((reason: 'manual' | 'inactivity' = 'manual') => {
 
+    //----------------TI-53----------------
     logActividad(reason === 'inactivity' ? 'logout_inactividad' : 'logout');
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
     localStorage.removeItem('radar_token');
@@ -258,6 +260,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
+    //----------------TI-53----------------
     let timeoutId: ReturnType<typeof setTimeout>;
     let warningId: ReturnType<typeof setTimeout>;
     const resetTimer = () => {
@@ -295,6 +298,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
+
+    //----------------TI-44 / TI-59----------------
     const clickHandler = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       const el = target?.closest('button, a, [role="button"]') as HTMLElement | null;
@@ -357,6 +362,7 @@ const App: React.FC = () => {
 
   const canView = useCallback((view: string) => {
     if (!user) return false;
+    //----------------OBS-01 / TI-02----------------
     const allowed = user.modulosPermitidos?.length ? user.modulosPermitidos : defaultModulesFor(user);
     return allowed.includes(view);
   }, [user]);

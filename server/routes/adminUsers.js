@@ -5,6 +5,7 @@ import db from '../db.js';
 import { auditEvent } from '../services/auditService.js';
 
 const router = Router();
+//----------------OBS-01 / TI-02----------------
 const MANAGED_ROLES = new Set(['usuario', 'lector', 'analista', 'editor']);
 const EDITABLE_ROLES = new Set(['admin', 'usuario', 'lector', 'analista', 'editor']);
 const ALL_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral', 'informes', 'gestion'];
@@ -22,6 +23,7 @@ function normalizeEmail(correo) {
   return String(correo || '').trim().toLowerCase();
 }
 
+//----------------TI-53----------------
 function validatePassword(password) {
   if (!password || password.length < 8) return 'La contrasena debe tener minimo 8 caracteres.';
   if (!/[A-Z]/.test(password)) return 'La contrasena debe contener al menos una letra mayuscula.';
@@ -30,6 +32,7 @@ function validatePassword(password) {
   return null;
 }
 
+//----------------OBS-01 / TI-02----------------
 function parseModules(raw, rol) {
   const allowed = rol === 'admin' ? ALL_MODULES : ALL_MODULES.filter(m => m !== 'gestion');
   if (!raw) return rol === 'admin' ? DEFAULT_ADMIN_MODULES : DEFAULT_USER_MODULES;
@@ -62,6 +65,7 @@ function safeUser(row) {
   };
 }
 
+//----------------OBS-01 / TI-02----------------
 router.get('/admin/usuarios', adminOnly, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
@@ -99,6 +103,7 @@ router.get('/admin/usuarios', adminOnly, async (req, res) => {
   }
 });
 
+//----------------OBS-01 / TI-02----------------
 router.post('/admin/usuarios', adminOnly, async (req, res) => {
   try {
     const nombre = String(req.body.nombre || '').trim();
@@ -134,6 +139,7 @@ router.post('/admin/usuarios', adminOnly, async (req, res) => {
     );
     await db.query('UPDATE usuario SET modulos_permitidos = ? WHERE id_usuario = ?', [JSON.stringify(modulos), id]);
 
+    //----------------TI-44 / TI-59----------------
     await auditEvent(req, {
       evento: 'usuario_creado',
       accion: 'crear_usuario',
@@ -159,6 +165,7 @@ router.post('/admin/usuarios', adminOnly, async (req, res) => {
   }
 });
 
+//----------------OBS-01 / TI-02----------------
 router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
@@ -206,6 +213,7 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
       ? cambios.map(c => `${c.campo}: "${Array.isArray(c.antes) ? c.antes.join('|') : c.antes}" -> "${Array.isArray(c.despues) ? c.despues.join('|') : c.despues}"`).join('; ')
       : 'sin cambios de datos';
 
+    //----------------TI-44 / TI-59----------------
     await auditEvent(req, {
       evento: 'usuario_actualizado',
       accion: 'editar_usuario',
@@ -232,6 +240,7 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
   }
 });
 
+//----------------TI-53 / OBS-01----------------
 router.post('/admin/usuarios/:id/reset-password', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
@@ -249,6 +258,7 @@ router.post('/admin/usuarios/:id/reset-password', adminOnly, async (req, res) =>
       [hash, id]
     );
 
+    //----------------TI-44 / TI-59----------------
     await auditEvent(req, {
       evento: 'usuario_password_reseteado',
       accion: 'reset_password_usuario',

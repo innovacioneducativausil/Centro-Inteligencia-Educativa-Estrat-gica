@@ -120,6 +120,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api', authRouter);
 
+//----------------TI-44 / TI-59----------------
 app.use('/api', requireAuth, auditMutatingRequests, auditReadRequests);
 
 app.use('/api', requireAuth, infoRouter);
@@ -152,6 +153,7 @@ app.use(globalErrorHandler);
 
 async function startServer() {
   try {
+    //----------------TI-44 / TI-59 / OBS-01 / TI-02 / TI-53----------------
     await ensureArchiveSupport();
     await ensureRadarSchemaSupport();
     await ensureActividadSupport();

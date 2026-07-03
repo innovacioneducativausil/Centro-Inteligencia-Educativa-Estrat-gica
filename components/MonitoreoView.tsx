@@ -24,6 +24,7 @@ interface ActividadRow {
   fecha_hora: string;
 }
 
+//----------------TI-44 / TI-59----------------
 const EVENTO_LABELS: Record<string, string> = {
   login: 'Inicio de sesion',
   logout: 'Cierre de sesion',
@@ -229,6 +230,7 @@ function normalizeRowAudit(r: ActividadRow) {
 
 const PAGE_LIMIT = 50;
 
+//----------------TI-44 / TI-59----------------
 const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) => {
   const isDark = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
   const [rows, setRows] = useState<ActividadRow[]>([]);

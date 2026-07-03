@@ -20,6 +20,7 @@ interface UserRow {
   modulosPermitidos: string[];
 }
 
+//----------------OBS-01 / TI-02----------------
 const ROLES = ['usuario', 'lector', 'analista', 'editor'];
 const EDIT_ROLES = ['admin', ...ROLES];
 const MODULES = [
@@ -92,6 +93,7 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
+  //----------------OBS-01 / TI-02----------------
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -118,6 +120,7 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
     }
   };
 
+  //----------------OBS-01 / TI-02----------------
   const updateUser = async (user: UserRow, changes: Partial<UserRow>) => {
     setError(null);
     setSaveMessage(null);
@@ -148,6 +151,7 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
     }
   };
 
+  //----------------TI-53 / OBS-01----------------
   const resetPassword = async (user: UserRow) => {
     setTempPassword(null);
     setError(null);
@@ -168,6 +172,7 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
     }
   };
 
+  //----------------OBS-01 / TI-02----------------
   const toggleModule = (user: UserRow, moduleKey: string) => {
     if (!user.gestionable) return;
     setRows(prev => prev.map(row => {

@@ -4,6 +4,7 @@ import db from '../db.js';
 
 const RETENTION_DAYS = Math.max(30, Number(process.env.ACTIVIDAD_RETENTION_DAYS || 365));
 
+//----------------TI-44 / TI-59----------------
 export async function ensureActividadSupport() {
   try {
     await db.query(`
@@ -52,6 +53,7 @@ export async function ensureActividadSupport() {
   }
 }
 
+//----------------TI-44 / TI-59----------------
 export async function cleanupOldActividad() {
   try {
     const [result] = await db.query(

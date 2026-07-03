@@ -13,6 +13,7 @@ const JWT_EXPIRES = process.env.JWT_EXPIRES || '8h';
 const AUTH_COOKIE = 'radar_token';
 const COOKIE_MAX_AGE_MS = 8 * 60 * 60 * 1000;
 const OTP_EXPIRES_MS = 5 * 60 * 1000;
+//----------------TI-53----------------
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 
@@ -36,6 +37,7 @@ const DEFAULT_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'curric
 const ADMIN_MODULES = [...DEFAULT_MODULES, 'informes', 'gestion'];
 const ALL_MODULES = [...ADMIN_MODULES];
 
+//----------------OBS-01 / TI-02----------------
 function parseAllowedModules(raw, rol) {
   const allowed = rol === 'admin' ? ALL_MODULES : ALL_MODULES.filter(m => m !== 'gestion');
   if (!raw) return rol === 'admin' ? ADMIN_MODULES : DEFAULT_MODULES;
@@ -77,6 +79,7 @@ function signAuthToken(user) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 }
 
+//----------------TI-43 / TI-11----------------
 async function createOtpForUser(user, purpose) {
   const otp     = crypto.randomInt(100000, 999999).toString();
   const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
@@ -96,6 +99,7 @@ async function createOtpForUser(user, purpose) {
   });
 }
 
+//----------------TI-53----------------
 function validatePasswordPolicy(password) {
   if (!password || password.length < 8) return 'La contrasena debe tener minimo 8 caracteres.';
   if (!/[A-Z]/.test(password)) return 'La contrasena debe contener al menos una letra mayuscula.';
@@ -146,6 +150,7 @@ router.post('/auth/login', async (req, res) => {
       return res.status(403).json({ error: 'Tu cuenta esta desactivada. Contacta al administrador.' });
     }
 
+    //----------------TI-53----------------
     if (user.locked_until && new Date(user.locked_until) > new Date()) {
       await auditEvent(req, {
         evento: 'login_bloqueado',
@@ -161,6 +166,7 @@ router.post('/auth/login', async (req, res) => {
 
     const passwordOk = await bcrypt.compare(password, user.password_hash);
     if (!passwordOk) {
+      //----------------TI-53----------------
       const attempts = Number(user.failed_login_attempts || 0) + 1;
       const shouldLock = attempts >= MAX_FAILED_LOGIN_ATTEMPTS;
       await db.query(
@@ -198,6 +204,7 @@ router.post('/auth/login', async (req, res) => {
       [user.id_usuario]
     );
 
+    //----------------TI-43 / TI-11----------------
     /*
      * MFA de login suspendido temporalmente:
      * Los correos institucionales estan bloqueando/no recibiendo el OTP.

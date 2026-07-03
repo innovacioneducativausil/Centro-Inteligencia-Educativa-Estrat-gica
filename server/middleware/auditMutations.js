@@ -1,5 +1,6 @@
 import { auditEvent } from '../services/auditService.js';
 
+//----------------TI-44 / TI-59----------------
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const SENSITIVE_KEY = /(password|pass|token|secret|otp|key|hash|jwt|cookie|authorization)/i;
 
@@ -48,6 +49,7 @@ function actionFromMethod(method) {
   }[method] || method.toLowerCase();
 }
 
+//----------------TI-44 / TI-59----------------
 export function auditMutatingRequests(req, res, next) {
   if (!MUTATING_METHODS.has(req.method)) return next();
   if (req.path.startsWith('/actividad')) return next();
@@ -91,8 +93,7 @@ function detailIdFromPath(path = '') {
   return [...segments].reverse().find(part => DETAIL_ID.test(part)) || null;
 }
 
-// Solo audita GET a un recurso puntual (segmento uuid/numerico en la ruta), no listados/filtros,
-// para no saturar actividad_usuario con cada carga de tabla.
+//----------------TI-44 / TI-59----------------
 export function auditReadRequests(req, res, next) {
   if (req.method !== 'GET') return next();
   if (req.path.startsWith('/actividad')) return next();

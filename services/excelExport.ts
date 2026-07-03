@@ -12,6 +12,7 @@ export interface ExcelSheetSpec {
   rows: Record<string, unknown>[];
 }
 
+//----------------TI-44 / TI-59----------------
 export async function downloadExcel(filename: string, sheets: ExcelSheetSpec[]): Promise<void> {
   const wb = new ExcelJS.Workbook();
 
