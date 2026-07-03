@@ -1,18 +1,21 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+//----------------TI-52----------------
+// Ninguna API key debe viajar al bundle del cliente: las llamadas a IA
+// (Gemini/Groq/HuggingFace) se hacen server-side (server/routes/ai.js).
+// No agregar aqui variables `define` con secretos de servidor.
+export default defineConfig(() => {
   return {
     plugins: [react()],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+    build: {
+      sourcemap: false,
+      minify: true,
     },
     server: {
       proxy: {
-
         '/api': {
-        target: 'http://localhost:3002',
+          target: 'http://localhost:3002',
           changeOrigin: true,
         }
       }

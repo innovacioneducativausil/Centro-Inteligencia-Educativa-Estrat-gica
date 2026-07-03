@@ -21,6 +21,17 @@ function makeTrend(total: number): { pv: number }[] {
   }));
 }
 
+//----------------TI-06----------------
+function tiempoRelativo(fecha: Date): string {
+  const segundos = Math.floor((Date.now() - fecha.getTime()) / 1000);
+  if (segundos < 60) return 'hace instantes';
+  const minutos = Math.floor(segundos / 60);
+  if (minutos < 60) return `hace ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `hace ${horas} h`;
+  return fecha.toLocaleString('es-PE');
+}
+
 function inlineBold(text: string): React.ReactNode {
   const parts = text.split(/\*\*(.+?)\*\*/);
   return parts.map((part, i) =>
@@ -153,12 +164,24 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
   const [stats, setStats]     = useState<Estadisticas | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    getEstadisticas()
-      .then(s => setStats(s))
+  //----------------TI-06----------------
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshing, setRefreshing]   = useState(false);
+
+  const loadStats = React.useCallback((isManual = false) => {
+    if (isManual) setRefreshing(true);
+    return getEstadisticas()
+      .then(s => { setStats(s); setLastUpdated(new Date()); })
       .catch(err => console.error('Dashboard stats:', err))
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); if (isManual) setRefreshing(false); });
   }, []);
+
+  useEffect(() => {
+    loadStats();
+    //----------------TI-06----------------
+    const interval = setInterval(() => loadStats(), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [loadStats]);
 
 
   const [searchType, setSearchType]                   = useState<'señal' | 'tendencia'>('señal');
@@ -526,6 +549,21 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
 
       <section className="py-14 px-8" style={{ background: C.surface }}>
         <div className="max-w-7xl mx-auto">
+          {/*----------------TI-06----------------*/}
+          <div className="flex items-center justify-end gap-2 mb-3">
+            <span className="text-[11px] font-semibold" style={{ color: mutedText }}>
+              {lastUpdated ? `Actualizado ${tiempoRelativo(lastUpdated)}` : 'Actualizando...'}
+            </span>
+            <button
+              onClick={() => loadStats(true)}
+              disabled={refreshing}
+              title="Actualizar indicadores"
+              className="p-1 rounded-lg transition-colors"
+              style={{ color: mutedText, cursor: refreshing ? 'default' : 'pointer' }}
+            >
+              <span className={`material-symbols-outlined text-[16px] ${refreshing ? 'animate-spin' : ''}`}>refresh</span>
+            </button>
+          </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
             {kpiCards ? kpiCards.map(card => (
               <KpiCard key={card.title} {...card} />

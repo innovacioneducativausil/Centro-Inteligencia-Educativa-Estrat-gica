@@ -43,6 +43,8 @@ import { ensureRadarSchemaSupport } from './services/schemaMaintenance.js';
 import { ensureActividadSupport, cleanupOldActividad, getActividadRetentionDays } from './services/actividadMaintenance.js';
 import { runUserMigration } from './services/userMigration.js';
 import actividadRouter from './routes/actividad.js';
+import alertasRouter from './routes/alertas.js';
+import { evaluarReglas } from './services/alertEngine.js';
 
 const app  = express();
 const PORT = process.env.API_PORT || 3001;
@@ -143,6 +145,7 @@ app.use('/api', requireAuth, mercadoLaboralRouter);
 app.use('/api', requireAuth, benchmarkingRouter);
 app.use('/api', requireAuth, motorCurricularRouter);
 app.use('/api', requireAuth, actividadRouter);
+app.use('/api', requireAuth, alertasRouter);
 
 
 app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
@@ -165,6 +168,11 @@ async function startServer() {
     process.exit(1);
   }
 
+  //----------------TI-08 / TI-23 / TI-31----------------
+  evaluarReglas().catch(err => {
+    console.error('[ALERTAS] Error en evaluacion inicial de reglas:', err.message);
+  });
+
   app.listen(PORT, () => {
     console.log(`???? API corriendo en http://localhost:${PORT}`);
     console.log(`   Health:       http://localhost:${PORT}/api/health`);
@@ -185,5 +193,12 @@ setInterval(() => {
     console.error('[ACTIVIDAD] Error en limpieza programada:', err.message);
   });
 }, 24 * 60 * 60 * 1000);
+
+//----------------TI-08 / TI-23 / TI-31----------------
+setInterval(() => {
+  evaluarReglas().catch(err => {
+    console.error('[ALERTAS] Error en evaluacion programada:', err.message);
+  });
+}, 15 * 60 * 1000);
 
 startServer();

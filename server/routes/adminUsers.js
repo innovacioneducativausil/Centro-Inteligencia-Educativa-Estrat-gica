@@ -276,4 +276,70 @@ router.post('/admin/usuarios/:id/reset-password', adminOnly, async (req, res) =>
   }
 });
 
+//----------------TI-41----------------
+// Eliminacion segura + anonimizacion/pseudonimizacion de datos personales.
+// No se hace DELETE fisico (romperia integridad referencial de auditoria);
+// en su lugar se sustituyen los identificadores personales por valores no
+// reversibles y se desactiva la cuenta, preservando el registro de auditoria
+// (evento/accion/modulo) de forma pseudonimizada para trazabilidad legal.
+router.post('/admin/usuarios/:id/eliminar-datos', adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [[existing]] = await db.query(
+      'SELECT id_usuario, correo_usuario, rol, activo FROM usuario WHERE id_usuario = ? LIMIT 1',
+      [id]
+    );
+    if (!existing) return res.status(404).json({ error: 'Usuario no encontrado.' });
+    if (id === req.user.id) {
+      return res.status(400).json({ error: 'No puedes anonimizar tu propia cuenta.' });
+    }
+    if (existing.rol === 'admin') {
+      const [[{ total }]] = await db.query(
+        "SELECT COUNT(*) AS total FROM usuario WHERE rol = 'admin' AND activo = 1"
+      );
+      if (total <= 1) {
+        return res.status(400).json({ error: 'No puedes anonimizar al unico administrador activo.' });
+      }
+    }
+
+    const pseudonimo = `usuario-eliminado-${randomUUID().slice(0, 8)}`;
+    const correoPseudo = `${pseudonimo}@anonimizado.local`;
+    const inertHash = await bcrypt.hash(randomUUID(), 10);
+    const correoOriginalEnmascarado = existing.correo_usuario.replace(/^(.{2}).*(@.*)$/, '$1***$2');
+
+    await db.query(
+      `UPDATE usuario
+       SET nombre_usuario = 'Usuario eliminado', nombre_corto = 'Eliminado',
+           correo_usuario = ?, password_hash = ?, activo = 0, modulos_permitidos = '[]',
+           otp_hash = NULL, otp_expires = NULL, otp_attempts = 0, otp_purpose = NULL,
+           reset_token = NULL, reset_token_expires = NULL, locked_until = NULL,
+           eliminado_en = NOW(), fecha_actualizacion = NOW()
+       WHERE id_usuario = ?`,
+      [correoPseudo, inertHash, id]
+    );
+
+    // Pseudonimizar el historico de auditoria del usuario (se conserva evento/
+    // accion/modulo para no perder trazabilidad operativa, se retira el correo).
+    await db.query(
+      'UPDATE actividad_usuario SET correo = ? WHERE id_usuario = ?',
+      [correoPseudo, id]
+    );
+
+    await auditEvent(req, {
+      evento: 'usuario_datos_anonimizados',
+      accion: 'eliminar_datos_usuario',
+      modulo: 'gestion_usuarios',
+      entidad: 'usuario',
+      entidadId: id,
+      elementoTitulo: correoPseudo,
+      detalle: `Datos personales anonimizados/pseudonimizados para ${correoOriginalEnmascarado}`,
+    });
+
+    res.json({ ok: true, correoPseudo });
+  } catch (err) {
+    console.error('[POST /admin/usuarios/:id/eliminar-datos]', err);
+    res.status(500).json({ error: 'Error interno.' });
+  }
+});
+
 export default router;

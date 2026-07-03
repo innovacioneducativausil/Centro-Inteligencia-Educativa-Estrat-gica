@@ -6,6 +6,7 @@ import { AuthUser } from './LoginView';
 import ImportarView from './ImportarView';
 import MonitoreoView from './MonitoreoView';
 import UsuariosGestionView from './UsuariosGestionView';
+import AlertasView from './AlertasView';
 import { sanitizeRichHtml } from '../services/sanitizeHtml';
 import { downloadExcel } from '../services/excelExport';
 import { logActividad } from '../services/actividadService';
@@ -143,7 +144,7 @@ const COUNTRIES = [
   'Oceanía','Europa del Este','Europa Occidental','Antártida',
 ];
 
-type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar' | 'monitoreo' | 'usuarios';
+type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar' | 'monitoreo' | 'usuarios' | 'alertas';
 
 interface GestionViewProps {
   themeColors: ThemeColors;
@@ -160,6 +161,7 @@ const TAB_CONFIG: Record<Exclude<Tab, 'monitoreo'>, { label: string; nueva: stri
   escenarios: { label: 'ESCENARIOS', nueva: 'Nuevo Escenario' },
   importar:   { label: 'IMPORTAR',   nueva: ''               },
   usuarios:   { label: 'USUARIOS',   nueva: ''               },
+  alertas:    { label: 'ALERTAS',    nueva: ''               },
 };
 
 
@@ -208,7 +210,7 @@ function getEstadoInfo(id: number): { label: string; slug: string } {
 const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   const [activeTab,    setActiveTab]    = useState<Tab>(() => {
     const stored = localStorage.getItem('radar_gestion_tab') as Tab | null;
-    return stored && ['senales', 'tendencias', 'escenarios', 'importar', 'monitoreo', 'usuarios'].includes(stored) ? stored : 'senales';
+    return stored && ['senales', 'tendencias', 'escenarios', 'importar', 'monitoreo', 'usuarios', 'alertas'].includes(stored) ? stored : 'senales';
   });
   const [pageData,     setPageData]     = useState<PageData | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -285,7 +287,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
 
   const fetchData = useCallback(async () => {
-    if (!canAccess || activeTab === 'importar' || activeTab === 'monitoreo' || activeTab === 'usuarios') return;
+    if (!canAccess || activeTab === 'importar' || activeTab === 'monitoreo' || activeTab === 'usuarios' || activeTab === 'alertas') return;
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({
@@ -832,6 +834,10 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
   if (activeTab === 'usuarios') {
     return <UsuariosGestionView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+  }
+
+  if (activeTab === 'alertas') {
+    return <AlertasView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
   }
 
 

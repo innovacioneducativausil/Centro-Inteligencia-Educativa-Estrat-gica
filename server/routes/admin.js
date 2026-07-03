@@ -6,6 +6,7 @@ import { randomUUID }  from 'crypto';
 import db from '../db.js';
 import { sanitizeRichHtml, normalizePositiveInt } from '../utils/security.js';
 import { auditEvent } from '../services/auditService.js';
+import { captureBeforeSnapshot } from '../middleware/auditMutations.js';
 
 const router = Router();
 
@@ -103,10 +104,14 @@ function requireRole(...roles) {
 }
 const adminOnly = requireRole('admin');
 
-router.use((req, res, next) => {
+//----------------TI-09----------------
+router.use(async (req, res, next) => {
   if (!req.path.startsWith('/admin')) return next();
   const shouldAudit = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
   if (!shouldAudit) return next();
+  const antes = (req.method === 'PUT' || req.method === 'PATCH')
+    ? await captureBeforeSnapshot(req.originalUrl)
+    : null;
   res.on('finish', () => {
     if (res.statusCode >= 200 && res.statusCode < 400) {
       auditEvent(req, {
@@ -116,7 +121,7 @@ router.use((req, res, next) => {
         entidad: req.path.split('/').filter(Boolean)[1] || 'admin',
         entidadId: req.params.uuid || req.params.resource || null,
         detalle: `${req.method} ${req.originalUrl}`,
-        metadata: { params: req.params },
+        metadata: { params: req.params, antes: antes || undefined },
       });
     }
   });

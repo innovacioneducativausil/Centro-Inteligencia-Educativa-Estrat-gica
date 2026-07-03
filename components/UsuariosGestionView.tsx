@@ -172,6 +172,31 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
     }
   };
 
+  //----------------TI-41----------------
+  const eliminarDatos = async (user: UserRow) => {
+    if (!window.confirm(`Esto anonimizara de forma irreversible los datos personales de ${user.correo} (nombre y correo) y desactivara la cuenta. ¿Continuar?`)) {
+      return;
+    }
+    setError(null);
+    setSaveMessage(null);
+    setSavingUserId(user.id);
+    try {
+      const { res, data } = await requestJson(`/api/admin/usuarios/${user.id}/eliminar-datos`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(data.error || 'No se pudo anonimizar los datos.');
+      setSaveMessage({ type: 'ok', text: `Datos anonimizados. Nuevo identificador: ${data.correoPseudo}.` });
+      await fetchUsers();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo anonimizar los datos.';
+      setError(message);
+      setSaveMessage({ type: 'error', text: message });
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
   //----------------OBS-01 / TI-02----------------
   const toggleModule = (user: UserRow, moduleKey: string) => {
     if (!user.gestionable) return;
@@ -337,6 +362,11 @@ const UsuariosGestionView: React.FC<UsuariosGestionViewProps> = ({ themeColors, 
                       <button disabled={!user.gestionable} onClick={() => resetPassword(user)}
                         style={{ border: '1px solid #fed7aa', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 800, color: '#9a3412', background: '#fff7ed', cursor: user.gestionable ? 'pointer' : 'default' }}>
                         Reset
+                      </button>
+                      {/*----------------TI-41----------------*/}
+                      <button disabled={!user.gestionable || savingUserId === user.id} onClick={() => eliminarDatos(user)}
+                        style={{ border: '1px solid #fecaca', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 800, color: '#991b1b', background: '#fef2f2', cursor: user.gestionable && savingUserId !== user.id ? 'pointer' : 'default' }}>
+                        Eliminar datos
                       </button>
                     </td>
                   </tr>

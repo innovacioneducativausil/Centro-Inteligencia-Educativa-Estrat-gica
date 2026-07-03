@@ -1,8 +1,50 @@
+import db from '../db.js';
 import { auditEvent } from '../services/auditService.js';
 
 //----------------TI-44 / TI-59----------------
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const SENSITIVE_KEY = /(password|pass|token|secret|otp|key|hash|jwt|cookie|authorization)/i;
+
+//----------------TI-09----------------
+// Trazabilidad de cambios: para entidades de configuracion/reportes clave se
+// captura una foto "antes" (columnas relevantes) previa a la mutacion, para
+// poder reconstruir el valor anterior en el registro de auditoria.
+const ENTITY_SNAPSHOT_CONFIG = {
+  senal:        { idCol: 'id_senal',     cols: ['titulo_senal', 'nombre_senal', 'id_estado'] },
+  tendencia:    { idCol: 'id_tendencia', cols: ['titulo_tendencia', 'nombre_tendencia', 'id_estado'] },
+  escenario:    { idCol: 'id_escenario', cols: ['titulo_escenario', 'nombre_escenario', 'id_estado'] },
+  regla_alerta: { idCol: 'id_regla',     cols: ['nombre', 'operador', 'valor_umbral', 'activa'] },
+};
+
+const PATH_TABLE_MAP = { senales: 'senal', tendencias: 'tendencia', escenarios: 'escenario' };
+
+function resolveSnapshotTarget(originalUrl = '') {
+  const segments = originalUrl.replace(/^\/api\/?/, '').split('?')[0].split('/').filter(Boolean);
+  if (segments[0] === 'admin' && PATH_TABLE_MAP[segments[1]] && segments[2]) {
+    return { table: PATH_TABLE_MAP[segments[1]], id: segments[2] };
+  }
+  if (segments[0] === 'alertas' && segments[1] === 'reglas' && segments[2]) {
+    return { table: 'regla_alerta', id: segments[2] };
+  }
+  return null;
+}
+
+//----------------TI-09----------------
+export async function captureBeforeSnapshot(originalUrl) {
+  const target = resolveSnapshotTarget(originalUrl);
+  if (!target) return null;
+  const config = ENTITY_SNAPSHOT_CONFIG[target.table];
+  if (!config) return null;
+  try {
+    const [[row]] = await db.query(
+      `SELECT ${config.cols.map(c => `\`${c}\``).join(', ')} FROM \`${target.table}\` WHERE \`${config.idCol}\` = ?`,
+      [target.id]
+    );
+    return row || null;
+  } catch {
+    return null;
+  }
+}
 
 function maskSensitive(value) {
   if (Array.isArray(value)) return value.slice(0, 20).map(maskSensitive);
@@ -50,9 +92,14 @@ function actionFromMethod(method) {
 }
 
 //----------------TI-44 / TI-59----------------
-export function auditMutatingRequests(req, res, next) {
+export async function auditMutatingRequests(req, res, next) {
   if (!MUTATING_METHODS.has(req.method)) return next();
   if (req.path.startsWith('/actividad')) return next();
+
+  //----------------TI-09----------------
+  const antes = (req.method === 'PUT' || req.method === 'PATCH')
+    ? await captureBeforeSnapshot(req.originalUrl)
+    : null;
 
   const startedAt = Date.now();
   res.on('finish', () => {
@@ -76,6 +123,7 @@ export function auditMutatingRequests(req, res, next) {
           ruta: req.originalUrl,
           estadoHttp: res.statusCode,
           duracionMs: Date.now() - startedAt,
+          antes: antes || undefined,
           datos: maskSensitive(req.body || {}),
           query: maskSensitive(req.query || {}),
         },
