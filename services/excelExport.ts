@@ -1,3 +1,5 @@
+import ExcelJS from 'exceljs';
+
 export interface ExcelColumnSpec {
   header: string;
   key: string;
@@ -11,7 +13,6 @@ export interface ExcelSheetSpec {
 }
 
 export async function downloadExcel(filename: string, sheets: ExcelSheetSpec[]): Promise<void> {
-  const { default: ExcelJS } = await import('exceljs');
   const wb = new ExcelJS.Workbook();
 
   for (const sheet of sheets) {

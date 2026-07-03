@@ -318,13 +318,23 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     setExportError(null);
     try {
       const label = TAB_CONFIG[activeTab as Exclude<Tab, 'monitoreo'>]?.label || activeTab;
+      const filtrosAplicados = {
+        search,
+        estadoFilter,
+        pestelFilter,
+        sectorFilter,
+        horizonteFilter,
+      };
+      const hasFiltros = Boolean(
+        search || estadoFilter || pestelFilter.length > 0 || sectorFilter.length > 0 || horizonteFilter
+      );
 
       const listParams = new URLSearchParams({
-        limit: '50',
-        ...(search                  && { q:       search                }),
-        ...(estadoFilter            && { estado:  estadoFilter           }),
-        ...(pestelFilter.length > 0 && { pestel:  pestelFilter.join(',') }),
-        ...(sectorFilter.length > 0 && { sector:  sectorFilter.join(',') }),
+        limit: '100',
+        ...(hasFiltros && search                  && { q:       search                }),
+        ...(hasFiltros && estadoFilter            && { estado:  estadoFilter           }),
+        ...(hasFiltros && pestelFilter.length > 0 && { pestel:  pestelFilter.join(',') }),
+        ...(hasFiltros && sectorFilter.length > 0 && { sector:  sectorFilter.join(',') }),
         ...(activeTab === 'escenarios' && horizonteFilter && { horizonte: horizonteFilter }),
       });
 
@@ -416,7 +426,8 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         elementoTitulo: label,
         metadata: {
           formato: 'xlsx', tab: activeTab, total: details.length,
-          filtros: { search, estadoFilter, pestelFilter, sectorFilter, horizonteFilter },
+          alcance: hasFiltros ? 'con_filtros' : 'todos_los_registros',
+          filtros: filtrosAplicados,
         },
       });
     } catch (e: unknown) {
