@@ -56,6 +56,69 @@ function isAuditDownloadLink(href: string, label: string) {
     || /(informe|reporte|descarga|exportar|download|documento|malla|brochure|fuente)/i.test(haystack);
 }
 
+function titleCaseAudit(value: string) {
+  return value
+    .replace(/_/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map(word => {
+      if (/^[A-ZÁÉÍÓÚÑ]{2,4}$/.test(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
+function formatAuditLabel(value: string) {
+  const clean = cleanAuditLabel(value);
+  if (!clean) return clean;
+  if (/^[A-ZÁÉÍÓÚÑ\s_]{4,}$/.test(clean)) return titleCaseAudit(clean);
+  return clean;
+}
+
+function getStoredAuditView(activeView: string) {
+  const maps: Record<string, Record<string, string>> = {
+    gestion: {
+      senales: 'Señales',
+      tendencias: 'Tendencias',
+      escenarios: 'Escenarios',
+      importar: 'Importar',
+      monitoreo: 'Monitoreo',
+      usuarios: 'Usuarios y Accesos',
+    },
+    empleabilidad: {
+      resumen: 'Información General',
+      laboral: 'Egresados en Actividad Laboral',
+      emprendedor: 'Egresados Emprendedores',
+      busqueda: 'Egresados en Búsqueda Laboral',
+      descarga: 'Descarga de Informes',
+    },
+    curricular: {
+      mapa: 'Mapa Curricular',
+      silabos: 'Mapa Sílabos',
+      benchmarking: 'Benchmarking',
+      impacto: 'Impacto Curricular',
+    },
+    mercadoLaboral: {
+      metodologia: 'Metodología',
+      informe: 'Informes',
+    },
+    radar: {
+      señales: 'Señales',
+      tendencias: 'Tendencias',
+      escenarios: 'Escenarios',
+    },
+  };
+  const storageKey: Record<string, string> = {
+    gestion: 'radar_gestion_tab',
+    empleabilidad: 'radar_empleabilidad_tab',
+    curricular: 'radar_curricular_tab',
+    mercadoLaboral: 'radar_mercado_tab',
+    radar: 'radar_tab',
+  };
+  const stored = storageKey[activeView] ? localStorage.getItem(storageKey[activeView]) : null;
+  return (stored && maps[activeView]?.[stored]) || titleCaseAudit(activeView);
+}
+
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState(() => {
     const stored = localStorage.getItem('radar_active_view');
@@ -158,20 +221,21 @@ const App: React.FC = () => {
       const target = event.target as HTMLElement | null;
       const el = target?.closest('button, a, [role="button"]') as HTMLElement | null;
       if (!el) return;
-      const label = getClickLabel(el);
+      const label = formatAuditLabel(getClickLabel(el));
       if (!label) return;
       const anchor = el instanceof HTMLAnchorElement ? el : el.closest('a');
       const href = anchor instanceof HTMLAnchorElement ? anchor.href : '';
       const isDownload = href ? isAuditDownloadLink(href, label) : false;
+      const auditView = getStoredAuditView(activeView);
       logActividad(isDownload ? 'descargar_informe' : 'ui_click', {
         accion: 'click',
         modulo: activeView,
-        vista: activeView,
+        vista: auditView,
         elementoTipo: href ? 'enlace' : 'boton',
         elementoTitulo: label.slice(0, 180),
-        detalle: `Modulo ${activeView} | Vista ${activeView} | ${isDownload ? 'Documento/enlace abierto' : 'Click'}: ${label.slice(0, 180)}`,
+        detalle: `Modulo ${activeView} | Vista ${auditView} | ${isDownload ? 'Documento/enlace abierto' : 'Click'}: ${label.slice(0, 180)}`,
         metadata: {
-          vista: activeView,
+          vista: auditView,
           etiqueta: label.slice(0, 180),
           href: href || undefined,
           tipoRegistro: isDownload ? 'descarga_o_documento' : 'click_interfaz',

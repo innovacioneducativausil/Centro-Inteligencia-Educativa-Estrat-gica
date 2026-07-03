@@ -22,9 +22,9 @@ const USUARIOS_ADMIN = [
 ];
 
 const USUARIOS_SOLICITADOS = [
-  { nombre: 'R Escobedo', corto: 'R Escobedo', correo: 'rescobedo@usil.edu.pe', rol: 'admin' },
-  { nombre: 'F Garcia',   corto: 'F Garcia',   correo: 'fgarciacr@usil.edu.pe', rol: 'usuario' },
-  { nombre: 'C Chumbes',  corto: 'C Chumbes',  correo: 'cchumbes@usil.edu.pe',  rol: 'usuario' },
+  { nombre: 'Ross Escobedo', corto: 'Ross', correo: 'rescobedo@usil.edu.pe', rol: 'admin', reemplazarSiNombre: ['R Escobedo'] },
+  { nombre: 'Frank Garcia',  corto: 'Frank', correo: 'fgarciacr@usil.edu.pe', rol: 'usuario', reemplazarSiNombre: ['F Garcia'] },
+  { nombre: 'Camila Chumbes', corto: 'Camila', correo: 'cchumbes@usil.edu.pe', rol: 'usuario', reemplazarSiNombre: ['C Chumbes'] },
   { nombre: 'Innovacion Educativa', corto: 'Innovacion', correo: 'innovacioneducativa@usil.edu.pe', rol: 'admin', hash: HASH_USIL_ADMIN_2026 },
 ];
 
@@ -207,7 +207,7 @@ export async function runUserMigration() {
   for (const u of USUARIOS_SOLICITADOS) {
     try {
       const [[existe]] = await db.query(
-        'SELECT id_usuario, rol FROM usuario WHERE correo_usuario = ?',
+        'SELECT id_usuario, rol, nombre_usuario, nombre_corto, password_hash FROM usuario WHERE correo_usuario = ?',
         [u.correo]
       );
 
@@ -220,13 +220,17 @@ export async function runUserMigration() {
         );
         console.log(`[USER MIGRATION] Paso 7: creado ${u.correo} (${u.rol})`);
       } else {
+        const shouldReplaceName = Array.isArray(u.reemplazarSiNombre)
+          && u.reemplazarSiNombre.includes(existe.nombre_usuario || '');
+        const nextNombre = shouldReplaceName ? u.nombre : (existe.nombre_usuario || u.nombre);
+        const nextCorto = shouldReplaceName ? u.corto : (existe.nombre_corto || u.corto);
         const [r] = await db.query(
           `UPDATE usuario
            SET nombre_usuario = ?, nombre_corto = ?, password_hash = ?, rol = ?,
                activo = 1, email_verificado = 1, failed_login_attempts = 0,
                locked_until = NULL, password_changed_at = NOW(), fecha_actualizacion = NOW()
            WHERE correo_usuario = ?`,
-          [u.nombre, u.corto, u.hash || HASH_USUARIO2026, u.rol, u.correo]
+          [nextNombre, nextCorto, u.hash || existe.password_hash || HASH_USUARIO2026, u.rol, u.correo]
         );
         if (r.affectedRows) console.log(`[USER MIGRATION] Paso 7: actualizado ${u.correo} (${u.rol})`);
       }
