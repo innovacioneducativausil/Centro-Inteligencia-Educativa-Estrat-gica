@@ -688,6 +688,10 @@ interface Filtros {
   programas: string[]; ciclos: { codigo: string; label?: string; anio: number; codigos?: string[] }[];
 }
 
+function sameStringArray(a: string[], b: string[]) {
+  return a.length === b.length && a.every((value, idx) => value === b[idx]);
+}
+
 interface InformeEmplEntry { año: number; unidad: string; facultad: string; link: string; }
 const FACULTAD_ALL_VALUE = '__all__';
 const FACULTAD_CONSOLIDADO_VALUE = '__consolidado__';
@@ -1007,6 +1011,17 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
     return p.toString() ? '?' + p.toString() : '';
   }, [selAños, selFacultad, selCarrera, selProgramas, selCiclos]);
 
+  const buildFiltrosParams = useCallback(() => {
+    const p = new URLSearchParams();
+    if (selAños.length === 1) p.set('anio', selAños[0]);
+    else if (selAños.length > 1) p.set('anios', selAños.join(','));
+    if (selProgramas.length === 1) p.set('programa', selProgramas[0]);
+    if (selFacultad !== 'Todas') p.set('facultad', selFacultad);
+    if (selCarrera !== 'Todas') p.set('carrera', selCarrera);
+    if (selCiclos.length === 1) p.set('ciclo', selCiclos[0]);
+    return p.toString() ? '?' + p.toString() : '';
+  }, [selAños, selProgramas, selFacultad, selCarrera, selCiclos]);
+
   const fetchData = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
@@ -1044,22 +1059,36 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
   }, []);
 
   useEffect(() => {
-    const p = new URLSearchParams();
-    if (selAños.length === 1) p.set('anio', selAños[0]);
-    if (selProgramas.length === 1) p.set('programa', selProgramas[0]);
-    if (selFacultad !== 'Todas') p.set('facultad', selFacultad);
-    if (selCarrera !== 'Todas') p.set('carrera', selCarrera);
-    fetch(`/api/empleabilidad/filtros${p.toString() ? '?' + p.toString() : ''}`)
+    fetch(`/api/empleabilidad/filtros${buildFiltrosParams()}`)
       .then(r => r.json())
       .then(d => {
         if (!d.error) {
           setFiltros(d);
+          const validAños = new Set((d.años || []).map((a: number | string) => String(a)));
+          const validProgramas = new Set((d.programas || []).map(String));
+          const validFacultades = new Set((d.facultades || []).map(String));
+          const validCarreras = new Set((d.carreras || []).map(String));
           const validCiclos = new Set((d.ciclos || []).map((c: { codigo: string }) => c.codigo));
-          setSelCiclos(prev => prev.filter(c => validCiclos.has(c)));
+          setSelAños(prev => {
+            const next = prev.filter(a => validAños.has(a));
+            const final = next.length ? next : (d.años || []).map(String);
+            return sameStringArray(prev, final) ? prev : final;
+          });
+          setSelProgramas(prev => {
+            const next = prev.filter(p => validProgramas.has(p));
+            const final = next.length ? next : (d.programas || []);
+            return sameStringArray(prev, final) ? prev : final;
+          });
+          setSelFacultad(prev => prev === 'Todas' || validFacultades.has(prev) ? prev : 'Todas');
+          setSelCarrera(prev => prev === 'Todas' || validCarreras.has(prev) ? prev : 'Todas');
+          setSelCiclos(prev => {
+            const next = prev.filter(c => validCiclos.has(c));
+            return sameStringArray(prev, next) ? prev : next;
+          });
         }
       })
       .catch(() => {});
-  }, [selAños, selProgramas, selFacultad, selCarrera]);
+  }, [buildFiltrosParams]);
 
 
   const fetchTabStats = useCallback(async (tipo: string) => {

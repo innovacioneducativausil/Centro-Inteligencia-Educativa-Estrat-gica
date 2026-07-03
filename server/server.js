@@ -94,7 +94,7 @@ app.use(cookieParser());
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 1200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Demasiadas solicitudes. Espera unos minutos e intenta de nuevo.' },

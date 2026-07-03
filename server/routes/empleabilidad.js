@@ -1413,41 +1413,36 @@ router.get('/empleabilidad/satisfaccion', async (req, res) => {
 
 router.get('/empleabilidad/filtros', async (req, res) => {
   try {
-    const { anio, anios, facultad, carrera, programa } = req.query;
-    const cicloWhere = ['1=1'];
-    const cicloParams = [];
-    addAnioFilter(cicloWhere, cicloParams, anio, anios);
-    if (facultad) { cicloWhere.push('f.nombre_facultad = ?'); cicloParams.push(facultad); }
-    if (carrera)  { cicloWhere.push('c.nombre_carrera = ?');  cicloParams.push(carrera); }
-    if (programa) { cicloWhere.push('tp.descripcion = ?');    cicloParams.push(programa); }
+    const { anio, anios, facultad, carrera, programa, ciclo } = req.query;
+    const joins = `
+      FROM encuesta_anual ea
+      JOIN egresado eg ON ea.id_egresado = eg.id_egresado
+      JOIN carrera c ON eg.id_carrera = c.id_carrera
+      JOIN facultad f ON c.id_facultad = f.id_facultad
+      JOIN tipo_programa tp ON c.id_tipo_programa = tp.id_tipo_programa
+      JOIN ciclo_egreso ce ON eg.id_ciclo_egreso = ce.id_ciclo_egreso
+    `;
+    const filtered = (omit) => {
+      const where = ['ea.encuestado = 1'];
+      const params = [];
+      if (omit !== 'anio') addAnioFilter(where, params, anio, anios);
+      if (omit !== 'facultad' && facultad) { where.push('f.nombre_facultad = ?'); params.push(facultad); }
+      if (omit !== 'carrera' && carrera) { where.push('c.nombre_carrera = ?'); params.push(carrera); }
+      if (omit !== 'programa' && programa) { where.push('tp.descripcion = ?'); params.push(programa); }
+      if (omit !== 'ciclo') addCicloFilter(where, params, ciclo);
+      return { sql: where.join(' AND '), params };
+    };
+    const fa = filtered('anio');
+    const ff = filtered('facultad');
+    const fc = filtered('carrera');
+    const fp = filtered('programa');
+    const fci = filtered('ciclo');
     const [[años], [facultades], [carreras], [programas], [ciclos]] = await Promise.all([
-      db.query('SELECT DISTINCT anio_encuesta AS valor FROM encuesta_anual ORDER BY anio_encuesta'),
-      db.query(`SELECT DISTINCT f.nombre_facultad AS valor
-                FROM facultad f
-                JOIN carrera c ON c.id_facultad = f.id_facultad
-                JOIN egresado eg ON eg.id_carrera = c.id_carrera
-                JOIN encuesta_anual ea ON ea.id_egresado = eg.id_egresado
-                ORDER BY f.nombre_facultad`),
-      db.query(`SELECT DISTINCT c.nombre_carrera AS valor
-                FROM carrera c
-                JOIN egresado eg ON eg.id_carrera = c.id_carrera
-                JOIN encuesta_anual ea ON ea.id_egresado = eg.id_egresado
-                ORDER BY c.nombre_carrera`),
-      db.query(`SELECT DISTINCT tp.descripcion AS valor
-                FROM tipo_programa tp
-                JOIN carrera c ON c.id_tipo_programa = tp.id_tipo_programa
-                JOIN egresado eg ON eg.id_carrera = c.id_carrera
-                JOIN encuesta_anual ea ON ea.id_egresado = eg.id_egresado
-                ORDER BY tp.descripcion`),
-      db.query(`SELECT DISTINCT ce.codigo_ciclo AS valor, ce.anio_egreso
-                FROM ciclo_egreso ce
-                JOIN egresado eg ON eg.id_ciclo_egreso = ce.id_ciclo_egreso
-                JOIN carrera c ON c.id_carrera = eg.id_carrera
-                JOIN facultad f ON f.id_facultad = c.id_facultad
-                JOIN tipo_programa tp ON tp.id_tipo_programa = c.id_tipo_programa
-                JOIN encuesta_anual ea ON ea.id_egresado = eg.id_egresado
-                WHERE ${cicloWhere.join(' AND ')}
-                ORDER BY ce.anio_egreso, ce.codigo_ciclo`, cicloParams),
+      db.query(`SELECT DISTINCT ea.anio_encuesta AS valor ${joins} WHERE ${fa.sql} ORDER BY ea.anio_encuesta`, fa.params),
+      db.query(`SELECT DISTINCT f.nombre_facultad AS valor ${joins} WHERE ${ff.sql} ORDER BY f.nombre_facultad`, ff.params),
+      db.query(`SELECT DISTINCT c.nombre_carrera AS valor ${joins} WHERE ${fc.sql} ORDER BY c.nombre_carrera`, fc.params),
+      db.query(`SELECT DISTINCT tp.descripcion AS valor ${joins} WHERE ${fp.sql} ORDER BY tp.descripcion`, fp.params),
+      db.query(`SELECT DISTINCT ce.codigo_ciclo AS valor, ce.anio_egreso ${joins} WHERE ${fci.sql} ORDER BY ce.anio_egreso, ce.codigo_ciclo`, fci.params),
     ]);
     const cicloMap = new Map();
     for (const row of ciclos) {
