@@ -453,9 +453,10 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
 
         logActividad('descargar_informe', {
           modulo: 'mercadoLaboral',
+          vista: 'Ver Informes',
           elementoTipo: 'informe',
           elementoTitulo: carrera,
-          metadata: { formato: 'xlsx', facultad, carrera, tipo },
+          metadata: { vista: 'Ver Informes', formato: 'xlsx', facultad, carrera, tipo },
         });
       } catch {
         setExportMsg('Error al generar el Excel. Intente de nuevo.');
@@ -480,9 +481,10 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
         link.click();
         logActividad('descargar_informe', {
           modulo: 'mercadoLaboral',
+          vista: 'Ver Informes',
           elementoTipo: 'informe',
           elementoTitulo: carrera,
-          metadata: { formato: 'png', facultad, carrera, tipo },
+          metadata: { vista: 'Ver Informes', formato: 'png', facultad, carrera, tipo },
         });
       } catch {
         setExportMsg('Error al generar la imagen. Intente de nuevo.');
@@ -502,9 +504,10 @@ const MercadoLaboralView: React.FC<MercadoLaboralViewProps> = ({ themeColors, us
     window.open(url, '_blank', 'noopener,noreferrer');
     logActividad('descargar_informe', {
       modulo: 'mercadoLaboral',
+      vista: 'Ver Informes',
       elementoTipo: 'informe',
       elementoTitulo: carrera,
-      metadata: { formato: 'externo', facultad, carrera, tipo, url },
+      metadata: { vista: 'Ver Informes', formato: 'externo', facultad, carrera, tipo, url },
     });
   };
 

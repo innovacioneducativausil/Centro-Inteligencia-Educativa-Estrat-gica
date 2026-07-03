@@ -75,6 +75,48 @@ function formatAuditLabel(value: string) {
   return clean;
 }
 
+function auditKey(value: string) {
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+const AUDIT_VIEW_CLICK_LABELS: Record<string, Record<string, string>> = {
+  gestion: {
+    senales: 'Señales',
+    tendencias: 'Tendencias',
+    escenarios: 'Escenarios',
+    importar: 'Importar',
+    usuarios: 'Usuarios y Accesos',
+    monitoreo: 'Monitoreo',
+  },
+  empleabilidad: {
+    'informacion general': 'Información General',
+    'egresados en actividad laboral': 'Egresados en Actividad Laboral',
+    'egresados emprendedores': 'Egresados Emprendedores',
+    'egresados en busqueda laboral': 'Egresados en Búsqueda Laboral',
+    'descarga de informes': 'Descarga de Informes',
+  },
+  curricular: {
+    'mapa curricular': 'Mapa Curricular',
+    'mapa silabos': 'Mapa Sílabos',
+    'benchmarking': 'Benchmarking',
+    'impacto curricular': 'Impacto Curricular',
+  },
+  mercadoLaboral: {
+    'como se elaboraron': 'Como se elaboraron',
+    'ver informes': 'Ver Informes',
+    'ver informes de mercado laboral': 'Ver Informes',
+  },
+  radar: {
+    senales: 'Señales',
+    tendencias: 'Tendencias',
+    escenarios: 'Escenarios',
+    'cadena causal': 'Cadena Causal',
+  },
+  informes: {
+    informes: 'Informes',
+  },
+};
+
 function getStoredAuditView(activeView: string) {
   const maps: Record<string, Record<string, string>> = {
     gestion: {
@@ -99,8 +141,8 @@ function getStoredAuditView(activeView: string) {
       impacto: 'Impacto Curricular',
     },
     mercadoLaboral: {
-      metodologia: 'Metodología',
-      informe: 'Informes',
+      metodologia: 'Como se elaboraron',
+      informe: 'Ver Informes',
     },
     radar: {
       señales: 'Señales',
@@ -120,18 +162,39 @@ function getStoredAuditView(activeView: string) {
 }
 
 function auditViewForClick(activeView: string, label: string) {
-  if (activeView !== 'gestion') return getStoredAuditView(activeView);
-  const tabLabels: Record<string, string> = {
-    señales: 'Señales',
-    senales: 'Señales',
-    tendencias: 'Tendencias',
-    escenarios: 'Escenarios',
-    importar: 'Importar',
-    usuarios: 'Usuarios y Accesos',
-    monitoreo: 'Monitoreo',
+  const viewLabel = AUDIT_VIEW_CLICK_LABELS[activeView]?.[auditKey(label)];
+  return {
+    vista: viewLabel || getStoredAuditView(activeView),
+    isViewControl: Boolean(viewLabel),
   };
-  const key = label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  return tabLabels[key] || getStoredAuditView(activeView);
+}
+
+function getFieldLabel(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
+  if (el.id && typeof CSS !== 'undefined' && CSS.escape) {
+    const directLabel = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+    if (directLabel?.textContent?.trim()) return directLabel.textContent;
+  }
+  const wrappingLabel = el.closest('label');
+  const labelTitle = wrappingLabel?.querySelector('span, strong')?.textContent;
+  if (labelTitle?.trim()) return labelTitle;
+  const parentTitle = el.parentElement?.querySelector('label, span, strong')?.textContent;
+  if (parentTitle?.trim()) return parentTitle;
+  return el.getAttribute('aria-label')
+    || el.getAttribute('title')
+    || el.getAttribute('placeholder')
+    || el.name
+    || el.id
+    || '';
+}
+
+function getFieldValue(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
+  if (el instanceof HTMLSelectElement) {
+    return Array.from(el.selectedOptions).map(option => option.textContent?.trim() || option.value).filter(Boolean).join(', ');
+  }
+  if (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio')) {
+    return el.checked ? 'Seleccionado' : 'No seleccionado';
+  }
+  return el.value || '';
 }
 
 const App: React.FC = () => {
@@ -232,7 +295,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    const handler = (event: MouseEvent) => {
+    const clickHandler = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       const el = target?.closest('button, a, [role="button"]') as HTMLElement | null;
       if (!el) return;
@@ -241,24 +304,55 @@ const App: React.FC = () => {
       const anchor = el instanceof HTMLAnchorElement ? el : el.closest('a');
       const href = anchor instanceof HTMLAnchorElement ? anchor.href : '';
       const isDownload = href ? isAuditDownloadLink(href, label) : false;
-      const auditView = auditViewForClick(activeView, label);
+      const auditContext = auditViewForClick(activeView, label);
+      const auditView = auditContext.vista;
+      const elementTitle = auditContext.isViewControl ? '-' : label.slice(0, 180);
       logActividad(isDownload ? 'descargar_informe' : 'ui_click', {
-        accion: 'click',
+        accion: auditContext.isViewControl ? 'cambiar_vista' : 'click',
         modulo: activeView,
         vista: auditView,
-        elementoTipo: href ? 'enlace' : 'boton',
-        elementoTitulo: label.slice(0, 180),
-        detalle: `Modulo ${activeView} | Vista ${auditView} | ${isDownload ? 'Documento/enlace abierto' : 'Click'}: ${label.slice(0, 180)}`,
+        elementoTipo: auditContext.isViewControl ? 'vista' : (href ? 'enlace' : 'boton'),
+        elementoTitulo: elementTitle,
+        detalle: `Modulo ${activeView} | Vista ${auditView} | ${auditContext.isViewControl ? 'Vista seleccionada' : isDownload ? 'Documento/enlace abierto' : 'Click'}: ${label.slice(0, 180)}`,
         metadata: {
           vista: auditView,
-          etiqueta: label.slice(0, 180),
+          etiqueta: auditContext.isViewControl ? '-' : label.slice(0, 180),
+          vistaSeleccionada: auditContext.isViewControl ? label.slice(0, 180) : undefined,
           href: href || undefined,
-          tipoRegistro: isDownload ? 'descarga_o_documento' : 'click_interfaz',
+          tipoRegistro: auditContext.isViewControl ? 'cambio_vista' : isDownload ? 'descarga_o_documento' : 'click_interfaz',
         },
       });
     };
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
+    const changeHandler = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
+      if (target instanceof HTMLInputElement && ['password', 'hidden', 'file'].includes(target.type)) return;
+      const rawLabel = getFieldLabel(target);
+      const label = formatAuditLabel(rawLabel);
+      const value = getFieldValue(target).replace(/\s+/g, ' ').trim();
+      if (!label || (!value && !(target instanceof HTMLInputElement && ['checkbox', 'radio'].includes(target.type)))) return;
+      const auditView = getStoredAuditView(activeView);
+      logActividad('ui_change', {
+        accion: 'cambiar_filtro',
+        modulo: activeView,
+        vista: auditView,
+        elementoTipo: 'filtro',
+        elementoTitulo: label.slice(0, 180),
+        detalle: `Modulo ${activeView} | Vista ${auditView} | Filtro ${label.slice(0, 180)}: ${(value || '-').slice(0, 180)}`,
+        metadata: {
+          vista: auditView,
+          etiqueta: label.slice(0, 180),
+          valor: (value || '-').slice(0, 180),
+          tipoRegistro: 'filtro',
+        },
+      });
+    };
+    document.addEventListener('click', clickHandler);
+    document.addEventListener('change', changeHandler);
+    return () => {
+      document.removeEventListener('click', clickHandler);
+      document.removeEventListener('change', changeHandler);
+    };
   }, [user, activeView]);
 
   const canView = useCallback((view: string) => {

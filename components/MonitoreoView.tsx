@@ -29,6 +29,7 @@ const EVENTO_LABELS: Record<string, string> = {
   logout: 'Cierre de sesion',
   nav_modulo: 'Acceso a modulo',
   ui_click: 'Click en interfaz',
+  ui_change: 'Cambio en interfaz',
   ver_senal: 'Ver senal',
   ver_tendencia: 'Ver tendencia',
   ver_escenario: 'Ver escenario',
@@ -53,6 +54,7 @@ const EVENTO_COLOR: Record<string, string> = {
   logout: '#94a3b8',
   nav_modulo: '#3b82f6',
   ui_click: '#64748b',
+  ui_change: '#0D9488',
   ver_senal: '#0D9488',
   ver_tendencia: '#8b5cf6',
   ver_escenario: '#f59e0b',
@@ -136,6 +138,93 @@ function cleanElementLabel(value: string) {
     return raw.slice(iconToken[1].length).replace(/^[\s_-]+/, '').trim();
   }
   return raw;
+}
+
+function auditKey(value: string) {
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+const MODULE_LABELS: Record<string, string> = {
+  inicio: 'Inicio',
+  radar: 'Radar',
+  empleabilidad: 'Empleo',
+  impactos: 'Informes',
+  curricular: 'Curricular',
+  mercadoLaboral: 'Mercado',
+  informes: 'Informes',
+  gestion: 'Gestión',
+  gestion_usuarios: 'Gestión de usuarios',
+};
+
+const VIEW_LABELS_BY_MODULE: Record<string, Record<string, string>> = {
+  gestion: {
+    senales: 'Señales',
+    tendencias: 'Tendencias',
+    escenarios: 'Escenarios',
+    importar: 'Importar',
+    usuarios: 'Usuarios y Accesos',
+    monitoreo: 'Monitoreo',
+    gestion: 'Gestión',
+  },
+  empleabilidad: {
+    'informacion general': 'Información General',
+    'egresados en actividad laboral': 'Egresados en Actividad Laboral',
+    'egresados emprendedores': 'Egresados Emprendedores',
+    'egresados en busqueda laboral': 'Egresados en Búsqueda Laboral',
+    'descarga de informes': 'Descarga de Informes',
+    empleabilidad: 'Empleo',
+  },
+  curricular: {
+    'mapa curricular': 'Mapa Curricular',
+    'mapa silabos': 'Mapa Sílabos',
+    benchmarking: 'Benchmarking',
+    'impacto curricular': 'Impacto Curricular',
+    curricular: 'Curricular',
+  },
+  mercadoLaboral: {
+    'como se elaboraron': 'Como se elaboraron',
+    'ver informes': 'Ver Informes',
+    'informes de mercado laboral': 'Ver Informes',
+    informes: 'Ver Informes',
+    'mercado laboral': 'Mercado',
+    mercadolaboral: 'Mercado',
+  },
+  radar: {
+    senales: 'Señales',
+    tendencias: 'Tendencias',
+    escenarios: 'Escenarios',
+    'cadena causal': 'Cadena Causal',
+    radar: 'Radar',
+  },
+  informes: {
+    informes: 'Informes',
+  },
+};
+
+function moduleLabel(value: string | null) {
+  if (!value) return '-';
+  return MODULE_LABELS[value] || value;
+}
+
+function viewLabelFor(moduleName: string | null, value: string) {
+  if (!moduleName || !value || value === '-') return value || '-';
+  return VIEW_LABELS_BY_MODULE[moduleName]?.[auditKey(value)] || value;
+}
+
+function isKnownViewLabel(moduleName: string | null, value: string) {
+  if (!moduleName || !value || value === '-') return false;
+  return Boolean(VIEW_LABELS_BY_MODULE[moduleName]?.[auditKey(value)]);
+}
+
+function normalizeRowAudit(r: ActividadRow) {
+  const metadataVista = metadataValue(r.metadata, 'vista');
+  const rawVista = metadataVista || r.modulo || '-';
+  const rawElemento = cleanElementLabel(r.elemento_titulo || metadataValue(r.metadata, 'etiqueta') || metadataValue(r.metadata, 'usuarioObjetivo') || '-');
+  const elementIsView = isKnownViewLabel(r.modulo, rawElemento);
+  const genericVista = !metadataVista || auditKey(rawVista) === auditKey(r.modulo || '');
+  const vista = elementIsView && genericVista ? viewLabelFor(r.modulo, rawElemento) : viewLabelFor(r.modulo, rawVista);
+  const elemento = elementIsView ? '-' : rawElemento;
+  return { modulo: moduleLabel(r.modulo), vista, elemento };
 }
 
 const PAGE_LIMIT = 50;
@@ -334,8 +423,9 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const vista = metadataValue(r.metadata, 'vista') || r.modulo || '-';
-                  const elemento = cleanElementLabel(r.elemento_titulo || metadataValue(r.metadata, 'etiqueta') || metadataValue(r.metadata, 'usuarioObjetivo') || '-');
+                  const auditDisplay = normalizeRowAudit(r);
+                  const vista = auditDisplay.vista;
+                  const elemento = auditDisplay.elemento;
                   const extra = r.evento === 'ui_click' ? '' : metadataSummary(r.metadata);
                   const detalleBase = [r.elemento_titulo, r.detalle].filter(Boolean).join(' - ')
                     || (r.entidad ? `${r.entidad}${r.entidad_id ? ` ${r.entidad_id}` : ''}` : '');
@@ -354,7 +444,7 @@ const MonitoreoView: React.FC<MonitoreoViewProps> = ({ themeColors, onVolver }) 
                         </span>
                       </td>
                       <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b' }}>{r.accion || '-'}</td>
-                      <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b' }}>{r.modulo || '-'}</td>
+                      <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b' }}>{auditDisplay.modulo}</td>
                       <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b', whiteSpace: 'nowrap' }}>{vista}</td>
                       <td style={{ padding: '9px 14px', color: isDark ? '#94a3b8' : '#64748b', minWidth: 180, maxWidth: 260 }}>
                         <span title={elemento} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{elemento}</span>
