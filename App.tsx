@@ -97,8 +97,8 @@ const App: React.FC = () => {
   const handleLogin = (userData: AuthUser) => {
     setUser(userData);
     setSessionMessage(null);
-    const stored = localStorage.getItem('radar_active_view');
-    setActiveView(stored && VALID_VIEWS.has(stored) ? stored : 'inicio');
+    localStorage.setItem('radar_active_view', 'inicio');
+    setActiveView('inicio');
 
   };
 
