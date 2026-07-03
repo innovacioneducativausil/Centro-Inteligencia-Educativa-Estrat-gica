@@ -39,7 +39,7 @@ import { requireAuth }        from './middleware/auth.js';
 import { auditMutatingRequests, auditReadRequests } from './middleware/auditMutations.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { cleanupExpiredArchives, ensureArchiveSupport, getArchiveRetentionDays } from './services/archiveMaintenance.js';
-import { ensureRadarSchemaSupport } from './services/schemaMaintenance.js';
+import { ensureRadarSchemaSupport, ensureAlertasSupport } from './services/schemaMaintenance.js';
 import { ensureActividadSupport, cleanupOldActividad, getActividadRetentionDays } from './services/actividadMaintenance.js';
 import { runUserMigration } from './services/userMigration.js';
 import actividadRouter from './routes/actividad.js';
@@ -159,6 +159,7 @@ async function startServer() {
     //----------------TI-44 / TI-59 / OBS-01 / TI-02 / TI-53----------------
     await ensureArchiveSupport();
     await ensureRadarSchemaSupport();
+    await ensureAlertasSupport();
     await ensureActividadSupport();
     await runUserMigration();
     await cleanupExpiredArchives();
