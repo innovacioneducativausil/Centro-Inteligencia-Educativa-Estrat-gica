@@ -18,6 +18,12 @@ const DEFAULT_USER_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'c
 const INACTIVITY_WARNING_MS = 60 * 1000;
 const VALID_VIEWS = new Set(['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral', 'informes', 'gestion']);
 const VALID_RADAR_TABS = new Set(['señales', 'tendencias', 'escenarios']);
+const MODULE_TAB_RESET: Record<string, { key: string; value: string }> = {
+  gestion: { key: 'radar_gestion_tab', value: 'senales' },
+  curricular: { key: 'radar_curricular_tab', value: 'mapa' },
+  empleabilidad: { key: 'radar_empleabilidad_tab', value: 'resumen' },
+  mercadoLaboral: { key: 'radar_mercado_tab', value: 'metodologia' },
+};
 
 const defaultModulesFor = (authUser?: AuthUser | null) => [
   ...DEFAULT_USER_MODULES,
@@ -371,8 +377,10 @@ const App: React.FC = () => {
 
     if (view === 'gestion' && user?.rol !== 'admin') return;
     if (!canView(view)) return;
-    if (view === 'gestion') {
-      localStorage.setItem('radar_gestion_tab', 'senales');
+    if (view !== activeView) {
+      if (view === 'radar') setRadarTab('señales');
+      const reset = MODULE_TAB_RESET[view];
+      if (reset) localStorage.setItem(reset.key, reset.value);
     }
     setActiveView(view);
     logActividad('nav_modulo', { modulo: view });

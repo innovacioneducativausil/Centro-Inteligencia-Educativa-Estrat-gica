@@ -109,7 +109,6 @@ interface ImportResult {
 }
 
 type TabCurricular = 'mapa' | 'silabos' | 'benchmarking' | 'impacto';
-const VALID_CURRICULAR_TABS: TabCurricular[] = ['mapa', 'silabos', 'benchmarking', 'impacto'];
 
 
 function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrerasFiltradas, selFacultad, filtros }: {
@@ -215,10 +214,7 @@ function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrer
 }
 
 const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRole }) => {
-  const [activeTab, setActiveTab]  = useState<TabCurricular>(() => {
-    const stored = localStorage.getItem('radar_curricular_tab') as TabCurricular | null;
-    return stored && VALID_CURRICULAR_TABS.includes(stored) ? stored : 'mapa';
-  });
+  const [activeTab, setActiveTab]  = useState<TabCurricular>('mapa');
 
 
   const [filtros,      setFiltros]     = useState<FiltrosData>({ facultades: [], carreras: [] });
