@@ -188,11 +188,16 @@ const MODULE_LABELS: Record<string, string> = {
 
 const VIEW_LABELS_BY_MODULE: Record<string, Record<string, string>> = {
   gestion: {
+    radar: 'Radar',
     senales: 'Señales',
     tendencias: 'Tendencias',
     escenarios: 'Escenarios',
     importar: 'Importar',
+    empleo: 'Empleo',
+    curricular: 'Curricular',
+    mercado: 'Mercado',
     usuarios: 'Usuarios y Accesos',
+    alertas: 'Alertas',
     monitoreo: 'Monitoreo',
     gestion: 'Gestión',
   },
@@ -241,19 +246,19 @@ function viewLabelFor(moduleName: string | null, value: string) {
   return VIEW_LABELS_BY_MODULE[moduleName]?.[auditKey(value)] || value;
 }
 
-function isKnownViewLabel(moduleName: string | null, value: string) {
-  if (!moduleName || !value || value === '-') return false;
-  return Boolean(VIEW_LABELS_BY_MODULE[moduleName]?.[auditKey(value)]);
-}
-
 function normalizeRowAudit(r: ActividadRow) {
+  // "vista" es siempre la seccion (metadata.vista, con Radar agrupando sus
+  // sub-pestañas); "elemento" es el detalle mas fino (p.ej. que sub-pestaña
+  // de Radar, o el boton/campo especifico) y solo se oculta cuando es
+  // literalmente el mismo texto que la vista ya mostrada (redundante).
   const metadataVista = metadataValue(r.metadata, 'vista');
   const rawVista = metadataVista || r.modulo || '-';
-  const rawElemento = cleanElementLabel(r.elemento_titulo || metadataValue(r.metadata, 'etiqueta') || metadataValue(r.metadata, 'usuarioObjetivo') || '-');
-  const elementIsView = isKnownViewLabel(r.modulo, rawElemento);
-  const genericVista = !metadataVista || auditKey(rawVista) === auditKey(r.modulo || '');
-  const vista = elementIsView && genericVista ? viewLabelFor(r.modulo, rawElemento) : viewLabelFor(r.modulo, rawVista);
-  const elemento = elementIsView ? '-' : rawElemento;
+  const vista = viewLabelFor(r.modulo, rawVista);
+  const elementoTipoLabel = r.elemento_tipo ? viewLabelFor(r.modulo, r.elemento_tipo) : '';
+  const rawElemento = cleanElementLabel(
+    r.elemento_titulo || metadataValue(r.metadata, 'etiqueta') || metadataValue(r.metadata, 'usuarioObjetivo') || elementoTipoLabel || '-'
+  );
+  const elemento = auditKey(rawElemento) === auditKey(vista) ? '-' : rawElemento;
   return { modulo: moduleLabel(r.modulo), vista, elemento };
 }
 

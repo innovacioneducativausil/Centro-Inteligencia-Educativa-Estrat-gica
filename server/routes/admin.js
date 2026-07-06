@@ -105,6 +105,10 @@ function requireRole(...roles) {
 const adminOnly = requireRole('admin');
 
 //----------------TI-09----------------
+// Señales/tendencias/escenarios/importar son sub-pestañas de la seccion
+// "Radar" dentro de Gestion; el resto (usuarios, etc.) son secciones propias.
+const VISTA_SECCION_MAP = { senales: 'radar', tendencias: 'radar', escenarios: 'radar', importar: 'radar' };
+
 router.use(async (req, res, next) => {
   if (!req.path.startsWith('/admin')) return next();
   const shouldAudit = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
@@ -121,6 +125,7 @@ router.use(async (req, res, next) => {
       // registro duplicado/generico para el mismo evento.
       req.auditLogged = true;
       const entidad = req.path.split('/').filter(Boolean)[1] || 'admin';
+      const vistaSeccion = VISTA_SECCION_MAP[entidad] || entidad;
       (async () => {
         //----------------TI-09----------------
         // La mutacion ya se aplico (estamos en 'finish'), asi que volver a
@@ -135,7 +140,7 @@ router.use(async (req, res, next) => {
           entidad,
           entidadId: req.params.uuid || req.params.resource || null,
           detalle: `${req.method} ${req.originalUrl}`,
-          metadata: { vista: entidad, params: req.params, antes: antes || undefined, ahora: ahora || undefined },
+          metadata: { vista: vistaSeccion, params: req.params, antes: antes || undefined, ahora: ahora || undefined },
         });
       })();
     }

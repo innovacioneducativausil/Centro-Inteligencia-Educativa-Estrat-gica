@@ -90,12 +90,21 @@ function auditKey(value: string) {
 
 //----------------TI-44 / TI-59----------------
 const AUDIT_VIEW_CLICK_LABELS: Record<string, Record<string, string>> = {
+  // Dentro de Gestion, "vista" es la seccion (una de las tarjetas del panel
+  // de seleccion). Radar tiene sub-pestañas propias (señales/tendencias/
+  // escenarios/importar): esas se registran como "Radar" en vista y su
+  // nombre queda como elemento (el texto del propio click), no como vista.
   gestion: {
-    senales: 'Señales',
-    tendencias: 'Tendencias',
-    escenarios: 'Escenarios',
-    importar: 'Importar',
+    radar: 'Radar',
+    senales: 'Radar',
+    tendencias: 'Radar',
+    escenarios: 'Radar',
+    importar: 'Radar',
+    empleo: 'Empleo',
+    curricular: 'Curricular',
+    mercado: 'Mercado',
     usuarios: 'Usuarios y Accesos',
+    alertas: 'Alertas',
     monitoreo: 'Monitoreo',
   },
   empleabilidad: {
@@ -130,12 +139,16 @@ const AUDIT_VIEW_CLICK_LABELS: Record<string, Record<string, string>> = {
 function getStoredAuditView(activeView: string) {
   const maps: Record<string, Record<string, string>> = {
     gestion: {
-      senales: 'Señales',
-      tendencias: 'Tendencias',
-      escenarios: 'Escenarios',
-      importar: 'Importar',
+      senales: 'Radar',
+      tendencias: 'Radar',
+      escenarios: 'Radar',
+      importar: 'Radar',
+      empleo: 'Empleo',
+      curricular: 'Curricular',
+      mercado: 'Mercado',
       monitoreo: 'Monitoreo',
       usuarios: 'Usuarios y Accesos',
+      alertas: 'Alertas',
     },
     empleabilidad: {
       resumen: 'Información General',
@@ -324,7 +337,12 @@ const App: React.FC = () => {
       const isDownload = href ? isAuditDownloadLink(href, label) : false;
       const auditContext = auditViewForClick(activeView, label);
       const auditView = auditContext.vista;
-      const elementTitle = auditContext.isViewControl ? '-' : label.slice(0, 180);
+      // Solo se oculta el elemento cuando es literalmente lo mismo que la
+      // vista (p.ej. entrar a "Radar" desde el panel). Si la vista agrupa
+      // varias sub-pestañas (Radar > Señales/Tendencias/Escenarios), el
+      // nombre del click sigue siendo informacion nueva y debe mostrarse.
+      const isRedundantWithView = auditContext.isViewControl && auditKey(label) === auditKey(auditView);
+      const elementTitle = isRedundantWithView ? '-' : label.slice(0, 180);
       logActividad(isDownload ? 'descargar_informe' : 'ui_click', {
         accion: auditContext.isViewControl ? 'cambiar_vista' : 'click',
         modulo: activeView,
@@ -334,7 +352,7 @@ const App: React.FC = () => {
         detalle: `Modulo ${activeView} | Vista ${auditView} | ${auditContext.isViewControl ? 'Vista seleccionada' : isDownload ? 'Documento/enlace abierto' : 'Click'}: ${label.slice(0, 180)}`,
         metadata: {
           vista: auditView,
-          etiqueta: auditContext.isViewControl ? '-' : label.slice(0, 180),
+          etiqueta: isRedundantWithView ? '-' : label.slice(0, 180),
           vistaSeleccionada: auditContext.isViewControl ? label.slice(0, 180) : undefined,
           href: href || undefined,
           tipoRegistro: auditContext.isViewControl ? 'cambio_vista' : isDownload ? 'descarga_o_documento' : 'click_interfaz',
