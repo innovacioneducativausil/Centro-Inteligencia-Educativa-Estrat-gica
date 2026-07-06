@@ -166,6 +166,11 @@ function seccionForTab(tab: Tab): Seccion {
   return tab as Seccion;
 }
 
+//----------------reorg Gestion----------------
+// Se reinicia solo cuando el JS del navegador recarga desde cero (F5);
+// se mantiene en true mientras el usuario navega por la SPA sin recargar.
+let gestionMontadaEnEstaSesion = false;
+
 interface GestionViewProps {
   themeColors: ThemeColors;
   user:        AuthUser;
@@ -226,9 +231,18 @@ function getEstadoInfo(id: number): { label: string; slug: string } {
 
 
 const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
-  const [activeTab,    setActiveTab]    = useState<Tab>(() => {
+  //----------------reorg Gestion----------------
+  // Al entrar a Gestion desde otro modulo (navegacion SPA) siempre se parte
+  // sin seccion seleccionada, para que el usuario elija. Al refrescar la
+  // pagina (F5) se restaura la ultima sub-vista, como se pidio antes: se
+  // distingue un caso del otro con una bandera a nivel de modulo, que solo
+  // se reinicia cuando el JS del navegador vuelve a cargar desde cero.
+  const [activeTab,    setActiveTab]    = useState<Tab | null>(() => {
+    const esRecarga = !gestionMontadaEnEstaSesion;
+    gestionMontadaEnEstaSesion = true;
+    if (!esRecarga) return null;
     const stored = localStorage.getItem('radar_gestion_tab') as Tab | null;
-    return stored && ['senales', 'tendencias', 'escenarios', 'importar', 'monitoreo', 'usuarios', 'alertas', 'empleo', 'curricular', 'mercado'].includes(stored) ? stored : 'senales';
+    return stored && ['senales', 'tendencias', 'escenarios', 'importar', 'monitoreo', 'usuarios', 'alertas', 'empleo', 'curricular', 'mercado'].includes(stored) ? stored : null;
   });
   const [pageData,     setPageData]     = useState<PageData | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -305,7 +319,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
 
   const fetchData = useCallback(async () => {
-    if (!canAccess || activeTab === 'importar' || activeTab === 'monitoreo' || activeTab === 'usuarios' || activeTab === 'alertas' || activeTab === 'empleo' || activeTab === 'curricular' || activeTab === 'mercado') return;
+    if (!canAccess || activeTab === null || activeTab === 'importar' || activeTab === 'monitoreo' || activeTab === 'usuarios' || activeTab === 'alertas' || activeTab === 'empleo' || activeTab === 'curricular' || activeTab === 'mercado') return;
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({
@@ -873,6 +887,34 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
   if (activeTab === 'mercado') {
     return <GestionMercadoView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+  }
+
+  //----------------reorg Gestion----------------
+  if (activeTab === null) {
+    return (
+      <div className="p-6 md:p-8 space-y-6">
+        <div>
+          <h1 className={`text-2xl md:text-3xl font-bold mb-2 ${themeColors.headerText}`}>
+            Inteligencia Educativa Estratégica
+          </h1>
+          <p style={{ color: '#6b7280', fontSize: 14 }}>
+            Elige una sección para comenzar a gestionar.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {SECCIONES.map(sec => (
+            <button
+              key={sec.key}
+              onClick={() => switchTab(sec.key === 'radar' ? 'senales' : sec.key)}
+              className={`flex items-center gap-2 px-6 py-4 rounded-xl border shadow-sm text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-md ${themeColors.cardBg} ${themeColors.cardBorder} ${themeColors.text}`}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>{sec.icon}</span>
+              {sec.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
   }
 
 
