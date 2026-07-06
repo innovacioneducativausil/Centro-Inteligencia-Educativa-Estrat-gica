@@ -1406,7 +1406,9 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
               <select
                 value={selCiclos.length === 1 ? selCiclos[0] : 'Todos'}
                 onChange={e => setCicloFilter(e.target.value)}
-                style={filterSelectStyle}
+                disabled={selProgramas.length !== 1 || selAños.length !== 1}
+                title={selProgramas.length !== 1 || selAños.length !== 1 ? 'Selecciona un programa y un año de encuesta especificos para habilitar el ciclo de egreso.' : undefined}
+                style={{ ...filterSelectStyle, opacity: (selProgramas.length !== 1 || selAños.length !== 1) ? 0.5 : 1, cursor: (selProgramas.length !== 1 || selAños.length !== 1) ? 'not-allowed' : filterSelectStyle.cursor }}
               >
                 <option value="Todos">Todos</option>
                 {filtros.ciclos.map(c => <option key={c.codigo} value={c.codigo}>{c.label || c.codigo}</option>)}
