@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { randomUUID } from 'crypto';
 import db from '../db.js';
 import { auditEvent } from '../services/auditService.js';
-import { evaluarReglas, METRICAS_DISPONIBLES } from '../services/alertEngine.js';
+import { evaluarReglas, obtenerHistorialMetrica, METRICAS_DISPONIBLES } from '../services/alertEngine.js';
 
 const router = Router();
 
@@ -19,6 +19,20 @@ const METRICAS = new Set(METRICAS_DISPONIBLES.map(m => m.key));
 
 router.get('/alertas/metricas', adminOnly, (_req, res) => {
   res.json({ data: METRICAS_DISPONIBLES });
+});
+
+//----------------TI-08 / TI-23 / TI-31----------------
+router.get('/alertas/historial', adminOnly, async (req, res) => {
+  try {
+    const metrica = String(req.query.metrica || '').trim();
+    const dias = Math.min(Math.max(Number(req.query.dias) || 30, 1), 180);
+    if (!METRICAS.has(metrica)) return res.status(400).json({ error: 'Metrica no valida.' });
+    const data = await obtenerHistorialMetrica(metrica, dias);
+    res.json({ data });
+  } catch (err) {
+    console.error('[GET /alertas/historial]', err);
+    res.status(500).json({ error: 'Error interno.' });
+  }
 });
 
 //----------------TI-08----------------

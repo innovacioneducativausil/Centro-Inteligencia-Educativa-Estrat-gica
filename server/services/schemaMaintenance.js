@@ -57,5 +57,17 @@ export async function ensureAlertasSupport() {
       INDEX idx_atendida (atendida)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
-  console.log('[ALERTAS] Tablas regla_alerta / alerta_generada listas.');
+  await ensureColumn('alerta_generada', 'elementos_afectados', 'JSON NULL');
+
+  //----------------TI-08 / TI-23 / TI-31: historial de metricas para tendencia----------------
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS alerta_metrica_historial (
+      id_historial   BIGINT AUTO_INCREMENT PRIMARY KEY,
+      metrica        VARCHAR(50)  NOT NULL,
+      valor          DECIMAL(12,2) NOT NULL,
+      fecha_medicion DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_metrica_fecha (metrica, fecha_medicion)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  console.log('[ALERTAS] Tablas regla_alerta / alerta_generada / alerta_metrica_historial listas.');
 }
