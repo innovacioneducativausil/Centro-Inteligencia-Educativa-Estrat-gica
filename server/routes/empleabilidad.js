@@ -1613,6 +1613,34 @@ router.get('/empleabilidad/stats-tab', async (req, res) => {
   } catch (e) { serverError(res, e); }
 });
 
+//----------------reorg Gestion (Empleo)----------------
+export async function ensureInformeEmpleabilidadSupport() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS informe_empleabilidad (
+      id             INT AUTO_INCREMENT PRIMARY KEY,
+      nombre         VARCHAR(255)  NOT NULL,
+      anio           INT           NOT NULL,
+      unidad         VARCHAR(100)  NOT NULL,
+      facultad       VARCHAR(150)  NOT NULL DEFAULT 'No aplica',
+      url_descarga   TEXT,
+      tipo_acceso    ENUM('descarga','sharepoint') DEFAULT 'descarga',
+      activo         TINYINT(1)   DEFAULT 1,
+      fecha_creacion TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  const [[{ total }]] = await db.query('SELECT COUNT(*) AS total FROM informe_empleabilidad');
+  if (total > 0) return;
+  await db.query(`
+    INSERT INTO informe_empleabilidad (nombre, anio, unidad, facultad, url_descarga, tipo_acceso) VALUES
+    ('Estudio de Empleabilidad Pregrado 2024',          2024, 'Pregrado',          'Ciencias Empresariales', NULL, 'descarga'),
+    ('Estudio de Empleabilidad Pregrado 2024',          2024, 'Pregrado',          'Ingeniería',             NULL, 'descarga'),
+    ('Estudio de Empleabilidad Pregrado 2024',          2024, 'Pregrado',          'Derecho',                NULL, 'descarga'),
+    ('Estudio de Empleabilidad Pregrado Ejecutivo 2024',2024, 'Pregrado Ejecutivo','Ciencias Empresariales', NULL, 'descarga'),
+    ('Estudio de Empleabilidad Posgrado 2024',          2024, 'Posgrado',          'No aplica',              NULL, 'sharepoint'),
+    ('Estudio de Empleabilidad Doble Grado 2024',       2024, 'Doble Grado',       'No aplica',              NULL, 'descarga')
+  `);
+}
+
 router.get('/empleabilidad/informes', async (req, res) => {
   try {
     const { anio, unidad, facultad } = req.query;
@@ -1645,6 +1673,93 @@ router.get('/empleabilidad/informes', async (req, res) => {
         facultades: facultades.map(r => r.facultad),
       },
     });
+  } catch (e) { serverError(res, e); }
+});
+
+//----------------reorg Gestion (Empleo)----------------
+router.post('/empleabilidad/informes', adminOrAnalyst, async (req, res) => {
+  try {
+    const { nombre, anio, unidad, facultad, urlDescarga, tipoAcceso } = req.body;
+    if (!nombre?.trim() || !anio || !unidad?.trim()) {
+      return res.status(400).json({ error: 'Nombre, año y unidad son requeridos.' });
+    }
+    const tipo = tipoAcceso === 'sharepoint' ? 'sharepoint' : 'descarga';
+    const [result] = await db.query(
+      `INSERT INTO informe_empleabilidad (nombre, anio, unidad, facultad, url_descarga, tipo_acceso, activo)
+       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      [nombre.trim(), Number(anio), unidad.trim(), facultad?.trim() || 'No aplica', urlDescarga?.trim() || null, tipo]
+    );
+    await auditEvent(req, {
+      evento: 'informe_empleabilidad_creado',
+      accion: 'crear_informe',
+      modulo: 'empleo',
+      entidad: 'informe_empleabilidad',
+      entidadId: String(result.insertId),
+      elementoTitulo: nombre.trim(),
+      detalle: `Informe de empleabilidad creado: ${nombre.trim()} (${anio})`,
+    });
+    res.status(201).json({ id: result.insertId });
+  } catch (e) { serverError(res, e); }
+});
+
+router.put('/empleabilidad/informes/:id', adminOrAnalyst, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, anio, unidad, facultad, urlDescarga, tipoAcceso } = req.body;
+    const [[existing]] = await db.query('SELECT id FROM informe_empleabilidad WHERE id = ?', [id]);
+    if (!existing) return res.status(404).json({ error: 'Informe no encontrado.' });
+    if (!nombre?.trim() || !anio || !unidad?.trim()) {
+      return res.status(400).json({ error: 'Nombre, año y unidad son requeridos.' });
+    }
+    const tipo = tipoAcceso === 'sharepoint' ? 'sharepoint' : 'descarga';
+    await db.query(
+      `UPDATE informe_empleabilidad
+       SET nombre = ?, anio = ?, unidad = ?, facultad = ?, url_descarga = ?, tipo_acceso = ?
+       WHERE id = ?`,
+      [nombre.trim(), Number(anio), unidad.trim(), facultad?.trim() || 'No aplica', urlDescarga?.trim() || null, tipo, id]
+    );
+    await auditEvent(req, {
+      evento: 'informe_empleabilidad_actualizado',
+      accion: 'editar_informe',
+      modulo: 'empleo',
+      entidad: 'informe_empleabilidad',
+      entidadId: String(id),
+      elementoTitulo: nombre.trim(),
+      detalle: `Informe de empleabilidad actualizado: ${nombre.trim()} (${anio})`,
+    });
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e); }
+});
+
+router.patch('/empleabilidad/informes/:id/estado', adminOrAnalyst, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const activo = req.body.activo ? 1 : 0;
+    const [[existing]] = await db.query('SELECT id, nombre FROM informe_empleabilidad WHERE id = ?', [id]);
+    if (!existing) return res.status(404).json({ error: 'Informe no encontrado.' });
+    await db.query('UPDATE informe_empleabilidad SET activo = ? WHERE id = ?', [activo, id]);
+    await auditEvent(req, {
+      evento: 'informe_empleabilidad_estado',
+      accion: activo ? 'activar_informe' : 'archivar_informe',
+      modulo: 'empleo',
+      entidad: 'informe_empleabilidad',
+      entidadId: String(id),
+      elementoTitulo: existing.nombre,
+      detalle: `Informe ${activo ? 'activado' : 'archivado'}: ${existing.nombre}`,
+    });
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e); }
+});
+
+//----------------reorg Gestion (Empleo)----------------
+router.get('/empleabilidad/informes/admin', adminOrAnalyst, async (_req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, nombre, anio, unidad, facultad, url_descarga, tipo_acceso, activo
+       FROM informe_empleabilidad
+       ORDER BY anio DESC, unidad, facultad`
+    );
+    res.json({ data: rows });
   } catch (e) { serverError(res, e); }
 });
 

@@ -7,6 +7,9 @@ import ImportarView from './ImportarView';
 import MonitoreoView from './MonitoreoView';
 import UsuariosGestionView from './UsuariosGestionView';
 import AlertasView from './AlertasView';
+import GestionEmpleoView from './GestionEmpleoView';
+import GestionCurricularView from './GestionCurricularView';
+import GestionMercadoView from './GestionMercadoView';
 import { sanitizeRichHtml } from '../services/sanitizeHtml';
 import { downloadExcel } from '../services/excelExport';
 import { logActividad } from '../services/actividadService';
@@ -144,7 +147,24 @@ const COUNTRIES = [
   'Oceanía','Europa del Este','Europa Occidental','Antártida',
 ];
 
-type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar' | 'monitoreo' | 'usuarios' | 'alertas';
+type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar' | 'monitoreo' | 'usuarios' | 'alertas' | 'empleo' | 'curricular' | 'mercado';
+
+//----------------reorg Gestion----------------
+type Seccion = 'radar' | 'empleo' | 'curricular' | 'mercado' | 'usuarios' | 'alertas' | 'monitoreo';
+const RADAR_TABS: ('senales' | 'tendencias' | 'escenarios' | 'importar')[] = ['senales', 'tendencias', 'escenarios', 'importar'];
+const SECCIONES: { key: Seccion; label: string; icon: string }[] = [
+  { key: 'radar',      label: 'RADAR',      icon: 'sensors' },
+  { key: 'empleo',     label: 'EMPLEO',     icon: 'work' },
+  { key: 'curricular', label: 'CURRICULAR', icon: 'menu_book' },
+  { key: 'mercado',    label: 'MERCADO',    icon: 'query_stats' },
+  { key: 'usuarios',   label: 'USUARIOS',   icon: 'group' },
+  { key: 'alertas',    label: 'ALERTAS',    icon: 'notifications_active' },
+  { key: 'monitoreo',  label: 'MONITOREO',  icon: 'monitoring' },
+];
+function seccionForTab(tab: Tab): Seccion {
+  if ((RADAR_TABS as Tab[]).includes(tab)) return 'radar';
+  return tab as Seccion;
+}
 
 interface GestionViewProps {
   themeColors: ThemeColors;
@@ -155,13 +175,11 @@ interface GestionViewProps {
 const ALLOWED_ROLES = ['admin'];
 const PAGE_LIMIT    = 10;
 
-const TAB_CONFIG: Record<Exclude<Tab, 'monitoreo'>, { label: string; nueva: string }> = {
+const TAB_CONFIG: Record<'senales' | 'tendencias' | 'escenarios' | 'importar', { label: string; nueva: string }> = {
   senales:    { label: 'SEÑALES',    nueva: 'Nueva Señal'    },
   tendencias: { label: 'TENDENCIAS', nueva: 'Nueva Tendencia' },
   escenarios: { label: 'ESCENARIOS', nueva: 'Nuevo Escenario' },
   importar:   { label: 'IMPORTAR',   nueva: ''               },
-  usuarios:   { label: 'USUARIOS',   nueva: ''               },
-  alertas:    { label: 'ALERTAS',    nueva: ''               },
 };
 
 
@@ -210,7 +228,7 @@ function getEstadoInfo(id: number): { label: string; slug: string } {
 const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   const [activeTab,    setActiveTab]    = useState<Tab>(() => {
     const stored = localStorage.getItem('radar_gestion_tab') as Tab | null;
-    return stored && ['senales', 'tendencias', 'escenarios', 'importar', 'monitoreo', 'usuarios', 'alertas'].includes(stored) ? stored : 'senales';
+    return stored && ['senales', 'tendencias', 'escenarios', 'importar', 'monitoreo', 'usuarios', 'alertas', 'empleo', 'curricular', 'mercado'].includes(stored) ? stored : 'senales';
   });
   const [pageData,     setPageData]     = useState<PageData | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -287,7 +305,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
 
   const fetchData = useCallback(async () => {
-    if (!canAccess || activeTab === 'importar' || activeTab === 'monitoreo' || activeTab === 'usuarios' || activeTab === 'alertas') return;
+    if (!canAccess || activeTab === 'importar' || activeTab === 'monitoreo' || activeTab === 'usuarios' || activeTab === 'alertas' || activeTab === 'empleo' || activeTab === 'curricular' || activeTab === 'mercado') return;
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({
@@ -319,7 +337,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     setExportingListado(true);
     setExportError(null);
     try {
-      const label = TAB_CONFIG[activeTab as Exclude<Tab, 'monitoreo'>]?.label || activeTab;
+      const label = TAB_CONFIG[activeTab as keyof typeof TAB_CONFIG]?.label || activeTab;
       const filtrosAplicados = {
         search,
         estadoFilter,
@@ -843,6 +861,18 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
   if (activeTab === 'importar') {
     return <ImportarView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+  }
+
+  if (activeTab === 'empleo') {
+    return <GestionEmpleoView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+  }
+
+  if (activeTab === 'curricular') {
+    return <GestionCurricularView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+  }
+
+  if (activeTab === 'mercado') {
+    return <GestionMercadoView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
   }
 
 
@@ -1783,42 +1813,49 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
 
       <div className="mb-6">
+        {/*----------------reorg Gestion----------------*/}
         <div className={`inline-flex p-1 rounded-xl shadow-sm border ${themeColors.cardBg} ${themeColors.cardBorder}`}>
-          {(Object.keys(TAB_CONFIG) as Exclude<Tab, 'monitoreo'>[]).map(tab => {
-            const isImportar = tab === 'importar';
-            const isActive   = activeTab === tab;
+          {SECCIONES.map(sec => {
+            const isActive = seccionForTab(activeTab) === sec.key;
             return (
               <button
-                key={tab}
-                onClick={() => switchTab(tab)}
+                key={sec.key}
+                onClick={() => switchTab(sec.key === 'radar' ? 'senales' : sec.key)}
                 className={`px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5 ${
-                  isActive
-                    ? 'text-white shadow-sm'
-                    : `opacity-60 hover:opacity-90 ${themeColors.text}`
+                  isActive ? 'text-white shadow-sm' : `opacity-60 hover:opacity-90 ${themeColors.text}`
                 }`}
-                style={isActive ? { background: isImportar ? '#7c3aed' : '#0099CC' } : undefined}
+                style={isActive ? { background: sec.key === 'monitoreo' ? '#0f766e' : sec.key === 'alertas' ? '#dc2626' : '#0099CC' } : undefined}
               >
-                {isImportar && (
-                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>auto_awesome</span>
-                )}
-                {TAB_CONFIG[tab].label}
+                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>{sec.icon}</span>
+                {sec.label}
               </button>
             );
           })}
-
-          <button
-            onClick={() => switchTab('monitoreo')}
-            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5 ${
-              activeTab === 'monitoreo'
-                ? 'text-white shadow-sm'
-                : `opacity-60 hover:opacity-90 ${themeColors.text}`
-            }`}
-            style={activeTab === 'monitoreo' ? { background: '#0f766e' } : undefined}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>monitoring</span>
-            MONITOREO
-          </button>
         </div>
+
+        {seccionForTab(activeTab) === 'radar' && (
+          <div className={`inline-flex p-1 rounded-xl shadow-sm border mt-2 ml-1 ${themeColors.cardBg} ${themeColors.cardBorder}`}>
+            {RADAR_TABS.map(tab => {
+              const isImportar = tab === 'importar';
+              const isActive   = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => switchTab(tab)}
+                  className={`px-5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                    isActive ? 'text-white shadow-sm' : `opacity-60 hover:opacity-90 ${themeColors.text}`
+                  }`}
+                  style={isActive ? { background: isImportar ? '#7c3aed' : '#0099CC' } : undefined}
+                >
+                  {isImportar && (
+                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
+                  )}
+                  {TAB_CONFIG[tab].label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
 

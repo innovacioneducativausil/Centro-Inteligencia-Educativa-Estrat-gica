@@ -3,6 +3,8 @@ import db from '../db_empl.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { mercadoLaboralSeed, metodologiaMercadoLaboralSeed } from '../data/mercadoLaboralSeed.js';
 import { CARRERAS_FALTANTES } from '../data/mercadoCarrerasFaltantes.js';
+import { adminOrAnalyst } from '../middleware/roles.js';
+import { auditEvent } from '../services/auditService.js';
 
 const router = Router();
 
@@ -548,6 +550,140 @@ router.get('/mercado-laboral/informe', async (req, res) => {
   } catch (e) {
     serverError(res, e, 'GET /mercado-laboral/informe');
   }
+});
+
+//----------------reorg Gestion (Mercado)----------------
+router.get('/mercado-laboral/admin/informes', adminOrAnalyst, async (_req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id_informe, nombre_facultad, nombre_carrera, periodo, titulo_header, activo
+       FROM mercado_informe ORDER BY nombre_facultad, nombre_carrera, periodo DESC`
+    );
+    res.json({ data: rows });
+  } catch (e) { serverError(res, e); }
+});
+
+router.post('/mercado-laboral/admin/informes', adminOrAnalyst, async (req, res) => {
+  try {
+    const { nombreFacultad, nombreCarrera, periodo, tituloHeader, descripcion } = req.body;
+    if (!nombreFacultad?.trim() || !nombreCarrera?.trim() || !periodo?.trim()) {
+      return res.status(400).json({ error: 'Facultad, carrera y periodo son requeridos.' });
+    }
+    const [result] = await db.query(
+      `INSERT INTO mercado_informe
+         (nombre_facultad, nombre_carrera, periodo, titulo_header, descripcion, fuente, origen_datos, activo)
+       VALUES (?, ?, ?, ?, ?, 'Gestion manual', 'manual', 1)`,
+      [nombreFacultad.trim(), nombreCarrera.trim(), periodo.trim(), tituloHeader?.trim() || null, descripcion?.trim() || null]
+    );
+    await auditEvent(req, {
+      evento: 'mercado_informe_creado',
+      accion: 'crear_informe_mercado',
+      modulo: 'mercado',
+      entidad: 'mercado_informe',
+      entidadId: String(result.insertId),
+      elementoTitulo: `${nombreCarrera.trim()} (${periodo.trim()})`,
+      detalle: `Informe de mercado creado: ${nombreCarrera.trim()} - ${periodo.trim()}`,
+    });
+    res.status(201).json({ id: result.insertId });
+  } catch (e) { serverError(res, e); }
+});
+
+router.put('/mercado-laboral/admin/informes/:id', adminOrAnalyst, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombreFacultad, nombreCarrera, periodo, tituloHeader, descripcion } = req.body;
+    const [[existing]] = await db.query('SELECT id_informe FROM mercado_informe WHERE id_informe = ?', [id]);
+    if (!existing) return res.status(404).json({ error: 'Informe no encontrado.' });
+    if (!nombreFacultad?.trim() || !nombreCarrera?.trim() || !periodo?.trim()) {
+      return res.status(400).json({ error: 'Facultad, carrera y periodo son requeridos.' });
+    }
+    await db.query(
+      `UPDATE mercado_informe
+       SET nombre_facultad = ?, nombre_carrera = ?, periodo = ?, titulo_header = ?, descripcion = ?
+       WHERE id_informe = ?`,
+      [nombreFacultad.trim(), nombreCarrera.trim(), periodo.trim(), tituloHeader?.trim() || null, descripcion?.trim() || null, id]
+    );
+    await auditEvent(req, {
+      evento: 'mercado_informe_actualizado',
+      accion: 'editar_informe_mercado',
+      modulo: 'mercado',
+      entidad: 'mercado_informe',
+      entidadId: String(id),
+      elementoTitulo: `${nombreCarrera.trim()} (${periodo.trim()})`,
+      detalle: `Informe de mercado actualizado: ${nombreCarrera.trim()} - ${periodo.trim()}`,
+    });
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e); }
+});
+
+router.patch('/mercado-laboral/admin/informes/:id/estado', adminOrAnalyst, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const activo = req.body.activo ? 1 : 0;
+    const [[existing]] = await db.query('SELECT id_informe, nombre_carrera FROM mercado_informe WHERE id_informe = ?', [id]);
+    if (!existing) return res.status(404).json({ error: 'Informe no encontrado.' });
+    await db.query('UPDATE mercado_informe SET activo = ? WHERE id_informe = ?', [activo, id]);
+    await auditEvent(req, {
+      evento: 'mercado_informe_estado',
+      accion: activo ? 'activar_informe_mercado' : 'archivar_informe_mercado',
+      modulo: 'mercado',
+      entidad: 'mercado_informe',
+      entidadId: String(id),
+      elementoTitulo: existing.nombre_carrera,
+      detalle: `Informe de mercado ${activo ? 'activado' : 'archivado'}: ${existing.nombre_carrera}`,
+    });
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e); }
+});
+
+//----------------reorg Gestion (Mercado)----------------
+router.get('/mercado-laboral/admin/metodologia', adminOrAnalyst, async (_req, res) => {
+  try {
+    const [rows] = await db.query('SELECT id_metodologia, orden, titulo, descripcion, activo FROM mercado_metodologia ORDER BY orden');
+    res.json({ data: rows });
+  } catch (e) { serverError(res, e); }
+});
+
+router.post('/mercado-laboral/admin/metodologia', adminOrAnalyst, async (req, res) => {
+  try {
+    const { orden, titulo, descripcion } = req.body;
+    if (!orden || !titulo?.trim()) return res.status(400).json({ error: 'Orden y titulo son requeridos.' });
+    await db.query(
+      `INSERT INTO mercado_metodologia (orden, titulo, descripcion, activo) VALUES (?, ?, ?, 1)
+       ON DUPLICATE KEY UPDATE titulo = VALUES(titulo), descripcion = VALUES(descripcion)`,
+      [Number(orden), titulo.trim(), descripcion?.trim() || null]
+    );
+    await auditEvent(req, {
+      evento: 'mercado_metodologia_guardada',
+      accion: 'guardar_metodologia',
+      modulo: 'mercado',
+      entidad: 'mercado_metodologia',
+      elementoTitulo: titulo.trim(),
+      detalle: `Paso de metodologia guardado: ${titulo.trim()}`,
+    });
+    res.status(201).json({ ok: true });
+  } catch (e) { serverError(res, e); }
+});
+
+router.put('/mercado-laboral/admin/metodologia/:id', adminOrAnalyst, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { titulo, descripcion } = req.body;
+    const [[existing]] = await db.query('SELECT id_metodologia FROM mercado_metodologia WHERE id_metodologia = ?', [id]);
+    if (!existing) return res.status(404).json({ error: 'Paso no encontrado.' });
+    if (!titulo?.trim()) return res.status(400).json({ error: 'Titulo es requerido.' });
+    await db.query('UPDATE mercado_metodologia SET titulo = ?, descripcion = ? WHERE id_metodologia = ?', [titulo.trim(), descripcion?.trim() || null, id]);
+    await auditEvent(req, {
+      evento: 'mercado_metodologia_actualizada',
+      accion: 'editar_metodologia',
+      modulo: 'mercado',
+      entidad: 'mercado_metodologia',
+      entidadId: String(id),
+      elementoTitulo: titulo.trim(),
+      detalle: `Paso de metodologia actualizado: ${titulo.trim()}`,
+    });
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e); }
 });
 
 export default router;

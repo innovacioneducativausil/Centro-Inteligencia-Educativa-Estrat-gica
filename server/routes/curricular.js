@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import xlsx   from 'xlsx';
+import { randomUUID } from 'crypto';
 import db from '../db_curricular.js';
 import { adminOrAnalyst } from '../middleware/roles.js';
 import { validateExcelUpload, validateWorkbookShape } from '../utils/security.js';
@@ -308,6 +309,130 @@ router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async
       metadata: { archivo: req.file.originalname, imported, skipped, total: rows.length, errors: errors.length },
     });
     res.json({ success: true, imported, skipped, total: rows.length, errors });
+  } catch (e) { serverError(res, e); }
+});
+
+//----------------reorg Gestion (Curricular)----------------
+export async function ensureSilaboSupport() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS silabo (
+      id_silabo       VARCHAR(36)  NOT NULL PRIMARY KEY,
+      id_curso        INT          NOT NULL,
+      titulo          VARCHAR(200) NOT NULL,
+      url_archivo     TEXT         NULL,
+      contenido       TEXT         NULL,
+      activo          TINYINT(1)   NOT NULL DEFAULT 1,
+      fecha_creacion  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      fecha_actualizacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_curso (id_curso)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+}
+
+//----------------reorg Gestion (Curricular)----------------
+router.get('/curricular/silabos', adminOrAnalyst, async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const params = [];
+    let where = '';
+    if (q) {
+      where = 'WHERE s.titulo LIKE ? OR c.nombre_curso LIKE ?';
+      params.push(`%${q}%`, `%${q}%`);
+    }
+    const [rows] = await db.query(
+      `SELECT s.id_silabo, s.id_curso, s.titulo, s.url_archivo, s.contenido, s.activo, s.fecha_actualizacion,
+              c.nombre_curso, c.codigo_curso
+       FROM silabo s
+       JOIN curso c ON c.id_curso = s.id_curso
+       ${where}
+       ORDER BY s.fecha_actualizacion DESC
+       LIMIT 200`,
+      params
+    );
+    res.json({ data: rows });
+  } catch (e) { serverError(res, e); }
+});
+
+router.get('/curricular/cursos-buscar', adminOrAnalyst, async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (!q) return res.json({ data: [] });
+    const [rows] = await db.query(
+      `SELECT id_curso, nombre_curso, codigo_curso FROM curso WHERE nombre_curso LIKE ? OR codigo_curso LIKE ? LIMIT 20`,
+      [`%${q}%`, `%${q}%`]
+    );
+    res.json({ data: rows });
+  } catch (e) { serverError(res, e); }
+});
+
+router.post('/curricular/silabos', adminOrAnalyst, async (req, res) => {
+  try {
+    const { idCurso, titulo, urlArchivo, contenido } = req.body;
+    if (!idCurso || !titulo?.trim()) {
+      return res.status(400).json({ error: 'Curso y titulo son requeridos.' });
+    }
+    const [[curso]] = await db.query('SELECT id_curso FROM curso WHERE id_curso = ?', [idCurso]);
+    if (!curso) return res.status(400).json({ error: 'Curso no encontrado.' });
+    const id = randomUUID();
+    await db.query(
+      `INSERT INTO silabo (id_silabo, id_curso, titulo, url_archivo, contenido, activo)
+       VALUES (?, ?, ?, ?, ?, 1)`,
+      [id, idCurso, titulo.trim(), urlArchivo?.trim() || null, contenido?.trim() || null]
+    );
+    await auditEvent(req, {
+      evento: 'silabo_creado',
+      accion: 'crear_silabo',
+      modulo: 'curricular',
+      entidad: 'silabo',
+      entidadId: id,
+      elementoTitulo: titulo.trim(),
+      detalle: `Silabo creado: ${titulo.trim()}`,
+    });
+    res.status(201).json({ id });
+  } catch (e) { serverError(res, e); }
+});
+
+router.put('/curricular/silabos/:id', adminOrAnalyst, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { titulo, urlArchivo, contenido } = req.body;
+    const [[existing]] = await db.query('SELECT id_silabo FROM silabo WHERE id_silabo = ?', [id]);
+    if (!existing) return res.status(404).json({ error: 'Silabo no encontrado.' });
+    if (!titulo?.trim()) return res.status(400).json({ error: 'Titulo es requerido.' });
+    await db.query(
+      `UPDATE silabo SET titulo = ?, url_archivo = ?, contenido = ?, fecha_actualizacion = NOW() WHERE id_silabo = ?`,
+      [titulo.trim(), urlArchivo?.trim() || null, contenido?.trim() || null, id]
+    );
+    await auditEvent(req, {
+      evento: 'silabo_actualizado',
+      accion: 'editar_silabo',
+      modulo: 'curricular',
+      entidad: 'silabo',
+      entidadId: id,
+      elementoTitulo: titulo.trim(),
+      detalle: `Silabo actualizado: ${titulo.trim()}`,
+    });
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e); }
+});
+
+router.patch('/curricular/silabos/:id/estado', adminOrAnalyst, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const activo = req.body.activo ? 1 : 0;
+    const [[existing]] = await db.query('SELECT id_silabo, titulo FROM silabo WHERE id_silabo = ?', [id]);
+    if (!existing) return res.status(404).json({ error: 'Silabo no encontrado.' });
+    await db.query('UPDATE silabo SET activo = ? WHERE id_silabo = ?', [activo, id]);
+    await auditEvent(req, {
+      evento: 'silabo_estado',
+      accion: activo ? 'activar_silabo' : 'archivar_silabo',
+      modulo: 'curricular',
+      entidad: 'silabo',
+      entidadId: id,
+      elementoTitulo: existing.titulo,
+      detalle: `Silabo ${activo ? 'activado' : 'archivado'}: ${existing.titulo}`,
+    });
+    res.json({ ok: true });
   } catch (e) { serverError(res, e); }
 });
 
