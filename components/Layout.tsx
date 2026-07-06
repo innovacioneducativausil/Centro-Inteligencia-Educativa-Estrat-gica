@@ -68,7 +68,11 @@ const Layout: React.FC<LayoutProps> = ({
     fetchUmbralAlerts();
     //----------------TI-08 / TI-23 / TI-31----------------
     const interval = setInterval(fetchUmbralAlerts, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    window.addEventListener('radar-alertas-actualizar', fetchUmbralAlerts);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('radar-alertas-actualizar', fetchUmbralAlerts);
+    };
   }, []);
 
 

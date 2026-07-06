@@ -41,6 +41,13 @@ async function requestJson(url: string, init?: RequestInit) {
 }
 
 //----------------TI-08 / TI-23 / TI-31----------------
+// Avisa al recuadro flotante (Layout) que revise alertas pendientes ya,
+// en vez de esperar su sondeo periodico de 5 minutos.
+function notificarAlertasActualizadas() {
+  window.dispatchEvent(new Event('radar-alertas-actualizar'));
+}
+
+//----------------TI-08 / TI-23 / TI-31----------------
 const AlertasView: React.FC<AlertasViewProps> = ({ themeColors, onVolver }) => {
   const isDark = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
   const [metricas, setMetricas] = useState<Metrica[]>([]);
@@ -140,6 +147,7 @@ const AlertasView: React.FC<AlertasViewProps> = ({ themeColors, onVolver }) => {
       });
       if (!res.ok) throw new Error(data.error || 'No se pudo marcar como atendida.');
       await fetchAll();
+      notificarAlertasActualizadas();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo marcar como atendida.');
     }
@@ -153,6 +161,7 @@ const AlertasView: React.FC<AlertasViewProps> = ({ themeColors, onVolver }) => {
       if (!res.ok) throw new Error(data.error || 'No se pudo evaluar.');
       setMessage(`Evaluacion ejecutada. Alertas nuevas: ${data.generadas}.`);
       await fetchAll();
+      notificarAlertasActualizadas();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo evaluar.');
     }

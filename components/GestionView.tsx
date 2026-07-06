@@ -569,6 +569,12 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     setPageData(null);
   };
 
+  //----------------reorg Gestion----------------
+  const volverASeleccion = () => {
+    localStorage.removeItem('radar_gestion_tab');
+    setActiveTab(null);
+  };
+
 
   const handleEstadoChange = async (item: AdminItem, id_estado: number) => {
     setOpenMenu(null); setChangingId(item.uuid);
@@ -861,15 +867,15 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
 
   if (activeTab === 'monitoreo') {
-    return <MonitoreoView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+    return <MonitoreoView themeColors={themeColors} onVolver={volverASeleccion} />;
   }
 
   if (activeTab === 'usuarios') {
-    return <UsuariosGestionView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+    return <UsuariosGestionView themeColors={themeColors} onVolver={volverASeleccion} />;
   }
 
   if (activeTab === 'alertas') {
-    return <AlertasView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+    return <AlertasView themeColors={themeColors} onVolver={volverASeleccion} />;
   }
 
 
@@ -878,15 +884,15 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   }
 
   if (activeTab === 'empleo') {
-    return <GestionEmpleoView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+    return <GestionEmpleoView themeColors={themeColors} onVolver={volverASeleccion} />;
   }
 
   if (activeTab === 'curricular') {
-    return <GestionCurricularView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+    return <GestionCurricularView themeColors={themeColors} onVolver={volverASeleccion} />;
   }
 
   if (activeTab === 'mercado') {
-    return <GestionMercadoView themeColors={themeColors} onVolver={() => switchTab('senales')} />;
+    return <GestionMercadoView themeColors={themeColors} onVolver={volverASeleccion} />;
   }
 
   //----------------reorg Gestion----------------
@@ -1851,6 +1857,14 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
 
             {/*----------------reorg Gestion----------------*/}
             <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={volverASeleccion}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium border transition-all active:scale-95"
+                style={{ borderColor: '#cbd5e1', color: isDark ? '#e2e8f0' : '#334155', background: isDark ? '#0f172a' : 'transparent' }}
+              >
+                Volver a Gestion
+              </button>
               <button
                 onClick={() => relInputRef.current?.click()}
                 disabled={importingRel}
