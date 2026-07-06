@@ -41,7 +41,8 @@ export async function captureBeforeSnapshot(originalUrl) {
       [target.id]
     );
     return row || null;
-  } catch {
+  } catch (err) {
+    console.warn('[TI-09] No se pudo capturar snapshot "antes":', target.table, err.message);
     return null;
   }
 }
