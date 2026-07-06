@@ -109,9 +109,17 @@ const Layout: React.FC<LayoutProps> = ({
   );
 
   const unreadCount = useMemo(() =>
-    publishedNotifs.filter(n => !seenIds.has(n.id)).length + umbralAlerts.length,
-    [publishedNotifs, seenIds, umbralAlerts]
+    publishedNotifs.filter(n => !seenIds.has(n.id)).length,
+    [publishedNotifs, seenIds]
   );
+
+  //----------------TI-08 / TI-23 / TI-31----------------
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<number>>(new Set());
+  const visibleUmbralAlerts = useMemo(() =>
+    umbralAlerts.filter(a => !dismissedAlerts.has(a.id_alerta)).slice(0, 3),
+    [umbralAlerts, dismissedAlerts]
+  );
+  const dismissAlert = (id: number) => setDismissedAlerts(prev => new Set(prev).add(id));
 
   const markSeen = (id: string) => {
     setSeenIds(prev => {
@@ -163,6 +171,39 @@ const Layout: React.FC<LayoutProps> = ({
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden', ...fontStyle }}>
 
+      {/*----------------TI-08 / TI-23 / TI-31----------------*/}
+      {visibleUmbralAlerts.length > 0 && (
+        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 320 }}>
+          {visibleUmbralAlerts.map(a => (
+            <div
+              key={a.id_alerta}
+              style={{
+                background: theme === 'dark' ? '#1e293b' : 'white',
+                border: `1px solid ${theme === 'dark' ? 'rgba(239,68,68,0.35)' : 'rgba(239,68,68,0.25)'}`,
+                borderRadius: 12,
+                boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
+                padding: '10px 12px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: 18, marginTop: 1 }}>warning</span>
+              <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={irAAlertas}>
+                <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>Alerta por umbral</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: theme === 'dark' ? '#e2e8f0' : '#1e293b', lineHeight: 1.4 }}>{a.mensaje}</p>
+              </div>
+              <button
+                onClick={() => dismissAlert(a.id_alerta)}
+                title="Cerrar"
+                style={{ border: 'none', background: 'none', cursor: 'pointer', color: theme === 'dark' ? '#94a3b8' : '#94a3b8', fontSize: 14, lineHeight: 1, padding: 2, flexShrink: 0 }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <nav style={{ width: 72, minWidth: 72, background: NAV.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: 4, zIndex: 60, flexShrink: 0 }}>
 
@@ -263,26 +304,6 @@ const Layout: React.FC<LayoutProps> = ({
                   </button>
                 )}
               </div>
-              {/*----------------TI-08 / TI-23 / TI-31----------------*/}
-              {umbralAlerts.length > 0 && (
-                <div style={{ borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,42,63,0.06)'}` }}>
-                  <div style={{ padding: '8px 16px 4px', fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#ef4444' }}>
-                    Alertas por umbral
-                  </div>
-                  {umbralAlerts.slice(0, 5).map(a => (
-                    <div
-                      key={a.id_alerta}
-                      onClick={irAAlertas}
-                      style={{ padding: '8px 16px', cursor: 'pointer', borderLeft: '3px solid #ef4444', background: theme === 'dark' ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.06)' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = theme === 'dark' ? 'rgba(239,68,68,0.14)' : 'rgba(239,68,68,0.12)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = theme === 'dark' ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.06)'; }}
-                    >
-                      <p style={{ fontSize: 11, fontWeight: 600, color: theme === 'dark' ? '#fecaca' : '#991b1b', lineHeight: 1.4 }}>{a.mensaje}</p>
-                      <p style={{ fontSize: 9, color: BRAND_COLORS.body, marginTop: 2 }}>{fmtDate(a.fecha_generada)}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
               <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                 {publishedNotifs.length === 0 ? (
                   <p style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: BRAND_COLORS.body }}>No hay actividad reciente</p>
