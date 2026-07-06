@@ -37,7 +37,10 @@ function buildActividadFilters(query) {
 
 function csvCell(value) {
   if (value === null || value === undefined) return '';
-  return `"${String(value).replace(/"/g, '""')}"`;
+  // Las columnas JSON (p.ej. metadata) llegan ya parseadas como objeto desde
+  // mysql2; sin este caso String(value) las volvia "[object Object]" en el CSV.
+  const text = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 function actividadCsv(rows) {

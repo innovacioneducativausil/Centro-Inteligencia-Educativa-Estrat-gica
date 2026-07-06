@@ -20,7 +20,9 @@ interface ActividadRow {
   detalle: string | null;
   ip: string | null;
   user_agent: string | null;
-  metadata: string | null;
+  // El driver MySQL ya entrega las columnas JSON como objeto parseado, no
+  // como texto; puede llegar en cualquiera de las dos formas.
+  metadata: Record<string, unknown> | string | null;
   fecha_hora: string;
 }
 
@@ -85,8 +87,14 @@ function fmtFecha(s: string) {
   });
 }
 
-function parseMetadata(value: string | null) {
+type MetadataInput = Record<string, unknown> | string | null | undefined;
+
+function parseMetadata(value: MetadataInput) {
   if (!value) return null;
+  // El driver MySQL entrega las columnas JSON ya parseadas como objeto; solo
+  // hace falta JSON.parse cuando de verdad llega como texto (p.ej. CSV/otros).
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return null;
   try { return JSON.parse(value); } catch { return null; }
 }
 
@@ -104,7 +112,7 @@ function snapshotTexto(snapshot: Record<string, unknown>) {
     .join(', ');
 }
 
-function metadataSummary(value: string | null) {
+function metadataSummary(value: MetadataInput) {
   const data = parseMetadata(value);
   if (!data || typeof data !== 'object') return '';
   const parts: string[] = [];
@@ -131,7 +139,7 @@ function metadataSummary(value: string | null) {
   return parts.join(' | ');
 }
 
-function metadataValue(value: string | null, key: string) {
+function metadataValue(value: MetadataInput, key: string) {
   const data = parseMetadata(value);
   if (!data || typeof data !== 'object') return '';
   return typeof data[key] === 'string' || typeof data[key] === 'number' ? String(data[key]) : '';
