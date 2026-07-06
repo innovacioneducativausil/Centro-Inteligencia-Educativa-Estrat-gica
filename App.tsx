@@ -246,6 +246,10 @@ const App: React.FC = () => {
     setUser(userData);
     setSessionMessage(null);
     localStorage.setItem('radar_active_view', 'inicio');
+    // Un login explicito no es un F5: borra la sub-vista recordada de Gestion
+    // para que la primera visita muestre el panel de selección, no la ultima
+    // pestaña de una sesion anterior.
+    localStorage.removeItem('radar_gestion_tab');
     setActiveView('inicio');
 
   };

@@ -114,15 +114,30 @@ router.use(async (req, res, next) => {
     : null;
   res.on('finish', () => {
     if (res.statusCode >= 200 && res.statusCode < 400) {
-      auditEvent(req, {
-        evento: 'gestion_cambio',
-        accion: req.method.toLowerCase(),
-        modulo: 'gestion',
-        entidad: req.path.split('/').filter(Boolean)[1] || 'admin',
-        entidadId: req.params.uuid || req.params.resource || null,
-        detalle: `${req.method} ${req.originalUrl}`,
-        metadata: { params: req.params, antes: antes || undefined },
-      });
+      // Reservar el evento de inmediato (sincrono): auditEvent() tambien
+      // marca req.auditLogged, pero solo al ejecutarse, y aqui hay un await
+      // (la foto "ahora") antes de llegar a esa linea. Sin esto, el
+      // middleware generico de auditMutations.js gana la carrera y crea un
+      // registro duplicado/generico para el mismo evento.
+      req.auditLogged = true;
+      const entidad = req.path.split('/').filter(Boolean)[1] || 'admin';
+      (async () => {
+        //----------------TI-09----------------
+        // La mutacion ya se aplico (estamos en 'finish'), asi que volver a
+        // tomar la foto con la misma funcion captura el estado "despues".
+        const ahora = (req.method === 'PUT' || req.method === 'PATCH')
+          ? await captureBeforeSnapshot(req.originalUrl)
+          : null;
+        auditEvent(req, {
+          evento: 'gestion_cambio',
+          accion: req.method.toLowerCase(),
+          modulo: 'gestion',
+          entidad,
+          entidadId: req.params.uuid || req.params.resource || null,
+          detalle: `${req.method} ${req.originalUrl}`,
+          metadata: { vista: entidad, params: req.params, antes: antes || undefined, ahora: ahora || undefined },
+        });
+      })();
     }
   });
   next();

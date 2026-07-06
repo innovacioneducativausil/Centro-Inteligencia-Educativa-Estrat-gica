@@ -90,11 +90,25 @@ function parseMetadata(value: string | null) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
+//----------------TI-09----------------
+const ESTADO_ID_LABELS: Record<string, string> = {
+  '1': 'Publicado',
+  '2': 'En revisión',
+  '3': 'Borrador',
+  '4': 'Archivado',
+};
+
+function snapshotTexto(snapshot: Record<string, unknown>) {
+  return Object.entries(snapshot)
+    .map(([k, v]) => `${k}=${k === 'id_estado' ? (ESTADO_ID_LABELS[String(v)] || v) : v}`)
+    .join(', ');
+}
+
 function metadataSummary(value: string | null) {
   const data = parseMetadata(value);
   if (!data || typeof data !== 'object') return '';
   const parts: string[] = [];
-  if (data.vista) parts.push(`Vista: ${data.vista}`);
+  // La columna VISTA ya muestra este dato traducido; no repetirlo en Detalle.
   if (data.usuarioObjetivo) parts.push(`Usuario afectado: ${data.usuarioObjetivo}`);
   if (data.anio) parts.push(`Año: ${data.anio}`);
   if (data.unidad) parts.push(`Unidad: ${data.unidad}`);
@@ -109,8 +123,10 @@ function metadataSummary(value: string | null) {
   }
   //----------------TI-09----------------
   if (data.antes && typeof data.antes === 'object' && Object.keys(data.antes).length) {
-    const antesTexto = Object.entries(data.antes).map(([k, v]) => `${k}=${v}`).join(', ');
-    parts.push(`Antes: ${antesTexto}`);
+    parts.push(`Antes: ${snapshotTexto(data.antes)}`);
+  }
+  if (data.ahora && typeof data.ahora === 'object' && Object.keys(data.ahora).length) {
+    parts.push(`Ahora: ${snapshotTexto(data.ahora)}`);
   }
   return parts.join(' | ');
 }
