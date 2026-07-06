@@ -1704,67 +1704,17 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     <div className="p-6 md:p-8 space-y-6">
 
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className={`text-2xl md:text-3xl font-bold mb-2 ${themeColors.headerText}`}>
-            Inteligencia Educativa Estratégica
-          </h1>
-          <p style={{ color: '#6b7280', fontSize: 14 }}>
-            Supervisa, valida y gestiona señales, tendencias y escenarios para la toma de decisiones
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-
-          <input ref={relInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportRelaciones} className="hidden" />
-          <button
-            onClick={() => relInputRef.current?.click()}
-            disabled={importingRel}
-            title="Importar relaciones entre señales, tendencias y escenarios"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all active:scale-95 disabled:opacity-50"
-            style={{ borderColor: '#2A9D8F', color: '#2A9D8F', background: 'transparent' }}
-          >
-            {importingRel
-              ? <Loader2 size={15} className="animate-spin" />
-              : <span className="material-symbols-outlined" style={{ fontSize: 16 }}>hub</span>
-            }
-            {importingRel ? 'IMPORTANDO...' : 'IMPORTAR RELACIONES'}
-          </button>
-
-          {(
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleImport}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={importing}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all active:scale-95 disabled:opacity-50"
-                style={{ borderColor: '#1978e5', color: '#1978e5', background: 'transparent' }}
-              >
-                {importing
-                  ? <Loader2 size={15} className="animate-spin" />
-                  : <span className="material-symbols-outlined" style={{ fontSize: 16 }}>upload_file</span>
-                }
-                {importing ? 'IMPORTANDO...' : 'IMPORTAR EXCEL'}
-              </button>
-            </>
-          )}
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-medium shadow-sm transition-all active:scale-95 hover:shadow-md"
-            style={{ backgroundColor: '#1978e5' }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#1462c2')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#1978e5')}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-            {TAB_CONFIG[activeTab].nueva.toUpperCase()}
-          </button>
-        </div>
+      <div>
+        <h1 className={`text-2xl md:text-3xl font-bold mb-2 ${themeColors.headerText}`}>
+          Inteligencia Educativa Estratégica
+        </h1>
+        <p style={{ color: '#6b7280', fontSize: 14 }}>
+          Supervisa, valida y gestiona señales, tendencias y escenarios para la toma de decisiones
+        </p>
       </div>
+
+      <input ref={relInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportRelaciones} className="hidden" />
+      <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
 
 
       {importResult && (
@@ -1834,26 +1784,67 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
         </div>
 
         {seccionForTab(activeTab) === 'radar' && (
-          <div className={`inline-flex p-1 rounded-xl shadow-sm border mt-2 ml-1 ${themeColors.cardBg} ${themeColors.cardBorder}`}>
-            {RADAR_TABS.map(tab => {
-              const isImportar = tab === 'importar';
-              const isActive   = activeTab === tab;
-              return (
-                <button
-                  key={tab}
-                  onClick={() => switchTab(tab)}
-                  className={`px-5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                    isActive ? 'text-white shadow-sm' : `opacity-60 hover:opacity-90 ${themeColors.text}`
-                  }`}
-                  style={isActive ? { background: isImportar ? '#7c3aed' : '#0099CC' } : undefined}
-                >
-                  {isImportar && (
-                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
-                  )}
-                  {TAB_CONFIG[tab].label}
-                </button>
-              );
-            })}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mt-2">
+            <div className={`inline-flex p-1 rounded-xl shadow-sm border ml-1 ${themeColors.cardBg} ${themeColors.cardBorder}`}>
+              {RADAR_TABS.map(tab => {
+                const isImportar = tab === 'importar';
+                const isActive   = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => switchTab(tab)}
+                    className={`px-5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                      isActive ? 'text-white shadow-sm' : `opacity-60 hover:opacity-90 ${themeColors.text}`
+                    }`}
+                    style={isActive ? { background: isImportar ? '#7c3aed' : '#0099CC' } : undefined}
+                  >
+                    {isImportar && (
+                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
+                    )}
+                    {TAB_CONFIG[tab].label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/*----------------reorg Gestion----------------*/}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => relInputRef.current?.click()}
+                disabled={importingRel}
+                title="Importar relaciones entre señales, tendencias y escenarios"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium border transition-all active:scale-95 disabled:opacity-50"
+                style={{ borderColor: '#2A9D8F', color: '#2A9D8F', background: 'transparent' }}
+              >
+                {importingRel
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <span className="material-symbols-outlined" style={{ fontSize: 15 }}>hub</span>
+                }
+                {importingRel ? 'IMPORTANDO...' : 'IMPORTAR RELACIONES'}
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium border transition-all active:scale-95 disabled:opacity-50"
+                style={{ borderColor: '#1978e5', color: '#1978e5', background: 'transparent' }}
+              >
+                {importing
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <span className="material-symbols-outlined" style={{ fontSize: 15 }}>upload_file</span>
+                }
+                {importing ? 'IMPORTANDO...' : 'IMPORTAR EXCEL'}
+              </button>
+              <button
+                onClick={openCreate}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-xs font-medium shadow-sm transition-all active:scale-95 hover:shadow-md"
+                style={{ backgroundColor: '#1978e5' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#1462c2')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#1978e5')}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>add</span>
+                {TAB_CONFIG[activeTab as keyof typeof TAB_CONFIG]?.nueva?.toUpperCase()}
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -125,8 +125,8 @@ const GestionCurricularView: React.FC<GestionCurricularViewProps> = ({ themeColo
 
   return (
     <div style={{ padding: '32px 32px 0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
-        <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
+        <div style={{ flex: '1 1 320px', minWidth: 0 }}>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#e2e8f0' : '#0F2A3F', marginBottom: 4 }}>
             Curricular — Mapa de Silabos
           </h2>
@@ -136,7 +136,7 @@ const GestionCurricularView: React.FC<GestionCurricularViewProps> = ({ themeColo
         </div>
         {onVolver && (
           <button type="button" onClick={onVolver}
-            style={{ border: '1px solid #cbd5e1', background: isDark ? '#0f172a' : '#fff', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', height: 34 }}>
+            style={{ border: '1px solid #cbd5e1', background: isDark ? '#0f172a' : '#fff', color: isDark ? '#e2e8f0' : '#334155', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', height: 34, flexShrink: 0 }}>
             Volver a Gestion
           </button>
         )}
