@@ -29,6 +29,28 @@ const NAV = {
   labelOff: 'rgba(255,255,255,0.35)',
 };
 
+//----------------TI-08 / TI-23 / TI-31----------------
+// Linea de resultado compacta para el recuadro flotante, segun la metrica
+// configurada en la regla (no la lista completa de elementos afectados,
+// que ya se ve al entrar a Alertas).
+function pluraliza(valor: number, singular: string, plural: string) {
+  return valor === 1 ? singular : plural;
+}
+
+const METRICA_RESUMEN: Record<string, (valor: number) => string> = {
+  senales_nuevas_7d: v => `${v} ${pluraliza(v, 'señal nueva', 'señales nuevas')}`,
+  tendencias_nuevas_7d: v => `${v} ${pluraliza(v, 'tendencia nueva', 'tendencias nuevas')}`,
+  escenarios_nuevos_7d: v => `${v} ${pluraliza(v, 'escenario nuevo', 'escenarios nuevos')}`,
+  logins_fallidos_24h: v => `${v} ${pluraliza(v, 'inicio de sesion fallido', 'inicios de sesion fallidos')}`,
+  pct_riesgo_curricular: v => `${v}% en riesgo curricular`,
+};
+
+function resumenAlerta(metrica: string, valorMedido: string): string | null {
+  const valor = Number(valorMedido);
+  const plantilla = METRICA_RESUMEN[metrica] as ((valor: number) => string) | undefined;
+  return plantilla && Number.isFinite(valor) ? plantilla(valor) : null;
+}
+
 const Layout: React.FC<LayoutProps> = ({
   activeView, setActiveView,
   setRadarTab,
@@ -51,7 +73,7 @@ const Layout: React.FC<LayoutProps> = ({
   const isAdmin = user.rol === 'admin';
 
   //----------------TI-08 / TI-23 / TI-31----------------
-  const [umbralAlerts, setUmbralAlerts] = useState<{ id_alerta: number; mensaje: string; fecha_generada: string }[]>([]);
+  const [umbralAlerts, setUmbralAlerts] = useState<{ id_alerta: number; mensaje: string; fecha_generada: string; metrica: string; valor_medido: string }[]>([]);
   const fetchUmbralAlerts = () => {
     if (!isAdmin) return;
     fetch('/api/alertas/generadas?pendientes=1', { credentials: 'include' })
@@ -203,6 +225,11 @@ const Layout: React.FC<LayoutProps> = ({
               <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={irAAlertas}>
                 <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>Alerta por umbral</p>
                 <p style={{ fontSize: 12, fontWeight: 600, color: theme === 'dark' ? '#e2e8f0' : '#1e293b', lineHeight: 1.4 }}>{a.mensaje}</p>
+                {resumenAlerta(a.metrica, a.valor_medido) && (
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', marginTop: 4 }}>
+                    Resultado: {resumenAlerta(a.metrica, a.valor_medido)}
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => dismissAlert(a.id_alerta)}
