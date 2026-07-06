@@ -161,11 +161,6 @@ const SECCIONES: { key: Seccion; label: string; icon: string }[] = [
   { key: 'alertas',    label: 'ALERTAS',    icon: 'notifications_active' },
   { key: 'monitoreo',  label: 'MONITOREO',  icon: 'monitoring' },
 ];
-function seccionForTab(tab: Tab): Seccion {
-  if ((RADAR_TABS as Tab[]).includes(tab)) return 'radar';
-  return tab as Seccion;
-}
-
 //----------------reorg Gestion----------------
 // Se reinicia solo cuando el JS del navegador recarga desde cero (F5);
 // se mantiene en true mientras el usuario navega por la SPA sin recargar.
@@ -1752,13 +1747,24 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     <div className="p-6 md:p-8 space-y-6">
 
 
-      <div>
-        <h1 className={`text-2xl md:text-3xl font-bold mb-2 ${themeColors.headerText}`}>
-          Inteligencia Educativa Estratégica
-        </h1>
-        <p style={{ color: '#6b7280', fontSize: 14 }}>
-          Supervisa, valida y gestiona señales, tendencias y escenarios para la toma de decisiones
-        </p>
+      {/*----------------reorg Gestion----------------*/}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className={`text-2xl md:text-3xl font-bold mb-2 ${themeColors.headerText}`}>
+            Radar
+          </h1>
+          <p style={{ color: '#6b7280', fontSize: 14 }}>
+            Supervisa, valida y gestiona señales, tendencias y escenarios para la toma de decisiones
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={volverASeleccion}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all active:scale-95 flex-shrink-0"
+          style={{ borderColor: '#cbd5e1', color: isDark ? '#e2e8f0' : '#334155', background: isDark ? '#0f172a' : 'transparent' }}
+        >
+          Volver a Gestion
+        </button>
       </div>
 
       <input ref={relInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportRelaciones} className="hidden" />
@@ -1810,99 +1816,67 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
       )}
 
 
-      <div className="mb-6">
-        {/*----------------reorg Gestion----------------*/}
+      {/*----------------reorg Gestion----------------*/}
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-2">
         <div className={`inline-flex p-1 rounded-xl shadow-sm border ${themeColors.cardBg} ${themeColors.cardBorder}`}>
-          {SECCIONES.map(sec => {
-            const isActive = seccionForTab(activeTab) === sec.key;
+          {RADAR_TABS.map(tab => {
+            const isImportar = tab === 'importar';
+            const isActive   = activeTab === tab;
             return (
               <button
-                key={sec.key}
-                onClick={() => switchTab(sec.key === 'radar' ? 'senales' : sec.key)}
-                className={`px-6 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                key={tab}
+                onClick={() => switchTab(tab)}
+                className={`px-5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                   isActive ? 'text-white shadow-sm' : `opacity-60 hover:opacity-90 ${themeColors.text}`
                 }`}
-                style={isActive ? { background: sec.key === 'monitoreo' ? '#0f766e' : sec.key === 'alertas' ? '#dc2626' : '#0099CC' } : undefined}
+                style={isActive ? { background: isImportar ? '#7c3aed' : '#0099CC' } : undefined}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>{sec.icon}</span>
-                {sec.label}
+                {isImportar && (
+                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
+                )}
+                {TAB_CONFIG[tab].label}
               </button>
             );
           })}
         </div>
 
-        {seccionForTab(activeTab) === 'radar' && (
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mt-2">
-            <div className={`inline-flex p-1 rounded-xl shadow-sm border ml-1 ${themeColors.cardBg} ${themeColors.cardBorder}`}>
-              {RADAR_TABS.map(tab => {
-                const isImportar = tab === 'importar';
-                const isActive   = activeTab === tab;
-                return (
-                  <button
-                    key={tab}
-                    onClick={() => switchTab(tab)}
-                    className={`px-5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                      isActive ? 'text-white shadow-sm' : `opacity-60 hover:opacity-90 ${themeColors.text}`
-                    }`}
-                    style={isActive ? { background: isImportar ? '#7c3aed' : '#0099CC' } : undefined}
-                  >
-                    {isImportar && (
-                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
-                    )}
-                    {TAB_CONFIG[tab].label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/*----------------reorg Gestion----------------*/}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                type="button"
-                onClick={volverASeleccion}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium border transition-all active:scale-95"
-                style={{ borderColor: '#cbd5e1', color: isDark ? '#e2e8f0' : '#334155', background: isDark ? '#0f172a' : 'transparent' }}
-              >
-                Volver a Gestion
-              </button>
-              <button
-                onClick={() => relInputRef.current?.click()}
-                disabled={importingRel}
-                title="Importar relaciones entre señales, tendencias y escenarios"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium border transition-all active:scale-95 disabled:opacity-50"
-                style={{ borderColor: '#2A9D8F', color: '#2A9D8F', background: 'transparent' }}
-              >
-                {importingRel
-                  ? <Loader2 size={14} className="animate-spin" />
-                  : <span className="material-symbols-outlined" style={{ fontSize: 15 }}>hub</span>
-                }
-                {importingRel ? 'IMPORTANDO...' : 'IMPORTAR RELACIONES'}
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={importing}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium border transition-all active:scale-95 disabled:opacity-50"
-                style={{ borderColor: '#1978e5', color: '#1978e5', background: 'transparent' }}
-              >
-                {importing
-                  ? <Loader2 size={14} className="animate-spin" />
-                  : <span className="material-symbols-outlined" style={{ fontSize: 15 }}>upload_file</span>
-                }
-                {importing ? 'IMPORTANDO...' : 'IMPORTAR EXCEL'}
-              </button>
-              <button
-                onClick={openCreate}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-xs font-medium shadow-sm transition-all active:scale-95 hover:shadow-md"
-                style={{ backgroundColor: '#1978e5' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#1462c2')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#1978e5')}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>add</span>
-                {TAB_CONFIG[activeTab as keyof typeof TAB_CONFIG]?.nueva?.toUpperCase()}
-              </button>
-            </div>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => relInputRef.current?.click()}
+            disabled={importingRel}
+            title="Importar relaciones entre señales, tendencias y escenarios"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium border transition-all active:scale-95 disabled:opacity-50"
+            style={{ borderColor: '#2A9D8F', color: '#2A9D8F', background: 'transparent' }}
+          >
+            {importingRel
+              ? <Loader2 size={14} className="animate-spin" />
+              : <span className="material-symbols-outlined" style={{ fontSize: 15 }}>hub</span>
+            }
+            {importingRel ? 'IMPORTANDO...' : 'IMPORTAR RELACIONES'}
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium border transition-all active:scale-95 disabled:opacity-50"
+            style={{ borderColor: '#1978e5', color: '#1978e5', background: 'transparent' }}
+          >
+            {importing
+              ? <Loader2 size={14} className="animate-spin" />
+              : <span className="material-symbols-outlined" style={{ fontSize: 15 }}>upload_file</span>
+            }
+            {importing ? 'IMPORTANDO...' : 'IMPORTAR EXCEL'}
+          </button>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-xs font-medium shadow-sm transition-all active:scale-95 hover:shadow-md"
+            style={{ backgroundColor: '#1978e5' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#1462c2')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#1978e5')}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>add</span>
+            {TAB_CONFIG[activeTab as keyof typeof TAB_CONFIG]?.nueva?.toUpperCase()}
+          </button>
+        </div>
       </div>
 
 
