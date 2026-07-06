@@ -118,12 +118,19 @@ const Layout: React.FC<LayoutProps> = ({
   );
 
   //----------------TI-08 / TI-23 / TI-31----------------
+  // Cerrar (X) marca la alerta como atendida en el backend, igual que el
+  // boton "Marcar atendida" de AlertasView: si solo se ocultara en memoria,
+  // reaparecia al refrescar porque el fetch pide las alertas pendientes.
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<number>>(new Set());
   const visibleUmbralAlerts = useMemo(() =>
     umbralAlerts.filter(a => !dismissedAlerts.has(a.id_alerta)).slice(0, 3),
     [umbralAlerts, dismissedAlerts]
   );
-  const dismissAlert = (id: number) => setDismissedAlerts(prev => new Set(prev).add(id));
+  const dismissAlert = (id: number) => {
+    setDismissedAlerts(prev => new Set(prev).add(id));
+    fetch(`/api/alertas/generadas/${id}/atender`, { method: 'POST', credentials: 'include' })
+      .catch(() => {});
+  };
 
   const markSeen = (id: string) => {
     setSeenIds(prev => {
