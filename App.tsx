@@ -19,7 +19,10 @@ const INACTIVITY_WARNING_MS = 60 * 1000;
 const VALID_VIEWS = new Set(['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral', 'informes', 'gestion']);
 const VALID_RADAR_TABS = new Set(['señales', 'tendencias', 'escenarios']);
 const MODULE_TAB_RESET: Record<string, { key: string; value: string }> = {
-  gestion: { key: 'radar_gestion_tab', value: 'senales' },
+  // 'gestion' se excluye a propósito: GestionView decide por su cuenta si
+  // muestra el panel de selección o restaura la sub-vista (F5), y si aquí se
+  // reescribe 'radar_gestion_tab' justo antes de montar, siempre gana este
+  // valor y nunca se ve el panel al entrar por primera vez.
   curricular: { key: 'radar_curricular_tab', value: 'mapa' },
   empleabilidad: { key: 'radar_empleabilidad_tab', value: 'resumen' },
   mercadoLaboral: { key: 'radar_mercado_tab', value: 'metodologia' },
