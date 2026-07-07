@@ -883,7 +883,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   }
 
   if (activeTab === 'curricular') {
-    return <GestionCurricularView themeColors={themeColors} onVolver={volverASeleccion} />;
+    return <GestionCurricularView themeColors={themeColors} userRole={user.rol} onVolver={volverASeleccion} />;
   }
 
   if (activeTab === 'mercado') {

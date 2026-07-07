@@ -8,6 +8,12 @@ import { logActividad } from '../services/actividadService';
 interface BenchmarkingViewProps {
   themeColors: ThemeColors;
   userRole?: string;
+  //----------------reorg Gestion (Curricular)----------------
+  // Restringe que pestañas de "tipo" se muestran: Curricular (publico) solo
+  // usa los referentes (comparador de solo lectura); Gestion > Curricular
+  // usa competencia_directa/competencia_internacional (gestion de fuentes).
+  // Si no se pasa, se muestran todas (comportamiento previo).
+  tiposDisponibles?: TipoBenchmark[];
 }
 
 type TipoBenchmark = 'competencia_directa' | 'referente_nacional' | 'competencia_internacional' | 'referente_internacional' | 'referente_tecnologico';
@@ -212,7 +218,7 @@ function sourceHasConflictingCareerLabel(sourceText: string, careerName: string)
   });
 }
 
-const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRole }) => {
+const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRole, tiposDisponibles }) => {
   const isDark   = themeColors.bg?.includes('950') || themeColors.bg?.includes('slate-900') || false;
   const bg       = isDark ? '#0f172a' : BRAND_COLORS.surface;
   const card     = isDark ? '#1e293b' : '#ffffff';
@@ -220,8 +226,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const muted    = isDark ? '#94a3b8' : BRAND_COLORS.body;
   const border   = isDark ? 'rgba(148,163,184,0.15)' : BRAND_COLORS.borderStrong;
   const canEdit  = userRole === 'admin';
+  const tiposVisibles = tiposDisponibles && tiposDisponibles.length ? tiposDisponibles : TIPOS_VISIBLES;
 
-  const [tipo, setTipo]             = useState<TipoBenchmark>('competencia_directa');
+  const [tipo, setTipo]             = useState<TipoBenchmark>(tiposVisibles[0]);
   const [universidades, setUniversidades] = useState<Universidad[]>([]);
   const [programas, setProgramas]   = useState<Programa[]>([]);
   const [competencias, setCompetencias] = useState<Competencia[]>([]);
@@ -514,6 +521,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const coberturaTipoTotal = coverageRows.reduce((acc, c) => acc + (c.benchmarking?.[tipo]?.total_programas ?? 0), 0);
   const selectedCareerName = carreraSeleccionada?.nombre_carrera || '';
   const isReferenceView = TIPOS_REFERENCIA.includes(tipo);
+  //----------------reorg Gestion (Curricular)----------------
+  // La gestion de fuentes (Competencia Directa/Internacional) vive en
+  // Gestion > Curricular; esta vista de referencia solo compara mallas.
+  const fuenteGestionLabel = `Gestión > Curricular > Benchmarking (${tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'})`;
   const noticeIsOperational = notice
     ? /^(Extracción completada|Normalización completada|Fuente aprobada|Fuente manual)/.test(notice)
     : false;
@@ -707,7 +718,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     <div style={{ padding: 0, color: text }}>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {TIPOS_VISIBLES.map(t => (
+        {tiposVisibles.map(t => (
           <button key={t} onClick={() => setTipo(t)}
             style={{
               padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
@@ -821,7 +832,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           </div>
           {selectedCarrera && !loadingProgs && referenciaUniversidades.length === 0 && (
             <div style={{ marginTop: 10, fontSize: 11, color: '#854d0e', lineHeight: 1.4 }}>
-              No hay mallas extraídas para esta carrera. Primero extrae y normaliza una fuente curricular desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'}.
+              No hay mallas extraídas para esta carrera. Primero extrae y normaliza una fuente curricular desde {fuenteGestionLabel}.
             </div>
           )}
         </div>
@@ -1241,7 +1252,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   Comparador de malla USIL vs referente
                 </div>
                 <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
-                  Esta vista no administra fuentes. Usa las mallas ya extraídas desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'} para comparar contra USIL.
+                  Esta vista no administra fuentes. Usa las mallas ya extraídas desde {fuenteGestionLabel} para comparar contra USIL.
                 </div>
               </div>
               {!selectedCarrera || !selectedReferenciaUniversidad ? (
@@ -1250,7 +1261,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 </div>
               ) : programasReferencia.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center', color: muted, fontSize: 12 }}>
-                  No hay cursos de malla extraídos para esta carrera y universidad. Extrae y normaliza la fuente desde {tipo === 'referente_nacional' ? 'Competencia Directa' : 'Competencia Internacional'}.
+                  No hay cursos de malla extraídos para esta carrera y universidad. Extrae y normaliza la fuente desde {fuenteGestionLabel}.
                 </div>
               ) : (
                 <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>

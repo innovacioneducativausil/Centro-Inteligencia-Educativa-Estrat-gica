@@ -1,10 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ThemeColors } from '../types';
+import BenchmarkingView from './BenchmarkingView';
 
 interface GestionCurricularViewProps {
   themeColors: ThemeColors;
+  userRole?: string;
   onVolver?: () => void;
 }
+
+type SubTab = 'silabos' | 'benchmarking';
 
 interface SilaboRow {
   id_silabo: string;
@@ -32,8 +36,9 @@ async function requestJson(url: string, init?: RequestInit) {
 }
 
 //----------------reorg Gestion (Curricular)----------------
-const GestionCurricularView: React.FC<GestionCurricularViewProps> = ({ themeColors, onVolver }) => {
+const GestionCurricularView: React.FC<GestionCurricularViewProps> = ({ themeColors, userRole, onVolver }) => {
   const isDark = themeColors.bg.includes('950') || themeColors.bg.includes('slate-900');
+  const [subTab, setSubTab] = useState<SubTab>('silabos');
   const [rows, setRows] = useState<SilaboRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,10 +133,12 @@ const GestionCurricularView: React.FC<GestionCurricularViewProps> = ({ themeColo
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#e2e8f0' : '#0F2A3F', marginBottom: 4 }}>
-            Curricular — Mapa de Silabos
+            Curricular — {subTab === 'silabos' ? 'Mapa de Silabos' : 'Benchmarking'}
           </h2>
           <p style={{ fontSize: 12, color: '#94a3b8' }}>
-            El Mapa Curricular se importa/edita directamente en el modulo Curricular. Benchmarking e Impacto Curricular ya tienen edicion propia dentro de sus vistas. Aqui se administran los silabos por curso.
+            {subTab === 'silabos'
+              ? 'El Mapa Curricular se importa/edita directamente en el modulo Curricular. Impacto Curricular ya tiene edicion propia dentro de su vista. Aqui se administran los silabos por curso.'
+              : 'Gestion de fuentes de Competencia Directa y Competencia Internacional: universidades, programas, extraccion y normalizacion. El comparador de solo lectura (Referentes) sigue disponible en el modulo Curricular.'}
           </p>
         </div>
         {onVolver && (
@@ -142,6 +149,26 @@ const GestionCurricularView: React.FC<GestionCurricularViewProps> = ({ themeColo
         )}
       </div>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {([
+          { key: 'silabos' as const, label: 'Sílabos' },
+          { key: 'benchmarking' as const, label: 'Benchmarking' },
+        ]).map(t => (
+          <button key={t.key} type="button" onClick={() => setSubTab(t.key)}
+            style={{
+              border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 800, cursor: 'pointer',
+              background: subTab === t.key ? '#0036DC' : (isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'),
+              color: subTab === t.key ? '#fff' : (isDark ? '#cbd5e1' : '#475569'),
+            }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'benchmarking' ? (
+        <BenchmarkingView themeColors={themeColors} userRole={userRole} tiposDisponibles={['competencia_directa', 'competencia_internacional']} />
+      ) : (
+      <>
       <form onSubmit={submit}
         style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.2fr 1.2fr 1.6fr auto', gap: 10, padding: 14, borderRadius: 12, background: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(15,42,63,0.07)'}`, marginBottom: 16, position: 'relative' }}>
         <div style={{ position: 'relative' }}>
@@ -218,6 +245,8 @@ const GestionCurricularView: React.FC<GestionCurricularViewProps> = ({ themeColo
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };

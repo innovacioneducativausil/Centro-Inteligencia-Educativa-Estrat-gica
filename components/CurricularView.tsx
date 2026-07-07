@@ -544,7 +544,9 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
 
       {activeTab === 'benchmarking' && (
-        <BenchmarkingView themeColors={C} userRole={userRole} />
+        // La gestion de fuentes (Competencia Directa/Internacional) se movio a
+        // Gestion > Curricular; aqui solo queda el comparador de referencia.
+        <BenchmarkingView themeColors={C} userRole={userRole} tiposDisponibles={['referente_nacional', 'referente_internacional']} />
       )}
 
 
