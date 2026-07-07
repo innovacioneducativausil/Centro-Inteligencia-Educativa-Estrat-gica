@@ -62,8 +62,15 @@ const allowedOrigins = process.env.CORS_ORIGINS
     ];
 
 
+//----------------TI-38----------------
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
+  // HSTS: fuerza HTTPS por 1 año, incluye subdominios (TI-38 / TI-50)
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
