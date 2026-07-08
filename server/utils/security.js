@@ -23,6 +23,9 @@ const RICH_TEXT_ATTRS = {
   pre: ['class'],
 };
 
+//----------------TI-60----------------
+// Sanitiza HTML enriquecido (control OWASP anti-XSS): solo permite un set
+// acotado de tags/atributos y fuerza rel=noopener/noreferrer en enlaces.
 export function sanitizeRichHtml(value) {
   return sanitizeHtmlLib(String(value ?? ''), {
     allowedTags: RICH_TEXT_TAGS,
@@ -92,6 +95,9 @@ function isPrivateIp(ip) {
   return true;
 }
 
+//----------------TI-60----------------
+// Guardia anti-SSRF (control OWASP): rechaza IPs privadas/localhost y
+// resuelve el DNS para verificar que ningun registro apunte a red interna.
 export async function isSafePublicHttpUrl(rawUrl) {
   let parsed;
   try {

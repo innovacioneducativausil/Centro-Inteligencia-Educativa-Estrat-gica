@@ -7,7 +7,9 @@ export function getClientIp(req) {
     .trim() || null;
 }
 
-//----------------TI-44 / TI-59----------------
+//----------------TI-44 / TI-59 / TI-35----------------
+// Punto unico de escritura del log de operacion (centralizado en una sola
+// tabla, actividad_usuario); ver actividadMaintenance.js para la retencion.
 export async function auditEvent(req, {
   evento,
   modulo = null,

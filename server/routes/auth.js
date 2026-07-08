@@ -13,10 +13,14 @@ const JWT_EXPIRES = process.env.JWT_EXPIRES || '8h';
 const AUTH_COOKIE = 'radar_token';
 const COOKIE_MAX_AGE_MS = 8 * 60 * 60 * 1000;
 const OTP_EXPIRES_MS = 5 * 60 * 1000;
-//----------------TI-53----------------
+//----------------TI-53 / TI-60----------------
+// Bloqueo de cuenta tras intentos fallidos (control OWASP de fuerza bruta).
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 
+//----------------TI-38----------------
+// Cookie de sesion: httpOnly (no accesible por JS), secure en produccion
+// (solo viaja por HTTPS), sameSite=lax (mitiga CSRF basico).
 function authCookieOptions() {
   return {
     httpOnly: true,
@@ -99,7 +103,9 @@ async function createOtpForUser(user, purpose) {
   });
 }
 
-//----------------TI-53----------------
+//----------------TI-53 / TI-60----------------
+// Politica de contrasena (control OWASP): minimo 8 caracteres, mayuscula,
+// numero y simbolo.
 function validatePasswordPolicy(password) {
   if (!password || password.length < 8) return 'La contrasena debe tener minimo 8 caracteres.';
   if (!/[A-Z]/.test(password)) return 'La contrasena debe contener al menos una letra mayuscula.';

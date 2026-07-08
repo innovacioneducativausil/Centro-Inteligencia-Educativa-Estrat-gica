@@ -2,6 +2,9 @@
 
 import db from '../db.js';
 
+//----------------TI-35----------------
+// Retencion de logs de operacion (centralizados en actividad_usuario):
+// 365 dias por defecto, configurable con ACTIVIDAD_RETENTION_DAYS.
 const RETENTION_DAYS = Math.max(30, Number(process.env.ACTIVIDAD_RETENTION_DAYS || 365));
 
 //----------------TI-44 / TI-59----------------
@@ -53,7 +56,8 @@ export async function ensureActividadSupport() {
   }
 }
 
-//----------------TI-44 / TI-59----------------
+//----------------TI-44 / TI-59 / TI-35----------------
+// Limpieza periodica que aplica la retencion de logs de operacion.
 export async function cleanupOldActividad() {
   try {
     const [result] = await db.query(

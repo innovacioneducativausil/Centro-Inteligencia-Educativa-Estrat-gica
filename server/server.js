@@ -101,6 +101,9 @@ app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
 
+//----------------TI-60----------------
+// Rate limiting (control OWASP de fuerza bruta / DoS basico): limite
+// general de API y uno mas estricto para autenticacion.
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1200,
