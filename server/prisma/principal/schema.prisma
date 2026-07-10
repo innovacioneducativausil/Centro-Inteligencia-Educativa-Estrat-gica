@@ -1,0 +1,455 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../generated/prisma/radar"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("RADAR_DATABASE_URL")
+}
+
+model actividad_usuario {
+  id              Int      @id @default(autoincrement()) @db.UnsignedInt
+  id_usuario      String?  @db.VarChar(36)
+  correo          String?  @db.VarChar(255)
+  rol             String?  @db.VarChar(50)
+  evento          String   @db.VarChar(100)
+  accion          String?  @db.VarChar(100)
+  modulo          String?  @db.VarChar(100)
+  entidad         String?  @db.VarChar(100)
+  entidad_id      String?  @db.VarChar(100)
+  elemento_uuid   String?  @db.VarChar(36)
+  elemento_tipo   String?  @db.VarChar(50)
+  elemento_titulo String?  @db.VarChar(500)
+  detalle         String?  @db.Text
+  ip              String?  @db.VarChar(45)
+  user_agent      String?  @db.Text
+  metadata        Json?
+  fecha_hora      DateTime @default(now()) @db.DateTime(0)
+
+  @@index([correo], map: "idx_correo")
+  @@index([evento], map: "idx_evento")
+  @@index([fecha_hora], map: "idx_fecha")
+}
+
+model alerta_generada {
+  id_alerta           BigInt    @id @default(autoincrement())
+  id_regla            String    @db.VarChar(36)
+  metrica             String    @db.VarChar(50)
+  valor_medido        Decimal   @db.Decimal(12, 2)
+  valor_umbral        Decimal   @db.Decimal(12, 2)
+  mensaje             String    @db.VarChar(500)
+  fecha_generada      DateTime  @default(now()) @db.DateTime(0)
+  atendida            Boolean   @default(false)
+  atendida_por        String?   @db.VarChar(36)
+  fecha_atendida      DateTime? @db.DateTime(0)
+  elementos_afectados Json?
+
+  @@index([atendida], map: "idx_atendida")
+  @@index([id_regla], map: "idx_regla")
+}
+
+model alerta_metrica_historial {
+  id_historial   BigInt   @id @default(autoincrement())
+  metrica        String   @db.VarChar(50)
+  valor          Decimal  @db.Decimal(12, 2)
+  fecha_medicion DateTime @default(now()) @db.DateTime(0)
+
+  @@index([metrica, fecha_medicion], map: "idx_metrica_fecha")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model escenario {
+  id_escenario                                       String                @id @db.Char(36)
+  titulo_escenario                                   String                @db.VarChar(180)
+  nombre_escenario                                   String                @unique(map: "nombre_escenario") @db.VarChar(100)
+  desc_corta_escenario                               String                @db.Text
+  desc_larga_escenario                               String                @db.Text
+  razon_cambio                                       String?               @db.Text
+  url_video_escenario                                String?               @db.VarChar(500)
+  url_imagen_escenario                               String?               @db.VarChar(500)
+  fuente_escenario                                   String?               @db.VarChar(300)
+  url_fuente                                         String?               @db.Text
+  id_estado                                          Int                   @default(1)
+  id_usuario_creador                                 String                @db.Char(36)
+  id_usuario_actualizador                            String?               @db.Char(36)
+  fecha_publicacion                                  DateTime?             @db.Timestamp(0)
+  fecha_creacion                                     DateTime              @default(now()) @db.Timestamp(0)
+  fecha_actualizacion                                DateTime              @default(now()) @db.Timestamp(0)
+  horizonte_escenario                                String?               @db.VarChar(20)
+  probabilidad                                       Int?                  @db.TinyInt
+  id_topico                                          Int?
+  fecha_archivado                                    DateTime?             @db.DateTime(0)
+  autor                                              String?               @db.VarChar(160)
+  referencias_escenario                              String?               @db.Text
+  estado                                             estado                @relation(fields: [id_estado], references: [id_estado], onUpdate: NoAction, map: "escenario_ibfk_1")
+  usuario_escenario_id_usuario_creadorTousuario      usuario               @relation("escenario_id_usuario_creadorTousuario", fields: [id_usuario_creador], references: [id_usuario], onUpdate: NoAction, map: "escenario_ibfk_2")
+  usuario_escenario_id_usuario_actualizadorTousuario usuario?              @relation("escenario_id_usuario_actualizadorTousuario", fields: [id_usuario_actualizador], references: [id_usuario], onUpdate: NoAction, map: "escenario_ibfk_3")
+  topico                                             topico?               @relation(fields: [id_topico], references: [id_topico], onUpdate: NoAction, map: "escenario_ibfk_4")
+  escenario_pestel                                   escenario_pestel[]
+  escenario_sector                                   escenario_sector[]
+  escenario_senal                                    escenario_senal[]
+  escenario_tendencia                                escenario_tendencia[]
+  senal_escenario                                    senal_escenario[]
+  tendencia_escenario                                tendencia_escenario[]
+
+  @@index([id_topico], map: "id_topico")
+  @@index([id_usuario_actualizador], map: "id_usuario_actualizador")
+  @@index([id_usuario_creador], map: "idx_escenario_creador")
+  @@index([id_estado], map: "idx_escenario_estado")
+  @@index([fecha_publicacion], map: "idx_escenario_fecha_pub")
+  @@index([nombre_escenario], map: "idx_escenario_nombre")
+}
+
+model escenario_pestel {
+  id_escenario String    @db.Char(36)
+  id_pestel    Int
+  escenario    escenario @relation(fields: [id_escenario], references: [id_escenario], onDelete: Cascade, onUpdate: NoAction, map: "escenario_pestel_ibfk_1")
+  pestel       pestel    @relation(fields: [id_pestel], references: [id_pestel], onDelete: Cascade, onUpdate: NoAction, map: "escenario_pestel_ibfk_2")
+
+  @@id([id_escenario, id_pestel])
+  @@index([id_pestel], map: "idx_escenario_pestel_pestel")
+}
+
+model escenario_sector {
+  id_escenario String    @db.Char(36)
+  id_sector    String    @db.VarChar(5)
+  escenario    escenario @relation(fields: [id_escenario], references: [id_escenario], onDelete: Cascade, onUpdate: NoAction, map: "escenario_sector_ibfk_1")
+  sector       sector    @relation(fields: [id_sector], references: [id_sector], onDelete: Cascade, onUpdate: NoAction, map: "escenario_sector_ibfk_2")
+
+  @@id([id_escenario, id_sector])
+  @@index([id_sector], map: "idx_escenario_sector_sector")
+}
+
+model escenario_senal {
+  id_escenario String    @db.Char(36)
+  id_senal     String    @db.Char(36)
+  escenario    escenario @relation(fields: [id_escenario], references: [id_escenario], onDelete: Cascade, onUpdate: NoAction, map: "escenario_senal_ibfk_1")
+  senal        senal     @relation(fields: [id_senal], references: [id_senal], onDelete: Cascade, onUpdate: NoAction, map: "escenario_senal_ibfk_2")
+
+  @@id([id_escenario, id_senal])
+  @@index([id_senal], map: "idx_escenario_senal_senal")
+}
+
+model escenario_tendencia {
+  id_escenario String    @db.Char(36)
+  id_tendencia String    @db.Char(36)
+  escenario    escenario @relation(fields: [id_escenario], references: [id_escenario], onDelete: Cascade, onUpdate: NoAction, map: "escenario_tendencia_ibfk_1")
+  tendencia    tendencia @relation(fields: [id_tendencia], references: [id_tendencia], onDelete: Cascade, onUpdate: NoAction, map: "escenario_tendencia_ibfk_2")
+
+  @@id([id_escenario, id_tendencia])
+  @@index([id_tendencia], map: "idx_escenario_tendencia_tendencia")
+}
+
+model estado {
+  id_estado            Int         @id @default(autoincrement())
+  nombre_estado        String      @unique(map: "nombre_estado") @db.VarChar(50)
+  slug_estado          String      @unique(map: "slug_estado") @db.VarChar(50)
+  desc_estado          String?     @db.Text
+  es_visible_publico   Boolean     @default(false)
+  es_editable          Boolean     @default(true)
+  permite_transicion_a String?     @db.VarChar(200)
+  color                String      @db.VarChar(7)
+  icono                String?     @db.VarChar(10)
+  orden_display        Int         @default(0)
+  activo               Boolean     @default(true)
+  fecha_creacion       DateTime    @default(now()) @db.Timestamp(0)
+  fecha_actualizacion  DateTime    @default(now()) @db.Timestamp(0)
+  escenario            escenario[]
+  senal                senal[]
+  tendencia            tendencia[]
+
+  @@index([activo], map: "idx_estado_activo")
+  @@index([es_visible_publico], map: "idx_estado_visible")
+}
+
+model informe_empleabilidad {
+  id             Int                                @id @default(autoincrement())
+  nombre         String                             @db.VarChar(255)
+  anio           Int
+  unidad         String                             @db.VarChar(100)
+  facultad       String                             @default("No aplica") @db.VarChar(150)
+  url_descarga   String?                            @db.Text
+  tipo_acceso    informe_empleabilidad_tipo_acceso? @default(descarga)
+  activo         Boolean?                           @default(true)
+  fecha_creacion DateTime?                          @default(now()) @db.Timestamp(0)
+}
+
+model pestel {
+  id_pestel           Int                @id @default(autoincrement())
+  nombre_pestel       String             @unique(map: "nombre_pestel") @db.VarChar(50)
+  slug_pestel         String             @unique(map: "slug_pestel") @db.VarChar(50)
+  letra_codigo        String             @unique(map: "letra_codigo") @db.Char(2)
+  desc_pestel         String             @db.Text
+  ejemplos            String?            @db.Text
+  emoji               String?            @db.VarChar(10)
+  color               String             @db.VarChar(7)
+  orden_display       Int                @default(0)
+  activo              Boolean            @default(true)
+  fecha_creacion      DateTime           @default(now()) @db.Timestamp(0)
+  fecha_actualizacion DateTime           @default(now()) @db.Timestamp(0)
+  escenario_pestel    escenario_pestel[]
+  senal_pestel        senal_pestel[]
+  tendencia_pestel    tendencia_pestel[]
+
+  @@index([activo], map: "idx_pestel_activo")
+  @@index([orden_display], map: "idx_pestel_orden")
+}
+
+model regla_alerta {
+  id_regla            String   @id @db.VarChar(36)
+  nombre              String   @db.VarChar(150)
+  metrica             String   @db.VarChar(50)
+  operador            String   @db.VarChar(2)
+  valor_umbral        Decimal  @db.Decimal(12, 2)
+  activa              Boolean  @default(true)
+  creado_por          String?  @db.VarChar(36)
+  fecha_creacion      DateTime @default(now()) @db.DateTime(0)
+  fecha_actualizacion DateTime @default(now()) @db.DateTime(0)
+}
+
+model sector {
+  id_sector           String             @id @db.VarChar(5)
+  nombre_sector       String             @unique(map: "nombre_sector") @db.VarChar(100)
+  slug_sector         String             @unique(map: "slug_sector") @db.VarChar(100)
+  desc_sector         String?            @db.Text
+  emoji               String?            @db.VarChar(10)
+  color               String             @db.VarChar(7)
+  icono_url           String?            @db.VarChar(500)
+  orden_display       Int                @default(0)
+  activo              Boolean            @default(true)
+  fecha_creacion      DateTime           @default(now()) @db.Timestamp(0)
+  fecha_actualizacion DateTime           @default(now()) @db.Timestamp(0)
+  escenario_sector    escenario_sector[]
+  senal_sector        senal_sector[]
+  tendencia_sector    tendencia_sector[]
+
+  @@index([activo], map: "idx_sector_activo")
+  @@index([orden_display], map: "idx_sector_orden")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model senal {
+  id_senal                                       String            @id @db.Char(36)
+  titulo_senal                                   String            @db.VarChar(180)
+  nombre_senal                                   String            @unique(map: "nombre_senal") @db.VarChar(100)
+  desc_corta_senal                               String            @db.Text
+  desc_larga_senal                               String            @db.Text
+  razon_cambio                                   String?           @db.Text
+  url_video_senal                                String?           @db.VarChar(500)
+  pais_origen                                    String?           @db.VarChar(100)
+  fecha_senal_articulo                           DateTime?         @db.Date
+  url_imagen_senal                               String?           @db.VarChar(500)
+  fuente_senal                                   String            @db.VarChar(300)
+  url_fuente                                     String            @db.VarChar(500)
+  id_tendencia                                   String?           @db.Char(36)
+  id_estado                                      Int               @default(1)
+  id_usuario_creador                             String            @db.Char(36)
+  id_usuario_actualizador                        String?           @db.Char(36)
+  fecha_publicacion                              DateTime?         @db.Timestamp(0)
+  fecha_creacion                                 DateTime          @default(now()) @db.Timestamp(0)
+  fecha_actualizacion                            DateTime          @default(now()) @db.Timestamp(0)
+  id_topico                                      Int?
+  fecha_archivado                                DateTime?         @db.DateTime(0)
+  autor                                          String?           @db.VarChar(160)
+  escenario_senal                                escenario_senal[]
+  tendencia                                      tendencia?        @relation(fields: [id_tendencia], references: [id_tendencia], onUpdate: NoAction, map: "senal_ibfk_1")
+  estado                                         estado            @relation(fields: [id_estado], references: [id_estado], onUpdate: NoAction, map: "senal_ibfk_2")
+  usuario_senal_id_usuario_creadorTousuario      usuario           @relation("senal_id_usuario_creadorTousuario", fields: [id_usuario_creador], references: [id_usuario], onUpdate: NoAction, map: "senal_ibfk_3")
+  usuario_senal_id_usuario_actualizadorTousuario usuario?          @relation("senal_id_usuario_actualizadorTousuario", fields: [id_usuario_actualizador], references: [id_usuario], onUpdate: NoAction, map: "senal_ibfk_4")
+  topico                                         topico?           @relation(fields: [id_topico], references: [id_topico], onUpdate: NoAction, map: "senal_ibfk_5")
+  senal_escenario                                senal_escenario[]
+  senal_pestel                                   senal_pestel[]
+  senal_sector                                   senal_sector[]
+  senal_tendencia                                senal_tendencia[]
+
+  @@index([id_topico], map: "id_topico")
+  @@index([id_usuario_actualizador], map: "id_usuario_actualizador")
+  @@index([id_usuario_creador], map: "idx_senal_creador")
+  @@index([id_estado], map: "idx_senal_estado")
+  @@index([fecha_publicacion], map: "idx_senal_fecha_pub")
+  @@index([nombre_senal], map: "idx_senal_nombre")
+  @@index([id_tendencia], map: "idx_senal_tendencia")
+}
+
+model senal_escenario {
+  id_senal     String    @db.Char(36)
+  id_escenario String    @db.Char(36)
+  senal        senal     @relation(fields: [id_senal], references: [id_senal], onDelete: Cascade, onUpdate: NoAction, map: "senal_escenario_ibfk_1")
+  escenario    escenario @relation(fields: [id_escenario], references: [id_escenario], onDelete: Cascade, onUpdate: NoAction, map: "senal_escenario_ibfk_2")
+
+  @@id([id_senal, id_escenario])
+  @@index([id_escenario], map: "id_escenario")
+}
+
+model senal_pestel {
+  id_senal  String @db.Char(36)
+  id_pestel Int
+  senal     senal  @relation(fields: [id_senal], references: [id_senal], onDelete: Cascade, onUpdate: NoAction, map: "senal_pestel_ibfk_1")
+  pestel    pestel @relation(fields: [id_pestel], references: [id_pestel], onDelete: Cascade, onUpdate: NoAction, map: "senal_pestel_ibfk_2")
+
+  @@id([id_senal, id_pestel])
+  @@index([id_pestel], map: "idx_senal_pestel_pestel")
+}
+
+model senal_sector {
+  id_senal  String @db.Char(36)
+  id_sector String @db.VarChar(5)
+  senal     senal  @relation(fields: [id_senal], references: [id_senal], onDelete: Cascade, onUpdate: NoAction, map: "senal_sector_ibfk_1")
+  sector    sector @relation(fields: [id_sector], references: [id_sector], onDelete: Cascade, onUpdate: NoAction, map: "senal_sector_ibfk_2")
+
+  @@id([id_senal, id_sector])
+  @@index([id_sector], map: "idx_senal_sector_sector")
+}
+
+model senal_tendencia {
+  id_senal     String    @db.Char(36)
+  id_tendencia String    @db.Char(36)
+  senal        senal     @relation(fields: [id_senal], references: [id_senal], onDelete: Cascade, onUpdate: NoAction, map: "senal_tendencia_ibfk_1")
+  tendencia    tendencia @relation(fields: [id_tendencia], references: [id_tendencia], onDelete: Cascade, onUpdate: NoAction, map: "senal_tendencia_ibfk_2")
+
+  @@id([id_senal, id_tendencia])
+  @@index([id_tendencia], map: "id_tendencia")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tendencia {
+  id_tendencia                                       String                   @id @db.Char(36)
+  titulo_tendencia                                   String                   @db.VarChar(180)
+  nombre_tendencia                                   String                   @unique(map: "nombre_tendencia") @db.VarChar(100)
+  desc_corta_tendencia                               String                   @db.Text
+  desc_larga_tendencia                               String                   @db.Text
+  razon_cambio                                       String?                  @db.Text
+  url_video_tendencia                                String?                  @db.VarChar(500)
+  url_imagen_tendencia                               String?                  @db.VarChar(500)
+  fuente_tendencia                                   String?                  @db.VarChar(300)
+  url_fuente                                         String?                  @db.VarChar(500)
+  pais_origen                                        String?                  @db.VarChar(100)
+  logica                                             String?                  @db.Text
+  id_estado                                          Int                      @default(1)
+  id_usuario_creador                                 String                   @db.Char(36)
+  id_usuario_actualizador                            String?                  @db.Char(36)
+  fecha_publicacion                                  DateTime?                @db.Timestamp(0)
+  fecha_creacion                                     DateTime                 @default(now()) @db.Timestamp(0)
+  fecha_actualizacion                                DateTime                 @default(now()) @db.Timestamp(0)
+  id_topico                                          Int?
+  fecha_archivado                                    DateTime?                @db.DateTime(0)
+  autor                                              String?                  @db.VarChar(160)
+  escenario_tendencia                                escenario_tendencia[]
+  senal                                              senal[]
+  senal_tendencia                                    senal_tendencia[]
+  estado                                             estado                   @relation(fields: [id_estado], references: [id_estado], onUpdate: NoAction, map: "tendencia_ibfk_1")
+  usuario_tendencia_id_usuario_creadorTousuario      usuario                  @relation("tendencia_id_usuario_creadorTousuario", fields: [id_usuario_creador], references: [id_usuario], onUpdate: NoAction, map: "tendencia_ibfk_2")
+  usuario_tendencia_id_usuario_actualizadorTousuario usuario?                 @relation("tendencia_id_usuario_actualizadorTousuario", fields: [id_usuario_actualizador], references: [id_usuario], onUpdate: NoAction, map: "tendencia_ibfk_3")
+  topico                                             topico?                  @relation(fields: [id_topico], references: [id_topico], onUpdate: NoAction, map: "tendencia_ibfk_4")
+  tendencia_escenario                                tendencia_escenario[]
+  tendencia_pestel                                   tendencia_pestel[]
+  tendencia_sector                                   tendencia_sector[]
+  topico_relac_tendencia                             topico_relac_tendencia[]
+
+  @@index([id_topico], map: "id_topico")
+  @@index([id_usuario_actualizador], map: "id_usuario_actualizador")
+  @@index([id_usuario_creador], map: "idx_tendencia_creador")
+  @@index([id_estado], map: "idx_tendencia_estado")
+  @@index([fecha_publicacion], map: "idx_tendencia_fecha_pub")
+  @@index([nombre_tendencia], map: "idx_tendencia_nombre")
+}
+
+model tendencia_escenario {
+  id_tendencia String    @db.Char(36)
+  id_escenario String    @db.Char(36)
+  tendencia    tendencia @relation(fields: [id_tendencia], references: [id_tendencia], onDelete: Cascade, onUpdate: NoAction, map: "tendencia_escenario_ibfk_1")
+  escenario    escenario @relation(fields: [id_escenario], references: [id_escenario], onDelete: Cascade, onUpdate: NoAction, map: "tendencia_escenario_ibfk_2")
+
+  @@id([id_tendencia, id_escenario])
+  @@index([id_escenario], map: "id_escenario")
+}
+
+model tendencia_pestel {
+  id_tendencia String    @db.Char(36)
+  id_pestel    Int
+  tendencia    tendencia @relation(fields: [id_tendencia], references: [id_tendencia], onDelete: Cascade, onUpdate: NoAction, map: "tendencia_pestel_ibfk_1")
+  pestel       pestel    @relation(fields: [id_pestel], references: [id_pestel], onDelete: Cascade, onUpdate: NoAction, map: "tendencia_pestel_ibfk_2")
+
+  @@id([id_tendencia, id_pestel])
+  @@index([id_pestel], map: "idx_tendencia_pestel_pestel")
+}
+
+model tendencia_sector {
+  id_tendencia String    @db.Char(36)
+  id_sector    String    @db.VarChar(5)
+  tendencia    tendencia @relation(fields: [id_tendencia], references: [id_tendencia], onDelete: Cascade, onUpdate: NoAction, map: "tendencia_sector_ibfk_1")
+  sector       sector    @relation(fields: [id_sector], references: [id_sector], onDelete: Cascade, onUpdate: NoAction, map: "tendencia_sector_ibfk_2")
+
+  @@id([id_tendencia, id_sector])
+  @@index([id_sector], map: "idx_tendencia_sector_sector")
+}
+
+model topico {
+  id_topico              Int                      @id @default(autoincrement())
+  nombre                 String                   @unique(map: "nombre") @db.VarChar(100)
+  descripcion            String?                  @db.VarChar(300)
+  activo                 Boolean                  @default(true)
+  escenario              escenario[]
+  senal                  senal[]
+  tendencia              tendencia[]
+  topico_relac_tendencia topico_relac_tendencia[]
+}
+
+model topico_relac_tendencia {
+  id_topico    Int
+  id_tendencia String    @db.Char(36)
+  topico       topico    @relation(fields: [id_topico], references: [id_topico], onDelete: Cascade, onUpdate: NoAction, map: "topico_relac_tendencia_ibfk_1")
+  tendencia    tendencia @relation(fields: [id_tendencia], references: [id_tendencia], onDelete: Cascade, onUpdate: NoAction, map: "topico_relac_tendencia_ibfk_2")
+
+  @@id([id_topico, id_tendencia])
+  @@index([id_tendencia], map: "id_tendencia")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model usuario {
+  id_usuario                                           String      @id @db.Char(36)
+  nombre_usuario                                       String      @db.VarChar(100)
+  nombre_corto                                         String?     @db.VarChar(50)
+  correo_usuario                                       String      @unique(map: "correo_usuario") @db.VarChar(200)
+  password_hash                                        String      @db.VarChar(255)
+  rol                                                  String      @default("usuario") @db.VarChar(50)
+  permisos_extra                                       Json?
+  activo                                               Boolean     @default(true)
+  ultimo_acceso                                        DateTime?   @db.Timestamp(0)
+  email_verificado                                     Boolean     @default(false)
+  token_verificacion                                   String?     @db.VarChar(255)
+  token_expiracion                                     DateTime?   @db.Timestamp(0)
+  actualizado_por                                      String?     @db.Char(36)
+  fecha_creacion                                       DateTime    @default(now()) @db.Timestamp(0)
+  fecha_actualizacion                                  DateTime    @default(now()) @db.Timestamp(0)
+  reset_token                                          String?     @db.VarChar(64)
+  reset_token_expires                                  DateTime?   @db.DateTime(0)
+  otp_hash                                             String?     @db.VarChar(64)
+  otp_expires                                          DateTime?   @db.DateTime(0)
+  otp_attempts                                         Int         @default(0) @db.TinyInt
+  otp_purpose                                          String?     @db.VarChar(20)
+  failed_login_attempts                                Int         @default(0) @db.TinyInt
+  locked_until                                         DateTime?   @db.DateTime(0)
+  password_changed_at                                  DateTime?   @db.DateTime(0)
+  modulos_permitidos                                   Json?
+  eliminado_en                                         DateTime?   @db.DateTime(0)
+  escenario_escenario_id_usuario_creadorTousuario      escenario[] @relation("escenario_id_usuario_creadorTousuario")
+  escenario_escenario_id_usuario_actualizadorTousuario escenario[] @relation("escenario_id_usuario_actualizadorTousuario")
+  senal_senal_id_usuario_creadorTousuario              senal[]     @relation("senal_id_usuario_creadorTousuario")
+  senal_senal_id_usuario_actualizadorTousuario         senal[]     @relation("senal_id_usuario_actualizadorTousuario")
+  tendencia_tendencia_id_usuario_creadorTousuario      tendencia[] @relation("tendencia_id_usuario_creadorTousuario")
+  tendencia_tendencia_id_usuario_actualizadorTousuario tendencia[] @relation("tendencia_id_usuario_actualizadorTousuario")
+  usuario                                              usuario?    @relation("usuarioTousuario", fields: [actualizado_por], references: [id_usuario], onUpdate: NoAction, map: "usuario_ibfk_1")
+  other_usuario                                        usuario[]   @relation("usuarioTousuario")
+
+  @@index([actualizado_por], map: "actualizado_por")
+  @@index([activo], map: "idx_usuario_activo")
+  @@index([correo_usuario], map: "idx_usuario_correo")
+  @@index([rol], map: "idx_usuario_rol")
+}
+
+enum informe_empleabilidad_tipo_acceso {
+  descarga
+  sharepoint
+}
