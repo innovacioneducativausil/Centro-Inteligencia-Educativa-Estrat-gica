@@ -1,0 +1,547 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../generated/prisma/empleabilidad"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("EMPLEABILIDAD_DATABASE_URL")
+}
+
+model benchmark_parse_log {
+  id_parse_log              Int                        @id @default(autoincrement()) @db.UnsignedInt
+  id_programa_benchmark     Int                        @db.UnsignedInt
+  id_snapshot               Int?                       @db.UnsignedInt
+  parser_usado              String                     @db.VarChar(80)
+  estado                    benchmark_parse_log_estado @default(ok)
+  cursos_detectados         Int                        @default(0) @db.UnsignedInt
+  detalle                   String?                    @db.Text
+  created_at                DateTime?                  @default(now()) @db.Timestamp(0)
+  programa_benchmark        programa_benchmark         @relation(fields: [id_programa_benchmark], references: [id_programa_benchmark], onDelete: Cascade, onUpdate: NoAction, map: "fk_bpl_programa")
+  benchmark_source_snapshot benchmark_source_snapshot? @relation(fields: [id_snapshot], references: [id_snapshot], onUpdate: NoAction, map: "fk_bpl_snapshot")
+
+  @@index([id_programa_benchmark], map: "idx_bpl_programa")
+  @@index([id_snapshot], map: "idx_bpl_snapshot")
+}
+
+model benchmark_program_equivalence {
+  id_equivalence          Int                                              @id @default(autoincrement()) @db.UnsignedInt
+  id_programa_benchmark   Int                                              @unique(map: "uk_equivalence_programa") @db.UnsignedInt
+  nombre_oficial_sugerido String?                                          @db.VarChar(300)
+  aliases_json            Json?
+  nivel_equivalencia      benchmark_program_equivalence_nivel_equivalencia @default(cercana)
+  observaciones           String?                                          @db.Text
+  created_at              DateTime?                                        @default(now()) @db.Timestamp(0)
+  updated_at              DateTime?                                        @default(now()) @db.Timestamp(0)
+  programa_benchmark      programa_benchmark                               @relation(fields: [id_programa_benchmark], references: [id_programa_benchmark], onDelete: Cascade, onUpdate: NoAction, map: "fk_equivalence_programa")
+}
+
+model benchmark_source {
+  id_benchmark_source       Int                          @id @default(autoincrement()) @db.UnsignedInt
+  id_programa_benchmark     Int                          @db.UnsignedInt
+  tipo_fuente               benchmark_source_tipo_fuente @default(pagina_programa)
+  titulo                    String                       @db.VarChar(300)
+  url                       String                       @db.VarChar(1200)
+  estado                    benchmark_source_estado      @default(registrado)
+  es_fuente_principal       Boolean                      @default(false)
+  fecha_captura             DateTime?                    @db.DateTime(0)
+  fecha_validacion          DateTime?                    @db.DateTime(0)
+  validado_por              String?                      @db.VarChar(160)
+  extractor                 String?                      @db.VarChar(80)
+  extractor_version         String?                      @db.VarChar(40)
+  evidencia_resumen         String?                      @db.Text
+  observaciones             String?                      @db.Text
+  snapshot_hash             String?                      @db.VarChar(128)
+  activo                    Boolean                      @default(true)
+  created_at                DateTime?                    @default(now()) @db.Timestamp(0)
+  updated_at                DateTime?                    @default(now()) @db.Timestamp(0)
+  programa_benchmark        programa_benchmark           @relation(fields: [id_programa_benchmark], references: [id_programa_benchmark], onDelete: Cascade, onUpdate: NoAction, map: "fk_bs_programa")
+  benchmark_source_snapshot benchmark_source_snapshot[]
+
+  @@unique([id_programa_benchmark, url(length: 255)], map: "uk_benchmark_source_url")
+  @@index([estado], map: "idx_bs_estado")
+  @@index([id_programa_benchmark], map: "idx_bs_programa")
+  @@index([tipo_fuente], map: "idx_bs_tipo")
+}
+
+model benchmark_source_candidate {
+  id_candidate          Int                                              @id @default(autoincrement()) @db.UnsignedInt
+  id_programa_benchmark Int                                              @db.UnsignedInt
+  url                   String                                           @db.VarChar(1200)
+  titulo                String?                                          @db.VarChar(400)
+  snippet               String?                                          @db.Text
+  tipo_fuente_detectado benchmark_source_candidate_tipo_fuente_detectado @default(otra)
+  score_total           Decimal                                          @default(0.00) @db.Decimal(6, 2)
+  score_detalle_json    Json?
+  estado                benchmark_source_candidate_estado                @default(candidato)
+  motivo                String?                                          @db.Text
+  buscado_en            DateTime                                         @default(now()) @db.DateTime(0)
+  revisado_en           DateTime?                                        @db.DateTime(0)
+  revisado_por          String?                                          @db.VarChar(160)
+  created_at            DateTime?                                        @default(now()) @db.Timestamp(0)
+  updated_at            DateTime?                                        @default(now()) @db.Timestamp(0)
+  programa_benchmark    programa_benchmark                               @relation(fields: [id_programa_benchmark], references: [id_programa_benchmark], onDelete: Cascade, onUpdate: NoAction, map: "fk_candidate_programa")
+
+  @@unique([id_programa_benchmark, url(length: 255)], map: "uk_candidate_program_url")
+  @@index([estado], map: "idx_candidate_estado")
+  @@index([id_programa_benchmark], map: "idx_candidate_programa")
+  @@index([score_total], map: "idx_candidate_score")
+}
+
+model benchmark_source_snapshot {
+  id_snapshot           Int                                     @id @default(autoincrement()) @db.UnsignedInt
+  id_benchmark_source   Int?                                    @db.UnsignedInt
+  id_programa_benchmark Int                                     @db.UnsignedInt
+  url                   String                                  @db.VarChar(1200)
+  url_final             String?                                 @db.VarChar(1200)
+  titulo                String?                                 @db.VarChar(500)
+  texto_extraido        String?                                 @db.MediumText
+  hash_contenido        String                                  @db.VarChar(128)
+  parser_usado          String?                                 @db.VarChar(80)
+  estado_parseo         benchmark_source_snapshot_estado_parseo @default(sin_parsear)
+  cursos_detectados     Int                                     @default(0) @db.UnsignedInt
+  observaciones         String?                                 @db.Text
+  fecha_captura         DateTime                                @default(now()) @db.DateTime(0)
+  created_at            DateTime?                               @default(now()) @db.Timestamp(0)
+  benchmark_parse_log   benchmark_parse_log[]
+  benchmark_source      benchmark_source?                       @relation(fields: [id_benchmark_source], references: [id_benchmark_source], onUpdate: NoAction, map: "fk_bss_fuente")
+  programa_benchmark    programa_benchmark                      @relation(fields: [id_programa_benchmark], references: [id_programa_benchmark], onDelete: Cascade, onUpdate: NoAction, map: "fk_bss_programa")
+
+  @@index([id_benchmark_source], map: "idx_bss_fuente")
+  @@index([hash_contenido], map: "idx_bss_hash")
+  @@index([id_programa_benchmark], map: "idx_bss_programa")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model carrera {
+  id_carrera       Int           @id @default(autoincrement()) @db.UnsignedInt
+  nombre_carrera   String        @db.VarChar(200)
+  id_facultad      Int           @db.UnsignedInt
+  id_tipo_programa Int           @db.UnsignedInt
+  created_at       DateTime?     @default(now()) @db.Timestamp(0)
+  facultad         facultad      @relation(fields: [id_facultad], references: [id_facultad], onDelete: NoAction, onUpdate: NoAction, map: "fk_carrera_facultad")
+  tipo_programa    tipo_programa @relation(fields: [id_tipo_programa], references: [id_tipo_programa], onDelete: NoAction, onUpdate: NoAction, map: "fk_carrera_tipo_programa")
+  egresado         egresado[]
+
+  @@unique([nombre_carrera, id_tipo_programa], map: "uq_carrera")
+  @@index([id_facultad], map: "fk_carrera_facultad")
+  @@index([id_tipo_programa], map: "fk_carrera_tipo_programa")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model catalogo_puesto {
+  id_puesto      Int      @id @default(autoincrement()) @db.UnsignedInt
+  texto_busqueda String   @unique(map: "uq_texto_busqueda") @db.VarChar(200)
+  puesto_oficial String   @db.VarChar(150)
+  nivel_puesto   String   @db.VarChar(40)
+  empleo         empleo[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model catalogo_salario {
+  id_salario           Int              @id @default(autoincrement()) @db.UnsignedInt
+  descripcion_original String           @unique(map: "uq_desc_salario") @db.VarChar(200)
+  rango_estandar       String           @db.VarChar(80)
+  rango_min_soles      Decimal?         @db.Decimal(10, 2)
+  rango_max_soles      Decimal?         @db.Decimal(10, 2)
+  encuesta_anual       encuesta_anual[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model ciclo_egreso {
+  id_ciclo_egreso  Int        @id @default(autoincrement()) @db.UnsignedInt
+  codigo_ciclo     String     @unique(map: "uq_ciclo") @db.VarChar(20)
+  anio_egreso      Int        @db.SmallInt
+  periodo_egreso   String?    @db.VarChar(50)
+  estado_academico String?    @db.VarChar(60)
+  estado           String?    @db.VarChar(40)
+  egresado         egresado[]
+}
+
+model competencia_benchmark {
+  id_competencia_benchmark Int                                    @id @default(autoincrement()) @db.UnsignedInt
+  id_programa_benchmark    Int                                    @db.UnsignedInt
+  nombre_competencia       String                                 @db.VarChar(300)
+  descripcion_competencia  String?                                @db.Text
+  tipo_competencia         competencia_benchmark_tipo_competencia @default(otro)
+  evidencia_textual        String?                                @db.Text
+  fuente_url               String?                                @db.VarChar(1000)
+  created_at               DateTime?                              @default(now()) @db.Timestamp(0)
+  updated_at               DateTime?                              @default(now()) @db.Timestamp(0)
+  programa_benchmark       programa_benchmark                     @relation(fields: [id_programa_benchmark], references: [id_programa_benchmark], onDelete: Cascade, onUpdate: NoAction, map: "fk_compb_prog")
+
+  @@index([id_programa_benchmark], map: "idx_compb_prog")
+}
+
+model curso_benchmark {
+  id_curso_benchmark           Int                @id @default(autoincrement()) @db.UnsignedInt
+  id_programa_benchmark        Int                @db.UnsignedInt
+  nombre_curso                 String             @db.VarChar(300)
+  ciclo                        String?            @db.VarChar(50)
+  area_formacion               String?            @db.VarChar(180)
+  descripcion_curso            String?            @db.Text
+  competencias_detectadas_json Json?
+  tecnologias_detectadas_json  Json?
+  fuente_url                   String?            @db.VarChar(1000)
+  created_at                   DateTime?          @default(now()) @db.Timestamp(0)
+  updated_at                   DateTime?          @default(now()) @db.Timestamp(0)
+  programa_benchmark           programa_benchmark @relation(fields: [id_programa_benchmark], references: [id_programa_benchmark], onDelete: Cascade, onUpdate: NoAction, map: "fk_cb_prog")
+
+  @@index([id_programa_benchmark], map: "idx_cb_prog")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model egresado {
+  id_egresado          Int              @id @default(autoincrement()) @db.UnsignedInt
+  tipo_doc             String           @default("DNI") @db.VarChar(20)
+  nro_doc              String           @db.VarChar(20)
+  apellidos_nombres    String           @db.VarChar(200)
+  sexo                 String?          @db.Char(1)
+  correo_institucional String?          @db.VarChar(150)
+  correo_personal      String?          @db.VarChar(150)
+  telefono_1           String?          @db.VarChar(20)
+  telefono_2           String?          @db.VarChar(20)
+  becario              Boolean          @default(false)
+  doble_grado          Boolean          @default(false)
+  intercambio          Boolean          @default(false)
+  id_carrera           Int              @db.UnsignedInt
+  id_ciclo_egreso      Int              @db.UnsignedInt
+  periodo_ingreso      String?          @db.VarChar(100)
+  created_at           DateTime?        @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?        @default(now()) @db.Timestamp(0)
+  carrera              carrera          @relation(fields: [id_carrera], references: [id_carrera], onDelete: NoAction, onUpdate: NoAction, map: "fk_egresado_carrera")
+  ciclo_egreso         ciclo_egreso     @relation(fields: [id_ciclo_egreso], references: [id_ciclo_egreso], onDelete: NoAction, onUpdate: NoAction, map: "fk_egresado_ciclo")
+  encuesta_anual       encuesta_anual[]
+
+  @@unique([tipo_doc, nro_doc], map: "uq_egresado_doc")
+  @@index([id_carrera], map: "idx_carrera")
+  @@index([id_ciclo_egreso], map: "idx_ciclo")
+  @@index([nro_doc], map: "idx_nro_doc")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model empleo {
+  id_empleo       Int              @id @default(autoincrement()) @db.UnsignedInt
+  id_encuesta     Int              @unique(map: "uq_empleo_encuesta") @db.UnsignedInt
+  centro_laboral  String?          @db.VarChar(200)
+  rubro           String?          @db.VarChar(150)
+  area_trabajo    String?          @db.VarChar(150)
+  puesto_libre    String?          @db.VarChar(200)
+  id_puesto       Int?             @db.UnsignedInt
+  created_at      DateTime?        @default(now()) @db.Timestamp(0)
+  encuesta_anual  encuesta_anual   @relation(fields: [id_encuesta], references: [id_encuesta], onDelete: NoAction, onUpdate: NoAction, map: "fk_empleo_encuesta")
+  catalogo_puesto catalogo_puesto? @relation(fields: [id_puesto], references: [id_puesto], onDelete: NoAction, onUpdate: NoAction, map: "fk_empleo_puesto")
+
+  @@index([id_puesto], map: "fk_empleo_puesto")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model encuesta_anual {
+  id_encuesta       Int               @id @default(autoincrement()) @db.UnsignedInt
+  id_egresado       Int               @db.UnsignedInt
+  anio_encuesta     Int               @db.SmallInt
+  trimestre         String            @default("Q4") @db.VarChar(5)
+  situacion_laboral String?           @db.Text
+  trabaja           Boolean?
+  es_emprendedor    Boolean?
+  afinidad_laboral  String?           @db.VarChar(10)
+  nivel_puesto      String?           @db.VarChar(40)
+  id_salario        Int?              @db.UnsignedInt
+  satisfaccion_usil String?           @db.VarChar(40)
+  encuestado        Boolean           @default(true)
+  fuente_carga      String?           @db.VarChar(50)
+  created_at        DateTime?         @default(now()) @db.Timestamp(0)
+  empleo            empleo?
+  egresado          egresado          @relation(fields: [id_egresado], references: [id_egresado], onDelete: NoAction, onUpdate: NoAction, map: "fk_encuesta_egresado")
+  catalogo_salario  catalogo_salario? @relation(fields: [id_salario], references: [id_salario], onDelete: NoAction, onUpdate: NoAction, map: "fk_encuesta_salario")
+
+  @@unique([id_egresado, anio_encuesta, trimestre], map: "uq_encuesta")
+  @@index([id_salario], map: "fk_encuesta_salario")
+  @@index([anio_encuesta, trimestre], map: "idx_anio_trimestre")
+  @@index([id_egresado, anio_encuesta], map: "idx_egresado_anio")
+  @@index([trabaja], map: "idx_trabaja")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model facultad {
+  id_facultad     Int       @id @default(autoincrement()) @db.UnsignedInt
+  nombre_facultad String    @unique(map: "uq_facultad") @db.VarChar(150)
+  created_at      DateTime? @default(now()) @db.Timestamp(0)
+  carrera         carrera[]
+}
+
+model informe_empleabilidad {
+  id             Int                                @id @default(autoincrement())
+  nombre         String                             @db.VarChar(255)
+  anio           Int
+  unidad         String                             @db.VarChar(100)
+  facultad       String                             @default("No aplica") @db.VarChar(150)
+  url_descarga   String?                            @db.Text
+  tipo_acceso    informe_empleabilidad_tipo_acceso? @default(descarga)
+  activo         Boolean?                           @default(true)
+  fecha_creacion DateTime?                          @default(now()) @db.Timestamp(0)
+}
+
+model mercado_habilidad_categoria {
+  id_categoria           Int                      @id @default(autoincrement()) @db.UnsignedInt
+  id_informe             Int                      @db.UnsignedInt
+  orden                  Int                      @db.UnsignedTinyInt
+  categoria              String                   @db.VarChar(180)
+  origen_datos           String                   @default("curado") @db.VarChar(40)
+  mercado_informe        mercado_informe          @relation(fields: [id_informe], references: [id_informe], onDelete: Cascade, onUpdate: NoAction, map: "fk_mercado_habcat_informe")
+  mercado_habilidad_item mercado_habilidad_item[]
+
+  @@unique([id_informe, orden], map: "uq_mercado_hab_categoria")
+}
+
+model mercado_habilidad_item {
+  id_habilidad                Int                         @id @default(autoincrement()) @db.UnsignedInt
+  id_categoria                Int                         @db.UnsignedInt
+  orden                       Int                         @db.UnsignedTinyInt
+  habilidad                   String                      @db.VarChar(220)
+  mercado_habilidad_categoria mercado_habilidad_categoria @relation(fields: [id_categoria], references: [id_categoria], onDelete: Cascade, onUpdate: NoAction, map: "fk_mercado_habilidad_categoria")
+
+  @@unique([id_categoria, orden], map: "uq_mercado_habilidad")
+}
+
+model mercado_herramienta {
+  id_herramienta  Int             @id @default(autoincrement()) @db.UnsignedInt
+  id_informe      Int             @db.UnsignedInt
+  orden           Int             @db.UnsignedTinyInt
+  nombre          String          @db.VarChar(180)
+  descripcion     String?         @db.Text
+  origen_datos    String          @default("curado") @db.VarChar(40)
+  mercado_informe mercado_informe @relation(fields: [id_informe], references: [id_informe], onDelete: Cascade, onUpdate: NoAction, map: "fk_mercado_herramienta_informe")
+
+  @@unique([id_informe, orden], map: "uq_mercado_herramienta")
+}
+
+model mercado_informe {
+  id_informe                  Int                           @id @default(autoincrement()) @db.UnsignedInt
+  id_carrera                  Int?                          @db.UnsignedInt
+  nombre_facultad             String                        @db.VarChar(180)
+  nombre_carrera              String                        @db.VarChar(200)
+  periodo                     String                        @db.VarChar(80)
+  titulo_header               String?                       @db.VarChar(220)
+  descripcion_header          String?                       @db.Text
+  insight_header              String?                       @db.Text
+  descripcion                 String?                       @db.Text
+  objetivo_final              String?                       @db.Text
+  documento_informe_url       String?                       @db.VarChar(500)
+  fuente                      String                        @default("Seed ZIP informes mercado laboral") @db.VarChar(160)
+  origen_datos                String                        @default("semilla") @db.VarChar(40)
+  activo                      Boolean                       @default(true)
+  created_at                  DateTime?                     @default(now()) @db.Timestamp(0)
+  updated_at                  DateTime?                     @default(now()) @db.Timestamp(0)
+  mercado_habilidad_categoria mercado_habilidad_categoria[]
+  mercado_herramienta         mercado_herramienta[]
+  mercado_puesto_top          mercado_puesto_top[]
+  mercado_recomendacion       mercado_recomendacion[]
+  mercado_tendencia           mercado_tendencia[]
+
+  @@unique([nombre_carrera, periodo], map: "uq_mercado_informe")
+  @@index([nombre_carrera], map: "idx_mercado_carrera")
+  @@index([nombre_facultad], map: "idx_mercado_facultad")
+}
+
+model mercado_metodologia {
+  id_metodologia Int     @id @default(autoincrement()) @db.UnsignedInt
+  orden          Int     @unique(map: "uq_mercado_metodologia_orden") @db.UnsignedTinyInt
+  titulo         String  @db.VarChar(160)
+  descripcion    String? @db.Text
+  activo         Boolean @default(true)
+}
+
+model mercado_puesto_top {
+  id_puesto_top   Int             @id @default(autoincrement()) @db.UnsignedInt
+  id_informe      Int             @db.UnsignedInt
+  orden           Int             @db.UnsignedTinyInt
+  nombre_puesto   String          @db.VarChar(220)
+  descripcion     String?         @db.Text
+  vacantes_texto  String?         @db.VarChar(80)
+  fuente_dato     String          @default("mercado") @db.VarChar(40)
+  mercado_informe mercado_informe @relation(fields: [id_informe], references: [id_informe], onDelete: Cascade, onUpdate: NoAction, map: "fk_mercado_puesto_informe")
+
+  @@unique([id_informe, orden], map: "uq_mercado_puesto_orden")
+}
+
+model mercado_recomendacion {
+  id_recomendacion Int             @id @default(autoincrement()) @db.UnsignedInt
+  id_informe       Int             @db.UnsignedInt
+  tipo             String          @db.VarChar(40)
+  orden            Int             @db.UnsignedTinyInt
+  texto            String          @db.Text
+  origen_datos     String          @default("curado") @db.VarChar(40)
+  mercado_informe  mercado_informe @relation(fields: [id_informe], references: [id_informe], onDelete: Cascade, onUpdate: NoAction, map: "fk_mercado_recomendacion_informe")
+
+  @@unique([id_informe, tipo, orden], map: "uq_mercado_recomendacion")
+}
+
+model mercado_tendencia {
+  id_tendencia    Int             @id @default(autoincrement()) @db.UnsignedInt
+  id_informe      Int             @db.UnsignedInt
+  orden           Int             @db.UnsignedTinyInt
+  titulo          String          @db.VarChar(180)
+  descripcion     String?         @db.Text
+  origen_datos    String          @default("curado") @db.VarChar(40)
+  mercado_informe mercado_informe @relation(fields: [id_informe], references: [id_informe], onDelete: Cascade, onUpdate: NoAction, map: "fk_mercado_tendencia_informe")
+
+  @@unique([id_informe, orden], map: "uq_mercado_tendencia")
+}
+
+model programa_benchmark {
+  id_programa_benchmark         Int                                  @id @default(autoincrement()) @db.UnsignedInt
+  id_universidad_benchmark      Int                                  @db.UnsignedInt
+  nombre_programa               String                               @db.VarChar(300)
+  url_programa                  String?                              @db.VarChar(1000)
+  carrera_equivalente_id        Int?                                 @db.UnsignedInt
+  modalidad                     String?                              @db.VarChar(100)
+  duracion                      String?                              @db.VarChar(100)
+  perfil_egreso_texto           String?                              @db.MediumText
+  plan_estudios_texto           String?                              @db.MediumText
+  fuente_texto_original         String?                              @db.MediumText
+  fecha_captura                 DateTime?                            @db.DateTime(0)
+  estado_extraccion             programa_benchmark_estado_extraccion @default(pendiente)
+  estado_validacion             programa_benchmark_estado_validacion @default(registrado)
+  observaciones                 String?                              @db.Text
+  created_at                    DateTime?                            @default(now()) @db.Timestamp(0)
+  updated_at                    DateTime?                            @default(now()) @db.Timestamp(0)
+  benchmark_parse_log           benchmark_parse_log[]
+  benchmark_program_equivalence benchmark_program_equivalence?
+  benchmark_source              benchmark_source[]
+  benchmark_source_candidate    benchmark_source_candidate[]
+  benchmark_source_snapshot     benchmark_source_snapshot[]
+  competencia_benchmark         competencia_benchmark[]
+  curso_benchmark               curso_benchmark[]
+  universidad_benchmark         universidad_benchmark                @relation(fields: [id_universidad_benchmark], references: [id_universidad_benchmark], onDelete: Cascade, onUpdate: NoAction, map: "fk_pb_univ")
+
+  @@index([id_universidad_benchmark], map: "idx_pb_univ")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tipo_programa {
+  id_tipo_programa Int       @id @default(autoincrement()) @db.UnsignedInt
+  descripcion      String    @unique(map: "uq_tipo_programa") @db.VarChar(80)
+  carrera          carrera[]
+}
+
+model universidad_benchmark {
+  id_universidad_benchmark Int                                  @id @default(autoincrement()) @db.UnsignedInt
+  nombre_universidad       String                               @db.VarChar(220)
+  pais                     String                               @default("Peru") @db.VarChar(100)
+  ciudad                   String?                              @db.VarChar(120)
+  tipo_benchmark           universidad_benchmark_tipo_benchmark
+  sitio_web                String?                              @db.VarChar(500)
+  activo                   Boolean                              @default(true)
+  created_at               DateTime?                            @default(now()) @db.Timestamp(0)
+  updated_at               DateTime?                            @default(now()) @db.Timestamp(0)
+  programa_benchmark       programa_benchmark[]
+
+  @@index([tipo_benchmark], map: "idx_tipo_benchmark")
+}
+
+enum benchmark_source_tipo_fuente {
+  pagina_programa
+  malla_curricular
+  plan_estudios
+  perfil_egreso
+  competencias
+  campo_laboral
+  acreditacion
+  brochure_pdf
+  actualizacion_curricular
+  repositorio
+  otra
+}
+
+enum benchmark_parse_log_estado {
+  ok
+  sin_malla
+  error
+  requiere_revision
+}
+
+enum benchmark_program_equivalence_nivel_equivalencia {
+  exacta
+  parcial
+  cercana
+  referente
+  no_equivalente
+}
+
+enum competencia_benchmark_tipo_competencia {
+  tecnica
+  blanda
+  investigacion
+  gestion
+  digital
+  otro
+}
+
+enum universidad_benchmark_tipo_benchmark {
+  competencia_directa
+  referente_nacional
+  competencia_internacional
+  referente_internacional
+  referente_tecnologico
+}
+
+enum benchmark_source_estado {
+  registrado
+  pendiente_extraccion
+  extraido
+  pendiente_validacion
+  validado
+  rechazado
+  desactualizado
+  reemplazado
+}
+
+enum benchmark_source_candidate_tipo_fuente_detectado {
+  pagina_programa
+  malla_curricular
+  plan_estudios
+  perfil_egreso
+  competencias
+  brochure_pdf
+  otra
+}
+
+enum informe_empleabilidad_tipo_acceso {
+  descarga
+  sharepoint
+}
+
+enum benchmark_source_candidate_estado {
+  candidato
+  aprobado
+  descartado
+  duplicado
+  no_oficial
+}
+
+enum benchmark_source_snapshot_estado_parseo {
+  sin_parsear
+  parseado
+  requiere_revision
+  error
+}
+
+enum programa_benchmark_estado_extraccion {
+  pendiente
+  procesado
+  error
+  verificado
+}
+
+enum programa_benchmark_estado_validacion {
+  registrado
+  pendiente_extraccion
+  extraido
+  pendiente_validacion
+  validado
+  rechazado
+  desactualizado
+  reemplazado
+}

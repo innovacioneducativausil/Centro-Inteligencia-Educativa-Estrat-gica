@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../generated/prisma/curricular"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("CURRICULAR_DATABASE_URL")
+}
+
+model analisis_curso {
+  id_analisis        Int                               @id @default(autoincrement()) @db.UnsignedInt
+  id_curso           Int                               @db.UnsignedInt
+  score_alineacion   Decimal?                          @db.Decimal(5, 2)
+  estado_alineacion  analisis_curso_estado_alineacion?
+  tendencias_impacto Json?
+  brechas_detectadas Json?
+  recomendaciones_ia Json?
+  modelo_ia_usado    String?                           @db.VarChar(80)
+  prompt_version     String?                           @db.VarChar(20)
+  tokens_usados      Int?                              @db.UnsignedInt
+  analizado_en       DateTime?                         @default(now()) @db.Timestamp(0)
+  anio_analisis      Int                               @default(dbgenerated("(year(curdate()))")) @db.SmallInt
+  curso              curso                             @relation(fields: [id_curso], references: [id_curso], onDelete: NoAction, onUpdate: NoAction, map: "fk_analisis_curso")
+
+  @@unique([id_curso, anio_analisis], map: "uq_analisis_curso_anio")
+  @@index([estado_alineacion], map: "idx_estado")
+}
+
+model brecha_curricular {
+  id_brecha            Int                           @id @default(autoincrement()) @db.UnsignedInt
+  id_impacto           Int                           @db.UnsignedInt
+  id_carrera           Int                           @db.UnsignedInt
+  id_curso             Int?                          @db.UnsignedInt
+  tipo_brecha          brecha_curricular_tipo_brecha @default(otro)
+  descripcion_brecha   String                        @db.Text
+  competencia_afectada String?                       @db.VarChar(300)
+  evidencia_resumen    String?                       @db.Text
+  prioridad            brecha_curricular_prioridad   @default(media)
+  created_at           DateTime?                     @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?                     @default(now()) @db.Timestamp(0)
+
+  @@index([id_carrera], map: "idx_brecha_carrera")
+  @@index([id_impacto], map: "idx_brecha_impacto")
+}
+
+model carrera {
+  id_carrera     Int             @id @default(autoincrement()) @db.UnsignedInt
+  nombre_carrera String          @db.VarChar(200)
+  id_facultad    Int             @db.UnsignedInt
+  total_ciclos   Int             @default(10) @db.UnsignedTinyInt
+  slug_web       String?         @db.VarChar(150)
+  url_carrera    String?         @db.VarChar(255)
+  created_at     DateTime?       @default(now()) @db.Timestamp(0)
+  facultad       facultad        @relation(fields: [id_facultad], references: [id_facultad], onDelete: NoAction, onUpdate: NoAction, map: "fk_carrera_facultad")
+  malla_version  malla_version[]
+
+  @@unique([nombre_carrera, id_facultad], map: "uq_carrera_facultad")
+  @@index([id_facultad], map: "fk_carrera_facultad")
+}
+
+model curso {
+  id_curso         Int               @id @default(autoincrement()) @db.UnsignedInt
+  id_malla         Int               @db.UnsignedInt
+  nombre_curso     String            @db.VarChar(200)
+  codigo_curso     String?           @db.VarChar(40)
+  numero_ciclo     Int               @db.UnsignedTinyInt
+  nro_orden        Int?              @db.UnsignedSmallInt
+  creditos         Int?              @db.UnsignedTinyInt
+  tipo_curso       curso_tipo_curso  @default(Obligatorio)
+  horas_teoria     Int?              @db.UnsignedSmallInt
+  horas_practica   Int?              @db.UnsignedSmallInt
+  horas_lab        Int?              @db.UnsignedSmallInt
+  prerequisito     String?           @db.Text
+  clas_sunedu      String?           @db.VarChar(120)
+  mencion          String?           @db.VarChar(160)
+  creditos_minimos Int?              @db.UnsignedSmallInt
+  created_at       DateTime?         @default(now()) @db.Timestamp(0)
+  analisis_curso   analisis_curso[]
+  malla_version    malla_version     @relation(fields: [id_malla], references: [id_malla], onDelete: NoAction, onUpdate: NoAction, map: "fk_curso_malla")
+  curso_tendencia  curso_tendencia[]
+
+  @@unique([id_malla, numero_ciclo, nro_orden], map: "uq_curso_malla_orden")
+  @@index([numero_ciclo], map: "idx_ciclo")
+  @@index([id_malla], map: "idx_curso_malla")
+  @@index([id_malla, nombre_curso, numero_ciclo], map: "idx_curso_nombre_ciclo")
+}
+
+model curso_tendencia {
+  id_curso          Int                          @db.UnsignedInt
+  id_tendencia      Int                          @db.UnsignedInt
+  impacto_score     Decimal?                     @db.Decimal(5, 2)
+  tipo_impacto      curso_tendencia_tipo_impacto @default(Neutro)
+  notas             String?                      @db.Text
+  curso             curso                        @relation(fields: [id_curso], references: [id_curso], onDelete: NoAction, onUpdate: NoAction, map: "fk_ct_curso")
+  tendencia_mercado tendencia_mercado            @relation(fields: [id_tendencia], references: [id_tendencia], onDelete: NoAction, onUpdate: NoAction, map: "fk_ct_tendencia")
+
+  @@id([id_curso, id_tendencia])
+  @@index([id_tendencia], map: "fk_ct_tendencia")
+}
+
+model evidencia_curricular {
+  id_evidencia          Int                                      @id @default(autoincrement()) @db.UnsignedInt
+  modulo_origen         evidencia_curricular_modulo_origen
+  tipo_evidencia        evidencia_curricular_tipo_evidencia
+  referencia_id         Int?                                     @db.UnsignedInt
+  titulo_evidencia      String                                   @db.VarChar(300)
+  descripcion_evidencia String?                                  @db.Text
+  fuente_url            String?                                  @db.VarChar(1000)
+  fecha_fuente          DateTime?                                @db.Date
+  nivel_confianza       Decimal                                  @default(0.50) @db.Decimal(5, 2)
+  estado_verificacion   evidencia_curricular_estado_verificacion @default(pendiente)
+  created_at            DateTime?                                @default(now()) @db.Timestamp(0)
+  updated_at            DateTime?                                @default(now()) @db.Timestamp(0)
+}
+
+model facultad {
+  id_facultad     Int       @id @default(autoincrement()) @db.UnsignedInt
+  nombre_facultad String    @unique(map: "uq_facultad") @db.VarChar(150)
+  url_facultad    String?   @db.VarChar(255)
+  created_at      DateTime? @default(now()) @db.Timestamp(0)
+  carrera         carrera[]
+}
+
+model impacto_curricular {
+  id_impacto          Int                              @id @default(autoincrement()) @db.UnsignedInt
+  id_carrera          Int                              @db.UnsignedInt
+  id_malla_version    Int                              @db.UnsignedInt
+  id_curso            Int?                             @db.UnsignedInt
+  titulo_impacto      String                           @db.VarChar(300)
+  descripcion_impacto String?                          @db.Text
+  nivel_impacto       impacto_curricular_nivel_impacto @default(bajo)
+  score_impacto       Decimal                          @default(0.00) @db.Decimal(5, 2)
+  estado              impacto_curricular_estado        @default(detectado)
+  created_at          DateTime?                        @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?                        @default(now()) @db.Timestamp(0)
+
+  @@index([id_carrera], map: "idx_imp_carrera")
+  @@index([id_malla_version], map: "idx_imp_malla")
+}
+
+model impacto_curricular_evidencia {
+  id_impacto             Int       @db.UnsignedInt
+  id_evidencia           Int       @db.UnsignedInt
+  peso                   Decimal   @default(1.00) @db.Decimal(5, 2)
+  justificacion_relacion String?   @db.Text
+  created_at             DateTime? @default(now()) @db.Timestamp(0)
+
+  @@id([id_impacto, id_evidencia])
+}
+
+model malla_version {
+  id_malla       Int       @id @default(autoincrement()) @db.UnsignedInt
+  id_carrera     Int       @db.UnsignedInt
+  nombre_version String    @db.VarChar(60)
+  anio_inicio    Int       @db.SmallInt
+  es_vigente     Boolean   @default(false)
+  url_fuente     String?   @db.VarChar(255)
+  fuente_carga   String?   @db.VarChar(50)
+  created_at     DateTime? @default(now()) @db.Timestamp(0)
+  curso          curso[]
+  carrera        carrera   @relation(fields: [id_carrera], references: [id_carrera], onDelete: NoAction, onUpdate: NoAction, map: "fk_malla_carrera")
+
+  @@unique([id_carrera, nombre_version], map: "uq_malla_version")
+}
+
+model malla_version_propuesta {
+  id_malla_version_propuesta Int                            @id @default(autoincrement()) @db.UnsignedInt
+  id_malla_version_origen    Int                            @db.UnsignedInt
+  id_propuesta               Int                            @db.UnsignedInt
+  nombre_version             String                         @db.VarChar(200)
+  descripcion_cambios        String?                        @db.Text
+  estado                     malla_version_propuesta_estado @default(borrador)
+  created_at                 DateTime?                      @default(now()) @db.Timestamp(0)
+  updated_at                 DateTime?                      @default(now()) @db.Timestamp(0)
+
+  @@index([id_malla_version_origen], map: "idx_mvp_origen")
+}
+
+model propuesta_curricular {
+  id_propuesta            Int                                  @id @default(autoincrement()) @db.UnsignedInt
+  id_brecha               Int                                  @db.UnsignedInt
+  id_carrera              Int                                  @db.UnsignedInt
+  id_malla_version_origen Int                                  @db.UnsignedInt
+  tipo_propuesta          propuesta_curricular_tipo_propuesta
+  titulo_propuesta        String                               @db.VarChar(300)
+  descripcion_propuesta   String                               @db.Text
+  justificacion           String                               @db.Text
+  impacto_esperado        String?                              @db.Text
+  estado_revision         propuesta_curricular_estado_revision @default(pendiente)
+  usuario_creador         String?                              @db.VarChar(120)
+  usuario_revisor         String?                              @db.VarChar(120)
+  fecha_revision          DateTime?                            @db.DateTime(0)
+  created_at              DateTime?                            @default(now()) @db.Timestamp(0)
+  updated_at              DateTime?                            @default(now()) @db.Timestamp(0)
+
+  @@index([id_brecha], map: "idx_prop_brecha")
+  @@index([id_carrera], map: "idx_prop_carrera")
+  @@index([estado_revision], map: "idx_prop_estado")
+}
+
+model silabo {
+  id_silabo           String   @id @db.VarChar(36)
+  id_curso            Int
+  titulo              String   @db.VarChar(200)
+  url_archivo         String?  @db.Text
+  contenido           String?  @db.Text
+  activo              Boolean  @default(true)
+  fecha_creacion      DateTime @default(now()) @db.DateTime(0)
+  fecha_actualizacion DateTime @default(now()) @db.DateTime(0)
+
+  @@index([id_curso], map: "idx_curso")
+}
+
+model tendencia_mercado {
+  id_tendencia     Int               @id @default(autoincrement()) @db.UnsignedInt
+  nombre_tendencia String            @unique(map: "uq_tendencia") @db.VarChar(200)
+  categoria        String?           @db.VarChar(80)
+  descripcion      String?           @db.Text
+  relevancia_score Decimal?          @db.Decimal(5, 2)
+  fuente           String?           @db.VarChar(200)
+  fecha_deteccion  DateTime?         @db.Date
+  es_activa        Boolean           @default(true)
+  created_at       DateTime?         @default(now()) @db.Timestamp(0)
+  curso_tendencia  curso_tendencia[]
+}
+
+enum evidencia_curricular_modulo_origen {
+  radar
+  empleabilidad
+  mercado_laboral
+  benchmarking
+}
+
+enum evidencia_curricular_tipo_evidencia {
+  senal
+  tendencia
+  escenario
+  oferta_laboral
+  dato_empleabilidad
+  benchmark_universitario
+  informe_carrera
+}
+
+enum analisis_curso_estado_alineacion {
+  alineado
+  riesgo
+  critico
+  oportunidad
+}
+
+enum curso_tendencia_tipo_impacto {
+  Riesgo
+  Oportunidad
+  Neutro
+}
+
+enum brecha_curricular_tipo_brecha {
+  competencia_faltante
+  contenido_desactualizado
+  baja_cobertura
+  falta_practica
+  falta_herramienta
+  desalineacion_mercado
+  otro
+}
+
+enum propuesta_curricular_tipo_propuesta {
+  actualizar_silabo
+  agregar_unidad
+  modificar_unidad
+  aumentar_horas
+  crear_curso_electivo
+  crear_curso_obligatorio
+  mover_curso_ciclo
+  conectar_cursos
+  actualizar_competencia
+}
+
+enum malla_version_propuesta_estado {
+  borrador
+  en_revision
+  aprobada
+  rechazada
+}
+
+enum impacto_curricular_nivel_impacto {
+  bajo
+  medio
+  alto
+  critico
+}
+
+enum curso_tipo_curso {
+  Obligatorio
+  Electivo
+}
+
+enum brecha_curricular_prioridad {
+  baja
+  media
+  alta
+  critica
+}
+
+enum impacto_curricular_estado {
+  detectado
+  en_revision
+  aprobado
+  rechazado
+}
+
+enum evidencia_curricular_estado_verificacion {
+  pendiente
+  verificado
+  rechazado
+}
+
+enum propuesta_curricular_estado_revision {
+  pendiente
+  aprobada
+  rechazada
+  observada
+}

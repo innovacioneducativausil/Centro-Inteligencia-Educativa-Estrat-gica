@@ -1,25 +1,34 @@
-import db from '../../db.js';
+import { radarPrisma } from '../../prismaClient.js';
 
 export async function getPestelActivos() {
-  const [rows] = await db.query(
-    `SELECT id_pestel, nombre_pestel, slug_pestel, letra_codigo,
-            desc_pestel, emoji, color, orden_display
-     FROM pestel
-     WHERE activo = 1
-     ORDER BY orden_display ASC`
-  );
-
-  return rows;
+  return radarPrisma.pestel.findMany({
+    where: { activo: true },
+    orderBy: { orden_display: 'asc' },
+    select: {
+      id_pestel: true,
+      nombre_pestel: true,
+      slug_pestel: true,
+      letra_codigo: true,
+      desc_pestel: true,
+      emoji: true,
+      color: true,
+      orden_display: true,
+    },
+  });
 }
 
 export async function getSectoresActivos() {
-  const [rows] = await db.query(
-    `SELECT id_sector, nombre_sector, slug_sector,
-            desc_sector, emoji, color, orden_display
-     FROM sector
-     WHERE activo = 1
-     ORDER BY orden_display ASC`
-  );
-
-  return rows;
+  return radarPrisma.sector.findMany({
+    where: { activo: true },
+    orderBy: { orden_display: 'asc' },
+    select: {
+      id_sector: true,
+      nombre_sector: true,
+      slug_sector: true,
+      desc_sector: true,
+      emoji: true,
+      color: true,
+      orden_display: true,
+    },
+  });
 }

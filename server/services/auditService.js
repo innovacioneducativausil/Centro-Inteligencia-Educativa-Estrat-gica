@@ -1,5 +1,5 @@
-import db from '../db.js';
 import logger from '../logger.js';
+import { radarPrisma } from '../prismaClient.js';
 
 //----------------TI-44 / TI-59----------------
 export function getClientIp(req) {
@@ -32,29 +32,25 @@ export async function auditEvent(req, {
   const userAgent = req?.headers?.['user-agent'] || null;
 
   try {
-    await db.query(
-      `INSERT INTO actividad_usuario
-         (id_usuario, correo, rol, evento, accion, modulo, entidad, entidad_id,
-          elemento_uuid, elemento_tipo, elemento_titulo, detalle, ip, user_agent, metadata)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        idUsuario || user.id || null,
-        correo || user.correo || null,
-        rol || user.rol || null,
-        String(evento).slice(0, 100),
-        accion ? String(accion).slice(0, 100) : null,
-        modulo ? String(modulo).slice(0, 100) : null,
-        entidad ? String(entidad).slice(0, 100) : null,
-        entidadId ? String(entidadId).slice(0, 100) : null,
-        entidadId ? String(entidadId).slice(0, 36) : null,
-        elementoTipo ? String(elementoTipo).slice(0, 50) : entidad,
-        elementoTitulo ? String(elementoTitulo).slice(0, 500) : null,
-        detalle ? String(detalle).slice(0, 1000) : null,
-        ip ? ip.slice(0, 45) : null,
-        userAgent ? userAgent.slice(0, 512) : null,
-        metadata ? JSON.stringify(metadata) : null,
-      ]
-    );
+    await radarPrisma.actividad_usuario.create({
+      data: {
+        id_usuario: idUsuario || user.id || null,
+        correo: correo || user.correo || null,
+        rol: rol || user.rol || null,
+        evento: String(evento).slice(0, 100),
+        accion: accion ? String(accion).slice(0, 100) : null,
+        modulo: modulo ? String(modulo).slice(0, 100) : null,
+        entidad: entidad ? String(entidad).slice(0, 100) : null,
+        entidad_id: entidadId ? String(entidadId).slice(0, 100) : null,
+        elemento_uuid: entidadId ? String(entidadId).slice(0, 36) : null,
+        elemento_tipo: elementoTipo ? String(elementoTipo).slice(0, 50) : entidad,
+        elemento_titulo: elementoTitulo ? String(elementoTitulo).slice(0, 500) : null,
+        detalle: detalle ? String(detalle).slice(0, 1000) : null,
+        ip: ip ? ip.slice(0, 45) : null,
+        user_agent: userAgent ? userAgent.slice(0, 512) : null,
+        metadata: metadata || undefined,
+      },
+    });
   } catch (err) {
     logger.warn(err?.message || 'No se pudo registrar evento de auditoria.', {
       context: 'AUDIT',

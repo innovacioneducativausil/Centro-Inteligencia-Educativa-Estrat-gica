@@ -1,93 +1,111 @@
-import db from '../../db.js';
+import { radarPrisma } from '../../prismaClient.js';
 
-function buildActividadFilters(query) {
-  const conds = [];
-  const params = [];
+function dateAtStart(value) {
+  return new Date(`${value}T00:00:00`);
+}
 
-  if (query.correo) { conds.push('correo = ?'); params.push(query.correo); }
-  if (query.evento) { conds.push('evento = ?'); params.push(query.evento); }
-  if (query.accion) { conds.push('accion = ?'); params.push(query.accion); }
-  if (query.modulo) { conds.push('modulo = ?'); params.push(query.modulo); }
-  if (query.ip) { conds.push('ip LIKE ?'); params.push(`%${query.ip}%`); }
-  if (query.desde) { conds.push('fecha_hora >= ?'); params.push(query.desde + ' 00:00:00'); }
-  if (query.hasta) { conds.push('fecha_hora <= ?'); params.push(query.hasta + ' 23:59:59'); }
-  if (query.q) {
-    conds.push('(correo LIKE ? OR evento LIKE ? OR accion LIKE ? OR modulo LIKE ? OR detalle LIKE ? OR elemento_titulo LIKE ? OR ip LIKE ? OR user_agent LIKE ? OR CAST(metadata AS CHAR) LIKE ?)');
-    const like = `%${query.q}%`;
-    params.push(like, like, like, like, like, like, like, like, like);
+function dateAtEnd(value) {
+  return new Date(`${value}T23:59:59`);
+}
+
+function buildActividadWhere(query) {
+  const where = {};
+  if (query.correo) where.correo = query.correo;
+  if (query.evento) where.evento = query.evento;
+  if (query.accion) where.accion = query.accion;
+  if (query.modulo) where.modulo = query.modulo;
+  if (query.ip) where.ip = { contains: query.ip };
+  if (query.desde || query.hasta) {
+    where.fecha_hora = {};
+    if (query.desde) where.fecha_hora.gte = dateAtStart(query.desde);
+    if (query.hasta) where.fecha_hora.lte = dateAtEnd(query.hasta);
   }
-
-  return {
-    where: conds.length ? `WHERE ${conds.join(' AND ')}` : '',
-    params,
-  };
+  if (query.q) {
+    const q = String(query.q);
+    where.OR = [
+      { correo: { contains: q } },
+      { evento: { contains: q } },
+      { accion: { contains: q } },
+      { modulo: { contains: q } },
+      { detalle: { contains: q } },
+      { elemento_titulo: { contains: q } },
+      { ip: { contains: q } },
+      { user_agent: { contains: q } },
+    ];
+  }
+  return where;
 }
 
 export async function getActividadPage(query) {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 50));
-  const offset = (page - 1) * limit;
-  const { where, params } = buildActividadFilters(query);
+  const skip = (page - 1) * limit;
+  const where = buildActividadWhere(query);
 
-  const [[{ total }]] = await db.query(
-    `SELECT COUNT(*) AS total FROM actividad_usuario ${where}`,
-    params
-  );
-
-  const [rows] = await db.query(
-    `SELECT id, id_usuario, correo, rol, evento, accion, modulo, entidad, entidad_id,
-            elemento_uuid, elemento_tipo, elemento_titulo, detalle, ip, user_agent, metadata, fecha_hora
-     FROM actividad_usuario
-     ${where}
-     ORDER BY fecha_hora DESC
-     LIMIT ? OFFSET ?`,
-    [...params, limit, offset]
-  );
+  const [total, rows] = await Promise.all([
+    radarPrisma.actividad_usuario.count({ where }),
+    radarPrisma.actividad_usuario.findMany({
+      where,
+      orderBy: { fecha_hora: 'desc' },
+      take: limit,
+      skip,
+    }),
+  ]);
 
   return { rows, total, page, pages: Math.ceil(total / limit) };
 }
 
 export async function getActividadExportRows(query) {
-  const { where, params } = buildActividadFilters(query);
-  const [rows] = await db.query(
-    `SELECT id, id_usuario, correo, rol, evento, accion, modulo, entidad, entidad_id,
-            elemento_uuid, elemento_tipo, elemento_titulo, detalle, ip, user_agent, metadata, fecha_hora
-     FROM actividad_usuario
-     ${where}
-     ORDER BY fecha_hora DESC
-     LIMIT 5000`,
-    params
-  );
-
-  return rows;
+  return radarPrisma.actividad_usuario.findMany({
+    where: buildActividadWhere(query),
+    orderBy: { fecha_hora: 'desc' },
+    take: 5000,
+  });
 }
 
 export async function getActividadUsuariosActivos() {
-  const [rows] = await db.query(
-    `SELECT correo_usuario AS correo, nombre_usuario AS nombre, rol
-     FROM usuario
-     WHERE activo = 1
-     ORDER BY correo_usuario ASC`
-  );
+  const rows = await radarPrisma.usuario.findMany({
+    where: { activo: true },
+    orderBy: { correo_usuario: 'asc' },
+    select: {
+      correo_usuario: true,
+      nombre_usuario: true,
+      rol: true,
+    },
+  });
 
-  return rows;
+  return rows.map(row => ({
+    correo: row.correo_usuario,
+    nombre: row.nombre_usuario,
+    rol: row.rol,
+  }));
 }
 
 export async function getActividadEventos() {
-  const [rows] = await db.query('SELECT DISTINCT evento FROM actividad_usuario ORDER BY evento ASC');
-  return rows.map(r => r.evento);
+  const rows = await radarPrisma.actividad_usuario.findMany({
+    distinct: ['evento'],
+    orderBy: { evento: 'asc' },
+    select: { evento: true },
+  });
+  return rows.map(row => row.evento);
 }
 
 export async function getActividadAcciones() {
-  const [rows] = await db.query(
-    'SELECT DISTINCT accion FROM actividad_usuario WHERE accion IS NOT NULL ORDER BY accion ASC'
-  );
-  return rows.map(r => r.accion);
+  const rows = await radarPrisma.actividad_usuario.findMany({
+    where: { accion: { not: null } },
+    distinct: ['accion'],
+    orderBy: { accion: 'asc' },
+    select: { accion: true },
+  });
+  return rows.map(row => row.accion);
 }
 
 export async function getActividadModulos() {
-  const [rows] = await db.query(
-    'SELECT DISTINCT modulo FROM actividad_usuario WHERE modulo IS NOT NULL ORDER BY modulo ASC'
-  );
-  return rows.map(r => r.modulo);
+  const rows = await radarPrisma.actividad_usuario.findMany({
+    where: { modulo: { not: null } },
+    distinct: ['modulo'],
+    orderBy: { modulo: 'asc' },
+    select: { modulo: true },
+  });
+  return rows.map(row => row.modulo);
 }

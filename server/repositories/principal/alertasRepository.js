@@ -1,60 +1,91 @@
-import db from '../../db.js';
+import { radarPrisma } from '../../prismaClient.js';
+
+function serializeAlert(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    id_alerta: typeof row.id_alerta === 'bigint' ? Number(row.id_alerta) : row.id_alerta,
+    regla_nombre: row.regla_nombre,
+  };
+}
 
 export async function getReglasAlerta() {
-  const [rows] = await db.query('SELECT * FROM regla_alerta ORDER BY fecha_creacion DESC');
-  return rows;
+  return radarPrisma.regla_alerta.findMany({
+    orderBy: { fecha_creacion: 'desc' },
+  });
 }
 
 export async function createReglaAlerta({ id, nombre, metrica, operador, valorUmbral, creadoPor }) {
-  await db.query(
-    `INSERT INTO regla_alerta (id_regla, nombre, metrica, operador, valor_umbral, activa, creado_por)
-     VALUES (?, ?, ?, ?, ?, 1, ?)`,
-    [id, nombre, metrica, operador, valorUmbral, creadoPor]
-  );
-
-  return getReglaAlertaById(id);
+  return radarPrisma.regla_alerta.create({
+    data: {
+      id_regla: id,
+      nombre,
+      metrica,
+      operador,
+      valor_umbral: valorUmbral,
+      activa: true,
+      creado_por: creadoPor,
+    },
+  });
 }
 
 export async function getReglaAlertaById(id) {
-  const [[row]] = await db.query('SELECT * FROM regla_alerta WHERE id_regla = ?', [id]);
-  return row || null;
+  return radarPrisma.regla_alerta.findUnique({
+    where: { id_regla: id },
+  });
 }
 
 export async function updateReglaAlerta(id, { nombre, operador, valorUmbral, activa }) {
-  await db.query(
-    'UPDATE regla_alerta SET nombre = ?, operador = ?, valor_umbral = ?, activa = ? WHERE id_regla = ?',
-    [nombre, operador, valorUmbral, activa ? 1 : 0, id]
-  );
-
-  return getReglaAlertaById(id);
+  return radarPrisma.regla_alerta.update({
+    where: { id_regla: id },
+    data: {
+      nombre,
+      operador,
+      valor_umbral: valorUmbral,
+      activa: Boolean(activa),
+    },
+  });
 }
 
 export async function deleteReglaAlerta(id) {
-  await db.query('DELETE FROM regla_alerta WHERE id_regla = ?', [id]);
+  await radarPrisma.regla_alerta.delete({
+    where: { id_regla: id },
+  });
 }
 
 export async function getAlertasGeneradas({ soloPendientes = false } = {}) {
-  const where = soloPendientes ? 'WHERE ag.atendida = 0' : '';
-  const [rows] = await db.query(
-    `SELECT ag.*, r.nombre AS regla_nombre
-     FROM alerta_generada ag
-     LEFT JOIN regla_alerta r ON r.id_regla = ag.id_regla
-     ${where}
-     ORDER BY ag.fecha_generada DESC
-     LIMIT 200`
-  );
+  const rows = await radarPrisma.alerta_generada.findMany({
+    where: soloPendientes ? { atendida: false } : undefined,
+    orderBy: { fecha_generada: 'desc' },
+    take: 200,
+  });
 
-  return rows;
+  const reglas = await radarPrisma.regla_alerta.findMany({
+    where: { id_regla: { in: [...new Set(rows.map(row => row.id_regla))] } },
+    select: { id_regla: true, nombre: true },
+  });
+  const reglaById = new Map(reglas.map(regla => [regla.id_regla, regla.nombre]));
+
+  return rows.map(row => serializeAlert({
+    ...row,
+    regla_nombre: reglaById.get(row.id_regla) || null,
+  }));
 }
 
 export async function getAlertaGeneradaById(id) {
-  const [[row]] = await db.query('SELECT * FROM alerta_generada WHERE id_alerta = ?', [id]);
-  return row || null;
+  const row = await radarPrisma.alerta_generada.findUnique({
+    where: { id_alerta: BigInt(id) },
+  });
+  return serializeAlert(row);
 }
 
 export async function markAlertaAtendida({ id, atendidaPor }) {
-  await db.query(
-    'UPDATE alerta_generada SET atendida = 1, atendida_por = ?, fecha_atendida = NOW() WHERE id_alerta = ?',
-    [atendidaPor, id]
-  );
+  await radarPrisma.alerta_generada.update({
+    where: { id_alerta: BigInt(id) },
+    data: {
+      atendida: true,
+      atendida_por: atendidaPor,
+      fecha_atendida: new Date(),
+    },
+  });
 }

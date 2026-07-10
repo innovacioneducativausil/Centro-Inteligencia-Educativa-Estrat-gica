@@ -1,175 +1,228 @@
-import db from '../../db.js';
+import { radarPrisma } from '../../prismaClient.js';
 
 export async function setOtpForUser({ idUsuario, otpHash, expires, purpose }) {
-  await db.query(
-    `UPDATE usuario
-     SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = ?
-     WHERE id_usuario = ?`,
-    [otpHash, expires, purpose, idUsuario]
-  );
+  await radarPrisma.usuario.update({
+    where: { id_usuario: idUsuario },
+    data: {
+      otp_hash: otpHash,
+      otp_expires: expires,
+      otp_attempts: 0,
+      otp_purpose: purpose,
+    },
+  });
 }
 
 export async function findUserForLogin(correo) {
-  const [[user]] = await db.query(
-    `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario,
-            password_hash, rol, activo, email_verificado, failed_login_attempts, locked_until, modulos_permitidos
-     FROM usuario
-     WHERE correo_usuario = ?
-     LIMIT 1`,
-    [correo]
-  );
-  return user || null;
+  return radarPrisma.usuario.findUnique({
+    where: { correo_usuario: correo },
+    select: {
+      id_usuario: true,
+      nombre_usuario: true,
+      nombre_corto: true,
+      correo_usuario: true,
+      password_hash: true,
+      rol: true,
+      activo: true,
+      email_verificado: true,
+      failed_login_attempts: true,
+      locked_until: true,
+      modulos_permitidos: true,
+    },
+  });
 }
 
 export async function recordFailedLogin({ idUsuario, attempts, shouldLock, lockMinutes }) {
-  await db.query(
-    `UPDATE usuario
-     SET failed_login_attempts = ?,
-         locked_until = ${shouldLock ? 'DATE_ADD(NOW(), INTERVAL ? MINUTE)' : 'NULL'},
-         fecha_actualizacion = NOW()
-     WHERE id_usuario = ?`,
-    shouldLock ? [attempts, lockMinutes, idUsuario] : [attempts, idUsuario]
-  );
+  await radarPrisma.usuario.update({
+    where: { id_usuario: idUsuario },
+    data: {
+      failed_login_attempts: attempts,
+      locked_until: shouldLock ? new Date(Date.now() + lockMinutes * 60 * 1000) : null,
+      fecha_actualizacion: new Date(),
+    },
+  });
 }
 
 export async function recordSuccessfulLogin(idUsuario) {
-  await db.query(
-    `UPDATE usuario
-     SET failed_login_attempts = 0,
-         locked_until = NULL,
-         otp_hash = NULL,
-         otp_expires = NULL,
-         otp_attempts = 0,
-         otp_purpose = NULL,
-         ultimo_acceso = NOW(),
-         fecha_actualizacion = NOW()
-     WHERE id_usuario = ?`,
-    [idUsuario]
-  );
+  await radarPrisma.usuario.update({
+    where: { id_usuario: idUsuario },
+    data: {
+      failed_login_attempts: 0,
+      locked_until: null,
+      otp_hash: null,
+      otp_expires: null,
+      otp_attempts: 0,
+      otp_purpose: null,
+      ultimo_acceso: new Date(),
+      fecha_actualizacion: new Date(),
+    },
+  });
 }
 
 export async function findUserForLoginOtp(correo) {
-  const [[user]] = await db.query(
-    `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
-            otp_hash, otp_expires, otp_attempts, otp_purpose, modulos_permitidos
-     FROM usuario
-     WHERE correo_usuario = ? AND activo = 1
-     LIMIT 1`,
-    [correo]
-  );
-  return user || null;
+  return radarPrisma.usuario.findFirst({
+    where: { correo_usuario: correo, activo: true },
+    select: {
+      id_usuario: true,
+      nombre_usuario: true,
+      nombre_corto: true,
+      correo_usuario: true,
+      rol: true,
+      activo: true,
+      otp_hash: true,
+      otp_expires: true,
+      otp_attempts: true,
+      otp_purpose: true,
+      modulos_permitidos: true,
+    },
+  });
 }
 
 export async function incrementOtpAttempts(idUsuario) {
-  await db.query('UPDATE usuario SET otp_attempts = otp_attempts + 1 WHERE id_usuario = ?', [idUsuario]);
+  await radarPrisma.usuario.update({
+    where: { id_usuario: idUsuario },
+    data: { otp_attempts: { increment: 1 } },
+  });
 }
 
 export async function clearLoginOtpAndRecordAccess(idUsuario) {
-  await db.query(
-    `UPDATE usuario
-     SET otp_hash = NULL, otp_expires = NULL, otp_attempts = 0,
-         otp_purpose = NULL, ultimo_acceso = NOW(), failed_login_attempts = 0, locked_until = NULL
-     WHERE id_usuario = ?`,
-    [idUsuario]
-  );
+  await radarPrisma.usuario.update({
+    where: { id_usuario: idUsuario },
+    data: {
+      otp_hash: null,
+      otp_expires: null,
+      otp_attempts: 0,
+      otp_purpose: null,
+      ultimo_acceso: new Date(),
+      failed_login_attempts: 0,
+      locked_until: null,
+    },
+  });
 }
 
 export async function findUserForLoginOtpResend(correo) {
-  const [[user]] = await db.query(
-    `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, activo, otp_purpose
-     FROM usuario
-     WHERE correo_usuario = ? AND activo = 1
-     LIMIT 1`,
-    [correo]
-  );
-  return user || null;
+  return radarPrisma.usuario.findFirst({
+    where: { correo_usuario: correo, activo: true },
+    select: {
+      id_usuario: true,
+      nombre_usuario: true,
+      nombre_corto: true,
+      correo_usuario: true,
+      activo: true,
+      otp_purpose: true,
+    },
+  });
 }
 
 export async function findActiveUserForAuth(idUsuario) {
-  const [[user]] = await db.query(
-    `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
-            modulos_permitidos
-     FROM usuario WHERE id_usuario = ? AND activo = 1`,
-    [idUsuario]
-  );
-  return user || null;
+  return radarPrisma.usuario.findFirst({
+    where: { id_usuario: idUsuario, activo: true },
+    select: {
+      id_usuario: true,
+      nombre_usuario: true,
+      nombre_corto: true,
+      correo_usuario: true,
+      rol: true,
+      activo: true,
+      modulos_permitidos: true,
+    },
+  });
 }
 
 export async function findUserForForgotPassword(correo) {
-  const [[user]] = await db.query(
-    `SELECT id_usuario, nombre_usuario, nombre_corto, activo
-     FROM usuario
-     WHERE correo_usuario = ?
-     LIMIT 1`,
-    [correo]
-  );
-  return user || null;
+  return radarPrisma.usuario.findUnique({
+    where: { correo_usuario: correo },
+    select: {
+      id_usuario: true,
+      nombre_usuario: true,
+      nombre_corto: true,
+      activo: true,
+    },
+  });
 }
 
 export async function setResetOtp({ idUsuario, otpHash, expires }) {
-  await db.query(
-    `UPDATE usuario
-     SET otp_hash = ?, otp_expires = ?, otp_attempts = 0, otp_purpose = 'reset',
-         reset_token = NULL, reset_token_expires = NULL
-     WHERE id_usuario = ?`,
-    [otpHash, expires, idUsuario]
-  );
+  await radarPrisma.usuario.update({
+    where: { id_usuario: idUsuario },
+    data: {
+      otp_hash: otpHash,
+      otp_expires: expires,
+      otp_attempts: 0,
+      otp_purpose: 'reset',
+      reset_token: null,
+      reset_token_expires: null,
+    },
+  });
 }
 
 export async function findUserForResetOtp(correo) {
-  const [[user]] = await db.query(
-    `SELECT id_usuario, otp_hash, otp_expires, otp_attempts, otp_purpose
-     FROM usuario
-     WHERE correo_usuario = ? AND activo = 1
-     LIMIT 1`,
-    [correo]
-  );
-  return user || null;
+  return radarPrisma.usuario.findFirst({
+    where: { correo_usuario: correo, activo: true },
+    select: {
+      id_usuario: true,
+      otp_hash: true,
+      otp_expires: true,
+      otp_attempts: true,
+      otp_purpose: true,
+    },
+  });
 }
 
 export async function setResetTokenAfterOtp({ idUsuario, resetToken, resetExpires }) {
-  await db.query(
-    `UPDATE usuario
-     SET otp_hash = NULL, otp_expires = NULL, otp_attempts = 0, otp_purpose = NULL,
-         reset_token = ?, reset_token_expires = ?
-     WHERE id_usuario = ?`,
-    [resetToken, resetExpires, idUsuario]
-  );
+  await radarPrisma.usuario.update({
+    where: { id_usuario: idUsuario },
+    data: {
+      otp_hash: null,
+      otp_expires: null,
+      otp_attempts: 0,
+      otp_purpose: null,
+      reset_token: resetToken,
+      reset_token_expires: resetExpires,
+    },
+  });
 }
 
 export async function findValidResetToken(token) {
-  const [[user]] = await db.query(
-    `SELECT id_usuario, nombre_corto, nombre_usuario, correo_usuario
-     FROM usuario
-     WHERE reset_token = ?
-       AND reset_token_expires > NOW()
-       AND activo = 1
-     LIMIT 1`,
-    [token]
-  );
-  return user || null;
+  return radarPrisma.usuario.findFirst({
+    where: {
+      reset_token: token,
+      reset_token_expires: { gt: new Date() },
+      activo: true,
+    },
+    select: {
+      id_usuario: true,
+      nombre_corto: true,
+      nombre_usuario: true,
+      correo_usuario: true,
+    },
+  });
 }
 
 export async function findUserForPasswordReset(token) {
-  const [[user]] = await db.query(
-    `SELECT id_usuario, correo_usuario, password_hash
-     FROM usuario
-     WHERE reset_token = ?
-       AND reset_token_expires > NOW()
-       AND activo = 1
-     LIMIT 1`,
-    [token]
-  );
-  return user || null;
+  return radarPrisma.usuario.findFirst({
+    where: {
+      reset_token: token,
+      reset_token_expires: { gt: new Date() },
+      activo: true,
+    },
+    select: {
+      id_usuario: true,
+      correo_usuario: true,
+      password_hash: true,
+    },
+  });
 }
 
 export async function updatePasswordAfterReset({ idUsuario, passwordHash }) {
-  await db.query(
-    `UPDATE usuario
-     SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL,
-         password_changed_at = NOW(), failed_login_attempts = 0, locked_until = NULL,
-         fecha_actualizacion = NOW()
-     WHERE id_usuario = ?`,
-    [passwordHash, idUsuario]
-  );
+  await radarPrisma.usuario.update({
+    where: { id_usuario: idUsuario },
+    data: {
+      password_hash: passwordHash,
+      reset_token: null,
+      reset_token_expires: null,
+      password_changed_at: new Date(),
+      failed_login_attempts: 0,
+      locked_until: null,
+      fecha_actualizacion: new Date(),
+    },
+  });
 }
