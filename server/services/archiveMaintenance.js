@@ -18,7 +18,8 @@ async function columnExists(table, column) {
         AND TABLE_NAME = ?
         AND COLUMN_NAME = ?
       LIMIT 1`,
-    [table, column]
+    table,
+    column
   );
   return rows.length > 0;
 }

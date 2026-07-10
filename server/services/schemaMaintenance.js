@@ -2,7 +2,16 @@ import logger from '../logger.js';
 import { radarPrisma } from '../prismaClient.js';
 
 export async function ensureColumn(table, column, definition) {
-  const rows = await radarPrisma.$queryRawUnsafe(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, column);
+  const rows = await radarPrisma.$queryRawUnsafe(
+    `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?
+        AND COLUMN_NAME = ?
+      LIMIT 1`,
+    table,
+    column
+  );
   if (rows.length) return;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
