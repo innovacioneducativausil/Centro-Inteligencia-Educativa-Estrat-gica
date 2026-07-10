@@ -1,8 +1,18 @@
 import { Router } from 'express';
 import { randomUUID } from 'crypto';
-import db from '../db.js';
+import { serverError } from '../middleware/errorHandler.js';
 import { auditEvent } from '../services/auditService.js';
 import { evaluarReglas, obtenerHistorialMetrica, METRICAS_DISPONIBLES } from '../services/alertEngine.js';
+import {
+  createReglaAlerta,
+  deleteReglaAlerta,
+  getAlertaGeneradaById,
+  getAlertasGeneradas,
+  getReglaAlertaById,
+  getReglasAlerta,
+  markAlertaAtendida,
+  updateReglaAlerta,
+} from '../repositories/principal/alertasRepository.js';
 
 const router = Router();
 
@@ -30,19 +40,17 @@ router.get('/alertas/historial', adminOnly, async (req, res) => {
     const data = await obtenerHistorialMetrica(metrica, dias);
     res.json({ data });
   } catch (err) {
-    console.error('[GET /alertas/historial]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'GET /alertas/historial');
   }
 });
 
 //----------------TI-08----------------
 router.get('/alertas/reglas', adminOnly, async (_req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM regla_alerta ORDER BY fecha_creacion DESC');
+    const rows = await getReglasAlerta();
     res.json({ data: rows });
   } catch (err) {
-    console.error('[GET /alertas/reglas]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'GET /alertas/reglas');
   }
 });
 
@@ -60,11 +68,7 @@ router.post('/alertas/reglas', adminOnly, async (req, res) => {
     if (!Number.isFinite(valorUmbral)) return res.status(400).json({ error: 'Valor umbral no valido.' });
 
     const id = randomUUID();
-    await db.query(
-      `INSERT INTO regla_alerta (id_regla, nombre, metrica, operador, valor_umbral, activa, creado_por)
-       VALUES (?, ?, ?, ?, ?, 1, ?)`,
-      [id, nombre, metrica, operador, valorUmbral, req.user.id]
-    );
+    const created = await createReglaAlerta({ id, nombre, metrica, operador, valorUmbral, creadoPor: req.user.id });
 
     await auditEvent(req, {
       evento: 'regla_alerta_creada',
@@ -77,11 +81,9 @@ router.post('/alertas/reglas', adminOnly, async (req, res) => {
       metadata: { metrica, operador, valorUmbral },
     });
 
-    const [[created]] = await db.query('SELECT * FROM regla_alerta WHERE id_regla = ?', [id]);
     res.status(201).json({ data: created });
   } catch (err) {
-    console.error('[POST /alertas/reglas]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'POST /alertas/reglas');
   }
 });
 
@@ -89,7 +91,7 @@ router.post('/alertas/reglas', adminOnly, async (req, res) => {
 router.put('/alertas/reglas/:id', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const [[existing]] = await db.query('SELECT * FROM regla_alerta WHERE id_regla = ?', [id]);
+    const existing = await getReglaAlertaById(id);
     if (!existing) return res.status(404).json({ error: 'Regla no encontrada.' });
 
     const nombre = String(req.body.nombre ?? existing.nombre).trim();
@@ -101,10 +103,7 @@ router.put('/alertas/reglas/:id', adminOnly, async (req, res) => {
     if (!OPERADORES.has(operador)) return res.status(400).json({ error: 'Operador no valido.' });
     if (!Number.isFinite(valorUmbral)) return res.status(400).json({ error: 'Valor umbral no valido.' });
 
-    await db.query(
-      `UPDATE regla_alerta SET nombre = ?, operador = ?, valor_umbral = ?, activa = ? WHERE id_regla = ?`,
-      [nombre, operador, valorUmbral, activa ? 1 : 0, id]
-    );
+    const updated = await updateReglaAlerta(id, { nombre, operador, valorUmbral, activa });
 
     await auditEvent(req, {
       evento: 'regla_alerta_actualizada',
@@ -116,11 +115,9 @@ router.put('/alertas/reglas/:id', adminOnly, async (req, res) => {
       detalle: `Regla actualizada: ${operador} ${valorUmbral}, activa=${activa}`,
     });
 
-    const [[updated]] = await db.query('SELECT * FROM regla_alerta WHERE id_regla = ?', [id]);
     res.json({ data: updated });
   } catch (err) {
-    console.error('[PUT /alertas/reglas/:id]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'PUT /alertas/reglas/:id');
   }
 });
 
@@ -128,10 +125,10 @@ router.put('/alertas/reglas/:id', adminOnly, async (req, res) => {
 router.delete('/alertas/reglas/:id', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const [[existing]] = await db.query('SELECT * FROM regla_alerta WHERE id_regla = ?', [id]);
+    const existing = await getReglaAlertaById(id);
     if (!existing) return res.status(404).json({ error: 'Regla no encontrada.' });
 
-    await db.query('DELETE FROM regla_alerta WHERE id_regla = ?', [id]);
+    await deleteReglaAlerta(id);
 
     await auditEvent(req, {
       evento: 'regla_alerta_eliminada',
@@ -145,8 +142,7 @@ router.delete('/alertas/reglas/:id', adminOnly, async (req, res) => {
 
     res.json({ ok: true });
   } catch (err) {
-    console.error('[DELETE /alertas/reglas/:id]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'DELETE /alertas/reglas/:id');
   }
 });
 
@@ -154,19 +150,10 @@ router.delete('/alertas/reglas/:id', adminOnly, async (req, res) => {
 router.get('/alertas/generadas', adminOnly, async (req, res) => {
   try {
     const soloPendientes = req.query.pendientes === '1';
-    const where = soloPendientes ? 'WHERE ag.atendida = 0' : '';
-    const [rows] = await db.query(`
-      SELECT ag.*, r.nombre AS regla_nombre
-      FROM alerta_generada ag
-      LEFT JOIN regla_alerta r ON r.id_regla = ag.id_regla
-      ${where}
-      ORDER BY ag.fecha_generada DESC
-      LIMIT 200
-    `);
+    const rows = await getAlertasGeneradas({ soloPendientes });
     res.json({ data: rows });
   } catch (err) {
-    console.error('[GET /alertas/generadas]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'GET /alertas/generadas');
   }
 });
 
@@ -174,13 +161,10 @@ router.get('/alertas/generadas', adminOnly, async (req, res) => {
 router.post('/alertas/generadas/:id/atender', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const [[existing]] = await db.query('SELECT * FROM alerta_generada WHERE id_alerta = ?', [id]);
+    const existing = await getAlertaGeneradaById(id);
     if (!existing) return res.status(404).json({ error: 'Alerta no encontrada.' });
 
-    await db.query(
-      `UPDATE alerta_generada SET atendida = 1, atendida_por = ?, fecha_atendida = NOW() WHERE id_alerta = ?`,
-      [req.user.id, id]
-    );
+    await markAlertaAtendida({ id, atendidaPor: req.user.id });
 
     await auditEvent(req, {
       evento: 'alerta_atendida',
@@ -194,8 +178,7 @@ router.post('/alertas/generadas/:id/atender', adminOnly, async (req, res) => {
 
     res.json({ ok: true });
   } catch (err) {
-    console.error('[POST /alertas/generadas/:id/atender]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'POST /alertas/generadas/:id/atender');
   }
 });
 
@@ -205,8 +188,7 @@ router.post('/alertas/evaluar', adminOnly, async (_req, res) => {
     const generadas = await evaluarReglas();
     res.json({ ok: true, generadas: generadas.length });
   } catch (err) {
-    console.error('[POST /alertas/evaluar]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'POST /alertas/evaluar');
   }
 });
 
