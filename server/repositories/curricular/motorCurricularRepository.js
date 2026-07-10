@@ -1,6 +1,77 @@
-import db from '../../db_curricular.js';
+import { curricularPrisma } from '../../prismaClient.js';
 
 let schemaReady = null;
+
+function numberOrNull(value) {
+  return value === null || value === undefined ? null : Number(value);
+}
+
+function impactoToRow(impacto, curso = null) {
+  return {
+    ...impacto,
+    score_impacto: numberOrNull(impacto.score_impacto),
+    nombre_curso: curso?.nombre_curso || null,
+    numero_ciclo: curso?.numero_ciclo || null,
+  };
+}
+
+function brechaToRow(brecha, impacto = null, curso = null) {
+  return {
+    ...brecha,
+    titulo_impacto: impacto?.titulo_impacto || null,
+    score_impacto: numberOrNull(impacto?.score_impacto),
+    nivel_impacto: impacto?.nivel_impacto || null,
+    nombre_curso: curso?.nombre_curso || null,
+    numero_ciclo: curso?.numero_ciclo || null,
+  };
+}
+
+function propuestaToRow(propuesta, brecha = null, curso = null) {
+  return {
+    ...propuesta,
+    descripcion_brecha: brecha?.descripcion_brecha || null,
+    tipo_brecha: brecha?.tipo_brecha || null,
+    prioridad_brecha: brecha?.prioridad || null,
+    nombre_curso: curso?.nombre_curso || null,
+    numero_ciclo: curso?.numero_ciclo || null,
+  };
+}
+
+function prioridadRank(prioridad) {
+  return { critica: 0, alta: 1, media: 2, baja: 3 }[prioridad] ?? 9;
+}
+
+function estadoPropuestaRank(estado) {
+  return { pendiente: 0, observada: 1, aprobada: 2, rechazada: 3 }[estado] ?? 9;
+}
+
+async function cursosById(ids) {
+  const uniqueIds = [...new Set(ids.filter(Boolean).map(Number))];
+  if (!uniqueIds.length) return new Map();
+  const cursos = await curricularPrisma.curso.findMany({
+    where: { id_curso: { in: uniqueIds } },
+    select: { id_curso: true, nombre_curso: true, numero_ciclo: true },
+  });
+  return new Map(cursos.map(c => [c.id_curso, c]));
+}
+
+async function impactosById(ids) {
+  const uniqueIds = [...new Set(ids.filter(Boolean).map(Number))];
+  if (!uniqueIds.length) return new Map();
+  const impactos = await curricularPrisma.impacto_curricular.findMany({
+    where: { id_impacto: { in: uniqueIds } },
+  });
+  return new Map(impactos.map(i => [i.id_impacto, i]));
+}
+
+async function brechasById(ids) {
+  const uniqueIds = [...new Set(ids.filter(Boolean).map(Number))];
+  if (!uniqueIds.length) return new Map();
+  const brechas = await curricularPrisma.brecha_curricular.findMany({
+    where: { id_brecha: { in: uniqueIds } },
+  });
+  return new Map(brechas.map(b => [b.id_brecha, b]));
+}
 
 export async function ensureMotorSchema() {
   if (schemaReady) return schemaReady;
@@ -90,157 +161,200 @@ export async function ensureMotorSchema() {
         KEY idx_mvp_origen (id_malla_version_origen)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     ];
-    for (const sql of stmts) await db.query(sql);
+    for (const sql of stmts) await curricularPrisma.$executeRawUnsafe(sql);
   })();
   return schemaReady;
 }
 
 export async function getImpactosCurriculares({ idCarrera, idMalla }) {
-  const where = ['id_carrera = ?'];
-  const params = [idCarrera];
-  if (idMalla) { where.push('id_malla_version = ?'); params.push(idMalla); }
-
-  const [rows] = await db.query(
-    `SELECT ic.*, c.nombre_curso, c.numero_ciclo
-     FROM impacto_curricular ic
-     LEFT JOIN curso c ON c.id_curso = ic.id_curso
-     WHERE ${where.join(' AND ')}
-     ORDER BY ic.score_impacto DESC, ic.created_at DESC`,
-    params
-  );
-  return rows;
+  const impactos = await curricularPrisma.impacto_curricular.findMany({
+    where: {
+      id_carrera: Number(idCarrera),
+      ...(idMalla ? { id_malla_version: Number(idMalla) } : {}),
+    },
+    orderBy: [{ score_impacto: 'desc' }, { created_at: 'desc' }],
+  });
+  const cursos = await cursosById(impactos.map(i => i.id_curso));
+  return impactos.map(i => impactoToRow(i, cursos.get(i.id_curso)));
 }
 
 export async function getBrechasCurriculares({ idCarrera, idMalla, prioridad }) {
-  const where = ['bc.id_carrera = ?'];
-  const params = [idCarrera];
-  if (idMalla) { where.push('ic.id_malla_version = ?'); params.push(idMalla); }
-  if (prioridad) { where.push('bc.prioridad = ?'); params.push(prioridad); }
+  const impactos = idMalla
+    ? await curricularPrisma.impacto_curricular.findMany({
+        where: { id_carrera: Number(idCarrera), id_malla_version: Number(idMalla) },
+        select: { id_impacto: true },
+      })
+    : null;
+  const impactIds = impactos?.map(i => i.id_impacto);
 
-  const [rows] = await db.query(
-    `SELECT bc.*, ic.titulo_impacto, ic.score_impacto, ic.nivel_impacto,
-            c.nombre_curso, c.numero_ciclo
-     FROM brecha_curricular bc
-     JOIN impacto_curricular ic ON ic.id_impacto = bc.id_impacto
-     LEFT JOIN curso c ON c.id_curso = bc.id_curso
-     WHERE ${where.join(' AND ')}
-     ORDER BY FIELD(bc.prioridad,'critica','alta','media','baja'), bc.created_at DESC`,
-    params
-  );
-  return rows;
+  const brechas = await curricularPrisma.brecha_curricular.findMany({
+    where: {
+      id_carrera: Number(idCarrera),
+      ...(prioridad ? { prioridad } : {}),
+      ...(impactIds ? { id_impacto: { in: impactIds } } : {}),
+    },
+    orderBy: { created_at: 'desc' },
+  });
+  const [impactosMap, cursos] = await Promise.all([
+    impactosById(brechas.map(b => b.id_impacto)),
+    cursosById(brechas.map(b => b.id_curso)),
+  ]);
+
+  return brechas
+    .map(b => brechaToRow(b, impactosMap.get(b.id_impacto), cursos.get(b.id_curso)))
+    .sort((a, b) => prioridadRank(a.prioridad) - prioridadRank(b.prioridad)
+      || new Date(b.created_at || 0) - new Date(a.created_at || 0));
 }
 
 export async function getPropuestasCurriculares({ idCarrera, estado, idMalla }) {
-  const where = ['p.id_carrera = ?'];
-  const params = [idCarrera];
-  if (estado) { where.push('p.estado_revision = ?'); params.push(estado); }
-  if (idMalla) { where.push('p.id_malla_version_origen = ?'); params.push(idMalla); }
+  const propuestas = await curricularPrisma.propuesta_curricular.findMany({
+    where: {
+      id_carrera: Number(idCarrera),
+      ...(estado ? { estado_revision: estado } : {}),
+      ...(idMalla ? { id_malla_version_origen: Number(idMalla) } : {}),
+    },
+  });
+  const brechasMap = await brechasById(propuestas.map(p => p.id_brecha));
+  const cursos = await cursosById([...brechasMap.values()].map(b => b.id_curso));
 
-  const [rows] = await db.query(
-    `SELECT p.*, bc.descripcion_brecha, bc.tipo_brecha, bc.prioridad AS prioridad_brecha,
-            c.nombre_curso, c.numero_ciclo
-     FROM propuesta_curricular p
-     JOIN brecha_curricular bc ON bc.id_brecha = p.id_brecha
-     LEFT JOIN curso c ON c.id_curso = bc.id_curso
-     WHERE ${where.join(' AND ')}
-     ORDER BY FIELD(p.estado_revision,'pendiente','observada','aprobada','rechazada'),
-              FIELD(bc.prioridad,'critica','alta','media','baja')`,
-    params
-  );
-  return rows;
+  return propuestas
+    .map(p => {
+      const brecha = brechasMap.get(p.id_brecha);
+      return propuestaToRow(p, brecha, cursos.get(brecha?.id_curso));
+    })
+    .sort((a, b) => estadoPropuestaRank(a.estado_revision) - estadoPropuestaRank(b.estado_revision)
+      || prioridadRank(a.prioridad_brecha) - prioridadRank(b.prioridad_brecha));
 }
 
 export async function createPropuestaCurricular(data) {
-  const [result] = await db.query(
-    `INSERT INTO propuesta_curricular
-     (id_brecha, id_carrera, id_malla_version_origen, tipo_propuesta, titulo_propuesta,
-      descripcion_propuesta, justificacion, impacto_esperado, usuario_creador)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
-    [
-      data.id_brecha,
-      data.id_carrera,
-      data.id_malla_version_origen,
-      data.tipo_propuesta,
-      data.titulo_propuesta,
-      data.descripcion_propuesta,
-      data.justificacion,
-      data.impacto_esperado ?? null,
-      data.usuario,
-    ]
-  );
-  return result.insertId;
+  const created = await curricularPrisma.propuesta_curricular.create({
+    data: {
+      id_brecha: Number(data.id_brecha),
+      id_carrera: Number(data.id_carrera),
+      id_malla_version_origen: Number(data.id_malla_version_origen),
+      tipo_propuesta: data.tipo_propuesta,
+      titulo_propuesta: data.titulo_propuesta,
+      descripcion_propuesta: data.descripcion_propuesta,
+      justificacion: data.justificacion,
+      impacto_esperado: data.impacto_esperado ?? null,
+      usuario_creador: data.usuario,
+    },
+    select: { id_propuesta: true },
+  });
+  return created.id_propuesta;
 }
 
 export async function updatePropuestaEstado({ id, estadoRevision, observacion, usuario }) {
-  await db.query(
-    `UPDATE propuesta_curricular
-     SET estado_revision=?, usuario_revisor=?, fecha_revision=NOW(),
-         impacto_esperado=CASE WHEN ? IS NOT NULL THEN CONCAT(COALESCE(impacto_esperado,''),' | Obs: ',?) ELSE impacto_esperado END
-     WHERE id_propuesta=?`,
-    [estadoRevision, usuario, observacion ?? null, observacion ?? null, id]
-  );
+  const current = await curricularPrisma.propuesta_curricular.findUnique({
+    where: { id_propuesta: Number(id) },
+    select: { impacto_esperado: true },
+  });
+  const nextImpacto = observacion
+    ? `${current?.impacto_esperado || ''} | Obs: ${observacion}`
+    : current?.impacto_esperado;
+
+  await curricularPrisma.propuesta_curricular.update({
+    where: { id_propuesta: Number(id) },
+    data: {
+      estado_revision: estadoRevision,
+      usuario_revisor: usuario,
+      fecha_revision: new Date(),
+      impacto_esperado: nextImpacto,
+      updated_at: new Date(),
+    },
+  });
 }
 
 export async function getPropuestaForVersion(id) {
-  const [[row]] = await db.query(
-    `SELECT p.*, bc.descripcion_brecha, c.nombre_curso
-     FROM propuesta_curricular p
-     JOIN brecha_curricular bc ON bc.id_brecha = p.id_brecha
-     LEFT JOIN curso c ON c.id_curso = bc.id_curso
-     WHERE p.id_propuesta = ?`,
-    [id]
-  );
-  return row || null;
+  const propuesta = await curricularPrisma.propuesta_curricular.findUnique({
+    where: { id_propuesta: Number(id) },
+  });
+  if (!propuesta) return null;
+  const brecha = await curricularPrisma.brecha_curricular.findUnique({
+    where: { id_brecha: propuesta.id_brecha },
+    select: { descripcion_brecha: true, id_curso: true },
+  });
+  const curso = brecha?.id_curso
+    ? await curricularPrisma.curso.findUnique({ where: { id_curso: brecha.id_curso }, select: { nombre_curso: true } })
+    : null;
+
+  return {
+    ...propuesta,
+    descripcion_brecha: brecha?.descripcion_brecha || null,
+    nombre_curso: curso?.nombre_curso || null,
+  };
 }
 
 export async function getMallaVersionName(idMalla) {
-  const [[row]] = await db.query('SELECT nombre_version FROM malla_version WHERE id_malla=?', [idMalla]);
+  const row = await curricularPrisma.malla_version.findUnique({
+    where: { id_malla: Number(idMalla) },
+    select: { nombre_version: true },
+  });
   return row?.nombre_version || null;
 }
 
 export async function createMallaVersionPropuesta({ idMallaVersionOrigen, idPropuesta, nombreVersion, descripcionCambios }) {
-  const [result] = await db.query(
-    `INSERT INTO malla_version_propuesta
-     (id_malla_version_origen, id_propuesta, nombre_version, descripcion_cambios, estado)
-     VALUES (?,?,?,?,'borrador')`,
-    [idMallaVersionOrigen, idPropuesta, nombreVersion, descripcionCambios]
-  );
-  return result.insertId;
+  const created = await curricularPrisma.malla_version_propuesta.create({
+    data: {
+      id_malla_version_origen: Number(idMallaVersionOrigen),
+      id_propuesta: Number(idPropuesta),
+      nombre_version: nombreVersion,
+      descripcion_cambios: descripcionCambios,
+      estado: 'borrador',
+    },
+    select: { id_malla_version_propuesta: true },
+  });
+  return created.id_malla_version_propuesta;
 }
 
 export async function getEvidenciasImpacto(idImpacto) {
-  const [rows] = await db.query(
-    `SELECT ev.*, ice.peso, ice.justificacion_relacion
-     FROM evidencia_curricular ev
-     JOIN impacto_curricular_evidencia ice ON ice.id_evidencia = ev.id_evidencia
-     WHERE ice.id_impacto = ?
-     ORDER BY ice.peso DESC`,
-    [idImpacto]
-  );
-  return rows;
+  const relaciones = await curricularPrisma.impacto_curricular_evidencia.findMany({
+    where: { id_impacto: Number(idImpacto) },
+    orderBy: { peso: 'desc' },
+  });
+  const evidencias = await curricularPrisma.evidencia_curricular.findMany({
+    where: { id_evidencia: { in: relaciones.map(r => r.id_evidencia) } },
+  });
+  const evidenciasMap = new Map(evidencias.map(e => [e.id_evidencia, e]));
+
+  return relaciones.map(rel => ({
+    ...evidenciasMap.get(rel.id_evidencia),
+    nivel_confianza: numberOrNull(evidenciasMap.get(rel.id_evidencia)?.nivel_confianza),
+    peso: numberOrNull(rel.peso),
+    justificacion_relacion: rel.justificacion_relacion,
+  })).filter(row => row.id_evidencia);
 }
 
 export async function getKpisImpacto({ idCarrera, idMalla }) {
-  const where = ['ic.id_carrera = ?'];
-  const params = [idCarrera];
-  if (idMalla) { where.push('ic.id_malla_version = ?'); params.push(idMalla); }
+  const impactos = await curricularPrisma.impacto_curricular.findMany({
+    where: {
+      id_carrera: Number(idCarrera),
+      ...(idMalla ? { id_malla_version: Number(idMalla) } : {}),
+    },
+  });
+  const impactIds = impactos.map(i => i.id_impacto);
+  const brechas = impactIds.length
+    ? await curricularPrisma.brecha_curricular.findMany({ where: { id_impacto: { in: impactIds } } })
+    : [];
+  const brechaIds = brechas.map(b => b.id_brecha);
+  const propuestas = brechaIds.length
+    ? await curricularPrisma.propuesta_curricular.findMany({ where: { id_brecha: { in: brechaIds } } })
+    : [];
+  const evidencias = impactIds.length
+    ? await curricularPrisma.impacto_curricular_evidencia.findMany({ where: { id_impacto: { in: impactIds } } })
+    : [];
+  const scores = impactos.map(i => numberOrNull(i.score_impacto)).filter(score => score !== null);
 
-  const [[row]] = await db.query(
-    `SELECT
-       COUNT(DISTINCT ic.id_impacto) AS total_impactos,
-       COUNT(DISTINCT bc.id_brecha) AS total_brechas,
-       SUM(CASE WHEN p.estado_revision='pendiente' THEN 1 ELSE 0 END) AS propuestas_pendientes,
-       SUM(CASE WHEN p.estado_revision='aprobada' THEN 1 ELSE 0 END) AS propuestas_aprobadas,
-       COUNT(DISTINCT ev.id_evidencia) AS evidencias_verificadas,
-       ROUND(AVG(ic.score_impacto),1) AS score_promedio,
-       MAX(ic.created_at) AS ultima_ejecucion
-     FROM impacto_curricular ic
-     LEFT JOIN brecha_curricular bc ON bc.id_impacto = ic.id_impacto
-     LEFT JOIN propuesta_curricular p ON p.id_brecha = bc.id_brecha
-     LEFT JOIN impacto_curricular_evidencia ice ON ice.id_impacto = ic.id_impacto
-     LEFT JOIN evidencia_curricular ev ON ev.id_evidencia = ice.id_evidencia
-     WHERE ${where.join(' AND ')}`,
-    params
-  );
-  return row || {};
+  return {
+    total_impactos: impactos.length,
+    total_brechas: brechas.length,
+    propuestas_pendientes: propuestas.filter(p => p.estado_revision === 'pendiente').length,
+    propuestas_aprobadas: propuestas.filter(p => p.estado_revision === 'aprobada').length,
+    evidencias_verificadas: new Set(evidencias.map(e => e.id_evidencia)).size,
+    score_promedio: scores.length ? Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 10) / 10 : null,
+    ultima_ejecucion: impactos.reduce((latest, item) => {
+      if (!item.created_at) return latest;
+      return !latest || item.created_at > latest ? item.created_at : latest;
+    }, null),
+  };
 }
