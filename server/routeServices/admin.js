@@ -57,7 +57,7 @@ function archiveMeta(row) {
   };
 }
 
-async function ensureUniqueTitleOrName(resource, titulo, nombre, excludeId = null) {
+async function ensureUniqueTitleOrName(resource, titulo, nombre, excludeId = null, conn = db) {
   const cfg = ARCHIVABLE[resource];
   if (!cfg) throw new Error('Recurso invalido para validacion de duplicados.');
 
@@ -68,7 +68,7 @@ async function ensureUniqueTitleOrName(resource, titulo, nombre, excludeId = nul
     params.push(excludeId);
   }
 
-  const [[dup]] = await db.query(
+  const [[dup]] = await conn.query(
     `SELECT \`${cfg.id}\` AS id,
             \`${cfg.title}\` AS titulo,
             \`${cfg.name}\` AS nombre
@@ -91,6 +91,34 @@ async function ensureUniqueTitleOrName(resource, titulo, nombre, excludeId = nul
   const err = new Error(error);
   err.status = 400;
   throw err;
+}
+
+//----------------TI-35 (consolidacion de escrituras en backend)----------------
+// Antes: cada guardado de senal/tendencia/escenario disparaba entre 20 y 40
+// queries secuenciales (un DELETE + un INSERT por cada PESTEL/sector/relacion
+// seleccionada, uno a la vez). Ahora: una sola transaccion por guardado y los
+// INSERT de relaciones van en bloque (VALUES con multiples filas), bajando
+// cada guardado a ~7-10 round trips y haciendolo atomico (antes un fallo a
+// mitad del loop dejaba relaciones a medio actualizar, sin rollback).
+async function withTransaction(fn) {
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const result = await fn(conn);
+    await conn.commit();
+    return result;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+async function bulkInsertIgnore(conn, table, columns, rows) {
+  if (!rows.length) return;
+  const cols = columns.map(c => `\`${c}\``).join(', ');
+  await conn.query(`INSERT IGNORE INTO \`${table}\` (${cols}) VALUES ?`, [rows]);
 }
 
 
@@ -629,41 +657,51 @@ router.put('/admin/senales/:uuid', adminOnly, async (req, res) => {
     const sids = Array.isArray(sectorIds)&&sectorIds.length ? sectorIds : (sectorId?[sectorId]:[]);
     const errs = validateCreate({ nombre, sectorId: sids[0], pestelId: pestelId || pestelIds?.[0], descCorta });
     if (errs.length) return res.status(400).json({ error: errs[0], errors: errs });
-    const [[ex]] = await db.query('SELECT id_senal, id_estado FROM senal WHERE id_senal = ?', [uuid]);
-    if (!ex) return res.status(404).json({ error: 'Señal no encontrada.' });
-    const idEstado = [1,2,3].includes(Number(id_estado)) ? Number(id_estado) : ex.id_estado;
-    const tituloFin = (tituloDes?.trim() || nombre.trim()).slice(0,100);
-    const nombreFin = nombre.trim().slice(0,100);
-    await ensureUniqueTitleOrName('senales', tituloFin, nombreFin, uuid);
-    await db.query(
-      `UPDATE senal SET titulo_senal=?, nombre_senal=?,
-         desc_corta_senal=?, desc_larga_senal=?, razon_cambio=?,
-         fuente_senal=?, url_fuente=?,
-         url_imagen_senal=?, url_video_senal=?,
-         autor=?,
-         fecha_senal_articulo=?,
-         id_estado=?, id_usuario_actualizador=?,
-         fecha_publicacion=IF(?=1 AND fecha_publicacion IS NULL, NOW(), fecha_publicacion),
-         fecha_actualizacion=NOW()
-       WHERE id_senal=?`,
-      [tituloFin, nombreFin,
-       descCorta?.trim()||'', sanitizeRichHtml(descLarga), razonCambio?.trim()||null,
-       fuente?.trim()||'', urlFuente?.trim()||'',
-       imagenUrl?.trim()||null, videoUrl?.trim()||null,
-       autor?.trim()||null,
-       fechaArticulo || null,
-       idEstado, req.user.id, idEstado, uuid]);
-    await db.query('DELETE FROM senal_pestel WHERE id_senal = ?', [uuid]);
-    const pids = Array.isArray(pestelIds)&&pestelIds.length ? pestelIds : (pestelId?[pestelId]:[]);
-    for (const pid of pids) await db.query('INSERT IGNORE INTO senal_pestel VALUES (?,?)', [uuid, pid]);
-    await db.query('DELETE FROM senal_sector WHERE id_senal = ?', [uuid]);
-    for (const sid of sids) await db.query('INSERT IGNORE INTO senal_sector VALUES (?,?)', [uuid, sid]);
-    await db.query('DELETE FROM senal_tendencia WHERE id_senal = ?', [uuid]);
-    for (const tid of (Array.isArray(tendenciasRel) ? tendenciasRel : []))
-      await db.query('INSERT IGNORE INTO senal_tendencia VALUES (?,?)', [uuid, tid]);
-    await db.query('DELETE FROM senal_escenario WHERE id_senal = ?', [uuid]);
-    for (const eid of (Array.isArray(escenariosRel) ? escenariosRel : []))
-      await db.query('INSERT IGNORE INTO senal_escenario VALUES (?,?)', [uuid, eid]);
+
+    const idEstado = await withTransaction(async (conn) => {
+      const [[ex]] = await conn.query('SELECT id_senal, id_estado FROM senal WHERE id_senal = ?', [uuid]);
+      if (!ex) { const e = new Error('Señal no encontrada.'); e.status = 404; throw e; }
+      const idEstado = [1,2,3].includes(Number(id_estado)) ? Number(id_estado) : ex.id_estado;
+      const tituloFin = (tituloDes?.trim() || nombre.trim()).slice(0,100);
+      const nombreFin = nombre.trim().slice(0,100);
+      await ensureUniqueTitleOrName('senales', tituloFin, nombreFin, uuid, conn);
+      await conn.query(
+        `UPDATE senal SET titulo_senal=?, nombre_senal=?,
+           desc_corta_senal=?, desc_larga_senal=?, razon_cambio=?,
+           fuente_senal=?, url_fuente=?,
+           url_imagen_senal=?, url_video_senal=?,
+           autor=?,
+           fecha_senal_articulo=?,
+           id_estado=?, id_usuario_actualizador=?,
+           fecha_publicacion=IF(?=1 AND fecha_publicacion IS NULL, NOW(), fecha_publicacion),
+           fecha_actualizacion=NOW()
+         WHERE id_senal=?`,
+        [tituloFin, nombreFin,
+         descCorta?.trim()||'', sanitizeRichHtml(descLarga), razonCambio?.trim()||null,
+         fuente?.trim()||'', urlFuente?.trim()||'',
+         imagenUrl?.trim()||null, videoUrl?.trim()||null,
+         autor?.trim()||null,
+         fechaArticulo || null,
+         idEstado, req.user.id, idEstado, uuid]);
+
+      const pids = Array.isArray(pestelIds)&&pestelIds.length ? pestelIds : (pestelId?[pestelId]:[]);
+      await conn.query('DELETE FROM senal_pestel WHERE id_senal = ?', [uuid]);
+      await bulkInsertIgnore(conn, 'senal_pestel', ['id_senal', 'id_pestel'], pids.map(pid => [uuid, pid]));
+
+      await conn.query('DELETE FROM senal_sector WHERE id_senal = ?', [uuid]);
+      await bulkInsertIgnore(conn, 'senal_sector', ['id_senal', 'id_sector'], sids.map(sid => [uuid, sid]));
+
+      await conn.query('DELETE FROM senal_tendencia WHERE id_senal = ?', [uuid]);
+      const tids = Array.isArray(tendenciasRel) ? tendenciasRel : [];
+      await bulkInsertIgnore(conn, 'senal_tendencia', ['id_senal', 'id_tendencia'], tids.map(tid => [uuid, tid]));
+
+      await conn.query('DELETE FROM senal_escenario WHERE id_senal = ?', [uuid]);
+      const eids = Array.isArray(escenariosRel) ? escenariosRel : [];
+      await bulkInsertIgnore(conn, 'senal_escenario', ['id_senal', 'id_escenario'], eids.map(eid => [uuid, eid]));
+
+      return idEstado;
+    });
+
     res.json({ success: true, estado: estadoInfo(idEstado) });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
@@ -727,39 +765,49 @@ router.put('/admin/tendencias/:uuid', adminOnly, async (req, res) => {
     const sids = Array.isArray(sectorIds)&&sectorIds.length ? sectorIds : (sectorId?[sectorId]:[]);
     const errs = validateCreate({ nombre, sectorId: sids[0], pestelId: pestelId || pestelIds?.[0], descCorta });
     if (errs.length) return res.status(400).json({ error: errs[0], errors: errs });
-    const [[ex]] = await db.query('SELECT id_tendencia, id_estado FROM tendencia WHERE id_tendencia = ?', [uuid]);
-    if (!ex) return res.status(404).json({ error: 'Tendencia no encontrada.' });
-    const idEstado = [1,2,3].includes(Number(id_estado)) ? Number(id_estado) : ex.id_estado;
-    const tituloFin = (tituloDes?.trim() || nombre.trim()).slice(0,100);
-    const nombreFin = nombre.trim().slice(0,100);
-    await ensureUniqueTitleOrName('tendencias', tituloFin, nombreFin, uuid);
-    await db.query(
-      `UPDATE tendencia SET titulo_tendencia=?, nombre_tendencia=?,
-         desc_corta_tendencia=?, desc_larga_tendencia=?, razon_cambio=?,
-         fuente_tendencia=?, url_fuente=?,
-         url_imagen_tendencia=?, url_video_tendencia=?,
-         autor=?,
-         id_estado=?, id_usuario_actualizador=?,
-         fecha_publicacion=IF(?=1 AND fecha_publicacion IS NULL, NOW(), fecha_publicacion),
-         fecha_actualizacion=NOW()
-       WHERE id_tendencia=?`,
-      [tituloFin, nombreFin,
-       descCorta?.trim()||'', sanitizeRichHtml(descLarga), razonCambio?.trim()||null,
-       fuente?.trim()||null, urlFuente?.trim()||null,
-       imagenUrl?.trim()||null, videoUrl?.trim()||null,
-       autor?.trim()||null,
-       idEstado, req.user.id, idEstado, uuid]);
-    await db.query('DELETE FROM tendencia_pestel WHERE id_tendencia = ?', [uuid]);
-    const pids = Array.isArray(pestelIds)&&pestelIds.length ? pestelIds : (pestelId?[pestelId]:[]);
-    for (const pid of pids) await db.query('INSERT IGNORE INTO tendencia_pestel VALUES (?,?)', [uuid, pid]);
-    await db.query('DELETE FROM tendencia_sector WHERE id_tendencia = ?', [uuid]);
-    for (const sid of sids) await db.query('INSERT IGNORE INTO tendencia_sector VALUES (?,?)', [uuid, sid]);
-    await db.query('DELETE FROM senal_tendencia WHERE id_tendencia = ?', [uuid]);
-    for (const sid of (Array.isArray(senalesRel) ? senalesRel : []))
-      await db.query('INSERT IGNORE INTO senal_tendencia VALUES (?,?)', [sid, uuid]);
-    await db.query('DELETE FROM tendencia_escenario WHERE id_tendencia = ?', [uuid]);
-    for (const eid of (Array.isArray(escenariosRel) ? escenariosRel : []))
-      await db.query('INSERT IGNORE INTO tendencia_escenario VALUES (?,?)', [uuid, eid]);
+
+    const idEstado = await withTransaction(async (conn) => {
+      const [[ex]] = await conn.query('SELECT id_tendencia, id_estado FROM tendencia WHERE id_tendencia = ?', [uuid]);
+      if (!ex) { const e = new Error('Tendencia no encontrada.'); e.status = 404; throw e; }
+      const idEstado = [1,2,3].includes(Number(id_estado)) ? Number(id_estado) : ex.id_estado;
+      const tituloFin = (tituloDes?.trim() || nombre.trim()).slice(0,100);
+      const nombreFin = nombre.trim().slice(0,100);
+      await ensureUniqueTitleOrName('tendencias', tituloFin, nombreFin, uuid, conn);
+      await conn.query(
+        `UPDATE tendencia SET titulo_tendencia=?, nombre_tendencia=?,
+           desc_corta_tendencia=?, desc_larga_tendencia=?, razon_cambio=?,
+           fuente_tendencia=?, url_fuente=?,
+           url_imagen_tendencia=?, url_video_tendencia=?,
+           autor=?,
+           id_estado=?, id_usuario_actualizador=?,
+           fecha_publicacion=IF(?=1 AND fecha_publicacion IS NULL, NOW(), fecha_publicacion),
+           fecha_actualizacion=NOW()
+         WHERE id_tendencia=?`,
+        [tituloFin, nombreFin,
+         descCorta?.trim()||'', sanitizeRichHtml(descLarga), razonCambio?.trim()||null,
+         fuente?.trim()||null, urlFuente?.trim()||null,
+         imagenUrl?.trim()||null, videoUrl?.trim()||null,
+         autor?.trim()||null,
+         idEstado, req.user.id, idEstado, uuid]);
+
+      const pids = Array.isArray(pestelIds)&&pestelIds.length ? pestelIds : (pestelId?[pestelId]:[]);
+      await conn.query('DELETE FROM tendencia_pestel WHERE id_tendencia = ?', [uuid]);
+      await bulkInsertIgnore(conn, 'tendencia_pestel', ['id_tendencia', 'id_pestel'], pids.map(pid => [uuid, pid]));
+
+      await conn.query('DELETE FROM tendencia_sector WHERE id_tendencia = ?', [uuid]);
+      await bulkInsertIgnore(conn, 'tendencia_sector', ['id_tendencia', 'id_sector'], sids.map(sid => [uuid, sid]));
+
+      await conn.query('DELETE FROM senal_tendencia WHERE id_tendencia = ?', [uuid]);
+      const senIds = Array.isArray(senalesRel) ? senalesRel : [];
+      await bulkInsertIgnore(conn, 'senal_tendencia', ['id_senal', 'id_tendencia'], senIds.map(sid => [sid, uuid]));
+
+      await conn.query('DELETE FROM tendencia_escenario WHERE id_tendencia = ?', [uuid]);
+      const eids = Array.isArray(escenariosRel) ? escenariosRel : [];
+      await bulkInsertIgnore(conn, 'tendencia_escenario', ['id_tendencia', 'id_escenario'], eids.map(eid => [uuid, eid]));
+
+      return idEstado;
+    });
+
     res.json({ success: true, estado: estadoInfo(idEstado) });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
@@ -827,41 +875,51 @@ router.put('/admin/escenarios/:uuid', adminOnly, async (req, res) => {
     const sids = Array.isArray(sectorIds)&&sectorIds.length ? sectorIds : (sectorId?[sectorId]:[]);
     const errs = validateCreate({ nombre, sectorId: sids[0], pestelId: pestelId || pestelIds?.[0], descCorta });
     if (errs.length) return res.status(400).json({ error: errs[0], errors: errs });
-    const [[ex]] = await db.query('SELECT id_escenario, id_estado FROM escenario WHERE id_escenario = ?', [uuid]);
-    if (!ex) return res.status(404).json({ error: 'Escenario no encontrado.' });
-    const idEstado = [1,2,3].includes(Number(id_estado)) ? Number(id_estado) : ex.id_estado;
-    const tituloFin = (tituloDes?.trim() || nombre.trim()).slice(0,100);
-    const nombreFin = nombre.trim().slice(0,100);
-    await ensureUniqueTitleOrName('escenarios', tituloFin, nombreFin, uuid);
-    await db.query(
-      `UPDATE escenario SET titulo_escenario=?, nombre_escenario=?,
-         desc_corta_escenario=?, desc_larga_escenario=?, razon_cambio=?,
-         fuente_escenario=?, url_fuente=?,
-         url_imagen_escenario=?, url_video_escenario=?,
-         horizonte_escenario=?,
-         autor=?,
-         id_estado=?, id_usuario_actualizador=?,
-         fecha_publicacion=IF(?=1 AND fecha_publicacion IS NULL, NOW(), fecha_publicacion),
-         fecha_actualizacion=NOW()
-       WHERE id_escenario=?`,
-      [tituloFin, nombreFin,
-       descCorta?.trim()||'', sanitizeRichHtml(descLarga), razonCambio?.trim()||null,
-       fuente?.trim()||null, urlFuenteStored,
-       imagenUrl?.trim()||null, videoUrl?.trim()||null,
-       horizonte?.trim()||null,
-       autor?.trim()||null,
-       idEstado, req.user.id, idEstado, uuid]);
-    await db.query('DELETE FROM escenario_pestel WHERE id_escenario = ?', [uuid]);
-    const pids = Array.isArray(pestelIds)&&pestelIds.length ? pestelIds : (pestelId?[pestelId]:[]);
-    for (const pid of pids) await db.query('INSERT IGNORE INTO escenario_pestel VALUES (?,?)', [uuid, pid]);
-    await db.query('DELETE FROM escenario_sector WHERE id_escenario = ?', [uuid]);
-    for (const sid of sids) await db.query('INSERT IGNORE INTO escenario_sector VALUES (?,?)', [uuid, sid]);
-    await db.query('DELETE FROM senal_escenario WHERE id_escenario = ?', [uuid]);
-    for (const sid of (Array.isArray(senalesRel) ? senalesRel : []))
-      await db.query('INSERT IGNORE INTO senal_escenario VALUES (?,?)', [sid, uuid]);
-    await db.query('DELETE FROM tendencia_escenario WHERE id_escenario = ?', [uuid]);
-    for (const tid of (Array.isArray(tendenciasRel) ? tendenciasRel : []))
-      await db.query('INSERT IGNORE INTO tendencia_escenario VALUES (?,?)', [tid, uuid]);
+
+    const idEstado = await withTransaction(async (conn) => {
+      const [[ex]] = await conn.query('SELECT id_escenario, id_estado FROM escenario WHERE id_escenario = ?', [uuid]);
+      if (!ex) { const e = new Error('Escenario no encontrado.'); e.status = 404; throw e; }
+      const idEstado = [1,2,3].includes(Number(id_estado)) ? Number(id_estado) : ex.id_estado;
+      const tituloFin = (tituloDes?.trim() || nombre.trim()).slice(0,100);
+      const nombreFin = nombre.trim().slice(0,100);
+      await ensureUniqueTitleOrName('escenarios', tituloFin, nombreFin, uuid, conn);
+      await conn.query(
+        `UPDATE escenario SET titulo_escenario=?, nombre_escenario=?,
+           desc_corta_escenario=?, desc_larga_escenario=?, razon_cambio=?,
+           fuente_escenario=?, url_fuente=?,
+           url_imagen_escenario=?, url_video_escenario=?,
+           horizonte_escenario=?,
+           autor=?,
+           id_estado=?, id_usuario_actualizador=?,
+           fecha_publicacion=IF(?=1 AND fecha_publicacion IS NULL, NOW(), fecha_publicacion),
+           fecha_actualizacion=NOW()
+         WHERE id_escenario=?`,
+        [tituloFin, nombreFin,
+         descCorta?.trim()||'', sanitizeRichHtml(descLarga), razonCambio?.trim()||null,
+         fuente?.trim()||null, urlFuenteStored,
+         imagenUrl?.trim()||null, videoUrl?.trim()||null,
+         horizonte?.trim()||null,
+         autor?.trim()||null,
+         idEstado, req.user.id, idEstado, uuid]);
+
+      const pids = Array.isArray(pestelIds)&&pestelIds.length ? pestelIds : (pestelId?[pestelId]:[]);
+      await conn.query('DELETE FROM escenario_pestel WHERE id_escenario = ?', [uuid]);
+      await bulkInsertIgnore(conn, 'escenario_pestel', ['id_escenario', 'id_pestel'], pids.map(pid => [uuid, pid]));
+
+      await conn.query('DELETE FROM escenario_sector WHERE id_escenario = ?', [uuid]);
+      await bulkInsertIgnore(conn, 'escenario_sector', ['id_escenario', 'id_sector'], sids.map(sid => [uuid, sid]));
+
+      await conn.query('DELETE FROM senal_escenario WHERE id_escenario = ?', [uuid]);
+      const senIds = Array.isArray(senalesRel) ? senalesRel : [];
+      await bulkInsertIgnore(conn, 'senal_escenario', ['id_senal', 'id_escenario'], senIds.map(sid => [sid, uuid]));
+
+      await conn.query('DELETE FROM tendencia_escenario WHERE id_escenario = ?', [uuid]);
+      const tids = Array.isArray(tendenciasRel) ? tendenciasRel : [];
+      await bulkInsertIgnore(conn, 'tendencia_escenario', ['id_tendencia', 'id_escenario'], tids.map(tid => [tid, uuid]));
+
+      return idEstado;
+    });
+
     res.json({ success: true, estado: estadoInfo(idEstado) });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
@@ -917,48 +975,48 @@ router.post('/admin/senales', adminOnly, async (req, res) => {
     const usuarioId   = req.user.id;
     const tituloFin   = (tituloDes?.trim() || nombre.trim()).slice(0, 100);
     const nombreFin   = nombre.trim().slice(0, 100);
-    await ensureUniqueTitleOrName('senales', tituloFin, nombreFin);
 
-    await db.query(
-      `INSERT INTO senal
-         (id_senal, titulo_senal, nombre_senal,
-          desc_corta_senal, desc_larga_senal, razon_cambio,
-          fuente_senal, url_fuente,
-          url_imagen_senal, url_video_senal,
-          autor, fecha_senal_articulo, id_estado, id_usuario_creador, fecha_publicacion)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        newId,
-        tituloFin,
-        nombreFin,
-        descCorta?.trim()  || '',
-        sanitizeRichHtml(descLarga),
-        razonCambio?.trim() || null,
-        fuente?.trim()     || '',
-        urlFuente?.trim()  || '',
-        imagenUrl?.trim()  || null,
-        videoUrl?.trim()   || null,
-        autor?.trim()      || null,
-        fechaArticulo || null,
-        idEstado,
-        usuarioId,
-        idEstado === 1 ? new Date() : null,
-      ]
-    );
+    await withTransaction(async (conn) => {
+      await ensureUniqueTitleOrName('senales', tituloFin, nombreFin, null, conn);
 
-    const pestelsToInsert = Array.isArray(pestelIds) && pestelIds.length
-      ? pestelIds
-      : (pestelId ? [pestelId] : []);
-    for (const pid of pestelsToInsert) {
-      await db.query('INSERT IGNORE INTO senal_pestel (id_senal, id_pestel) VALUES (?, ?)', [newId, pid]);
-    }
+      await conn.query(
+        `INSERT INTO senal
+           (id_senal, titulo_senal, nombre_senal,
+            desc_corta_senal, desc_larga_senal, razon_cambio,
+            fuente_senal, url_fuente,
+            url_imagen_senal, url_video_senal,
+            autor, fecha_senal_articulo, id_estado, id_usuario_creador, fecha_publicacion)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newId,
+          tituloFin,
+          nombreFin,
+          descCorta?.trim()  || '',
+          sanitizeRichHtml(descLarga),
+          razonCambio?.trim() || null,
+          fuente?.trim()     || '',
+          urlFuente?.trim()  || '',
+          imagenUrl?.trim()  || null,
+          videoUrl?.trim()   || null,
+          autor?.trim()      || null,
+          fechaArticulo || null,
+          idEstado,
+          usuarioId,
+          idEstado === 1 ? new Date() : null,
+        ]
+      );
 
-    for (const sid of sids) await db.query('INSERT IGNORE INTO senal_sector (id_senal, id_sector) VALUES (?, ?)', [newId, sid]);
+      const pestelsToInsert = Array.isArray(pestelIds) && pestelIds.length
+        ? pestelIds
+        : (pestelId ? [pestelId] : []);
+      await bulkInsertIgnore(conn, 'senal_pestel', ['id_senal', 'id_pestel'], pestelsToInsert.map(pid => [newId, pid]));
+      await bulkInsertIgnore(conn, 'senal_sector', ['id_senal', 'id_sector'], sids.map(sid => [newId, sid]));
 
-    for (const tid of (Array.isArray(tendenciasRel) ? tendenciasRel : []))
-      await db.query('INSERT IGNORE INTO senal_tendencia (id_senal, id_tendencia) VALUES (?,?)', [newId, tid]);
-    for (const eid of (Array.isArray(escenariosRel) ? escenariosRel : []))
-      await db.query('INSERT IGNORE INTO senal_escenario (id_senal, id_escenario) VALUES (?,?)', [newId, eid]);
+      const tids = Array.isArray(tendenciasRel) ? tendenciasRel : [];
+      await bulkInsertIgnore(conn, 'senal_tendencia', ['id_senal', 'id_tendencia'], tids.map(tid => [newId, tid]));
+      const eids = Array.isArray(escenariosRel) ? escenariosRel : [];
+      await bulkInsertIgnore(conn, 'senal_escenario', ['id_senal', 'id_escenario'], eids.map(eid => [newId, eid]));
+    });
 
     console.log(`[ADMIN] Señal creada id=${newId} estado=${idEstado} (by ${req.user.correo})`);
     res.status(201).json({ success: true, id: newId, estado: estadoInfo(idEstado) });
@@ -992,47 +1050,47 @@ router.post('/admin/tendencias', adminOnly, async (req, res) => {
     const usuarioId = req.user.id;
     const tituloFin = (tituloDes?.trim() || nombre.trim()).slice(0, 100);
     const nombreFin = nombre.trim().slice(0, 100);
-    await ensureUniqueTitleOrName('tendencias', tituloFin, nombreFin);
 
-    await db.query(
-      `INSERT INTO tendencia
-         (id_tendencia, titulo_tendencia, nombre_tendencia,
-          desc_corta_tendencia, desc_larga_tendencia, razon_cambio,
-          fuente_tendencia, url_fuente,
-          url_imagen_tendencia, url_video_tendencia,
-          autor, id_estado, id_usuario_creador, fecha_publicacion)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        newId,
-        tituloFin,
-        nombreFin,
-        descCorta?.trim()  || '',
-        sanitizeRichHtml(descLarga),
-        razonCambio?.trim() || null,
-        fuente?.trim()     || null,
-        urlFuente?.trim()  || null,
-        imagenUrl?.trim()  || null,
-        videoUrl?.trim()   || null,
-        autor?.trim()      || null,
-        idEstado,
-        usuarioId,
-        idEstado === 1 ? new Date() : null,
-      ]
-    );
+    await withTransaction(async (conn) => {
+      await ensureUniqueTitleOrName('tendencias', tituloFin, nombreFin, null, conn);
 
-    const pestelsToInsert = Array.isArray(pestelIds) && pestelIds.length
-      ? pestelIds
-      : (pestelId ? [pestelId] : []);
-    for (const pid of pestelsToInsert) {
-      await db.query('INSERT IGNORE INTO tendencia_pestel (id_tendencia, id_pestel) VALUES (?, ?)', [newId, pid]);
-    }
+      await conn.query(
+        `INSERT INTO tendencia
+           (id_tendencia, titulo_tendencia, nombre_tendencia,
+            desc_corta_tendencia, desc_larga_tendencia, razon_cambio,
+            fuente_tendencia, url_fuente,
+            url_imagen_tendencia, url_video_tendencia,
+            autor, id_estado, id_usuario_creador, fecha_publicacion)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newId,
+          tituloFin,
+          nombreFin,
+          descCorta?.trim()  || '',
+          sanitizeRichHtml(descLarga),
+          razonCambio?.trim() || null,
+          fuente?.trim()     || null,
+          urlFuente?.trim()  || null,
+          imagenUrl?.trim()  || null,
+          videoUrl?.trim()   || null,
+          autor?.trim()      || null,
+          idEstado,
+          usuarioId,
+          idEstado === 1 ? new Date() : null,
+        ]
+      );
 
-    for (const sid of sids) await db.query('INSERT IGNORE INTO tendencia_sector (id_tendencia, id_sector) VALUES (?, ?)', [newId, sid]);
+      const pestelsToInsert = Array.isArray(pestelIds) && pestelIds.length
+        ? pestelIds
+        : (pestelId ? [pestelId] : []);
+      await bulkInsertIgnore(conn, 'tendencia_pestel', ['id_tendencia', 'id_pestel'], pestelsToInsert.map(pid => [newId, pid]));
+      await bulkInsertIgnore(conn, 'tendencia_sector', ['id_tendencia', 'id_sector'], sids.map(sid => [newId, sid]));
 
-    for (const sid of (Array.isArray(senalesRel) ? senalesRel : []))
-      await db.query('INSERT IGNORE INTO senal_tendencia (id_senal, id_tendencia) VALUES (?,?)', [sid, newId]);
-    for (const eid of (Array.isArray(escenariosRel) ? escenariosRel : []))
-      await db.query('INSERT IGNORE INTO tendencia_escenario (id_tendencia, id_escenario) VALUES (?,?)', [newId, eid]);
+      const senIds = Array.isArray(senalesRel) ? senalesRel : [];
+      await bulkInsertIgnore(conn, 'senal_tendencia', ['id_senal', 'id_tendencia'], senIds.map(sid => [sid, newId]));
+      const eids = Array.isArray(escenariosRel) ? escenariosRel : [];
+      await bulkInsertIgnore(conn, 'tendencia_escenario', ['id_tendencia', 'id_escenario'], eids.map(eid => [newId, eid]));
+    });
 
     console.log(`[ADMIN] Tendencia creada id=${newId} estado=${idEstado} (by ${req.user.correo})`);
     res.status(201).json({ success: true, id: newId, estado: estadoInfo(idEstado) });
@@ -1068,49 +1126,49 @@ router.post('/admin/escenarios', adminOnly, async (req, res) => {
     const urlFuenteStored = serializeUrlFuentes(urlFuentes, urlFuente);
     const tituloFin = (tituloDes?.trim() || nombre.trim()).slice(0, 100);
     const nombreFin = nombre.trim().slice(0, 100);
-    await ensureUniqueTitleOrName('escenarios', tituloFin, nombreFin);
 
-    await db.query(
-      `INSERT INTO escenario
-         (id_escenario, titulo_escenario, nombre_escenario,
-          desc_corta_escenario, desc_larga_escenario, razon_cambio,
-          fuente_escenario, url_fuente,
-          url_imagen_escenario, url_video_escenario,
-          horizonte_escenario,
-          autor, id_estado, id_usuario_creador, fecha_publicacion)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        newId,
-        tituloFin,
-        nombreFin,
-        descCorta?.trim()  || '',
-        sanitizeRichHtml(descLarga),
-        razonCambio?.trim() || null,
-        fuente?.trim()     || null,
-        urlFuenteStored,
-        imagenUrl?.trim()  || null,
-        videoUrl?.trim()   || null,
-        horizonte?.trim()  || null,
-        autor?.trim()      || null,
-        idEstado,
-        usuarioId,
-        idEstado === 1 ? new Date() : null,
-      ]
-    );
+    await withTransaction(async (conn) => {
+      await ensureUniqueTitleOrName('escenarios', tituloFin, nombreFin, null, conn);
 
-    const pestelsToInsert = Array.isArray(pestelIds) && pestelIds.length
-      ? pestelIds
-      : (pestelId ? [pestelId] : []);
-    for (const pid of pestelsToInsert) {
-      await db.query('INSERT IGNORE INTO escenario_pestel (id_escenario, id_pestel) VALUES (?, ?)', [newId, pid]);
-    }
+      await conn.query(
+        `INSERT INTO escenario
+           (id_escenario, titulo_escenario, nombre_escenario,
+            desc_corta_escenario, desc_larga_escenario, razon_cambio,
+            fuente_escenario, url_fuente,
+            url_imagen_escenario, url_video_escenario,
+            horizonte_escenario,
+            autor, id_estado, id_usuario_creador, fecha_publicacion)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newId,
+          tituloFin,
+          nombreFin,
+          descCorta?.trim()  || '',
+          sanitizeRichHtml(descLarga),
+          razonCambio?.trim() || null,
+          fuente?.trim()     || null,
+          urlFuenteStored,
+          imagenUrl?.trim()  || null,
+          videoUrl?.trim()   || null,
+          horizonte?.trim()  || null,
+          autor?.trim()      || null,
+          idEstado,
+          usuarioId,
+          idEstado === 1 ? new Date() : null,
+        ]
+      );
 
-    for (const sid of sids) await db.query('INSERT IGNORE INTO escenario_sector (id_escenario, id_sector) VALUES (?, ?)', [newId, sid]);
+      const pestelsToInsert = Array.isArray(pestelIds) && pestelIds.length
+        ? pestelIds
+        : (pestelId ? [pestelId] : []);
+      await bulkInsertIgnore(conn, 'escenario_pestel', ['id_escenario', 'id_pestel'], pestelsToInsert.map(pid => [newId, pid]));
+      await bulkInsertIgnore(conn, 'escenario_sector', ['id_escenario', 'id_sector'], sids.map(sid => [newId, sid]));
 
-    for (const sid of (Array.isArray(senalesRel) ? senalesRel : []))
-      await db.query('INSERT IGNORE INTO senal_escenario (id_senal, id_escenario) VALUES (?,?)', [sid, newId]);
-    for (const tid of (Array.isArray(tendenciasRel) ? tendenciasRel : []))
-      await db.query('INSERT IGNORE INTO tendencia_escenario (id_tendencia, id_escenario) VALUES (?,?)', [tid, newId]);
+      const senIds = Array.isArray(senalesRel) ? senalesRel : [];
+      await bulkInsertIgnore(conn, 'senal_escenario', ['id_senal', 'id_escenario'], senIds.map(sid => [sid, newId]));
+      const tids = Array.isArray(tendenciasRel) ? tendenciasRel : [];
+      await bulkInsertIgnore(conn, 'tendencia_escenario', ['id_tendencia', 'id_escenario'], tids.map(tid => [tid, newId]));
+    });
 
     console.log(`[ADMIN] Escenario creado id=${newId} estado=${idEstado} (by ${req.user.correo})`);
     res.status(201).json({ success: true, id: newId, estado: estadoInfo(idEstado) });
