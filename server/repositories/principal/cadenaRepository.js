@@ -1,171 +1,185 @@
-import db from '../../db.js';
+import { radarPrisma } from '../../prismaClient.js';
+
+function firstPestel(relaciones = []) {
+  const pestel = relaciones.map(r => r.pestel).filter(Boolean)[0];
+  return {
+    pestel: pestel?.nombre_pestel || null,
+    color: pestel?.color || null,
+  };
+}
+
+function mapSenal(senal) {
+  return {
+    uuid: senal.id_senal,
+    titulo: senal.titulo_senal,
+    descCorta: senal.desc_corta_senal,
+    urlImagen: senal.url_imagen_senal,
+    fuente: senal.fuente_senal,
+    urlFuente: senal.url_fuente,
+    ...firstPestel(senal.senal_pestel),
+  };
+}
+
+function mapTendencia(tendencia) {
+  return {
+    uuid: tendencia.id_tendencia,
+    titulo: tendencia.titulo_tendencia,
+    descCorta: tendencia.desc_corta_tendencia,
+    ...firstPestel(tendencia.tendencia_pestel),
+  };
+}
+
+function mapEscenario(escenario) {
+  return {
+    uuid: escenario.id_escenario,
+    titulo: escenario.titulo_escenario,
+    descCorta: escenario.desc_corta_escenario,
+    probabilidad: escenario.probabilidad,
+    ...firstPestel(escenario.escenario_pestel),
+  };
+}
 
 export async function getTopicosConElementosActivos() {
-  const [rows] = await db.query(
-    `SELECT DISTINCT tp.id_topico, tp.nombre
-     FROM topico tp
-     WHERE EXISTS (SELECT 1 FROM senal s WHERE s.id_topico = tp.id_topico AND s.id_estado = 1)
-        OR EXISTS (SELECT 1 FROM tendencia t WHERE t.id_topico = tp.id_topico AND t.id_estado = 1)
-        OR EXISTS (SELECT 1 FROM escenario e WHERE e.id_topico = tp.id_topico AND e.id_estado = 1)
-     ORDER BY tp.nombre`
-  );
-  return rows;
+  return radarPrisma.topico.findMany({
+    where: {
+      OR: [
+        { senal: { some: { id_estado: 1 } } },
+        { tendencia: { some: { id_estado: 1 } } },
+        { escenario: { some: { id_estado: 1 } } },
+      ],
+    },
+    orderBy: { nombre: 'asc' },
+    select: { id_topico: true, nombre: true },
+  });
 }
 
 export async function getCadenaTopico(idTopico) {
-  const [[senales], [tendencias], [escenarios], [relST], [relSE], [relTE]] = await Promise.all([
-    db.query(
-      `SELECT s.id_senal AS uuid, s.titulo_senal AS titulo, s.desc_corta_senal AS descCorta,
-              s.url_imagen_senal AS urlImagen, s.fuente_senal AS fuente, s.url_fuente AS urlFuente,
-              MIN(p.nombre_pestel) AS pestel, MIN(p.color) AS color
-       FROM senal s
-       LEFT JOIN senal_pestel sp ON s.id_senal = sp.id_senal
-       LEFT JOIN pestel p ON sp.id_pestel = p.id_pestel AND p.activo = 1
-       WHERE s.id_topico = ? AND s.id_estado = 1
-       GROUP BY s.id_senal
-       ORDER BY s.fecha_publicacion DESC`,
-      [idTopico]
-    ),
-    db.query(
-      `SELECT t.id_tendencia AS uuid, t.titulo_tendencia AS titulo, t.desc_corta_tendencia AS descCorta,
-              MIN(p.nombre_pestel) AS pestel, MIN(p.color) AS color
-       FROM tendencia t
-       LEFT JOIN tendencia_pestel tp2 ON t.id_tendencia = tp2.id_tendencia
-       LEFT JOIN pestel p ON tp2.id_pestel = p.id_pestel AND p.activo = 1
-       WHERE t.id_topico = ? AND t.id_estado = 1
-       GROUP BY t.id_tendencia
-       ORDER BY t.fecha_publicacion DESC`,
-      [idTopico]
-    ),
-    db.query(
-      `SELECT e.id_escenario AS uuid, e.titulo_escenario AS titulo, e.desc_corta_escenario AS descCorta,
-              e.probabilidad,
-              MIN(p.nombre_pestel) AS pestel, MIN(p.color) AS color
-       FROM escenario e
-       LEFT JOIN escenario_pestel ep ON e.id_escenario = ep.id_escenario
-       LEFT JOIN pestel p ON ep.id_pestel = p.id_pestel AND p.activo = 1
-       WHERE e.id_topico = ? AND e.id_estado = 1
-       GROUP BY e.id_escenario
-       ORDER BY e.fecha_publicacion DESC`,
-      [idTopico]
-    ),
-    db.query(
-      `SELECT s.id_senal AS idSenal, t.id_tendencia AS idTendencia
-       FROM senal_tendencia st
-       JOIN senal s ON st.id_senal = s.id_senal AND s.id_topico = ? AND s.id_estado = 1
-       JOIN tendencia t ON st.id_tendencia = t.id_tendencia AND t.id_topico = ? AND t.id_estado = 1`,
-      [idTopico, idTopico]
-    ),
-    db.query(
-      `SELECT s.id_senal AS idSenal, e.id_escenario AS idEscenario
-       FROM senal_escenario se
-       JOIN senal s ON se.id_senal = s.id_senal AND s.id_topico = ? AND s.id_estado = 1
-       JOIN escenario e ON se.id_escenario = e.id_escenario AND e.id_topico = ? AND e.id_estado = 1`,
-      [idTopico, idTopico]
-    ),
-    db.query(
-      `SELECT t.id_tendencia AS idTendencia, e.id_escenario AS idEscenario
-       FROM tendencia_escenario te
-       JOIN tendencia t ON te.id_tendencia = t.id_tendencia AND t.id_topico = ? AND t.id_estado = 1
-       JOIN escenario e ON te.id_escenario = e.id_escenario AND e.id_topico = ? AND e.id_estado = 1`,
-      [idTopico, idTopico]
-    ),
+  const whereActivo = { id_topico: idTopico, id_estado: 1 };
+  const pestelActivo = { where: { pestel: { activo: true } }, include: { pestel: true } };
+
+  const [senalesRaw, tendenciasRaw, escenariosRaw, relSTRaw, relSERaw, relTERaw] = await Promise.all([
+    radarPrisma.senal.findMany({
+      where: whereActivo,
+      orderBy: { fecha_publicacion: 'desc' },
+      include: { senal_pestel: pestelActivo },
+    }),
+    radarPrisma.tendencia.findMany({
+      where: whereActivo,
+      orderBy: { fecha_publicacion: 'desc' },
+      include: { tendencia_pestel: pestelActivo },
+    }),
+    radarPrisma.escenario.findMany({
+      where: whereActivo,
+      orderBy: { fecha_publicacion: 'desc' },
+      include: { escenario_pestel: pestelActivo },
+    }),
+    radarPrisma.senal_tendencia.findMany({
+      where: { senal: whereActivo, tendencia: whereActivo },
+      select: { id_senal: true, id_tendencia: true },
+    }),
+    radarPrisma.senal_escenario.findMany({
+      where: { senal: whereActivo, escenario: whereActivo },
+      select: { id_senal: true, id_escenario: true },
+    }),
+    radarPrisma.tendencia_escenario.findMany({
+      where: { tendencia: whereActivo, escenario: whereActivo },
+      select: { id_tendencia: true, id_escenario: true },
+    }),
   ]);
 
-  return { senales, tendencias, escenarios, relST, relSE, relTE };
+  return {
+    senales: senalesRaw.map(mapSenal),
+    tendencias: tendenciasRaw.map(mapTendencia),
+    escenarios: escenariosRaw.map(mapEscenario),
+    relST: relSTRaw.map(r => ({ idSenal: r.id_senal, idTendencia: r.id_tendencia })),
+    relSE: relSERaw.map(r => ({ idSenal: r.id_senal, idEscenario: r.id_escenario })),
+    relTE: relTERaw.map(r => ({ idTendencia: r.id_tendencia, idEscenario: r.id_escenario })),
+  };
 }
 
 export async function getTopicoById(idTopico) {
-  const [[row]] = await db.query('SELECT id_topico, nombre FROM topico WHERE id_topico = ? LIMIT 1', [idTopico]);
-  return row || null;
+  return radarPrisma.topico.findUnique({
+    where: { id_topico: idTopico },
+    select: { id_topico: true, nombre: true },
+  });
 }
 
 export async function getElementosPublicadosByTopico(idTopico) {
-  const [[senales], [tendencias], [escenarios]] = await Promise.all([
-    db.query(
-      'SELECT id_senal AS uuid, titulo_senal AS titulo, desc_corta_senal AS descCorta FROM senal WHERE id_topico=? AND id_estado=1',
-      [idTopico]
-    ),
-    db.query(
-      'SELECT id_tendencia AS uuid, titulo_tendencia AS titulo, desc_corta_tendencia AS descCorta FROM tendencia WHERE id_topico=? AND id_estado=1',
-      [idTopico]
-    ),
-    db.query(
-      'SELECT id_escenario AS uuid, titulo_escenario AS titulo, desc_corta_escenario AS descCorta FROM escenario WHERE id_topico=? AND id_estado=1',
-      [idTopico]
-    ),
+  const where = { id_topico: idTopico, id_estado: 1 };
+  const [senales, tendencias, escenarios] = await Promise.all([
+    radarPrisma.senal.findMany({
+      where,
+      select: { id_senal: true, titulo_senal: true, desc_corta_senal: true },
+    }),
+    radarPrisma.tendencia.findMany({
+      where,
+      select: { id_tendencia: true, titulo_tendencia: true, desc_corta_tendencia: true },
+    }),
+    radarPrisma.escenario.findMany({
+      where,
+      select: { id_escenario: true, titulo_escenario: true, desc_corta_escenario: true },
+    }),
   ]);
 
-  return { senales, tendencias, escenarios };
+  return {
+    senales: senales.map(s => ({ uuid: s.id_senal, titulo: s.titulo_senal, descCorta: s.desc_corta_senal })),
+    tendencias: tendencias.map(t => ({ uuid: t.id_tendencia, titulo: t.titulo_tendencia, descCorta: t.desc_corta_tendencia })),
+    escenarios: escenarios.map(e => ({ uuid: e.id_escenario, titulo: e.titulo_escenario, descCorta: e.desc_corta_escenario })),
+  };
 }
 
 export async function countRelacionesTopico(idTopico) {
-  const [[cntST], [cntSE], [cntTE]] = await Promise.all([
-    db.query(
-      `SELECT COUNT(*) AS n FROM senal_tendencia st
-       JOIN senal s ON st.id_senal=s.id_senal WHERE s.id_topico=?`,
-      [idTopico]
-    ),
-    db.query(
-      `SELECT COUNT(*) AS n FROM senal_escenario se
-       JOIN senal s ON se.id_senal=s.id_senal WHERE s.id_topico=?`,
-      [idTopico]
-    ),
-    db.query(
-      `SELECT COUNT(*) AS n FROM tendencia_escenario te
-       JOIN tendencia t ON te.id_tendencia=t.id_tendencia WHERE t.id_topico=?`,
-      [idTopico]
-    ),
+  const [cntST, cntSE, cntTE] = await Promise.all([
+    radarPrisma.senal_tendencia.count({ where: { senal: { id_topico: idTopico } } }),
+    radarPrisma.senal_escenario.count({ where: { senal: { id_topico: idTopico } } }),
+    radarPrisma.tendencia_escenario.count({ where: { tendencia: { id_topico: idTopico } } }),
   ]);
 
-  return (cntST[0]?.n || 0) + (cntSE[0]?.n || 0) + (cntTE[0]?.n || 0);
+  return cntST + cntSE + cntTE;
 }
 
 export async function getRelacionesTopico(idTopico) {
-  const [[relST], [relSE], [relTE]] = await Promise.all([
-    db.query(
-      `SELECT s.id_senal AS idA, t.id_tendencia AS idB
-       FROM senal_tendencia st
-       JOIN senal s ON st.id_senal=s.id_senal
-       JOIN tendencia t ON st.id_tendencia=t.id_tendencia
-       WHERE s.id_topico=? AND t.id_topico=?`,
-      [idTopico, idTopico]
-    ),
-    db.query(
-      `SELECT s.id_senal AS idA, e.id_escenario AS idB
-       FROM senal_escenario se
-       JOIN senal s ON se.id_senal=s.id_senal
-       JOIN escenario e ON se.id_escenario=e.id_escenario
-       WHERE s.id_topico=? AND e.id_topico=?`,
-      [idTopico, idTopico]
-    ),
-    db.query(
-      `SELECT t.id_tendencia AS idA, e.id_escenario AS idB
-       FROM tendencia_escenario te
-       JOIN tendencia t ON te.id_tendencia=t.id_tendencia
-       JOIN escenario e ON te.id_escenario=e.id_escenario
-       WHERE t.id_topico=? AND e.id_topico=?`,
-      [idTopico, idTopico]
-    ),
+  const [relST, relSE, relTE] = await Promise.all([
+    radarPrisma.senal_tendencia.findMany({
+      where: { senal: { id_topico: idTopico }, tendencia: { id_topico: idTopico } },
+      select: { id_senal: true, id_tendencia: true },
+    }),
+    radarPrisma.senal_escenario.findMany({
+      where: { senal: { id_topico: idTopico }, escenario: { id_topico: idTopico } },
+      select: { id_senal: true, id_escenario: true },
+    }),
+    radarPrisma.tendencia_escenario.findMany({
+      where: { tendencia: { id_topico: idTopico }, escenario: { id_topico: idTopico } },
+      select: { id_tendencia: true, id_escenario: true },
+    }),
   ]);
 
   return [
-    ...relST.map(r => ({ tipo: 'senal_tendencia', idA: r.idA, idB: r.idB })),
-    ...relSE.map(r => ({ tipo: 'senal_escenario', idA: r.idA, idB: r.idB })),
-    ...relTE.map(r => ({ tipo: 'tendencia_escenario', idA: r.idA, idB: r.idB })),
+    ...relST.map(r => ({ tipo: 'senal_tendencia', idA: r.id_senal, idB: r.id_tendencia })),
+    ...relSE.map(r => ({ tipo: 'senal_escenario', idA: r.id_senal, idB: r.id_escenario })),
+    ...relTE.map(r => ({ tipo: 'tendencia_escenario', idA: r.id_tendencia, idB: r.id_escenario })),
   ];
 }
 
 export async function saveRelacionInferida(rel) {
   if (rel.tipo === 'senal_tendencia') {
-    await db.query('INSERT IGNORE INTO senal_tendencia (id_senal, id_tendencia) VALUES (?,?)', [rel.idA, rel.idB]);
+    await radarPrisma.senal_tendencia.createMany({
+      data: [{ id_senal: rel.idA, id_tendencia: rel.idB }],
+      skipDuplicates: true,
+    });
     return;
   }
   if (rel.tipo === 'tendencia_escenario') {
-    await db.query('INSERT IGNORE INTO tendencia_escenario (id_tendencia, id_escenario) VALUES (?,?)', [rel.idA, rel.idB]);
+    await radarPrisma.tendencia_escenario.createMany({
+      data: [{ id_tendencia: rel.idA, id_escenario: rel.idB }],
+      skipDuplicates: true,
+    });
     return;
   }
   if (rel.tipo === 'senal_escenario') {
-    await db.query('INSERT IGNORE INTO senal_escenario (id_senal, id_escenario) VALUES (?,?)', [rel.idA, rel.idB]);
+    await radarPrisma.senal_escenario.createMany({
+      data: [{ id_senal: rel.idA, id_escenario: rel.idB }],
+      skipDuplicates: true,
+    });
   }
 }
