@@ -1,61 +1,74 @@
-import db from '../../db.js';
+import { radarPrisma } from '../../prismaClient.js';
+
+function firstActivePestel(row) {
+  return row.escenario_pestel
+    ?.map(item => item.pestel)
+    .filter(item => item?.activo)
+    .sort((a, b) => (a.orden_display || 0) - (b.orden_display || 0))[0] || null;
+}
+
+function firstActiveSector(row) {
+  return row.escenario_sector
+    ?.map(item => item.sector)
+    .filter(item => item?.activo)
+    .sort((a, b) => (a.orden_display || 0) - (b.orden_display || 0))[0] || null;
+}
+
+function mapEscenarioRow(row) {
+  const pestel = firstActivePestel(row);
+  const sector = firstActiveSector(row);
+  return {
+    ...row,
+    categoria: pestel?.nombre_pestel || null,
+    pestel_slug: pestel?.slug_pestel || null,
+    color_pestel: pestel?.color || null,
+    emoji_pestel: pestel?.emoji || null,
+    sector_nombre: sector?.nombre_sector || null,
+    sector_slug: sector?.slug_sector || null,
+    color_sector: sector?.color || null,
+    emoji_sector: sector?.emoji || null,
+    total_senales: row.escenario_senal?.length || row.senal_escenario?.length || 0,
+    total_tendencias: row.escenario_tendencia?.length || row.tendencia_escenario?.length || 0,
+    topico_nombre: row.topico?.nombre || null,
+  };
+}
 
 export async function getEscenariosFiltrados({ pestel, sector, q } = {}) {
-  const conditions = ['e.id_estado = 1'];
-  const params = [];
+  const where = { id_estado: 1 };
 
   if (pestel) {
-    conditions.push('p.slug_pestel = ?');
-    params.push(pestel);
+    where.escenario_pestel = {
+      some: { pestel: { slug_pestel: pestel, activo: true } },
+    };
   }
   if (sector) {
-    conditions.push('sec.slug_sector = ?');
-    params.push(sector);
+    where.escenario_sector = {
+      some: { sector: { slug_sector: sector, activo: true } },
+    };
   }
   if (q) {
-    conditions.push('(e.titulo_escenario LIKE ? OR e.desc_corta_escenario LIKE ?)');
-    params.push(`%${q}%`, `%${q}%`);
+    where.OR = [
+      { titulo_escenario: { contains: q } },
+      { desc_corta_escenario: { contains: q } },
+    ];
   }
 
-  const [rows] = await db.query(
-    `SELECT
-       e.id_escenario,
-       e.titulo_escenario,
-       e.nombre_escenario,
-       e.desc_corta_escenario,
-       e.desc_larga_escenario,
-       e.razon_cambio,
-       e.url_imagen_escenario,
-       e.fuente_escenario,
-       e.url_fuente,
-       e.horizonte_escenario,
-       e.probabilidad,
-       e.fecha_publicacion,
-       e.autor,
-       MIN(p.nombre_pestel)    AS categoria,
-       MIN(p.slug_pestel)      AS pestel_slug,
-       MIN(p.color)            AS color_pestel,
-       MIN(p.emoji)            AS emoji_pestel,
-       MIN(sec.nombre_sector)  AS sector_nombre,
-       MIN(sec.slug_sector)    AS sector_slug,
-       MIN(sec.color)          AS color_sector,
-       MIN(sec.emoji)          AS emoji_sector,
-       COUNT(DISTINCT es.id_senal) AS total_senales,
-       COUNT(DISTINCT et.id_tendencia) AS total_tendencias,
-       tp.nombre AS topico_nombre
-     FROM escenario e
-     LEFT JOIN escenario_pestel ep ON e.id_escenario = ep.id_escenario
-     LEFT JOIN pestel p ON ep.id_pestel = p.id_pestel AND p.activo = 1
-     LEFT JOIN escenario_sector esc ON e.id_escenario = esc.id_escenario
-     LEFT JOIN sector sec ON esc.id_sector = sec.id_sector AND sec.activo = 1
-     LEFT JOIN topico tp ON e.id_topico = tp.id_topico
-     LEFT JOIN escenario_senal es ON e.id_escenario = es.id_escenario
-     LEFT JOIN escenario_tendencia et ON e.id_escenario = et.id_escenario
-     WHERE ${conditions.join(' AND ')}
-     GROUP BY e.id_escenario
-     ORDER BY e.fecha_publicacion DESC, e.fecha_creacion DESC`,
-    params
-  );
+  const rows = await radarPrisma.escenario.findMany({
+    where,
+    include: {
+      topico: true,
+      escenario_pestel: { include: { pestel: true } },
+      escenario_sector: { include: { sector: true } },
+      escenario_senal: { select: { id_senal: true } },
+      escenario_tendencia: { select: { id_tendencia: true } },
+      senal_escenario: { select: { id_senal: true } },
+      tendencia_escenario: { select: { id_tendencia: true } },
+    },
+    orderBy: [
+      { fecha_publicacion: 'desc' },
+      { fecha_creacion: 'desc' },
+    ],
+  });
 
-  return rows;
+  return rows.map(mapEscenarioRow);
 }

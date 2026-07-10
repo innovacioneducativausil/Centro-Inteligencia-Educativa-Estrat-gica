@@ -1,81 +1,104 @@
-import db from '../../db.js';
+import { radarPrisma } from '../../prismaClient.js';
+
+function firstActivePestel(row) {
+  return row.senal_pestel
+    ?.map(item => item.pestel)
+    .filter(item => item?.activo)
+    .sort((a, b) => (a.orden_display || 0) - (b.orden_display || 0))[0] || null;
+}
+
+function firstActiveSector(row) {
+  return row.senal_sector
+    ?.map(item => item.sector)
+    .filter(item => item?.activo)
+    .sort((a, b) => (a.orden_display || 0) - (b.orden_display || 0))[0] || null;
+}
+
+function mapSenalListRow(row) {
+  const pestel = firstActivePestel(row);
+  const sector = firstActiveSector(row);
+  return {
+    ...row,
+    pestel_id: pestel?.id_pestel || null,
+    categoria: pestel?.nombre_pestel || null,
+    pestel_slug: pestel?.slug_pestel || null,
+    color_pestel: pestel?.color || null,
+    emoji_pestel: pestel?.emoji || null,
+    pestel_letra: pestel?.letra_codigo || null,
+    sector_id: sector?.id_sector || null,
+    sector_nombre: sector?.nombre_sector || null,
+    sector_slug: sector?.slug_sector || null,
+    color_sector: sector?.color || null,
+    emoji_sector: sector?.emoji || null,
+    topico_nombre: row.topico?.nombre || null,
+  };
+}
 
 export async function getSenalesFiltradas({ pestel, sector, q } = {}) {
-  const conditions = ['s.id_estado = 1'];
-  const params = [];
+  const where = {
+    id_estado: 1,
+  };
 
   if (pestel) {
-    conditions.push('p.slug_pestel = ?');
-    params.push(pestel);
+    where.senal_pestel = {
+      some: { pestel: { slug_pestel: pestel, activo: true } },
+    };
   }
   if (sector) {
-    conditions.push('sec.slug_sector = ?');
-    params.push(sector);
+    where.senal_sector = {
+      some: { sector: { slug_sector: sector, activo: true } },
+    };
   }
   if (q) {
-    conditions.push('(s.titulo_senal LIKE ? OR s.desc_corta_senal LIKE ?)');
-    params.push(`%${q}%`, `%${q}%`);
+    where.OR = [
+      { titulo_senal: { contains: q } },
+      { desc_corta_senal: { contains: q } },
+    ];
   }
 
-  const [rows] = await db.query(
-    `SELECT
-       s.id_senal,
-       s.titulo_senal,
-       s.nombre_senal,
-       s.desc_corta_senal,
-       s.desc_larga_senal,
-       s.razon_cambio,
-       s.url_video_senal,
-       s.url_imagen_senal,
-       s.fuente_senal,
-       s.url_fuente,
-       s.fecha_publicacion,
-       s.fecha_senal_articulo,
-       MIN(p.id_pestel)       AS pestel_id,
-       MIN(p.nombre_pestel)   AS categoria,
-       MIN(p.slug_pestel)     AS pestel_slug,
-       MIN(p.color)           AS color_pestel,
-       MIN(p.emoji)           AS emoji_pestel,
-       MIN(p.letra_codigo)    AS pestel_letra,
-       MIN(sec.id_sector)     AS sector_id,
-       MIN(sec.nombre_sector) AS sector_nombre,
-       MIN(sec.slug_sector)   AS sector_slug,
-       MIN(sec.color)         AS color_sector,
-       MIN(sec.emoji)         AS emoji_sector,
-       tp.nombre              AS topico_nombre
-     FROM senal s
-     LEFT JOIN topico tp        ON s.id_topico  = tp.id_topico
-     LEFT JOIN senal_pestel sp  ON s.id_senal   = sp.id_senal
-     LEFT JOIN pestel p         ON sp.id_pestel = p.id_pestel AND p.activo = 1
-     LEFT JOIN senal_sector ss  ON s.id_senal   = ss.id_senal
-     LEFT JOIN sector sec       ON ss.id_sector = sec.id_sector AND sec.activo = 1
-     WHERE ${conditions.join(' AND ')}
-     GROUP BY s.id_senal
-     ORDER BY s.fecha_publicacion DESC, s.fecha_creacion DESC`,
-    params
-  );
+  const rows = await radarPrisma.senal.findMany({
+    where,
+    include: {
+      topico: true,
+      senal_pestel: { include: { pestel: true } },
+      senal_sector: { include: { sector: true } },
+    },
+    orderBy: [
+      { fecha_publicacion: 'desc' },
+      { fecha_creacion: 'desc' },
+    ],
+  });
 
-  return rows;
+  return rows.map(mapSenalListRow);
 }
 
 export async function getSenalActivaByUuid(uuid) {
-  const [[row]] = await db.query(
-    `SELECT s.*,
-       GROUP_CONCAT(DISTINCT p.nombre_pestel ORDER BY p.orden_display SEPARATOR '||') AS pesteles,
-       GROUP_CONCAT(DISTINCT p.slug_pestel ORDER BY p.orden_display SEPARATOR '||') AS pestel_slugs,
-       GROUP_CONCAT(DISTINCT p.color ORDER BY p.orden_display SEPARATOR '||') AS pestel_colors,
-       GROUP_CONCAT(DISTINCT p.emoji ORDER BY p.orden_display SEPARATOR '||') AS pestel_emojis,
-       GROUP_CONCAT(DISTINCT sec.nombre_sector ORDER BY sec.orden_display SEPARATOR '||') AS sectores,
-       GROUP_CONCAT(DISTINCT sec.slug_sector ORDER BY sec.orden_display SEPARATOR '||') AS sector_slugs
-     FROM senal s
-     LEFT JOIN senal_pestel sp ON s.id_senal = sp.id_senal
-     LEFT JOIN pestel p        ON sp.id_pestel = p.id_pestel
-     LEFT JOIN senal_sector ss ON s.id_senal = ss.id_senal
-     LEFT JOIN sector sec      ON ss.id_sector = sec.id_sector
-     WHERE s.id_senal = ? AND s.id_estado = 1
-     GROUP BY s.id_senal`,
-    [uuid]
-  );
+  const row = await radarPrisma.senal.findFirst({
+    where: { id_senal: uuid, id_estado: 1 },
+    include: {
+      senal_pestel: { include: { pestel: true } },
+      senal_sector: { include: { sector: true } },
+    },
+  });
 
-  return row || null;
+  if (!row) return null;
+
+  const pesteles = row.senal_pestel
+    .map(item => item.pestel)
+    .filter(Boolean)
+    .sort((a, b) => (a.orden_display || 0) - (b.orden_display || 0));
+  const sectores = row.senal_sector
+    .map(item => item.sector)
+    .filter(Boolean)
+    .sort((a, b) => (a.orden_display || 0) - (b.orden_display || 0));
+
+  return {
+    ...row,
+    pesteles: pesteles.map(item => item.nombre_pestel).join('||'),
+    pestel_slugs: pesteles.map(item => item.slug_pestel).join('||'),
+    pestel_colors: pesteles.map(item => item.color).join('||'),
+    pestel_emojis: pesteles.map(item => item.emoji).join('||'),
+    sectores: sectores.map(item => item.nombre_sector).join('||'),
+    sector_slugs: sectores.map(item => item.slug_sector).join('||'),
+  };
 }
