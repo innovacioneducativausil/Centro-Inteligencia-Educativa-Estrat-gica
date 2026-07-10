@@ -1,4 +1,4 @@
-import db from '../db.js';
+import { radarPrisma } from '../prismaClient.js';
 import { auditEvent } from '../services/auditService.js';
 
 //----------------TI-44 / TI-59----------------
@@ -10,10 +10,10 @@ const SENSITIVE_KEY = /(password|pass|token|secret|otp|key|hash|jwt|cookie|autho
 // captura una foto "antes" (columnas relevantes) previa a la mutacion, para
 // poder reconstruir el valor anterior en el registro de auditoria.
 const ENTITY_SNAPSHOT_CONFIG = {
-  senal:        { idCol: 'id_senal',     cols: ['titulo_senal', 'nombre_senal', 'id_estado'] },
-  tendencia:    { idCol: 'id_tendencia', cols: ['titulo_tendencia', 'nombre_tendencia', 'id_estado'] },
-  escenario:    { idCol: 'id_escenario', cols: ['titulo_escenario', 'nombre_escenario', 'id_estado'] },
-  regla_alerta: { idCol: 'id_regla',     cols: ['nombre', 'operador', 'valor_umbral', 'activa'] },
+  senal:        { model: 'senal',        idCol: 'id_senal',     cols: ['titulo_senal', 'nombre_senal', 'id_estado'] },
+  tendencia:    { model: 'tendencia',    idCol: 'id_tendencia', cols: ['titulo_tendencia', 'nombre_tendencia', 'id_estado'] },
+  escenario:    { model: 'escenario',    idCol: 'id_escenario', cols: ['titulo_escenario', 'nombre_escenario', 'id_estado'] },
+  regla_alerta: { model: 'regla_alerta', idCol: 'id_regla',     cols: ['nombre', 'operador', 'valor_umbral', 'activa'] },
 };
 
 const PATH_TABLE_MAP = { senales: 'senal', tendencias: 'tendencia', escenarios: 'escenario' };
@@ -36,10 +36,12 @@ export async function captureBeforeSnapshot(originalUrl) {
   const config = ENTITY_SNAPSHOT_CONFIG[target.table];
   if (!config) return null;
   try {
-    const [[row]] = await db.query(
-      `SELECT ${config.cols.map(c => `\`${c}\``).join(', ')} FROM \`${target.table}\` WHERE \`${config.idCol}\` = ?`,
-      [target.id]
-    );
+    const delegate = radarPrisma[config.model];
+    const select = Object.fromEntries(config.cols.map(col => [col, true]));
+    const row = await delegate.findUnique({
+      where: { [config.idCol]: target.id },
+      select,
+    });
     return row || null;
   } catch (err) {
     console.warn('[TI-09] No se pudo capturar snapshot "antes":', target.table, err.message);
