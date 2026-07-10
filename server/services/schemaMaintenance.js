@@ -1,11 +1,12 @@
-import db from '../db.js';
+import logger from '../logger.js';
+import { radarPrisma } from '../prismaClient.js';
 
 export async function ensureColumn(table, column, definition) {
-  const [rows] = await db.query(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, [column]);
+  const rows = await radarPrisma.$queryRawUnsafe(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, column);
   if (rows.length) return;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      await db.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
+      await radarPrisma.$executeRawUnsafe(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
       return;
     } catch (err) {
       if (err.code === 'ER_DUP_FIELDNAME') return;
@@ -27,7 +28,7 @@ export async function ensureRadarSchemaSupport() {
 
 //----------------TI-08 / TI-23 / TI-31----------------
 export async function ensureAlertasSupport() {
-  await db.query(`
+  await radarPrisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS regla_alerta (
       id_regla          VARCHAR(36)  NOT NULL PRIMARY KEY,
       nombre             VARCHAR(150) NOT NULL,
@@ -41,7 +42,7 @@ export async function ensureAlertasSupport() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
-  await db.query(`
+  await radarPrisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS alerta_generada (
       id_alerta       BIGINT AUTO_INCREMENT PRIMARY KEY,
       id_regla        VARCHAR(36)  NOT NULL,
@@ -60,7 +61,7 @@ export async function ensureAlertasSupport() {
   await ensureColumn('alerta_generada', 'elementos_afectados', 'JSON NULL');
 
   //----------------TI-08 / TI-23 / TI-31: historial de metricas para tendencia----------------
-  await db.query(`
+  await radarPrisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS alerta_metrica_historial (
       id_historial   BIGINT AUTO_INCREMENT PRIMARY KEY,
       metrica        VARCHAR(50)  NOT NULL,
@@ -69,5 +70,5 @@ export async function ensureAlertasSupport() {
       INDEX idx_metrica_fecha (metrica, fecha_medicion)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
-  console.log('[ALERTAS] Tablas regla_alerta / alerta_generada / alerta_metrica_historial listas.');
+  logger.info('Tablas regla_alerta / alerta_generada / alerta_metrica_historial listas.', { context: 'ALERTAS' });
 }

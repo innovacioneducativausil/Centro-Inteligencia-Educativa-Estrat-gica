@@ -1,6 +1,6 @@
 
-
-import db from '../db.js';
+import logger from '../logger.js';
+import { radarPrisma } from '../prismaClient.js';
 
 //----------------TI-35----------------
 // Retencion de logs de operacion (centralizados en actividad_usuario):
@@ -10,7 +10,7 @@ const RETENTION_DAYS = Math.max(30, Number(process.env.ACTIVIDAD_RETENTION_DAYS 
 //----------------TI-44 / TI-59----------------
 export async function ensureActividadSupport() {
   try {
-    await db.query(`
+    await radarPrisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS actividad_usuario (
         id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         id_usuario    VARCHAR(36)  NOT NULL,
@@ -34,10 +34,10 @@ export async function ensureActividadSupport() {
         INDEX idx_fecha   (fecha_hora)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
-    const [columns] = await db.query(
-      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'actividad_usuario'`
-    );
+    const columns = await radarPrisma.$queryRaw`
+      SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'actividad_usuario'
+    `;
     const existing = new Set(columns.map(c => c.COLUMN_NAME));
     const toAdd = [];
     if (!existing.has('rol')) toAdd.push('ADD COLUMN rol VARCHAR(50) NULL AFTER correo');
@@ -46,13 +46,13 @@ export async function ensureActividadSupport() {
     if (!existing.has('entidad_id')) toAdd.push('ADD COLUMN entidad_id VARCHAR(100) NULL AFTER entidad');
     if (!existing.has('detalle')) toAdd.push('ADD COLUMN detalle TEXT NULL AFTER elemento_titulo');
     if (toAdd.length) {
-      await db.query(`ALTER TABLE actividad_usuario ${toAdd.join(', ')}`);
+      await radarPrisma.$executeRawUnsafe(`ALTER TABLE actividad_usuario ${toAdd.join(', ')}`);
     }
-    await db.query(`ALTER TABLE actividad_usuario MODIFY id_usuario VARCHAR(36) NULL`);
-    await db.query(`ALTER TABLE actividad_usuario MODIFY correo VARCHAR(255) NULL`);
-    console.log('[ACTIVIDAD] Tabla actividad_usuario lista.');
+    await radarPrisma.$executeRawUnsafe('ALTER TABLE actividad_usuario MODIFY id_usuario VARCHAR(36) NULL');
+    await radarPrisma.$executeRawUnsafe('ALTER TABLE actividad_usuario MODIFY correo VARCHAR(255) NULL');
+    logger.info('Tabla actividad_usuario lista.', { context: 'ACTIVIDAD' });
   } catch (err) {
-    console.error('[ACTIVIDAD] Error al preparar tabla:', err.message);
+    logger.error('Error al preparar tabla actividad_usuario', { context: 'ACTIVIDAD', message: err.message, stack: err.stack });
   }
 }
 
@@ -60,16 +60,18 @@ export async function ensureActividadSupport() {
 // Limpieza periodica que aplica la retencion de logs de operacion.
 export async function cleanupOldActividad() {
   try {
-    const [result] = await db.query(
-      `DELETE FROM actividad_usuario WHERE fecha_hora < DATE_SUB(NOW(), INTERVAL ${RETENTION_DAYS} DAY)`
-    );
-    const deleted = result.affectedRows || 0;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
+    const result = await radarPrisma.actividad_usuario.deleteMany({
+      where: { fecha_hora: { lt: cutoff } },
+    });
+    const deleted = result.count || 0;
     if (deleted > 0) {
-      console.log(`[ACTIVIDAD] Retencion: ${deleted} registros eliminados (> ${RETENTION_DAYS} dias)`);
+      logger.info(`Retencion: ${deleted} registros eliminados (> ${RETENTION_DAYS} dias)`, { context: 'ACTIVIDAD' });
     }
     return deleted;
   } catch (err) {
-    console.error('[ACTIVIDAD] Error en limpieza de retencion:', err.message);
+    logger.error('Error en limpieza de retencion de actividad', { context: 'ACTIVIDAD', message: err.message, stack: err.stack });
     return 0;
   }
 }

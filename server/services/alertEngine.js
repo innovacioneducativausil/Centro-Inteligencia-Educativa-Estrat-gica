@@ -1,5 +1,4 @@
-import db from '../db.js';
-import dbCurricular from '../db_curricular.js';
+import { curricularPrisma, radarPrisma } from '../prismaClient.js';
 import { auditEvent } from './auditService.js';
 
 //----------------TI-08 / TI-23 / TI-31----------------
@@ -21,10 +20,23 @@ const MAX_ELEMENTOS = 8;
 
 function primeraUrl(raw) {
   if (!raw) return null;
+  if (Array.isArray(raw)) return raw.filter(Boolean)[0] || null;
   if (typeof raw === 'string' && raw.startsWith('[')) {
     try { return JSON.parse(raw).filter(Boolean)[0] || null; } catch { return null; }
   }
   return raw;
+}
+
+function daysAgo(days) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+}
+
+function hoursAgo(hours) {
+  const date = new Date();
+  date.setHours(date.getHours() - hours);
+  return date;
 }
 
 // Devuelve { valor, elementos } donde elementos son los items concretos que
@@ -32,14 +44,21 @@ function primeraUrl(raw) {
 async function medirMetrica(metrica) {
   switch (metrica) {
     case 'pct_riesgo_curricular': {
-      const [rows] = await dbCurricular.query(`
-        SELECT c.nombre_curso, ac.estado_alineacion
-        FROM curso c
-        JOIN malla_version mv ON mv.id_malla = c.id_malla AND mv.es_vigente = 1
-        LEFT JOIN analisis_curso ac ON ac.id_curso = c.id_curso
-      `);
+      const rows = await curricularPrisma.curso.findMany({
+        where: { malla_version: { es_vigente: true } },
+        select: {
+          nombre_curso: true,
+          analisis_curso: {
+            orderBy: { analizado_en: 'desc' },
+            take: 1,
+            select: { estado_alineacion: true },
+          },
+        },
+      });
       const total = rows.length;
-      const enRiesgo = rows.filter(r => ['critico', 'riesgo'].includes(r.estado_alineacion));
+      const enRiesgo = rows
+        .map(r => ({ nombre_curso: r.nombre_curso, estado_alineacion: r.analisis_curso[0]?.estado_alineacion || null }))
+        .filter(r => ['critico', 'riesgo'].includes(r.estado_alineacion));
       const valor = total ? Math.round((enRiesgo.length / total) * 100) : 0;
       const elementos = enRiesgo.slice(0, MAX_ELEMENTOS).map(r => ({
         titulo: r.nombre_curso,
@@ -48,44 +67,47 @@ async function medirMetrica(metrica) {
       return { valor, elementos };
     }
     case 'senales_nuevas_7d': {
-      const [rows] = await db.query(
-        `SELECT titulo_senal AS titulo, url_fuente FROM senal
-         WHERE id_estado = 1 AND fecha_publicacion >= NOW() - INTERVAL 7 DAY
-         ORDER BY fecha_publicacion DESC`
-      );
+      const rows = await radarPrisma.senal.findMany({
+        where: { id_estado: 1, fecha_publicacion: { gte: daysAgo(7) } },
+        orderBy: { fecha_publicacion: 'desc' },
+        select: { titulo_senal: true, url_fuente: true },
+      });
       return {
         valor: rows.length,
-        elementos: rows.slice(0, MAX_ELEMENTOS).map(r => ({ titulo: r.titulo, url: primeraUrl(r.url_fuente) })),
+        elementos: rows.slice(0, MAX_ELEMENTOS).map(r => ({ titulo: r.titulo_senal, url: primeraUrl(r.url_fuente) })),
       };
     }
     case 'tendencias_nuevas_7d': {
-      const [rows] = await db.query(
-        `SELECT titulo_tendencia AS titulo, url_fuente FROM tendencia
-         WHERE id_estado = 1 AND fecha_publicacion >= NOW() - INTERVAL 7 DAY
-         ORDER BY fecha_publicacion DESC`
-      );
+      const rows = await radarPrisma.tendencia.findMany({
+        where: { id_estado: 1, fecha_publicacion: { gte: daysAgo(7) } },
+        orderBy: { fecha_publicacion: 'desc' },
+        select: { titulo_tendencia: true, url_fuente: true },
+      });
       return {
         valor: rows.length,
-        elementos: rows.slice(0, MAX_ELEMENTOS).map(r => ({ titulo: r.titulo, url: primeraUrl(r.url_fuente) })),
+        elementos: rows.slice(0, MAX_ELEMENTOS).map(r => ({ titulo: r.titulo_tendencia, url: primeraUrl(r.url_fuente) })),
       };
     }
     case 'escenarios_nuevos_7d': {
-      const [rows] = await db.query(
-        `SELECT titulo_escenario AS titulo, url_fuente FROM escenario
-         WHERE id_estado = 1 AND fecha_publicacion >= NOW() - INTERVAL 7 DAY
-         ORDER BY fecha_publicacion DESC`
-      );
+      const rows = await radarPrisma.escenario.findMany({
+        where: { id_estado: 1, fecha_publicacion: { gte: daysAgo(7) } },
+        orderBy: { fecha_publicacion: 'desc' },
+        select: { titulo_escenario: true, url_fuente: true },
+      });
       return {
         valor: rows.length,
-        elementos: rows.slice(0, MAX_ELEMENTOS).map(r => ({ titulo: r.titulo, url: primeraUrl(r.url_fuente) })),
+        elementos: rows.slice(0, MAX_ELEMENTOS).map(r => ({ titulo: r.titulo_escenario, url: primeraUrl(r.url_fuente) })),
       };
     }
     case 'logins_fallidos_24h': {
-      const [rows] = await db.query(
-        `SELECT correo, evento, fecha_hora FROM actividad_usuario
-         WHERE evento IN ('login_fallido','login_bloqueado') AND fecha_hora >= NOW() - INTERVAL 24 HOUR
-         ORDER BY fecha_hora DESC`
-      );
+      const rows = await radarPrisma.actividad_usuario.findMany({
+        where: {
+          evento: { in: ['login_fallido', 'login_bloqueado'] },
+          fecha_hora: { gte: hoursAgo(24) },
+        },
+        orderBy: { fecha_hora: 'desc' },
+        select: { correo: true, evento: true, fecha_hora: true },
+      });
       return {
         valor: rows.length,
         elementos: rows.slice(0, MAX_ELEMENTOS).map(r => ({
@@ -110,7 +132,7 @@ function cruzaUmbral(valor, operador, umbral) {
 }
 
 export async function evaluarReglas() {
-  const [reglas] = await db.query('SELECT * FROM regla_alerta WHERE activa = 1');
+  const reglas = await radarPrisma.regla_alerta.findMany({ where: { activa: true } });
   const generadas = [];
   const metricasMedidas = new Set();
 
@@ -121,31 +143,38 @@ export async function evaluarReglas() {
 
     if (!metricasMedidas.has(regla.metrica)) {
       metricasMedidas.add(regla.metrica);
-      await db.query(
-        `INSERT INTO alerta_metrica_historial (metrica, valor) VALUES (?, ?)`,
-        [regla.metrica, valor]
-      );
+      await radarPrisma.alerta_metrica_historial.create({
+        data: { metrica: regla.metrica, valor },
+      });
     }
 
     const umbral = Number(regla.valor_umbral);
     if (!cruzaUmbral(valor, regla.operador, umbral)) continue;
 
-    const [[reciente]] = await db.query(
-      `SELECT id_alerta FROM alerta_generada
-       WHERE id_regla = ? AND atendida = 0 AND fecha_generada >= NOW() - INTERVAL 6 HOUR
-       LIMIT 1`,
-      [regla.id_regla]
-    );
+    const reciente = await radarPrisma.alerta_generada.findFirst({
+      where: {
+        id_regla: regla.id_regla,
+        atendida: false,
+        fecha_generada: { gte: hoursAgo(6) },
+      },
+      select: { id_alerta: true },
+    });
     if (reciente) continue;
 
     const metricaLabel = METRICAS_DISPONIBLES.find(m => m.key === regla.metrica)?.label || regla.metrica;
     const mensaje = `${regla.nombre}: ${metricaLabel} = ${valor} (umbral ${regla.operador} ${umbral})`;
 
-    const [result] = await db.query(
-      `INSERT INTO alerta_generada (id_regla, metrica, valor_medido, valor_umbral, mensaje, elementos_afectados)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [regla.id_regla, regla.metrica, valor, umbral, mensaje, elementos.length ? JSON.stringify(elementos) : null]
-    );
+    const alerta = await radarPrisma.alerta_generada.create({
+      data: {
+        id_regla: regla.id_regla,
+        metrica: regla.metrica,
+        valor_medido: valor,
+        valor_umbral: umbral,
+        mensaje,
+        elementos_afectados: elementos.length ? elementos : null,
+      },
+      select: { id_alerta: true },
+    });
 
     await auditEvent(null, {
       evento: 'alerta_generada',
@@ -158,7 +187,7 @@ export async function evaluarReglas() {
       metadata: { metrica: regla.metrica, valor, umbral, operador: regla.operador },
     });
 
-    generadas.push({ id: result.insertId, mensaje });
+    generadas.push({ id: Number(alerta.id_alerta), mensaje });
   }
 
   return generadas;
@@ -166,11 +195,13 @@ export async function evaluarReglas() {
 
 //----------------TI-08 / TI-23 / TI-31----------------
 export async function obtenerHistorialMetrica(metrica, dias) {
-  const [rows] = await db.query(
-    `SELECT valor, fecha_medicion FROM alerta_metrica_historial
-     WHERE metrica = ? AND fecha_medicion >= NOW() - INTERVAL ? DAY
-     ORDER BY fecha_medicion ASC`,
-    [metrica, dias]
-  );
+  const rows = await radarPrisma.alerta_metrica_historial.findMany({
+    where: {
+      metrica,
+      fecha_medicion: { gte: daysAgo(Number(dias) || 30) },
+    },
+    orderBy: { fecha_medicion: 'asc' },
+    select: { valor: true, fecha_medicion: true },
+  });
   return rows.map(r => ({ valor: Number(r.valor), fecha: r.fecha_medicion }));
 }
