@@ -1,4 +1,5 @@
 import db from '../db.js';
+import logger from '../logger.js';
 
 //----------------TI-44 / TI-59----------------
 export function getClientIp(req) {
@@ -55,6 +56,10 @@ export async function auditEvent(req, {
       ]
     );
   } catch (err) {
-    console.warn('[AUDIT] No se pudo registrar evento:', err.message);
+    logger.warn(err?.message || 'No se pudo registrar evento de auditoria.', {
+      context: 'AUDIT',
+      stack: err?.stack,
+      evento,
+    });
   }
 }

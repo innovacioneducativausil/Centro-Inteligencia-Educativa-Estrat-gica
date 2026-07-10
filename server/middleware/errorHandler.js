@@ -2,11 +2,15 @@
 
 
 import { auditEvent } from '../services/auditService.js';
+import logger from '../logger.js';
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
 export function serverError(res, err, context = '') {
-  console.error(`[ERROR${context ? ' ' + context : ''}]`, err);
+  logger.error(err?.message || 'Error interno del servidor.', {
+    context: context || undefined,
+    stack: err?.stack,
+  });
   res.status(500).json({
     error: IS_DEV ? err.message : 'Error interno del servidor.',
   });
@@ -14,7 +18,12 @@ export function serverError(res, err, context = '') {
 
 //----------------TI-35 / TI-45----------------
 export function globalErrorHandler(err, req, res, _next) {
-  console.error('[UNHANDLED ERROR]', err);
+  logger.error(err?.message || 'Error no controlado.', {
+    context: 'UNHANDLED ERROR',
+    stack: err?.stack,
+    metodo: req?.method,
+    ruta: req?.originalUrl,
+  });
 
   auditEvent(req, {
     evento: 'error_servidor',

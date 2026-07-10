@@ -7,13 +7,16 @@ import dotenv     from 'dotenv';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import { dirname, join }  from 'path';
+import logger from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, '../.env') });
 
 
 if (!process.env.JWT_SECRET) {
-  console.error('❌ FATAL: JWT_SECRET no está definido en .env. El servidor no puede arrancar de forma segura.');
+  logger.error('FATAL: JWT_SECRET no esta definido en .env. El servidor no puede arrancar de forma segura.', {
+    context: 'BOOT',
+  });
   process.exit(1);
 }
 
@@ -177,13 +180,19 @@ async function startServer() {
     await cleanupExpiredArchives();
     await cleanupOldActividad();
   } catch (err) {
-    console.error('[SCHEMA] No se pudo preparar soporte de esquema:', err.message);
+    logger.error(err?.message || 'No se pudo preparar soporte de esquema.', {
+      context: 'SCHEMA',
+      stack: err?.stack,
+    });
     process.exit(1);
   }
 
   //----------------TI-08 / TI-23 / TI-31----------------
   evaluarReglas().catch(err => {
-    console.error('[ALERTAS] Error en evaluacion inicial de reglas:', err.message);
+    logger.error(err?.message || 'Error en evaluacion inicial de reglas.', {
+      context: 'ALERTAS',
+      stack: err?.stack,
+    });
   });
 
   app.listen(PORT, () => {
@@ -200,17 +209,26 @@ async function startServer() {
 
 setInterval(() => {
   cleanupExpiredArchives().catch(err => {
-    console.error('[ARCHIVE] Error en limpieza programada:', err.message);
+    logger.error(err?.message || 'Error en limpieza programada de archivos.', {
+      context: 'ARCHIVE',
+      stack: err?.stack,
+    });
   });
   cleanupOldActividad().catch(err => {
-    console.error('[ACTIVIDAD] Error en limpieza programada:', err.message);
+    logger.error(err?.message || 'Error en limpieza programada de actividad.', {
+      context: 'ACTIVIDAD',
+      stack: err?.stack,
+    });
   });
 }, 24 * 60 * 60 * 1000);
 
 //----------------TI-08 / TI-23 / TI-31----------------
 setInterval(() => {
   evaluarReglas().catch(err => {
-    console.error('[ALERTAS] Error en evaluacion programada:', err.message);
+    logger.error(err?.message || 'Error en evaluacion programada de reglas.', {
+      context: 'ALERTAS',
+      stack: err?.stack,
+    });
   });
 }, 15 * 60 * 1000);
 
