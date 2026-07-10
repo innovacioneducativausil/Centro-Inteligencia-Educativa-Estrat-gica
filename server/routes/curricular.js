@@ -1,12 +1,28 @@
-
 import { Router } from 'express';
 import multer from 'multer';
-import xlsx   from 'xlsx';
+import xlsx from 'xlsx';
 import { randomUUID } from 'crypto';
-import db from '../db_curricular.js';
 import { adminOrAnalyst } from '../middleware/roles.js';
 import { validateExcelUpload, validateWorkbookShape } from '../utils/security.js';
 import { auditEvent } from '../services/auditService.js';
+import { serverError } from '../middleware/errorHandler.js';
+import {
+  createSilabo,
+  ensureSilaboSupport,
+  getCursoById,
+  getCurricularFiltros,
+  getMallaKpis,
+  getMallaMapaRows,
+  getMallasCurriculares,
+  getSilaboById,
+  getSilabos,
+  importCurricularRows,
+  searchCursos,
+  updateSilabo,
+  updateSilaboEstado,
+} from '../repositories/curricular/curricularRepository.js';
+
+export { ensureSilaboSupport };
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -19,135 +35,93 @@ const upload = multer({
 
 const router = Router();
 
-const serverError = (res, e) => {
-  console.error('[curricular]', e);
-  res.status(500).json({ error: e.message });
-};
+function parseJsonArray(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
+function workbookRows(file) {
+  const workbook = xlsx.read(file.buffer, { type: 'buffer', cellDates: true });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  return xlsx.utils.sheet_to_json(sheet, { defval: null, raw: false });
+}
+
+function rowColumn(row, ...keys) {
+  for (const key of keys) {
+    const value = row[key] ?? row[key.toLowerCase()] ?? row[key.toUpperCase()];
+    if (value !== null && value !== undefined && String(value).trim() !== '') return String(value).trim();
+  }
+  return null;
+}
 
 router.get('/curricular/filtros', async (_req, res) => {
   try {
-    const [[facultades], [carreras]] = await Promise.all([
-      db.query(`
-        SELECT DISTINCT f.id_facultad, f.nombre_facultad
-        FROM facultad f
-        JOIN carrera ca ON ca.id_facultad = f.id_facultad
-        ORDER BY f.nombre_facultad
-      `),
-      db.query(`
-        SELECT ca.id_carrera, ca.nombre_carrera, f.id_facultad, f.nombre_facultad
-        FROM carrera ca
-        JOIN facultad f ON ca.id_facultad = f.id_facultad
-        ORDER BY ca.nombre_carrera
-      `),
-    ]);
-    res.json({ facultades, carreras });
-  } catch (e) { serverError(res, e); }
+    res.json(await getCurricularFiltros());
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/filtros');
+  }
 });
-
 
 router.get('/curricular/mallas', async (req, res) => {
   try {
-    const { carrera, facultad } = req.query;
-    const where = [];
-    const params = [];
-    if (carrera)  { where.push('ca.nombre_carrera = ?');  params.push(carrera); }
-    if (facultad) { where.push('f.nombre_facultad = ?');  params.push(facultad); }
-    const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
-
-    const [rows] = await db.query(`
-      SELECT mv.id_malla, mv.nombre_version, mv.anio_inicio, mv.es_vigente,
-             ca.nombre_carrera, f.nombre_facultad,
-             COUNT(c.id_curso) AS total_cursos
-      FROM malla_version mv
-      JOIN carrera  ca ON mv.id_carrera  = ca.id_carrera
-      JOIN facultad f  ON ca.id_facultad = f.id_facultad
-      LEFT JOIN curso c ON c.id_malla = mv.id_malla
-      ${whereSQL}
-      GROUP BY mv.id_malla, mv.nombre_version, mv.anio_inicio, mv.es_vigente,
-               ca.nombre_carrera, f.nombre_facultad
-      ORDER BY mv.es_vigente DESC, mv.anio_inicio DESC
-    `, params);
-    res.json(rows);
-  } catch (e) { serverError(res, e); }
+    res.json(await getMallasCurriculares(req.query));
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/mallas');
+  }
 });
-
 
 router.get('/curricular/kpis/:idMalla', async (req, res) => {
   try {
-    const { idMalla } = req.params;
-    const [[row]] = await db.query(`
-      SELECT
-        COUNT(c.id_curso)  AS total_cursos,
-        SUM(CASE WHEN ac.estado_alineacion IN ('critico','riesgo') THEN 1 ELSE 0 END) AS en_riesgo,
-        SUM(CASE WHEN ac.estado_alineacion = 'alineado'            THEN 1 ELSE 0 END) AS alineados,
-        SUM(CASE WHEN ac.estado_alineacion = 'oportunidad'         THEN 1 ELSE 0 END) AS oportunidades,
-        SUM(CASE WHEN ac.score_alineacion IS NOT NULL
-                  AND ac.score_alineacion < 60                     THEN 1 ELSE 0 END) AS criticos,
-        ROUND(AVG(ac.score_alineacion), 1) AS pct_alineacion_promedio
-      FROM curso c
-      LEFT JOIN analisis_curso ac ON ac.id_curso = c.id_curso
-      WHERE c.id_malla = ?
-    `, [idMalla]);
-
-    const total    = Number(row.total_cursos) || 0;
-    const enRiesgo = Number(row.en_riesgo)    || 0;
-    const alineados = Number(row.alineados)   || 0;
+    const row = await getMallaKpis(req.params.idMalla);
+    const total = Number(row.total_cursos) || 0;
+    const enRiesgo = Number(row.en_riesgo) || 0;
+    const alineados = Number(row.alineados) || 0;
     res.json({
-      totalCursos:           total,
-      pctRiesgo:             total ? Math.round(enRiesgo  / total * 100) : 0,
-      pctAlineado:           total ? Math.round(alineados / total * 100) : 0,
-      oportunidades:         Number(row.oportunidades) || 0,
-      criticos:              Number(row.criticos)      || 0,
+      totalCursos: total,
+      pctRiesgo: total ? Math.round(enRiesgo / total * 100) : 0,
+      pctAlineado: total ? Math.round(alineados / total * 100) : 0,
+      oportunidades: Number(row.oportunidades) || 0,
+      criticos: Number(row.criticos) || 0,
       pctAlineacionPromedio: row.pct_alineacion_promedio,
     });
-  } catch (e) { serverError(res, e); }
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/kpis/:idMalla');
+  }
 });
-
 
 router.get('/curricular/mapa/:idMalla', async (req, res) => {
   try {
-    const { idMalla } = req.params;
-    const [rows] = await db.query(`
-      SELECT
-        c.id_curso, c.nombre_curso, c.codigo_curso, c.numero_ciclo, c.nro_orden,
-        c.creditos, c.tipo_curso, c.horas_teoria, c.horas_practica, c.horas_lab,
-        c.prerequisito, c.clas_sunedu, c.mencion, c.creditos_minimos,
-        ac.score_alineacion,  ac.estado_alineacion,
-        ac.tendencias_impacto, ac.brechas_detectadas, ac.recomendaciones_ia,
-        ac.analizado_en
-      FROM curso c
-      LEFT JOIN analisis_curso ac ON ac.id_curso = c.id_curso
-      WHERE c.id_malla = ?
-      ORDER BY c.numero_ciclo, COALESCE(c.nro_orden, 999), c.nombre_curso
-    `, [idMalla]);
-
-
+    const rows = await getMallaMapaRows(req.params.idMalla);
     const ciclosMap = {};
     for (const row of rows) {
-      const n = row.numero_ciclo;
-      if (!ciclosMap[n]) ciclosMap[n] = [];
-      ciclosMap[n].push({
-        id:               row.id_curso,
-        nombre:           row.nombre_curso,
-        codigo:           row.codigo_curso,
-        ciclo:            n,
-        orden:            row.nro_orden,
-        creditos:         row.creditos,
-        tipoCurso:        row.tipo_curso,
-        horasTeoria:      row.horas_teoria,
-        horasPractica:    row.horas_practica,
-        horasLab:         row.horas_lab,
-        prerequisito:     row.prerequisito,
-        clasSunedu:       row.clas_sunedu,
-        mencion:          row.mencion,
-        creditosMinimos:  row.creditos_minimos,
-        estado:           row.estado_alineacion || null,
-        pct:              row.score_alineacion  ? Number(row.score_alineacion) : null,
-        tendencias:       row.tendencias_impacto  ? JSON.parse(row.tendencias_impacto)  : [],
-        gaps:             row.brechas_detectadas  ? JSON.parse(row.brechas_detectadas)  : [],
-        recomendaciones:  row.recomendaciones_ia  ? JSON.parse(row.recomendaciones_ia)  : [],
-        analizadoEn:      row.analizado_en,
+      const numeroCiclo = row.numero_ciclo;
+      if (!ciclosMap[numeroCiclo]) ciclosMap[numeroCiclo] = [];
+      ciclosMap[numeroCiclo].push({
+        id: row.id_curso,
+        nombre: row.nombre_curso,
+        codigo: row.codigo_curso,
+        ciclo: numeroCiclo,
+        orden: row.nro_orden,
+        creditos: row.creditos,
+        tipoCurso: row.tipo_curso,
+        horasTeoria: row.horas_teoria,
+        horasPractica: row.horas_practica,
+        horasLab: row.horas_lab,
+        prerequisito: row.prerequisito,
+        clasSunedu: row.clas_sunedu,
+        mencion: row.mencion,
+        creditosMinimos: row.creditos_minimos,
+        estado: row.estado_alineacion || null,
+        pct: row.score_alineacion ? Number(row.score_alineacion) : null,
+        tendencias: parseJsonArray(row.tendencias_impacto),
+        gaps: parseJsonArray(row.brechas_detectadas),
+        recomendaciones: parseJsonArray(row.recomendaciones_ia),
+        analizadoEn: row.analizado_en,
       });
     }
 
@@ -156,149 +130,44 @@ router.get('/curricular/mapa/:idMalla', async (req, res) => {
       .map(([num, cursos]) => ({ label: `Ciclo ${num}`, numero: Number(num), cursos }));
 
     res.json(ciclos);
-  } catch (e) { serverError(res, e); }
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/mapa/:idMalla');
+  }
 });
-
 
 router.post('/curricular/preview', adminOrAnalyst, upload.single('file'), (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
-    const wb   = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
-    const ws   = wb.Sheets[wb.SheetNames[0]];
-    const rows = xlsx.utils.sheet_to_json(ws, { defval: null, raw: false });
+    if (!req.file) return res.status(400).json({ error: 'No se recibio archivo' });
+    const rows = workbookRows(req.file);
     const shapeError = validateWorkbookShape(rows);
     if (shapeError) return res.status(400).json({ error: shapeError });
-    if (!rows.length) return res.status(400).json({ error: 'Archivo vacío' });
+    if (!rows.length) return res.status(400).json({ error: 'Archivo vacio' });
 
-    const headers   = Object.keys(rows[0]);
-    const totalRows = rows.length;
-    const carreras  = [...new Set(rows.map(r => String(r['CARRERA'] ?? r['Carrera'] ?? '')).filter(Boolean))];
-    const facultades= [...new Set(rows.map(r => String(r['FACULTAD'] ?? r['Facultad'] ?? '')).filter(Boolean))];
-    const preview   = rows.slice(0, 5).map(r => ({
-      facultad: r['FACULTAD'] ?? r['Facultad'] ?? '',
-      carrera:  r['CARRERA']  ?? r['Carrera']  ?? '',
-      version:  r['VERSION_MALLA'] ?? r['Version_Malla'] ?? '',
-      ciclo:    r['CICLO']    ?? r['Ciclo']    ?? '',
-      curso:    r['NOMBRE_CURSO'] ?? r['Nombre_Curso'] ?? '',
+    const headers = Object.keys(rows[0]);
+    const carreras = [...new Set(rows.map(r => String(r.CARRERA ?? r.Carrera ?? '')).filter(Boolean))];
+    const facultades = [...new Set(rows.map(r => String(r.FACULTAD ?? r.Facultad ?? '')).filter(Boolean))];
+    const preview = rows.slice(0, 5).map(r => ({
+      facultad: r.FACULTAD ?? r.Facultad ?? '',
+      carrera: r.CARRERA ?? r.Carrera ?? '',
+      version: r.VERSION_MALLA ?? r.Version_Malla ?? '',
+      ciclo: r.CICLO ?? r.Ciclo ?? '',
+      curso: r.NOMBRE_CURSO ?? r.Nombre_Curso ?? '',
     }));
-    res.json({ totalRows, headers, facultades: facultades.length, carreras: carreras.length, preview });
-  } catch (e) { serverError(res, e); }
+    res.json({ totalRows: rows.length, headers, facultades: facultades.length, carreras: carreras.length, preview });
+  } catch (err) {
+    serverError(res, err, 'POST /curricular/preview');
+  }
 });
-
 
 router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
-    const wb   = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
-    const ws   = wb.Sheets[wb.SheetNames[0]];
-    const rows = xlsx.utils.sheet_to_json(ws, { defval: null, raw: false });
+    if (!req.file) return res.status(400).json({ error: 'No se recibio archivo' });
+    const rows = workbookRows(req.file);
     const shapeError = validateWorkbookShape(rows);
     if (shapeError) return res.status(400).json({ error: shapeError });
-    if (!rows.length) return res.status(400).json({ error: 'Archivo vacío' });
+    if (!rows.length) return res.status(400).json({ error: 'Archivo vacio' });
 
-
-    const col = (row, ...keys) => {
-      for (const k of keys) {
-        const v = row[k] ?? row[k.toLowerCase()] ?? row[k.toUpperCase()];
-        if (v !== null && v !== undefined && String(v).trim() !== '') return String(v).trim();
-      }
-      return null;
-    };
-
-
-    const facCache   = {};
-    const carCache   = {};
-    const mallaCache = {};
-
-    let imported = 0, skipped = 0;
-    const errors = [];
-
-
-    const setVigente = async (idMalla, idCarrera) => {
-      await db.query('UPDATE malla_version SET es_vigente=0 WHERE id_carrera=? AND id_malla!=?', [idCarrera, idMalla]);
-      await db.query('UPDATE malla_version SET es_vigente=1 WHERE id_malla=?', [idMalla]);
-    };
-
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      try {
-        const nomFac     = col(row, 'FACULTAD', 'Facultad');
-        const nomCar     = col(row, 'CARRERA',  'Carrera');
-        const nomVersion = col(row, 'VERSION_MALLA', 'Version_Malla', 'VERSION MALLA');
-        const anioInicio = parseInt(col(row, 'ANIO_INICIO', 'Anio_Inicio', 'AÑO_INICIO') ?? '0');
-        const esVigente  = /^(si|sí|s|yes|1|true)$/i.test(col(row, 'ES_VIGENTE', 'Es_Vigente') ?? '') ? 1 : 0;
-        const numeroCiclo= parseInt(col(row, 'CICLO', 'Ciclo') ?? '0');
-        const nomCurso   = col(row, 'NOMBRE_CURSO', 'Nombre_Curso', 'NOMBRE CURSO');
-        const tipoCurso  = col(row, 'TIPO_CURSO', 'Tipo_Curso', 'TIPO CURSO') ?? 'Obligatorio';
-        const creditos   = parseInt(col(row, 'CREDITOS', 'Créditos', 'Creditos') ?? '0') || null;
-
-        if (!nomFac || !nomCar || !nomVersion || !nomCurso || !numeroCiclo) { skipped++; continue; }
-
-
-        const facKey = nomFac;
-        if (!facCache[facKey]) {
-          const [rows_] = await db.query('SELECT id_facultad FROM facultad WHERE nombre_facultad=? LIMIT 1', [nomFac]);
-          if (rows_.length) {
-            facCache[facKey] = rows_[0].id_facultad;
-          } else {
-            const [r] = await db.query('INSERT INTO facultad SET ?', { nombre_facultad: nomFac });
-            facCache[facKey] = r.insertId;
-          }
-        }
-        const idFac = facCache[facKey];
-
-
-        const carKey = `${nomCar}|${idFac}`;
-        if (!carCache[carKey]) {
-          const [rows_] = await db.query('SELECT id_carrera FROM carrera WHERE nombre_carrera=? AND id_facultad=? LIMIT 1', [nomCar, idFac]);
-          if (rows_.length) {
-            carCache[carKey] = rows_[0].id_carrera;
-          } else {
-            const [r] = await db.query('INSERT INTO carrera SET ?', { nombre_carrera: nomCar, id_facultad: idFac });
-            carCache[carKey] = r.insertId;
-          }
-        }
-        const idCar = carCache[carKey];
-
-
-        const mallaKey = `${idCar}|${nomVersion}`;
-        if (!mallaCache[mallaKey]) {
-          const [rows_] = await db.query('SELECT id_malla FROM malla_version WHERE id_carrera=? AND nombre_version=? LIMIT 1', [idCar, nomVersion]);
-          if (rows_.length) {
-            mallaCache[mallaKey] = rows_[0].id_malla;
-          } else {
-            const [r] = await db.query('INSERT INTO malla_version SET ?', {
-              id_carrera: idCar, nombre_version: nomVersion,
-              anio_inicio: anioInicio || new Date().getFullYear(), es_vigente: esVigente,
-              fuente_carga: 'EXCEL',
-            });
-            mallaCache[mallaKey] = r.insertId;
-            if (esVigente) await setVigente(r.insertId, idCar);
-          }
-        }
-        const idMalla = mallaCache[mallaKey];
-
-
-        const [existCurso] = await db.query(
-          'SELECT id_curso FROM curso WHERE id_malla=? AND nombre_curso=? AND numero_ciclo=? LIMIT 1',
-          [idMalla, nomCurso, numeroCiclo]
-        );
-        if (existCurso.length) {
-          await db.query('UPDATE curso SET creditos=?, tipo_curso=? WHERE id_curso=?',
-            [creditos, tipoCurso, existCurso[0].id_curso]);
-        } else {
-          await db.query('INSERT INTO curso SET ?', {
-            id_malla: idMalla, nombre_curso: nomCurso,
-            numero_ciclo: numeroCiclo, creditos, tipo_curso: tipoCurso,
-          });
-        }
-
-        imported++;
-      } catch (rowErr) {
-        errors.push({ fila: i + 2, error: rowErr.message });
-        if (errors.length >= 20) break;
-      }
-    }
+    const { imported, skipped, errors } = await importCurricularRows(rows, rowColumn);
 
     await auditEvent(req, {
       evento: 'importacion_curricular',
@@ -308,121 +177,101 @@ router.post('/curricular/importar', adminOrAnalyst, upload.single('file'), async
       detalle: `Importacion curricular: ${imported}/${rows.length} filas importadas`,
       metadata: { archivo: req.file.originalname, imported, skipped, total: rows.length, errors: errors.length },
     });
+
     res.json({ success: true, imported, skipped, total: rows.length, errors });
-  } catch (e) { serverError(res, e); }
+  } catch (err) {
+    serverError(res, err, 'POST /curricular/importar');
+  }
 });
 
-//----------------reorg Gestion (Curricular)----------------
-export async function ensureSilaboSupport() {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS silabo (
-      id_silabo       VARCHAR(36)  NOT NULL PRIMARY KEY,
-      id_curso        INT          NOT NULL,
-      titulo          VARCHAR(200) NOT NULL,
-      url_archivo     TEXT         NULL,
-      contenido       TEXT         NULL,
-      activo          TINYINT(1)   NOT NULL DEFAULT 1,
-      fecha_creacion  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      fecha_actualizacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_curso (id_curso)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `);
-}
-
-//----------------reorg Gestion (Curricular)----------------
 router.get('/curricular/silabos', adminOrAnalyst, async (req, res) => {
   try {
-    const q = String(req.query.q || '').trim();
-    const params = [];
-    let where = '';
-    if (q) {
-      where = 'WHERE s.titulo LIKE ? OR c.nombre_curso LIKE ?';
-      params.push(`%${q}%`, `%${q}%`);
-    }
-    const [rows] = await db.query(
-      `SELECT s.id_silabo, s.id_curso, s.titulo, s.url_archivo, s.contenido, s.activo, s.fecha_actualizacion,
-              c.nombre_curso, c.codigo_curso
-       FROM silabo s
-       JOIN curso c ON c.id_curso = s.id_curso
-       ${where}
-       ORDER BY s.fecha_actualizacion DESC
-       LIMIT 200`,
-      params
-    );
-    res.json({ data: rows });
-  } catch (e) { serverError(res, e); }
+    res.json({ data: await getSilabos({ q: String(req.query.q || '').trim() }) });
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/silabos');
+  }
 });
 
 router.get('/curricular/cursos-buscar', adminOrAnalyst, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     if (!q) return res.json({ data: [] });
-    const [rows] = await db.query(
-      `SELECT id_curso, nombre_curso, codigo_curso FROM curso WHERE nombre_curso LIKE ? OR codigo_curso LIKE ? LIMIT 20`,
-      [`%${q}%`, `%${q}%`]
-    );
-    res.json({ data: rows });
-  } catch (e) { serverError(res, e); }
+    res.json({ data: await searchCursos(q) });
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/cursos-buscar');
+  }
 });
 
 router.post('/curricular/silabos', adminOrAnalyst, async (req, res) => {
   try {
     const { idCurso, titulo, urlArchivo, contenido } = req.body;
-    if (!idCurso || !titulo?.trim()) {
-      return res.status(400).json({ error: 'Curso y titulo son requeridos.' });
-    }
-    const [[curso]] = await db.query('SELECT id_curso FROM curso WHERE id_curso = ?', [idCurso]);
+    if (!idCurso || !titulo?.trim()) return res.status(400).json({ error: 'Curso y titulo son requeridos.' });
+    const curso = await getCursoById(idCurso);
     if (!curso) return res.status(400).json({ error: 'Curso no encontrado.' });
+
     const id = randomUUID();
-    await db.query(
-      `INSERT INTO silabo (id_silabo, id_curso, titulo, url_archivo, contenido, activo)
-       VALUES (?, ?, ?, ?, ?, 1)`,
-      [id, idCurso, titulo.trim(), urlArchivo?.trim() || null, contenido?.trim() || null]
-    );
+    const tituloFinal = titulo.trim();
+    await createSilabo({
+      id,
+      idCurso,
+      titulo: tituloFinal,
+      urlArchivo: urlArchivo?.trim() || null,
+      contenido: contenido?.trim() || null,
+    });
+
     await auditEvent(req, {
       evento: 'silabo_creado',
       accion: 'crear_silabo',
       modulo: 'curricular',
       entidad: 'silabo',
       entidadId: id,
-      elementoTitulo: titulo.trim(),
-      detalle: `Silabo creado: ${titulo.trim()}`,
+      elementoTitulo: tituloFinal,
+      detalle: `Silabo creado: ${tituloFinal}`,
     });
     res.status(201).json({ id });
-  } catch (e) { serverError(res, e); }
+  } catch (err) {
+    serverError(res, err, 'POST /curricular/silabos');
+  }
 });
 
 router.put('/curricular/silabos/:id', adminOrAnalyst, async (req, res) => {
   try {
     const { id } = req.params;
     const { titulo, urlArchivo, contenido } = req.body;
-    const [[existing]] = await db.query('SELECT id_silabo FROM silabo WHERE id_silabo = ?', [id]);
+    const existing = await getSilaboById(id);
     if (!existing) return res.status(404).json({ error: 'Silabo no encontrado.' });
     if (!titulo?.trim()) return res.status(400).json({ error: 'Titulo es requerido.' });
-    await db.query(
-      `UPDATE silabo SET titulo = ?, url_archivo = ?, contenido = ?, fecha_actualizacion = NOW() WHERE id_silabo = ?`,
-      [titulo.trim(), urlArchivo?.trim() || null, contenido?.trim() || null, id]
-    );
+
+    const tituloFinal = titulo.trim();
+    await updateSilabo({
+      id,
+      titulo: tituloFinal,
+      urlArchivo: urlArchivo?.trim() || null,
+      contenido: contenido?.trim() || null,
+    });
     await auditEvent(req, {
       evento: 'silabo_actualizado',
       accion: 'editar_silabo',
       modulo: 'curricular',
       entidad: 'silabo',
       entidadId: id,
-      elementoTitulo: titulo.trim(),
-      detalle: `Silabo actualizado: ${titulo.trim()}`,
+      elementoTitulo: tituloFinal,
+      detalle: `Silabo actualizado: ${tituloFinal}`,
     });
     res.json({ ok: true });
-  } catch (e) { serverError(res, e); }
+  } catch (err) {
+    serverError(res, err, 'PUT /curricular/silabos/:id');
+  }
 });
 
 router.patch('/curricular/silabos/:id/estado', adminOrAnalyst, async (req, res) => {
   try {
     const { id } = req.params;
     const activo = req.body.activo ? 1 : 0;
-    const [[existing]] = await db.query('SELECT id_silabo, titulo FROM silabo WHERE id_silabo = ?', [id]);
+    const existing = await getSilaboById(id);
     if (!existing) return res.status(404).json({ error: 'Silabo no encontrado.' });
-    await db.query('UPDATE silabo SET activo = ? WHERE id_silabo = ?', [activo, id]);
+
+    await updateSilaboEstado({ id, activo });
     await auditEvent(req, {
       evento: 'silabo_estado',
       accion: activo ? 'activar_silabo' : 'archivar_silabo',
@@ -433,7 +282,9 @@ router.patch('/curricular/silabos/:id/estado', adminOrAnalyst, async (req, res) 
       detalle: `Silabo ${activo ? 'activado' : 'archivado'}: ${existing.titulo}`,
     });
     res.json({ ok: true });
-  } catch (e) { serverError(res, e); }
+  } catch (err) {
+    serverError(res, err, 'PATCH /curricular/silabos/:id/estado');
+  }
 });
 
 export default router;
