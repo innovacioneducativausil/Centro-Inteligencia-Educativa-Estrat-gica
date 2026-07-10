@@ -1,63 +1,81 @@
-import db from '../../db.js';
+import { radarPrisma } from '../../prismaClient.js';
 
 export async function getDashboardStats() {
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
   const [
-    [[senales]],
-    [[tendencias]],
-    [[escenarios]],
-    [[usuarios]],
-    [[pesteles]],
-    [[sectores]],
-    [[senalesMes]],
-    [distribucionPestel],
-    [senalesRecientes],
+    senalesTotal,
+    tendenciasTotal,
+    escenariosTotal,
+    usuariosTotal,
+    pestelesTotal,
+    sectoresTotal,
+    senalesMesTotal,
+    pesteles,
+    senalesRecientesRaw,
   ] = await Promise.all([
-    db.query('SELECT COUNT(*) AS total FROM senal WHERE id_estado = 1'),
-    db.query('SELECT COUNT(*) AS total FROM tendencia WHERE id_estado = 1'),
-    db.query('SELECT COUNT(*) AS total FROM escenario WHERE id_estado = 1'),
-    db.query('SELECT COUNT(*) AS total FROM usuario WHERE activo = 1'),
-    db.query('SELECT COUNT(*) AS total FROM pestel WHERE activo = 1'),
-    db.query('SELECT COUNT(*) AS total FROM sector WHERE activo = 1'),
-    db.query(
-      `SELECT COUNT(*) AS total FROM senal
-       WHERE id_estado = 1
-         AND fecha_publicacion >= DATE_FORMAT(NOW(), '%Y-%m-01')`
-    ),
-    db.query(
-      `SELECT p.nombre_pestel AS categoria, p.color, p.emoji,
-              COUNT(DISTINCT sp.id_senal) AS total_senales,
-              COUNT(DISTINCT tp.id_tendencia) AS total_tendencias
-       FROM pestel p
-       LEFT JOIN senal_pestel sp ON p.id_pestel = sp.id_pestel
-       LEFT JOIN tendencia_pestel tp ON p.id_pestel = tp.id_pestel
-       WHERE p.activo = 1
-       GROUP BY p.id_pestel
-       ORDER BY p.orden_display`
-    ),
-    db.query(
-      `SELECT s.id_senal, s.titulo_senal, s.desc_corta_senal,
-              s.fecha_publicacion,
-              MIN(p.nombre_pestel) AS categoria,
-              MIN(p.color) AS color,
-              MIN(p.emoji) AS emoji
-       FROM senal s
-       LEFT JOIN senal_pestel sp ON s.id_senal = sp.id_senal
-       LEFT JOIN pestel p ON sp.id_pestel = p.id_pestel
-       WHERE s.id_estado = 1
-       GROUP BY s.id_senal, s.titulo_senal, s.desc_corta_senal, s.fecha_publicacion
-       ORDER BY s.fecha_publicacion DESC, s.fecha_creacion DESC
-       LIMIT 5`
-    ),
+    radarPrisma.senal.count({ where: { id_estado: 1 } }),
+    radarPrisma.tendencia.count({ where: { id_estado: 1 } }),
+    radarPrisma.escenario.count({ where: { id_estado: 1 } }),
+    radarPrisma.usuario.count({ where: { activo: true } }),
+    radarPrisma.pestel.count({ where: { activo: true } }),
+    radarPrisma.sector.count({ where: { activo: true } }),
+    radarPrisma.senal.count({ where: { id_estado: 1, fecha_publicacion: { gte: startOfMonth } } }),
+    radarPrisma.pestel.findMany({
+      where: { activo: true },
+      orderBy: { orden_display: 'asc' },
+      include: {
+        senal_pestel: true,
+        tendencia_pestel: true,
+      },
+    }),
+    radarPrisma.senal.findMany({
+      where: { id_estado: 1 },
+      orderBy: [
+        { fecha_publicacion: 'desc' },
+        { fecha_creacion: 'desc' },
+      ],
+      take: 5,
+      include: {
+        senal_pestel: { include: { pestel: true } },
+      },
+    }),
   ]);
 
+  const distribucionPestel = pesteles.map(pestel => ({
+    categoria: pestel.nombre_pestel,
+    color: pestel.color,
+    emoji: pestel.emoji,
+    total_senales: pestel.senal_pestel.length,
+    total_tendencias: pestel.tendencia_pestel.length,
+  }));
+
+  const senalesRecientes = senalesRecientesRaw.map(row => {
+    const pestel = row.senal_pestel
+      .map(item => item.pestel)
+      .filter(Boolean)
+      .sort((a, b) => (a.orden_display || 0) - (b.orden_display || 0))[0];
+    return {
+      id_senal: row.id_senal,
+      titulo_senal: row.titulo_senal,
+      desc_corta_senal: row.desc_corta_senal,
+      fecha_publicacion: row.fecha_publicacion,
+      categoria: pestel?.nombre_pestel || null,
+      color: pestel?.color || null,
+      emoji: pestel?.emoji || null,
+    };
+  });
+
   return {
-    senales,
-    tendencias,
-    escenarios,
-    usuarios,
-    pesteles,
-    sectores,
-    senalesMes,
+    senales: { total: senalesTotal },
+    tendencias: { total: tendenciasTotal },
+    escenarios: { total: escenariosTotal },
+    usuarios: { total: usuariosTotal },
+    pesteles: { total: pestelesTotal },
+    sectores: { total: sectoresTotal },
+    senalesMes: { total: senalesMesTotal },
     distribucionPestel,
     senalesRecientes,
   };
