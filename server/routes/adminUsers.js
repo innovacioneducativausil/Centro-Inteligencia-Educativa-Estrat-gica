@@ -1,8 +1,20 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { randomInt, randomUUID } from 'crypto';
-import db from '../db.js';
+import { serverError } from '../middleware/errorHandler.js';
 import { auditEvent } from '../services/auditService.js';
+import {
+  anonymizeUserData,
+  countActiveAdmins,
+  createUser,
+  getAdminUsers,
+  getEditableUserById,
+  getUserByEmail,
+  getUserForDeletion,
+  getUserForPasswordReset,
+  resetUserPassword,
+  updateUser,
+} from '../repositories/principal/adminUsersRepository.js';
 
 const router = Router();
 //----------------OBS-01 / TI-02----------------
@@ -71,35 +83,10 @@ router.get('/admin/usuarios', adminOnly, async (req, res) => {
     const q = String(req.query.q || '').trim();
     const rol = String(req.query.rol || '').trim();
     const estado = String(req.query.estado || '').trim();
-    const params = [];
-    const conds = [];
-
-    if (q) {
-      conds.push('(nombre_usuario LIKE ? OR nombre_corto LIKE ? OR correo_usuario LIKE ?)');
-      params.push(`%${q}%`, `%${q}%`, `%${q}%`);
-    }
-    if (rol) {
-      conds.push('rol = ?');
-      params.push(rol);
-    }
-    if (estado === 'activo') conds.push('activo = 1');
-    if (estado === 'inactivo') conds.push('activo = 0');
-
-    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-    const [rows] = await db.query(
-      `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
-              email_verificado, ultimo_acceso, fecha_creacion, fecha_actualizacion,
-              password_changed_at, failed_login_attempts, locked_until, modulos_permitidos
-       FROM usuario
-       ${where}
-       ORDER BY rol = 'admin' DESC, activo DESC, correo_usuario ASC
-       LIMIT 200`,
-      params
-    );
+    const rows = await getAdminUsers({ q, rol, estado });
     res.json({ data: rows.map(safeUser), roles: [...MANAGED_ROLES], modulos: ALL_MODULES });
   } catch (err) {
-    console.error('[GET /admin/usuarios]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'GET /admin/usuarios');
   }
 });
 
@@ -125,19 +112,12 @@ router.post('/admin/usuarios', adminOnly, async (req, res) => {
     const policyError = validatePassword(password);
     if (policyError) return res.status(400).json({ error: policyError });
 
-    const [[exists]] = await db.query('SELECT id_usuario FROM usuario WHERE correo_usuario = ? LIMIT 1', [correo]);
+    const exists = await getUserByEmail(correo);
     if (exists) return res.status(400).json({ error: 'Ya existe un usuario con ese correo.' });
 
     const id = randomUUID();
     const hash = await bcrypt.hash(password, 10);
-    await db.query(
-      `INSERT INTO usuario
-         (id_usuario, nombre_usuario, nombre_corto, correo_usuario, password_hash, rol,
-          activo, email_verificado, password_changed_at, fecha_creacion, fecha_actualizacion)
-       VALUES (?, ?, ?, ?, ?, ?, 1, 1, NOW(), NOW(), NOW())`,
-      [id, nombre, nombreCorto, correo, hash, rol]
-    );
-    await db.query('UPDATE usuario SET modulos_permitidos = ? WHERE id_usuario = ?', [JSON.stringify(modulos), id]);
+    const created = await createUser({ id, nombre, nombreCorto, correo, passwordHash: hash, rol, modulos });
 
     //----------------TI-44 / TI-59----------------
     await auditEvent(req, {
@@ -151,17 +131,9 @@ router.post('/admin/usuarios', adminOnly, async (req, res) => {
       metadata: { rol, modulos },
     });
 
-    const [[created]] = await db.query(
-      `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
-              email_verificado, ultimo_acceso, fecha_creacion, fecha_actualizacion,
-              password_changed_at, failed_login_attempts, locked_until, modulos_permitidos
-       FROM usuario WHERE id_usuario = ?`,
-      [id]
-    );
     res.status(201).json({ user: safeUser(created) });
   } catch (err) {
-    console.error('[POST /admin/usuarios]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'POST /admin/usuarios');
   }
 });
 
@@ -169,11 +141,7 @@ router.post('/admin/usuarios', adminOnly, async (req, res) => {
 router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const [[existing]] = await db.query(
-      `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo, modulos_permitidos
-       FROM usuario WHERE id_usuario = ? LIMIT 1`,
-      [id]
-    );
+    const existing = await getEditableUserById(id);
     if (!existing) return res.status(404).json({ error: 'Usuario no encontrado.' });
     const nombre = String(req.body.nombre || '').trim();
     const nombreCorto = String(req.body.nombreCorto || nombre.split(' ')[0] || '').trim();
@@ -193,12 +161,7 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
       return res.status(400).json({ error: 'No puedes quitarte tu acceso al modulo Gestion.' });
     }
 
-    await db.query(
-      `UPDATE usuario
-       SET nombre_usuario = ?, nombre_corto = ?, rol = ?, activo = ?, modulos_permitidos = ?, fecha_actualizacion = NOW()
-       WHERE id_usuario = ?`,
-      [nombre, nombreCorto, rol, activo ? 1 : 0, JSON.stringify(modulos), id]
-    );
+    const updated = await updateUser({ id, nombre, nombreCorto, rol, activo, modulos });
 
     const prevModules = parseModules(existing.modulos_permitidos, existing.rol);
     const cambios = [];
@@ -226,17 +189,9 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
       metadata: { vista: 'usuarios_y_accesos', usuarioObjetivo: existing.correo_usuario, cambios, rol, activo, modulos },
     });
 
-    const [[updated]] = await db.query(
-      `SELECT id_usuario, nombre_usuario, nombre_corto, correo_usuario, rol, activo,
-              email_verificado, ultimo_acceso, fecha_creacion, fecha_actualizacion,
-              password_changed_at, failed_login_attempts, locked_until, modulos_permitidos
-       FROM usuario WHERE id_usuario = ?`,
-      [id]
-    );
     res.json({ user: safeUser(updated) });
   } catch (err) {
-    console.error('[PUT /admin/usuarios/:id]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'PUT /admin/usuarios/:id');
   }
 });
 
@@ -244,19 +199,11 @@ router.put('/admin/usuarios/:id', adminOnly, async (req, res) => {
 router.post('/admin/usuarios/:id/reset-password', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const [[existing]] = await db.query('SELECT id_usuario, correo_usuario, rol FROM usuario WHERE id_usuario = ? LIMIT 1', [id]);
+    const existing = await getUserForPasswordReset(id);
     if (!existing) return res.status(404).json({ error: 'Usuario no encontrado.' });
     const tempPassword = `Usil${randomInt(100000, 999999)}!`;
     const hash = await bcrypt.hash(tempPassword, 10);
-    await db.query(
-      `UPDATE usuario
-       SET password_hash = ?, password_changed_at = NOW(), failed_login_attempts = 0,
-           locked_until = NULL, reset_token = NULL, reset_token_expires = NULL,
-           otp_hash = NULL, otp_expires = NULL, otp_attempts = 0, otp_purpose = NULL,
-           fecha_actualizacion = NOW()
-       WHERE id_usuario = ?`,
-      [hash, id]
-    );
+    await resetUserPassword({ id, passwordHash: hash });
 
     //----------------TI-44 / TI-59----------------
     await auditEvent(req, {
@@ -271,8 +218,7 @@ router.post('/admin/usuarios/:id/reset-password', adminOnly, async (req, res) =>
 
     res.json({ tempPassword });
   } catch (err) {
-    console.error('[POST /admin/usuarios/:id/reset-password]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'POST /admin/usuarios/:id/reset-password');
   }
 });
 
@@ -285,18 +231,13 @@ router.post('/admin/usuarios/:id/reset-password', adminOnly, async (req, res) =>
 router.post('/admin/usuarios/:id/eliminar-datos', adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const [[existing]] = await db.query(
-      'SELECT id_usuario, correo_usuario, rol, activo FROM usuario WHERE id_usuario = ? LIMIT 1',
-      [id]
-    );
+    const existing = await getUserForDeletion(id);
     if (!existing) return res.status(404).json({ error: 'Usuario no encontrado.' });
     if (id === req.user.id) {
       return res.status(400).json({ error: 'No puedes anonimizar tu propia cuenta.' });
     }
     if (existing.rol === 'admin') {
-      const [[{ total }]] = await db.query(
-        "SELECT COUNT(*) AS total FROM usuario WHERE rol = 'admin' AND activo = 1"
-      );
+      const total = await countActiveAdmins();
       if (total <= 1) {
         return res.status(400).json({ error: 'No puedes anonimizar al unico administrador activo.' });
       }
@@ -307,23 +248,7 @@ router.post('/admin/usuarios/:id/eliminar-datos', adminOnly, async (req, res) =>
     const inertHash = await bcrypt.hash(randomUUID(), 10);
     const correoOriginalEnmascarado = existing.correo_usuario.replace(/^(.{2}).*(@.*)$/, '$1***$2');
 
-    await db.query(
-      `UPDATE usuario
-       SET nombre_usuario = 'Usuario eliminado', nombre_corto = 'Eliminado',
-           correo_usuario = ?, password_hash = ?, activo = 0, modulos_permitidos = '[]',
-           otp_hash = NULL, otp_expires = NULL, otp_attempts = 0, otp_purpose = NULL,
-           reset_token = NULL, reset_token_expires = NULL, locked_until = NULL,
-           eliminado_en = NOW(), fecha_actualizacion = NOW()
-       WHERE id_usuario = ?`,
-      [correoPseudo, inertHash, id]
-    );
-
-    // Pseudonimizar el historico de auditoria del usuario (se conserva evento/
-    // accion/modulo para no perder trazabilidad operativa, se retira el correo).
-    await db.query(
-      'UPDATE actividad_usuario SET correo = ? WHERE id_usuario = ?',
-      [correoPseudo, id]
-    );
+    await anonymizeUserData({ id, correoPseudo, passwordHash: inertHash });
 
     await auditEvent(req, {
       evento: 'usuario_datos_anonimizados',
@@ -337,8 +262,7 @@ router.post('/admin/usuarios/:id/eliminar-datos', adminOnly, async (req, res) =>
 
     res.json({ ok: true, correoPseudo });
   } catch (err) {
-    console.error('[POST /admin/usuarios/:id/eliminar-datos]', err);
-    res.status(500).json({ error: 'Error interno.' });
+    serverError(res, err, 'POST /admin/usuarios/:id/eliminar-datos');
   }
 });
 
