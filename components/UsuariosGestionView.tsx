@@ -27,6 +27,7 @@ const MODULES = [
   { key: 'inicio', label: 'Inicio' },
   { key: 'radar', label: 'Radar' },
   { key: 'empleabilidad', label: 'Empleo' },
+  { key: 'certificaciones', label: 'Certificaciones' },
   { key: 'impactos', label: 'Impactos' },
   { key: 'curricular', label: 'Curricular' },
   { key: 'mercadoLaboral', label: 'Mercado' },

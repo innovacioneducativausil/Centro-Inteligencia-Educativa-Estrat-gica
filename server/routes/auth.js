@@ -49,7 +49,7 @@ const ROL_LABELS = {
   usuario: 'Usuario',
 };
 
-const DEFAULT_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral'];
+const DEFAULT_MODULES = ['inicio', 'radar', 'empleabilidad', 'certificaciones', 'impactos', 'curricular', 'mercadoLaboral'];
 const ADMIN_MODULES = [...DEFAULT_MODULES, 'informes', 'gestion'];
 const ALL_MODULES = [...ADMIN_MODULES];
 

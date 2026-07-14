@@ -117,6 +117,14 @@ const MODULES = [
     accentBg: 'rgba(0,107,88,0.06)',
   },
   {
+    view: 'certificaciones',
+    icon: 'workspace_premium',
+    title: 'Certificaciones Graduales',
+    desc: 'Constructor de rutas certificables por carrera usando cursos, ciclos y menciones del XLSM.',
+    accent: '#006b58',
+    accentBg: 'rgba(0,107,88,0.08)',
+  },
+  {
     view: 'impactos',
     icon: 'history_edu',
     title: 'Impacto Curricular',
@@ -1007,4 +1015,3 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
 };
 
 export default Dashboard;
-

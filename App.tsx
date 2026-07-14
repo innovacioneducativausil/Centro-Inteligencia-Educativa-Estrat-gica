@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import RadarView from './components/RadarView';
 import EmpleabilidadView from './components/EmpleabilidadView';
+import CertificacionesGradualesView from './components/CertificacionesGradualesView';
 import CurricularView from './components/CurricularView';
 import MercadoLaboralView from './components/MercadoLaboralView';
 import ImpactosView from './components/ImpactosView';
@@ -14,9 +15,9 @@ import { logActividad } from './services/actividadService';
 
 type PendingNotif = { uuid: string; tipo: 'senal' | 'tendencia' | 'escenario' } | null;
 const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
-const DEFAULT_USER_MODULES = ['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral'];
+const DEFAULT_USER_MODULES = ['inicio', 'radar', 'empleabilidad', 'certificaciones', 'impactos', 'curricular', 'mercadoLaboral'];
 const INACTIVITY_WARNING_MS = 60 * 1000;
-const VALID_VIEWS = new Set(['inicio', 'radar', 'empleabilidad', 'impactos', 'curricular', 'mercadoLaboral', 'informes', 'gestion']);
+const VALID_VIEWS = new Set(['inicio', 'radar', 'empleabilidad', 'certificaciones', 'impactos', 'curricular', 'mercadoLaboral', 'informes', 'gestion']);
 const VALID_RADAR_TABS = new Set(['señales', 'tendencias', 'escenarios']);
 const MODULE_TAB_RESET: Record<string, { key: string; value: string }> = {
   // 'gestion' se excluye a propósito: GestionView decide por su cuenta si
@@ -25,6 +26,7 @@ const MODULE_TAB_RESET: Record<string, { key: string; value: string }> = {
   // valor y nunca se ve el panel al entrar por primera vez.
   curricular: { key: 'radar_curricular_tab', value: 'mapa' },
   empleabilidad: { key: 'radar_empleabilidad_tab', value: 'resumen' },
+  certificaciones: { key: 'radar_certificaciones_tab', value: 'constructor' },
   mercadoLaboral: { key: 'radar_mercado_tab', value: 'metodologia' },
 };
 
@@ -114,6 +116,10 @@ const AUDIT_VIEW_CLICK_LABELS: Record<string, Record<string, string>> = {
     'egresados en busqueda laboral': 'Egresados en Búsqueda Laboral',
     'descarga de informes': 'Descarga de Informes',
   },
+  certificaciones: {
+    'sugerir estructura': 'Constructor',
+    reiniciar: 'Constructor',
+  },
   curricular: {
     'mapa curricular': 'Mapa Curricular',
     'mapa silabos': 'Mapa Sílabos',
@@ -157,6 +163,9 @@ function getStoredAuditView(activeView: string) {
       busqueda: 'Egresados en Búsqueda Laboral',
       descarga: 'Descarga de Informes',
     },
+    certificaciones: {
+      constructor: 'Constructor',
+    },
     curricular: {
       mapa: 'Mapa Curricular',
       silabos: 'Mapa Sílabos',
@@ -176,6 +185,7 @@ function getStoredAuditView(activeView: string) {
   const storageKey: Record<string, string> = {
     gestion: 'radar_gestion_tab',
     empleabilidad: 'radar_empleabilidad_tab',
+    certificaciones: 'radar_certificaciones_tab',
     curricular: 'radar_curricular_tab',
     mercadoLaboral: 'radar_mercado_tab',
     radar: 'radar_tab',
@@ -393,6 +403,7 @@ const App: React.FC = () => {
 
   const canView = useCallback((view: string) => {
     if (!user) return false;
+    if (view === 'certificaciones' && ['admin', 'usuario'].includes(user.rol)) return true;
     //----------------OBS-01 / TI-02----------------
     const allowed = user.modulosPermitidos?.length ? user.modulosPermitidos : defaultModulesFor(user);
     return allowed.includes(view);
@@ -432,6 +443,8 @@ const App: React.FC = () => {
         return <RadarView themeColors={themeColors} activeTabProp={radarTab} setRadarTab={setRadarTab} pendingNotif={pendingNotif} onPendingNotifConsumed={() => setPendingNotif(null)} />;
       case 'empleabilidad':
         return <EmpleabilidadView themeColors={themeColors} userRole={user?.rol} />;
+      case 'certificaciones':
+        return <CertificacionesGradualesView themeColors={themeColors} userRole={user?.rol} />;
       case 'curricular':
         return <CurricularView themeColors={themeColors} userRole={user?.rol} />;
       case 'mercadoLaboral':

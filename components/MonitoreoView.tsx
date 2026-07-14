@@ -178,6 +178,7 @@ const MODULE_LABELS: Record<string, string> = {
   inicio: 'Inicio',
   radar: 'Radar',
   empleabilidad: 'Empleo',
+  certificaciones: 'Certificaciones',
   impactos: 'Informes',
   curricular: 'Curricular',
   mercadoLaboral: 'Mercado',
@@ -208,6 +209,10 @@ const VIEW_LABELS_BY_MODULE: Record<string, Record<string, string>> = {
     'egresados en busqueda laboral': 'Egresados en Búsqueda Laboral',
     'descarga de informes': 'Descarga de Informes',
     empleabilidad: 'Empleo',
+  },
+  certificaciones: {
+    constructor: 'Constructor',
+    certificaciones: 'Certificaciones',
   },
   curricular: {
     'mapa curricular': 'Mapa Curricular',

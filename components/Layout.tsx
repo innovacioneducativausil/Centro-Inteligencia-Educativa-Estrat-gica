@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Home, TrendingUp, Briefcase, Bell, Sun, Moon, LogOut, User, Layers, FileText, Settings2, BookOpen, BarChart3 } from 'lucide-react';
+import { Home, TrendingUp, Briefcase, Bell, Sun, Moon, LogOut, User, FileText, Settings2, BookOpen, BarChart3, BadgeCheck } from 'lucide-react';
 import { ThemeColors } from '../types';
 import { AuthUser } from './LoginView';
 import { BRAND_COLORS } from '../constants';
@@ -175,22 +175,25 @@ const Layout: React.FC<LayoutProps> = ({
   const tipoLabel = (t: string) => t === 'senal' ? 'Señal' : t === 'tendencia' ? 'Tendencia' : 'Escenario';
   const fmtDate   = (d: string | null) => d ? new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '';
 
-  const NEW_BADGE_KEYS = new Set(['curricular', 'mercadoLaboral']);
+  const NEW_BADGE_KEYS = new Set(['certificaciones', 'curricular', 'mercadoLaboral']);
   const defaultModules = [
     'inicio',
     'radar',
     'empleabilidad',
+    'certificaciones',
     'impactos',
     'curricular',
     'mercadoLaboral',
     ...(isAdmin ? ['informes', 'gestion'] : []),
   ];
   const allowedModules = new Set(user.modulosPermitidos?.length ? user.modulosPermitidos : defaultModules);
+  if (['admin', 'usuario'].includes(user.rol)) allowedModules.add('certificaciones');
 
   const navItems = [
     { key: 'inicio', label: 'Inicio', icon: Home, short: 'Inicio' },
     { key: 'radar', label: 'Radar', icon: TrendingUp, short: 'Radar' },
     { key: 'empleabilidad', label: 'Empleabilidad', icon: Briefcase, short: 'Empleo' },
+    { key: 'certificaciones', label: 'Certificaciones Graduales', icon: BadgeCheck, short: 'Certif.' },
     { key: 'curricular', label: 'Curricular', icon: BookOpen, short: 'Curricular' },
     { key: 'mercadoLaboral', label: 'Mercado Laboral', icon: BarChart3, short: 'Mercado' },
     ...(isAdmin ? [
