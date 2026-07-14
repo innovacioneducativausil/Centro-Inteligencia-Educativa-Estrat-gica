@@ -64,7 +64,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
 
   const [programCode, setProgramCode] = useState(CERTIFICACIONES_PROGRAMAS[0].code);
   const [query, setQuery] = useState('');
-  const [cycleFilter, setCycleFilter] = useState<'all' | 'mid' | 'suggested'>('mid');
+  const [cycleFilter, setCycleFilter] = useState<string>('all');
   const [slots, setSlots] = useState<CertSlot[]>(initialSlots);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -82,11 +82,13 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const cursosFiltrados = useMemo(() => {
     const term = normalizeText(query.trim());
     return cursos
-      .filter(curso => cycleFilter === 'all' || (cycleFilter === 'mid' && curso.ciclo >= 4 && curso.ciclo <= 6) || (cycleFilter === 'suggested' && scoreCurso(curso) >= 78))
+      .filter(curso => cycleFilter === 'all' || (cycleFilter === 'suggested' && scoreCurso(curso) >= 78) || String(curso.ciclo) === cycleFilter)
       .filter(curso => !term || normalizeText(`${curso.nombre} ${curso.codigoOficial} ${curso.codigoCurso} ${curso.tipoEstudios}`).includes(term))
       .sort((a, b) => scoreCurso(b) - scoreCurso(a) || a.ciclo - b.ciclo || a.nombre.localeCompare(b.nombre))
-      .slice(0, 42);
   }, [cursos, cycleFilter, query]);
+  const ciclosDisponibles = Array.from(new Set(cursos.map(curso => curso.ciclo)))
+    .filter(ciclo => ciclo >= 1 && ciclo <= 10)
+    .sort((a, b) => a - b);
 
   const suggested = cursos
     .filter(curso => curso.ciclo >= 4 && curso.ciclo <= 8 && !selectedIds.has(curso.id))
@@ -124,7 +126,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const reset = () => {
     setSlots(initialSlots());
     setQuery('');
-    setCycleFilter('mid');
+    setCycleFilter('all');
   };
 
   const applySuggestion = (targetIndex = 0) => {
@@ -199,8 +201,8 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const progressText = `Certificacion 1: ${slots[0].cursoIds.filter(Boolean).length}/4 | Certificacion 2: ${slots[1].cursoIds.filter(Boolean).length}/4 | Certificacion 3: ${slots[2].cursoIds.filter(Boolean).length}/4`;
 
   return (
-    <div style={{ minHeight: '100%', background: surface, color: text, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <header style={{ minHeight: 126, padding: '20px 24px 16px', borderBottom: `1px solid ${border}`, background: surface, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
+    <div className="cert-page" style={{ minHeight: '100%', background: surface, color: text, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <header className="cert-header" style={{ minHeight: 126, padding: '20px 24px 16px', borderBottom: `1px solid ${border}`, background: surface, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 style={{ margin: 0, color: isDark ? '#dbeafe' : NAVY, fontSize: 28, lineHeight: 1.15, fontWeight: 900 }}>
@@ -221,7 +223,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="cert-header-controls" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <select value={programCode} onChange={e => { setProgramCode(e.target.value); reset(); }} style={selectStyle}>
             {CERTIFICACIONES_PROGRAMAS.map(p => <option key={p.code} value={p.code}>{p.program}</option>)}
           </select>
@@ -237,7 +239,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         </div>
       </header>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '264px minmax(640px, 1fr) 408px', gap: 24, padding: 24, paddingBottom: 0, overflow: 'hidden' }}>
+      <div className="cert-workspace-grid" style={{ flex: 1, minHeight: 0, display: 'grid', gap: 24, padding: 24, paddingBottom: 0, overflow: 'hidden' }}>
         <section style={{ background: card, border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ padding: 16, borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
             <h2 style={{ margin: '0 0 16px', fontSize: 17, color: isDark ? '#dbeafe' : NAVY, fontWeight: 900 }}>Cursos disponibles</h2>
@@ -250,15 +252,15 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                 style={{ width: '100%', height: 38, boxSizing: 'border-box', border: `1px solid ${border}`, borderRadius: 8, padding: '0 10px 0 32px', background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}
               />
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+            <div className="cert-cycle-filters" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
               {[
-                ['mid', 'Ciclo 4-6'],
+                ['all', 'Todos'],
+                ...ciclosDisponibles.map(ciclo => [String(ciclo), `Ciclo ${ciclo}`]),
                 ['suggested', 'Alta afinidad'],
-                ['all', 'Sugeridos IA'],
               ].map(([key, label]) => (
                 <button
                   key={key}
-                  onClick={() => setCycleFilter(key as typeof cycleFilter)}
+                  onClick={() => setCycleFilter(key)}
                   style={{
                     border: 'none',
                     borderRadius: 6,
@@ -270,7 +272,6 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                     cursor: 'pointer',
                   }}
                 >
-                  {key === 'all' && <Sparkles size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />}
                   {label}
                 </button>
               ))}
@@ -349,7 +350,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
               backgroundSize: '24px 24px',
             }}
           >
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(260px, 1fr))', gap: 16, alignItems: 'start' }}>
+            <div className="cert-cards-grid" style={{ display: 'grid', gap: 16, alignItems: 'start' }}>
               {slots.map((slot, certIndex) => {
                 const selectedCursos = slot.cursoIds.map(id => id ? cursoById.get(id) ?? null : null);
                 const filledCursos = selectedCursos.filter(Boolean) as CertificacionesCurso[];
@@ -490,7 +491,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         </aside>
       </div>
 
-      <footer style={{ height: 64, borderTop: `1px solid ${border}`, background: isDark ? '#111827' : '#eceef0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0 }}>
+      <footer className="cert-footer" style={{ minHeight: 64, borderTop: `1px solid ${border}`, background: isDark ? '#111827' : '#eceef0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
           <div>
             <div style={{ color: muted, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.8 }}>Estado General</div>
@@ -513,6 +514,80 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
           <Save size={16} />
         </button>
       </footer>
+      <style>{`
+        .cert-workspace-grid {
+          grid-template-columns: minmax(250px, 280px) minmax(720px, 1fr) minmax(330px, 408px);
+        }
+        .cert-cards-grid {
+          grid-template-columns: repeat(3, minmax(240px, 1fr));
+        }
+        .cert-cycle-filters {
+          max-height: 96px;
+          overflow-y: auto;
+          padding-right: 2px;
+        }
+        @media (max-width: 1500px) {
+          .cert-header {
+            padding: 16px 18px 14px !important;
+            gap: 16px !important;
+          }
+          .cert-header h1 {
+            font-size: 24px !important;
+          }
+          .cert-header-controls {
+            gap: 8px !important;
+          }
+          .cert-workspace-grid {
+            grid-template-columns: minmax(232px, 250px) minmax(680px, 1fr) minmax(300px, 330px);
+            gap: 14px !important;
+            padding: 18px !important;
+            padding-bottom: 0 !important;
+          }
+          .cert-cards-grid {
+            grid-template-columns: repeat(3, minmax(220px, 1fr));
+            gap: 12px !important;
+          }
+        }
+        @media (max-width: 1220px) {
+          .cert-page {
+            overflow: auto !important;
+          }
+          .cert-header {
+            flex-direction: column;
+            min-height: auto !important;
+          }
+          .cert-header-controls {
+            width: 100%;
+            justify-content: flex-start !important;
+          }
+          .cert-workspace-grid {
+            grid-template-columns: minmax(230px, 280px) minmax(680px, 1fr);
+            overflow: visible !important;
+          }
+          .cert-workspace-grid > aside {
+            grid-column: 1 / -1;
+            min-height: 360px !important;
+          }
+        }
+        @media (max-width: 900px) {
+          .cert-workspace-grid {
+            grid-template-columns: 1fr;
+          }
+          .cert-cards-grid {
+            grid-template-columns: 1fr;
+          }
+          .cert-footer {
+            align-items: flex-start !important;
+            flex-direction: column;
+            gap: 10px;
+            padding: 12px 18px !important;
+          }
+          .cert-footer button {
+            width: 100%;
+            min-width: 0 !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
