@@ -187,7 +187,7 @@ const Layout: React.FC<LayoutProps> = ({
     ...(isAdmin ? ['informes', 'gestion'] : []),
   ];
   const allowedModules = new Set(user.modulosPermitidos?.length ? user.modulosPermitidos : defaultModules);
-  if (['admin', 'usuario'].includes(user.rol)) allowedModules.add('certificaciones');
+  allowedModules.add('certificaciones');
 
   const navItems = [
     { key: 'inicio', label: 'Inicio', icon: Home, short: 'Inicio' },

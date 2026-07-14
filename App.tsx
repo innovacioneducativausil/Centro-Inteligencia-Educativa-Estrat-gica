@@ -403,7 +403,7 @@ const App: React.FC = () => {
 
   const canView = useCallback((view: string) => {
     if (!user) return false;
-    if (view === 'certificaciones' && ['admin', 'usuario'].includes(user.rol)) return true;
+    if (view === 'certificaciones') return true;
     //----------------OBS-01 / TI-02----------------
     const allowed = user.modulosPermitidos?.length ? user.modulosPermitidos : defaultModulesFor(user);
     return allowed.includes(view);
