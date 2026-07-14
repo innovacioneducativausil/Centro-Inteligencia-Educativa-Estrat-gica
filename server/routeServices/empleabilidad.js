@@ -7,6 +7,7 @@ import db         from '../db_empl.js';
 import { adminOrAnalyst } from '../middleware/roles.js';
 import { validateExcelUpload, validateWorkbookShape } from '../utils/security.js';
 import { auditEvent } from '../services/auditService.js';
+import * as empleabilidadRepository from '../repositories/empleabilidad/empleabilidadRepository.js';
 
 const router = Router();
 const upload = multer({
@@ -1644,32 +1645,15 @@ export async function ensureInformeEmpleabilidadSupport() {
 router.get('/empleabilidad/informes', async (req, res) => {
   try {
     const { anio, unidad, facultad } = req.query;
-    const where = ['activo = 1'];
-    const params = [];
-    if (anio)     { where.push('anio = ?');            params.push(Number(anio)); }
-    if (unidad)   { where.push('unidad = ?');          params.push(unidad); }
-    if (facultad) { where.push('facultad = ?');        params.push(facultad); }
-
-    const [rows] = await db.query(
-      `SELECT id, nombre, anio, unidad, facultad, url_descarga, tipo_acceso
-       FROM informe_empleabilidad
-       WHERE ${where.join(' AND ')}
-       ORDER BY anio DESC, unidad, facultad`,
-      params
+    const { rows, años, unidades, facultades } = await empleabilidadRepository.getInformes(
+      anio || null, unidad || null, facultad || null
     );
-
-    const [[años]]    = await Promise.all([
-      db.query('SELECT DISTINCT anio FROM informe_empleabilidad WHERE activo=1 ORDER BY anio DESC'),
-    ]);
-    const [unidades]  = await db.query('SELECT DISTINCT unidad  FROM informe_empleabilidad WHERE activo=1 ORDER BY unidad');
-    const [facultades]= await db.query('SELECT DISTINCT facultad FROM informe_empleabilidad WHERE activo=1 ORDER BY facultad');
-
     res.json({
       total: rows.length,
       data: rows,
       catalogos: {
-        años:      años.map(r => r.anio),
-        unidades:  unidades.map(r => r.unidad),
+        años:       años.map(r => r.anio),
+        unidades:   unidades.map(r => r.unidad),
         facultades: facultades.map(r => r.facultad),
       },
     });
@@ -1684,21 +1668,20 @@ router.post('/empleabilidad/informes', adminOrAnalyst, async (req, res) => {
       return res.status(400).json({ error: 'Nombre, año y unidad son requeridos.' });
     }
     const tipo = tipoAcceso === 'sharepoint' ? 'sharepoint' : 'descarga';
-    const [result] = await db.query(
-      `INSERT INTO informe_empleabilidad (nombre, anio, unidad, facultad, url_descarga, tipo_acceso, activo)
-       VALUES (?, ?, ?, ?, ?, ?, 1)`,
-      [nombre.trim(), Number(anio), unidad.trim(), facultad?.trim() || 'No aplica', urlDescarga?.trim() || null, tipo]
-    );
+    const id = await empleabilidadRepository.createInforme({
+      nombre: nombre.trim(), anio: Number(anio), unidad: unidad.trim(),
+      facultad: facultad?.trim() || 'No aplica', urlDescarga: urlDescarga?.trim() || null, tipo,
+    });
     await auditEvent(req, {
       evento: 'informe_empleabilidad_creado',
       accion: 'crear_informe',
       modulo: 'empleo',
       entidad: 'informe_empleabilidad',
-      entidadId: String(result.insertId),
+      entidadId: String(id),
       elementoTitulo: nombre.trim(),
       detalle: `Informe de empleabilidad creado: ${nombre.trim()} (${anio})`,
     });
-    res.status(201).json({ id: result.insertId });
+    res.status(201).json({ id });
   } catch (e) { serverError(res, e); }
 });
 
@@ -1706,18 +1689,16 @@ router.put('/empleabilidad/informes/:id', adminOrAnalyst, async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, anio, unidad, facultad, urlDescarga, tipoAcceso } = req.body;
-    const [[existing]] = await db.query('SELECT id FROM informe_empleabilidad WHERE id = ?', [id]);
+    const existing = await empleabilidadRepository.getInformeById(id);
     if (!existing) return res.status(404).json({ error: 'Informe no encontrado.' });
     if (!nombre?.trim() || !anio || !unidad?.trim()) {
       return res.status(400).json({ error: 'Nombre, año y unidad son requeridos.' });
     }
     const tipo = tipoAcceso === 'sharepoint' ? 'sharepoint' : 'descarga';
-    await db.query(
-      `UPDATE informe_empleabilidad
-       SET nombre = ?, anio = ?, unidad = ?, facultad = ?, url_descarga = ?, tipo_acceso = ?
-       WHERE id = ?`,
-      [nombre.trim(), Number(anio), unidad.trim(), facultad?.trim() || 'No aplica', urlDescarga?.trim() || null, tipo, id]
-    );
+    await empleabilidadRepository.updateInforme(id, {
+      nombre: nombre.trim(), anio: Number(anio), unidad: unidad.trim(),
+      facultad: facultad?.trim() || 'No aplica', urlDescarga: urlDescarga?.trim() || null, tipo,
+    });
     await auditEvent(req, {
       evento: 'informe_empleabilidad_actualizado',
       accion: 'editar_informe',
@@ -1735,9 +1716,9 @@ router.patch('/empleabilidad/informes/:id/estado', adminOrAnalyst, async (req, r
   try {
     const { id } = req.params;
     const activo = req.body.activo ? 1 : 0;
-    const [[existing]] = await db.query('SELECT id, nombre FROM informe_empleabilidad WHERE id = ?', [id]);
+    const existing = await empleabilidadRepository.getInformeById(id);
     if (!existing) return res.status(404).json({ error: 'Informe no encontrado.' });
-    await db.query('UPDATE informe_empleabilidad SET activo = ? WHERE id = ?', [activo, id]);
+    await empleabilidadRepository.setInformeEstado(id, activo);
     await auditEvent(req, {
       evento: 'informe_empleabilidad_estado',
       accion: activo ? 'activar_informe' : 'archivar_informe',
@@ -1754,11 +1735,7 @@ router.patch('/empleabilidad/informes/:id/estado', adminOrAnalyst, async (req, r
 //----------------reorg Gestion (Empleo)----------------
 router.get('/empleabilidad/informes/admin', adminOrAnalyst, async (_req, res) => {
   try {
-    const [rows] = await db.query(
-      `SELECT id, nombre, anio, unidad, facultad, url_descarga, tipo_acceso, activo
-       FROM informe_empleabilidad
-       ORDER BY anio DESC, unidad, facultad`
-    );
+    const rows = await empleabilidadRepository.listInformesAdmin();
     res.json({ data: rows });
   } catch (e) { serverError(res, e); }
 });

@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import db from '../db_empl.js';
 import dbCurricular from '../db_curricular.js';
+import * as benchmarkingRepository from '../repositories/empleabilidad/benchmarkingRepository.js';
 import { adminOnly } from '../middleware/roles.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { scraperBatch, cargarTextoManual, discoverOfficialSources } from '../services/scrapingService.js';
@@ -402,15 +403,7 @@ router.use(async (req, res, next) => {
 router.get('/mercado-laboral/benchmarking/universidades', async (req, res) => {
   try {
     const { tipo } = req.query;
-    const where  = ['activo = 1'];
-    const params = [];
-    if (tipo && TIPOS_BENCHMARK.includes(tipo)) {
-      where.push('tipo_benchmark = ?'); params.push(tipo);
-    }
-    const [rows] = await db.query(
-      `SELECT * FROM universidad_benchmark WHERE ${where.join(' AND ')} ORDER BY tipo_benchmark, nombre_universidad`,
-      params
-    );
+    const rows = await benchmarkingRepository.getUniversidades(1, tipo || null);
     res.json(rows);
   } catch (e) { serverError(res, e, 'GET /benchmarking/universidades'); }
 });
@@ -423,11 +416,10 @@ router.post('/mercado-laboral/benchmarking/universidades', adminOnly, async (req
     if (!TIPOS_BENCHMARK.includes(tipo_benchmark)) {
       return res.status(400).json({ error: 'tipo_benchmark inválido' });
     }
-    const [r] = await db.query(
-      'INSERT INTO universidad_benchmark (nombre_universidad, pais, ciudad, tipo_benchmark, sitio_web) VALUES (?,?,?,?,?)',
-      [nombre_universidad.trim(), pais, ciudad ?? null, tipo_benchmark, sitio_web ?? null]
-    );
-    res.status(201).json({ id: r.insertId, nombre_universidad: nombre_universidad.trim() });
+    const id = await benchmarkingRepository.createUniversidad({
+      nombre_universidad: nombre_universidad.trim(), pais, ciudad, tipo_benchmark, sitio_web,
+    });
+    res.status(201).json({ id, nombre_universidad: nombre_universidad.trim() });
   } catch (e) { serverError(res, e, 'POST /benchmarking/universidades'); }
 });
 
@@ -453,7 +445,7 @@ router.put('/mercado-laboral/benchmarking/universidades/:id', adminOnly, async (
 
 router.delete('/mercado-laboral/benchmarking/universidades/:id', adminOnly, async (req, res) => {
   try {
-    await db.query('UPDATE universidad_benchmark SET activo=0 WHERE id_universidad_benchmark=?', [req.params.id]);
+    await benchmarkingRepository.deleteUniversidad(req.params.id);
     res.json({ ok: true });
   } catch (e) { serverError(res, e, 'DELETE /benchmarking/universidades/:id'); }
 });
@@ -461,20 +453,8 @@ router.delete('/mercado-laboral/benchmarking/universidades/:id', adminOnly, asyn
 
 router.get('/mercado-laboral/benchmarking/programas', async (req, res) => {
   try {
-    const { id_universidad, carrera_id, estado } = req.query;
-    const where = []; const params = [];
-    if (id_universidad) { where.push('pb.id_universidad_benchmark=?'); params.push(id_universidad); }
-    if (carrera_id)     { where.push('pb.carrera_equivalente_id=?');   params.push(carrera_id); }
-    if (estado)         { where.push('pb.estado_extraccion=?');         params.push(estado); }
-    const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const [rows] = await db.query(
-      `SELECT pb.*, ub.nombre_universidad, ub.tipo_benchmark, ub.pais
-       FROM programa_benchmark pb
-       JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
-       ${whereSQL}
-       ORDER BY ub.tipo_benchmark, ub.nombre_universidad, pb.nombre_programa`,
-      params
-    );
+    const { id_universidad, carrera_id } = req.query;
+    const rows = await benchmarkingRepository.getProgramas(carrera_id || null, id_universidad || null, null);
     res.json(rows);
   } catch (e) { serverError(res, e, 'GET /benchmarking/programas'); }
 });
@@ -482,27 +462,8 @@ router.get('/mercado-laboral/benchmarking/programas', async (req, res) => {
 
 router.get('/mercado-laboral/benchmarking/cobertura', async (_req, res) => {
   try {
-    const [carreras] = await dbCurricular.query(
-      `SELECT ca.id_carrera, ca.nombre_carrera, f.nombre_facultad
-       FROM carrera ca
-       JOIN facultad f ON f.id_facultad = ca.id_facultad
-       ORDER BY f.nombre_facultad, ca.nombre_carrera`
-    );
-
-    const [rows] = await db.query(
-      `SELECT pb.carrera_equivalente_id AS id_carrera,
-              ub.tipo_benchmark,
-              COUNT(DISTINCT pb.id_programa_benchmark) AS total_programas,
-              COUNT(DISTINCT bs.id_benchmark_source) AS total_fuentes,
-              COUNT(DISTINCT CASE WHEN bs.estado='validado' THEN bs.id_benchmark_source END) AS fuentes_validadas,
-              COUNT(DISTINCT CASE WHEN bs.estado IN ('registrado','pendiente_extraccion','extraido','pendiente_validacion') THEN bs.id_benchmark_source END) AS fuentes_pendientes,
-              MAX(COALESCE(bs.fecha_validacion, bs.fecha_captura, bs.updated_at, pb.updated_at)) AS ultima_revision
-       FROM programa_benchmark pb
-       JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
-       LEFT JOIN benchmark_source bs ON bs.id_programa_benchmark = pb.id_programa_benchmark AND bs.activo = 1
-       WHERE ub.activo = 1 AND pb.carrera_equivalente_id IS NOT NULL
-       GROUP BY pb.carrera_equivalente_id, ub.tipo_benchmark`
-    );
+    const carreras = await benchmarkingRepository.getCarrerasCurricularesWithFacultad();
+    const rows = await benchmarkingRepository.getCoberturaStats();
 
     const byCareer = new Map();
     for (const row of rows) {
@@ -702,54 +663,27 @@ router.post('/mercado-laboral/benchmarking/programas', adminOnly, async (req, re
     if (!id_universidad_benchmark || !nombre_programa?.trim()) {
       return res.status(400).json({ error: 'id_universidad_benchmark y nombre_programa son requeridos' });
     }
-    const [r] = await db.query(
-      `INSERT INTO programa_benchmark (id_universidad_benchmark, nombre_programa, url_programa, carrera_equivalente_id, modalidad, duracion)
-       VALUES (?,?,?,?,?,?)`,
-      [id_universidad_benchmark, nombre_programa.trim(), url_programa ?? null,
-       carrera_equivalente_id ?? null, modalidad ?? null, duracion ?? null]
-    );
-    res.status(201).json({ id: r.insertId });
+    const id = await benchmarkingRepository.createPrograma({
+      id_universidad_benchmark, nombre_programa: nombre_programa.trim(), url_programa,
+      carrera_equivalente_id, modalidad, duracion,
+    });
+    res.status(201).json({ id });
   } catch (e) { serverError(res, e, 'POST /benchmarking/programas'); }
 });
 
 
 router.get('/mercado-laboral/benchmarking/programas/:id', async (req, res) => {
   try {
-    const [[prog]] = await db.query(
-      `SELECT pb.*, ub.nombre_universidad, ub.tipo_benchmark, ub.pais
-       FROM programa_benchmark pb
-       JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
-       WHERE pb.id_programa_benchmark = ?`,
-      [req.params.id]
-    );
-    if (!prog) return res.status(404).json({ error: 'Programa no encontrado' });
-    const [competencias] = await db.query(
-      'SELECT * FROM competencia_benchmark WHERE id_programa_benchmark=? ORDER BY tipo_competencia, nombre_competencia',
-      [req.params.id]
-    );
-    const [cursos] = await db.query(
-      'SELECT * FROM curso_benchmark WHERE id_programa_benchmark=? ORDER BY ciclo, nombre_curso',
-      [req.params.id]
-    );
-    const [fuentes] = await db.query(
-      `SELECT * FROM benchmark_source
-       WHERE id_programa_benchmark=? AND activo=1
-       ORDER BY es_fuente_principal DESC, tipo_fuente, titulo`,
-      [req.params.id]
-    );
-    res.json({ programa: prog, competencias, cursos, fuentes });
+    const result = await benchmarkingRepository.getPrograma(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Programa no encontrado' });
+    res.json(result);
   } catch (e) { serverError(res, e, 'GET /benchmarking/programas/:id'); }
 });
 
 
 router.get('/mercado-laboral/benchmarking/programas/:id/fuentes', async (req, res) => {
   try {
-    const [rows] = await db.query(
-      `SELECT * FROM benchmark_source
-       WHERE id_programa_benchmark=? AND activo=1
-       ORDER BY es_fuente_principal DESC, tipo_fuente, titulo`,
-      [req.params.id]
-    );
+    const rows = await benchmarkingRepository.getFuentes(req.params.id);
     res.json(rows);
   } catch (e) { serverError(res, e, 'GET /benchmarking/programas/:id/fuentes'); }
 });
@@ -767,22 +701,11 @@ router.post('/mercado-laboral/benchmarking/programas/:id/fuentes', adminOnly, as
       observaciones,
     } = req.body;
     if (!titulo?.trim() || !url?.trim()) return res.status(400).json({ error: 'titulo y url son requeridos' });
-    const [r] = await db.query(
-      `INSERT INTO benchmark_source
-       (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, evidencia_resumen, observaciones)
-       VALUES (?,?,?,?,?,?,?,?)
-       ON DUPLICATE KEY UPDATE
-         tipo_fuente=VALUES(tipo_fuente),
-         titulo=VALUES(titulo),
-         estado=VALUES(estado),
-         es_fuente_principal=VALUES(es_fuente_principal),
-         evidencia_resumen=VALUES(evidencia_resumen),
-         observaciones=VALUES(observaciones),
-         activo=1`,
-      [req.params.id, tipo_fuente, titulo.trim(), url.trim(), estado, es_fuente_principal ? 1 : 0,
-       evidencia_resumen ?? null, observaciones ?? null]
-    );
-    res.status(201).json({ id: r.insertId || null, ok: true });
+    const result = await benchmarkingRepository.upsertBenchmarkSource({
+      idProg: req.params.id, tipoFuente: tipo_fuente, titulo: titulo.trim(), url: url.trim(),
+      estado, esFilasPrincipal: es_fuente_principal, evidenciaResumen: evidencia_resumen, observaciones,
+    });
+    res.status(201).json({ id: result.insertId || null, ok: true });
   } catch (e) { serverError(res, e, 'POST /benchmarking/programas/:id/fuentes'); }
 });
 
@@ -846,17 +769,7 @@ router.post('/mercado-laboral/benchmarking/descubrir-fuentes', adminOnly, async 
 router.get('/mercado-laboral/benchmarking/programas/:id/candidatos', async (req, res) => {
   try {
     const incluirHistorial = req.query.historial === '1';
-    const [rows] = await db.query(
-      `SELECT *
-       FROM benchmark_source_candidate
-       WHERE id_programa_benchmark=?
-         ${incluirHistorial ? '' : "AND estado IN ('candidato','aprobado')"}
-       ORDER BY
-         CASE estado WHEN 'candidato' THEN 0 WHEN 'aprobado' THEN 1 ELSE 2 END,
-         score_total DESC,
-         buscado_en DESC`,
-      [req.params.id]
-    );
+    const rows = await benchmarkingRepository.getCandidatos(req.params.id, incluirHistorial);
     res.json(rows);
   } catch (e) { serverError(res, e, 'GET /benchmarking/programas/:id/candidatos'); }
 });
@@ -864,55 +777,24 @@ router.get('/mercado-laboral/benchmarking/programas/:id/candidatos', async (req,
 
 router.post('/mercado-laboral/benchmarking/candidatos/:id/aprobar', adminOnly, async (req, res) => {
   try {
-    const [[candidate]] = await db.query(
-      `SELECT c.*, pb.id_programa_benchmark, pb.nombre_programa
-       FROM benchmark_source_candidate c
-       JOIN programa_benchmark pb ON pb.id_programa_benchmark = c.id_programa_benchmark
-       WHERE c.id_candidate=?`,
-      [req.params.id]
-    );
+    const candidate = await benchmarkingRepository.getCandidatoWithPrograma(req.params.id);
     if (!candidate) return res.status(404).json({ error: 'Candidato no encontrado' });
 
-    await db.query(
-      `UPDATE benchmark_source_candidate
-       SET estado='candidato'
-       WHERE id_programa_benchmark=?
-         AND id_candidate<>?
-         AND estado='aprobado'`,
-      [candidate.id_programa_benchmark, req.params.id]
-    );
-    await db.query(
-      `UPDATE benchmark_source_candidate
-       SET estado='aprobado', revisado_en=NOW(), revisado_por=?
-       WHERE id_candidate=?`,
-      [req.user?.email || req.user?.nombre || 'admin', req.params.id]
-    );
-    await db.query(
-      `INSERT INTO benchmark_source
-       (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, evidencia_resumen, observaciones)
-       VALUES (?, ?, ?, ?, 'pendiente_validacion', 1, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         tipo_fuente=VALUES(tipo_fuente),
-         titulo=VALUES(titulo),
-         estado='pendiente_validacion',
-         es_fuente_principal=1,
-         evidencia_resumen=VALUES(evidencia_resumen),
-         observaciones=VALUES(observaciones),
-         activo=1`,
-      [
-        candidate.id_programa_benchmark,
-        candidate.tipo_fuente_detectado || 'pagina_programa',
-        candidate.titulo || `Fuente oficial sugerida para ${candidate.nombre_programa}`,
-        candidate.url,
-        `Aprobada desde candidatos. Score ${candidate.score_total}.`,
-        candidate.motivo || null,
-      ]
-    );
-    await db.query(
-      `UPDATE programa_benchmark
-       SET url_programa=?, estado_extraccion='pendiente', observaciones=?
-       WHERE id_programa_benchmark=?`,
-      [candidate.url, `Fuente aprobada por admin desde candidatos. Score ${candidate.score_total}.`, candidate.id_programa_benchmark]
+    const usuario = req.user?.email || req.user?.nombre || 'admin';
+    await benchmarkingRepository.demoteCandidatosAprobados(candidate.id_programa_benchmark, req.params.id);
+    await benchmarkingRepository.approveCandidato(req.params.id, usuario);
+    await benchmarkingRepository.upsertBenchmarkSource({
+      idProg: candidate.id_programa_benchmark,
+      tipoFuente: candidate.tipo_fuente_detectado || 'pagina_programa',
+      titulo: candidate.titulo || `Fuente oficial sugerida para ${candidate.nombre_programa}`,
+      url: candidate.url,
+      estado: 'pendiente_validacion',
+      esFilasPrincipal: true,
+      evidenciaResumen: `Aprobada desde candidatos. Score ${candidate.score_total}.`,
+      observaciones: candidate.motivo || null,
+    });
+    await benchmarkingRepository.updateProgramaAprobado(
+      candidate.id_programa_benchmark, candidate.url, candidate.score_total
     );
     res.json({ ok: true });
   } catch (e) { serverError(res, e, 'POST /benchmarking/candidatos/:id/aprobar'); }
@@ -921,12 +803,8 @@ router.post('/mercado-laboral/benchmarking/candidatos/:id/aprobar', adminOnly, a
 
 router.post('/mercado-laboral/benchmarking/candidatos/:id/descartar', adminOnly, async (req, res) => {
   try {
-    await db.query(
-      `UPDATE benchmark_source_candidate
-       SET estado='descartado', motivo=COALESCE(?, motivo), revisado_en=NOW(), revisado_por=?
-       WHERE id_candidate=?`,
-      [req.body?.motivo || null, req.user?.email || req.user?.nombre || 'admin', req.params.id]
-    );
+    const usuario = req.user?.email || req.user?.nombre || 'admin';
+    await benchmarkingRepository.discardCandidato(req.params.id, req.body?.motivo || null, usuario);
     res.json({ ok: true });
   } catch (e) { serverError(res, e, 'POST /benchmarking/candidatos/:id/descartar'); }
 });
@@ -935,17 +813,9 @@ router.post('/mercado-laboral/benchmarking/candidatos/:id/descartar', adminOnly,
 router.put('/mercado-laboral/benchmarking/programas/:id/equivalencia', adminOnly, async (req, res) => {
   try {
     const { nombre_oficial_sugerido, aliases = [], nivel_equivalencia = 'cercana', observaciones } = req.body;
-    await db.query(
-      `INSERT INTO benchmark_program_equivalence
-       (id_programa_benchmark, nombre_oficial_sugerido, aliases_json, nivel_equivalencia, observaciones)
-       VALUES (?, ?, CAST(? AS JSON), ?, ?)
-       ON DUPLICATE KEY UPDATE
-         nombre_oficial_sugerido=VALUES(nombre_oficial_sugerido),
-         aliases_json=VALUES(aliases_json),
-         nivel_equivalencia=VALUES(nivel_equivalencia),
-         observaciones=VALUES(observaciones)`,
-      [req.params.id, nombre_oficial_sugerido || null, JSON.stringify(Array.isArray(aliases) ? aliases : []), nivel_equivalencia, observaciones || null]
-    );
+    await benchmarkingRepository.upsertEquivalencia(req.params.id, {
+      nombre_oficial_sugerido, aliases, nivel_equivalencia, observaciones,
+    });
     res.json({ ok: true });
   } catch (e) { serverError(res, e, 'PUT /benchmarking/programas/:id/equivalencia'); }
 });
@@ -964,29 +834,8 @@ router.post('/mercado-laboral/benchmarking/normalizar-ia', adminOnly, async (req
 router.get('/mercado-laboral/benchmarking/comparar/:idCarrera', async (req, res) => {
   try {
     const { idCarrera } = req.params;
-    const [rows] = await db.query(
-      `SELECT cb.nombre_competencia, cb.tipo_competencia,
-              pb.nombre_programa, pb.url_programa, pb.estado_extraccion, pb.fecha_captura,
-              ub.nombre_universidad, ub.pais, ub.tipo_benchmark
-       FROM competencia_benchmark cb
-       JOIN programa_benchmark pb ON pb.id_programa_benchmark = cb.id_programa_benchmark
-       JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
-       WHERE pb.carrera_equivalente_id = ? AND ub.activo = 1
-       ORDER BY ub.tipo_benchmark, ub.nombre_universidad, cb.tipo_competencia, cb.nombre_competencia`,
-      [idCarrera]
-    );
-    const [cursos] = await db.query(
-      `SELECT cu.nombre_curso, cu.area_formacion,
-              pb.nombre_programa,
-              ub.nombre_universidad, ub.tipo_benchmark
-       FROM curso_benchmark cu
-       JOIN programa_benchmark pb ON pb.id_programa_benchmark = cu.id_programa_benchmark
-       JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
-       WHERE pb.carrera_equivalente_id = ? AND ub.activo = 1
-       ORDER BY ub.tipo_benchmark, ub.nombre_universidad, cu.area_formacion`,
-      [idCarrera]
-    );
-    res.json({ competencias: rows, cursos });
+    const { competencias, cursos } = await benchmarkingRepository.getCompararData(idCarrera);
+    res.json({ competencias, cursos });
   } catch (e) { serverError(res, e, 'GET /benchmarking/comparar/:idCarrera'); }
 });
 
@@ -997,103 +846,41 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
     if (!TIPOS_BENCHMARK.includes(tipoBenchmark)) {
       return res.status(400).json({ error: 'tipoBenchmark inválido' });
     }
-    const [competencias] = await db.query(
-      `SELECT cb.nombre_competencia, cb.tipo_competencia, cb.evidencia_textual,
-              pb.nombre_programa, pb.url_programa, pb.estado_extraccion, pb.fecha_captura,
-              ub.nombre_universidad, ub.pais, ub.tipo_benchmark
-       FROM competencia_benchmark cb
-       JOIN programa_benchmark pb ON pb.id_programa_benchmark = cb.id_programa_benchmark
-       JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
-       WHERE pb.carrera_equivalente_id = ? AND ub.tipo_benchmark = ? AND ub.activo = 1
-       ORDER BY ub.nombre_universidad, cb.tipo_competencia, cb.nombre_competencia`,
-      [idCarrera, tipoBenchmark]
-    );
-    const [programas] = await db.query(
-      `SELECT pb.id_programa_benchmark, pb.id_universidad_benchmark, pb.nombre_programa, pb.url_programa,
-              pb.estado_extraccion, pb.fecha_captura, pb.duracion, pb.modalidad,
-              pb.estado_validacion,
-              ub.nombre_universidad, ub.pais, ub.tipo_benchmark,
-              COUNT(cb.id_competencia_benchmark) AS total_competencias,
-              COUNT(DISTINCT cu.id_curso_benchmark) AS total_cursos,
-              COUNT(DISTINCT bs.id_benchmark_source) AS total_fuentes,
-              COUNT(DISTINCT CASE WHEN bs.estado='validado' THEN bs.id_benchmark_source END) AS fuentes_validadas,
-              COUNT(DISTINCT CASE WHEN bs.estado IN ('registrado','pendiente_extraccion','extraido','pendiente_validacion') THEN bs.id_benchmark_source END) AS fuentes_pendientes,
-              COUNT(DISTINCT CASE WHEN bsc.estado IN ('candidato','aprobado') THEN bsc.id_candidate END) AS total_candidatos
-       FROM programa_benchmark pb
-       JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
-       LEFT JOIN competencia_benchmark cb ON cb.id_programa_benchmark = pb.id_programa_benchmark
-       LEFT JOIN curso_benchmark cu ON cu.id_programa_benchmark = pb.id_programa_benchmark
-       LEFT JOIN benchmark_source bs ON bs.id_programa_benchmark = pb.id_programa_benchmark AND bs.activo = 1
-       LEFT JOIN benchmark_source_candidate bsc ON bsc.id_programa_benchmark = pb.id_programa_benchmark
-       WHERE pb.carrera_equivalente_id = ? AND ub.tipo_benchmark = ? AND ub.activo = 1
-       GROUP BY pb.id_programa_benchmark, pb.id_universidad_benchmark, pb.nombre_programa, pb.url_programa,
-                pb.estado_extraccion, pb.fecha_captura, pb.duracion, pb.modalidad, pb.estado_validacion,
-                ub.nombre_universidad, ub.pais, ub.tipo_benchmark
-       ORDER BY ub.nombre_universidad`,
-      [idCarrera, tipoBenchmark]
-    );
-    const [[carrera]] = await dbCurricular.query(
-      `SELECT nombre_carrera FROM carrera WHERE id_carrera=? LIMIT 1`,
-      [idCarrera]
-    );
-    const carreraNombre = carrera?.nombre_carrera || '';
+    const [{ competencias, programas }, carrera] = await Promise.all([
+      benchmarkingRepository.getCompararByTipo(idCarrera, tipoBenchmark),
+      benchmarkingRepository.getCarreraByIdCurricular(idCarrera),
+    ]);
     const ids = programas.map(p => p.id_programa_benchmark);
-    let fuentesByPrograma = new Map();
-    let candidatosByPrograma = new Map();
-    let cursosByPrograma = new Map();
+    const carreraNombre = carrera?.nombre_carrera || '';
+    const [fuentesArr, candidatosArr, cursosArr] = ids.length
+      ? await Promise.all([
+          benchmarkingRepository.getFuentesByProgramas(ids),
+          benchmarkingRepository.getCandidatosByProgramas(ids),
+          benchmarkingRepository.getCursosByProgramas(ids),
+        ])
+      : [[], [], []];
 
-    if (ids.length) {
-      const placeholders = ids.map(() => '?').join(',');
-      const [fuentes] = await db.query(
-        `SELECT id_programa_benchmark, tipo_fuente, titulo, url, estado
-         FROM benchmark_source
-         WHERE activo=1 AND id_programa_benchmark IN (${placeholders})`,
-        ids
-      );
-      const [candidatos] = await db.query(
-        `SELECT id_programa_benchmark, titulo, url, estado
-         FROM benchmark_source_candidate
-         WHERE estado IN ('candidato','aprobado') AND id_programa_benchmark IN (${placeholders})`,
-        ids
-      );
-      const [cursosExternos] = await db.query(
-        `SELECT id_programa_benchmark, nombre_curso, ciclo, area_formacion, descripcion_curso, fuente_url
-         FROM curso_benchmark
-         WHERE id_programa_benchmark IN (${placeholders})
-         ORDER BY
-           CASE
-             WHEN ciclo REGEXP '^[0-9]+$' THEN 0
-             WHEN ciclo IS NULL OR ciclo = '' THEN 2
-             ELSE 1
-           END,
-           CAST(NULLIF(ciclo, '') AS UNSIGNED),
-           ciclo,
-           nombre_curso`,
-        ids
-      );
+    const fuentesByPrograma = fuentesArr.reduce((map, fuente) => {
+      const list = map.get(fuente.id_programa_benchmark) || [];
+      list.push(fuente);
+      map.set(fuente.id_programa_benchmark, list);
+      return map;
+    }, new Map());
 
-      fuentesByPrograma = fuentes.reduce((map, fuente) => {
-        const list = map.get(fuente.id_programa_benchmark) || [];
-        list.push(fuente);
-        map.set(fuente.id_programa_benchmark, list);
-        return map;
-      }, new Map());
+    const candidatosByPrograma = candidatosArr.reduce((map, candidato) => {
+      const list = map.get(candidato.id_programa_benchmark) || [];
+      list.push(candidato);
+      map.set(candidato.id_programa_benchmark, list);
+      return map;
+    }, new Map());
 
-      candidatosByPrograma = candidatos.reduce((map, candidato) => {
-        const list = map.get(candidato.id_programa_benchmark) || [];
-        list.push(candidato);
-        map.set(candidato.id_programa_benchmark, list);
-        return map;
-      }, new Map());
-
-      cursosByPrograma = cursosExternos.reduce((map, curso) => {
-        const list = map.get(curso.id_programa_benchmark) || [];
-        const ciclo = curso.ciclo && String(curso.ciclo).trim() ? String(curso.ciclo).trim() : 'S/C';
-        list.push({ ...curso, ciclo });
-        map.set(curso.id_programa_benchmark, list);
-        return map;
-      }, new Map());
-    }
+    const cursosByPrograma = cursosArr.reduce((map, curso) => {
+      const list = map.get(curso.id_programa_benchmark) || [];
+      const ciclo = curso.ciclo && String(curso.ciclo).trim() ? String(curso.ciclo).trim() : 'S/C';
+      list.push({ ...curso, ciclo });
+      map.set(curso.id_programa_benchmark, list);
+      return map;
+    }, new Map());
 
     const programasDepurados = programas.map(programa => {
       const nombreCarreraParaFiltro = carreraNombre || getBenchmarkProgramBaseName(programa.nombre_programa);

@@ -2,7 +2,7 @@
 
 import { Router }     from 'express';
 import { randomUUID } from 'crypto';
-import db             from '../db.js';
+import * as importarRepository from '../repositories/principal/importarRepository.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { sanitizeRichHtml } from '../utils/security.js';
 import { ensureRadarSchemaSupport } from '../services/schemaMaintenance.js';
@@ -37,7 +37,7 @@ function normalizeComparable(value = '') {
   return String(value)
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -96,65 +96,15 @@ function findBestExisting(proposal, existingRows) {
   return best && best.score >= 0.72 ? best : null;
 }
 
-async function findDuplicateTitleOrName(tipo, titulo, nombre) {
-  const cfg = {
-    senal:      { table: 'senal',     id: 'id_senal',     title: 'titulo_senal',     name: 'nombre_senal' },
-    tendencia: { table: 'tendencia', id: 'id_tendencia', title: 'titulo_tendencia', name: 'nombre_tendencia' },
-    escenario: { table: 'escenario', id: 'id_escenario', title: 'titulo_escenario', name: 'nombre_escenario' },
-  }[tipo];
-  if (!cfg) return null;
-
-  const [[dup]] = await db.query(
-    `SELECT \`${cfg.id}\` AS id,
-            \`${cfg.title}\` AS titulo,
-            \`${cfg.name}\` AS nombre
-       FROM \`${cfg.table}\`
-      WHERE LOWER(TRIM(\`${cfg.title}\`)) = LOWER(TRIM(?))
-         OR LOWER(TRIM(\`${cfg.title}\`)) = LOWER(TRIM(?))
-         OR LOWER(TRIM(\`${cfg.name}\`)) = LOWER(TRIM(?))
-         OR LOWER(TRIM(\`${cfg.name}\`)) = LOWER(TRIM(?))
-      LIMIT 1`,
-    [titulo, nombre, titulo, nombre]
-  );
-  if (!dup) return null;
-
-  return { ...dup, field: 'titulo o nombre' };
-}
-
-async function loadExistingByTopic(topicoNombre) {
-  if (!topicoNombre?.trim()) return { senal: [], tendencia: [], escenario: [] };
-  const [[topico]] = await db.query(
-    'SELECT id_topico FROM topico WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?)) LIMIT 1',
-    [topicoNombre.trim()]
-  );
-  if (!topico) return { senal: [], tendencia: [], escenario: [] };
-
-  const result = {};
-  for (const [tipo, cfg] of Object.entries(TYPE_CFG)) {
-    const [rows] = await db.query(
-      `SELECT \`${cfg.id}\` AS id,
-              \`${cfg.title}\` AS titulo,
-              \`${cfg.name}\` AS nombre,
-              \`${cfg.short}\` AS descCorta,
-              \`${cfg.url}\` AS url
-         FROM \`${cfg.table}\`
-        WHERE \`${cfg.topico}\` = ?`,
-      [topico.id_topico]
-    );
-    result[tipo] = rows;
-  }
-  return result;
-}
-
 
 router.get('/importar/topico-existe', adminOnly, async (req, res) => {
   try {
     const topico = String(req.query.topico || '').trim();
     if (!topico) return res.json({ exists: false, counts: { senal: 0, tendencia: 0, escenario: 0 } });
 
-    const existing = await loadExistingByTopic(topico);
+    const existing = await importarRepository.loadExistingByTopic(topico);
     const counts = {
-      senal: existing.senal?.length || 0,
+      senal:     existing.senal?.length     || 0,
       tendencia: existing.tendencia?.length || 0,
       escenario: existing.escenario?.length || 0,
     };
@@ -167,24 +117,13 @@ router.get('/importar/topico-existe', adminOnly, async (req, res) => {
   }
 });
 
-async function findOrCreateTopico(nombre) {
-  if (!nombre?.trim()) return null;
-  const n = nombre.trim();
-  const [[existing]] = await db.query(
-    'SELECT id_topico FROM topico WHERE LOWER(TRIM(nombre)) = LOWER(?)', [n]
-  );
-  if (existing) return existing.id_topico;
-  const [result] = await db.query('INSERT INTO topico (nombre) VALUES (?)', [n]);
-  return result.insertId;
-}
-
 router.post('/importar/revisar', adminOnly, async (req, res) => {
   try {
     const { topico = '', propuestas = [] } = req.body;
     if (!topico?.trim()) return res.status(400).json({ error: 'Ingresa un tópico para revisar.' });
     if (!Array.isArray(propuestas)) return res.status(400).json({ error: 'Las propuestas son inválidas.' });
 
-    const existing = await loadExistingByTopic(topico);
+    const existing = await importarRepository.loadExistingByTopic(topico);
     const items = propuestas.map(p => {
       const tipo = p.tipo;
       const match = TYPE_CFG[tipo] ? findBestExisting(p, existing[tipo] || []) : null;
@@ -236,24 +175,22 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
   }
   await ensureRadarSchemaSupport();
 
-  const usuarioId    = req.user.id;
-  const creados      = [];
-  const errores      = [];
-  const omitidos      = [];
+  const usuarioId  = req.user.id;
+  const creados    = [];
+  const errores    = [];
+  const omitidos   = [];
 
-
-  let topicoIdDoc     = null;
-  let topicoNombre    = topico.trim() || null;
+  let topicoIdDoc  = null;
+  let topicoNombre = topico.trim() || null;
   if (topicoNombre) {
     try {
-      topicoIdDoc = await findOrCreateTopico(topicoNombre);
+      topicoIdDoc = await importarRepository.findOrCreateTopico(topicoNombre);
     } catch (err) {
       console.error('[IMPORTAR] Error creando tópico:', err);
     }
   }
 
   let topicoId = topicoIdDoc;
-
 
   const localToReal = new Map();
 
@@ -272,8 +209,8 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
       temasRelacionados = [],
       pestelId,
       sectorId,
-      pestelIds = [],
-      sectorIds = [],
+      pestelIds         = [],
+      sectorIds         = [],
 
       razonClasificacion = '',
       paisOrigen         = null,
@@ -285,13 +222,12 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
       urlVideo           = '',
 
       topico:    topicoEscenario = '',
-      referencias = [],
-      tendenciasSoporte = [],
-      autor             = null,
-      syncAction        = null,
-      existingId        = null,
+      referencias        = [],
+      tendenciasSoporte  = [],
+      autor              = null,
+      syncAction         = null,
+      existingId         = null,
     } = p;
-
 
     if (!tipo || !['senal', 'tendencia', 'escenario'].includes(tipo)) {
       errores.push({ id: localId, titulo: titulo || '(sin título)', error: `Tipo inválido: "${tipo}"` });
@@ -310,81 +246,49 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
       continue;
     }
 
-    const newId           = randomUUID();
-    const tituloFin       = titulo.trim().slice(0, 180);
-    const nombreFin       = (nombre?.trim() || titulo.trim()).slice(0, 60);
-    const descCortaFin    = descCorta.trim().slice(0, 280);
-    const descLargaFin    = sanitizeRichHtml(descLarga);
-    const fuenteFin       = fuenteItem?.trim() || fuente.trim() || null;
-    const urlFuenteFin    = urlFuenteItem?.trim() || urlFuente.trim() || null;
-    const razonCambioFin  = razonClasificacion?.trim() || null;
+    const newId          = randomUUID();
+    const tituloFin      = titulo.trim().slice(0, 180);
+    const nombreFin      = (nombre?.trim() || titulo.trim()).slice(0, 60);
+    const descCortaFin   = descCorta.trim().slice(0, 280);
+    const descLargaFin   = sanitizeRichHtml(descLarga);
+    const fuenteFin      = fuenteItem?.trim() || fuente.trim() || null;
+    const urlFuenteFin   = urlFuenteItem?.trim() || urlFuente.trim() || null;
+    const razonCambioFin = razonClasificacion?.trim() || null;
 
     try {
       if (syncAction === 'actualizar' && existingId) {
-        const idValue = String(existingId);
+        const idValue      = String(existingId);
         const urlImagenFin = urlImagen?.trim() || null;
-        const urlVideoFin = urlVideo?.trim() || null;
+        const urlVideoFin  = urlVideo?.trim()  || null;
 
         if (tipo === 'senal') {
-          const paisOrigenFin    = (paisOrigen || lugar)?.trim() || null;
+          const paisOrigenFin    = (paisOrigen || lugar)?.trim()          || null;
           const fechaArticuloFin = (fechaArticulo || fechaMencionada)?.trim() || null;
-          await db.query(
-            `UPDATE senal
-                SET titulo_senal=?, nombre_senal=?, desc_corta_senal=?, desc_larga_senal=?,
-                    razon_cambio=?, fuente_senal=?, url_fuente=?, url_imagen_senal=?, url_video_senal=?,
-                    pais_origen=?, fecha_senal_articulo=?, id_topico=?, id_estado=1,
-                    fecha_publicacion=IF(fecha_publicacion IS NULL, NOW(), fecha_publicacion),
-                    fecha_actualizacion=NOW()
-              WHERE id_senal=?`,
-            [tituloFin, nombreFin, descCortaFin, descLargaFin, razonCambioFin, fuenteFin, urlFuenteFin,
-             urlImagenFin, urlVideoFin, paisOrigenFin, fechaArticuloFin, topicoId, idValue]
-          );
-          await db.query('DELETE FROM senal_pestel WHERE id_senal=?', [idValue]);
-          await db.query('DELETE FROM senal_sector WHERE id_senal=?', [idValue]);
-          for (const pid of finalPestelIds) await db.query('INSERT IGNORE INTO senal_pestel (id_senal, id_pestel) VALUES (?, ?)', [idValue, pid]);
-          for (const sid of finalSectorIds) await db.query('INSERT IGNORE INTO senal_sector (id_senal, id_sector) VALUES (?, ?)', [idValue, sid]);
+          await importarRepository.updateSenal(idValue, {
+            tituloFin, nombreFin, descCortaFin, descLargaFin, razonCambioFin, fuenteFin, urlFuenteFin,
+            urlImagenFin, urlVideoFin, paisOrigenFin, fechaArticuloFin, finalPestelIds, finalSectorIds,
+          }, topicoId);
+
         } else if (tipo === 'tendencia') {
-          await db.query(
-            `UPDATE tendencia
-                SET titulo_tendencia=?, nombre_tendencia=?, desc_corta_tendencia=?, desc_larga_tendencia=?,
-                    razon_cambio=?, fuente_tendencia=?, url_fuente=?, url_imagen_tendencia=?, url_video_tendencia=?,
-                    autor=?, id_topico=?, id_estado=1,
-                    fecha_publicacion=IF(fecha_publicacion IS NULL, NOW(), fecha_publicacion),
-                    fecha_actualizacion=NOW()
-              WHERE id_tendencia=?`,
-            [tituloFin, nombreFin, descCortaFin, descLargaFin, razonCambioFin, fuenteFin, urlFuenteFin,
-             urlImagenFin, urlVideoFin, autor?.trim() || null, topicoId, idValue]
-          );
-          await db.query('DELETE FROM tendencia_pestel WHERE id_tendencia=?', [idValue]);
-          await db.query('DELETE FROM tendencia_sector WHERE id_tendencia=?', [idValue]);
-          for (const pid of finalPestelIds) await db.query('INSERT IGNORE INTO tendencia_pestel (id_tendencia, id_pestel) VALUES (?, ?)', [idValue, pid]);
-          for (const sid of finalSectorIds) await db.query('INSERT IGNORE INTO tendencia_sector (id_tendencia, id_sector) VALUES (?, ?)', [idValue, sid]);
+          await importarRepository.updateTendencia(idValue, {
+            tituloFin, nombreFin, descCortaFin, descLargaFin, razonCambioFin, fuenteFin, urlFuenteFin,
+            urlImagenFin, urlVideoFin, autor, finalPestelIds, finalSectorIds,
+          }, topicoId);
+
         } else if (tipo === 'escenario') {
           const urlFuenteStored = serializeUrlFuentes(urlsFuente, urlFuenteItem || urlFuente);
-          const probInt = probabilidad ? Math.max(1, Math.min(5, parseInt(probabilidad) || 0)) || null : null;
-          const referenciasFin = Array.isArray(referencias) && referencias.length > 0
-            ? JSON.stringify(referencias.filter(r => r?.trim()))
-            : null;
+          const probInt         = probabilidad ? Math.max(1, Math.min(5, parseInt(probabilidad) || 0)) || null : null;
+          const referenciasFin  = Array.isArray(referencias) && referencias.length > 0
+            ? JSON.stringify(referencias.filter(r => r?.trim())) : null;
           let topicoIdEsc = topicoIdDoc;
           if (!topicoIdEsc && topicoEscenario?.trim()) {
-            topicoIdEsc = await findOrCreateTopico(topicoEscenario.trim());
+            topicoIdEsc = await importarRepository.findOrCreateTopico(topicoEscenario.trim());
           }
-          await db.query(
-            `UPDATE escenario
-                SET titulo_escenario=?, nombre_escenario=?, desc_corta_escenario=?, desc_larga_escenario=?,
-                    razon_cambio=?, fuente_escenario=?, url_fuente=?, url_imagen_escenario=?, url_video_escenario=?,
-                    referencias_escenario=?, horizonte_escenario=?, probabilidad=?, autor=?, id_topico=?,
-                    id_estado=1, fecha_publicacion=IF(fecha_publicacion IS NULL, NOW(), fecha_publicacion),
-                    fecha_actualizacion=NOW()
-              WHERE id_escenario=?`,
-            [tituloFin, nombreFin, descCortaFin, descLargaFin, razonCambioFin, fuenteFin, urlFuenteStored,
-             urlImagenFin, urlVideoFin, referenciasFin, horizonteTemporal?.trim() || null, probInt,
-             autor?.trim() || null, topicoIdEsc, idValue]
-          );
-          await db.query('DELETE FROM escenario_pestel WHERE id_escenario=?', [idValue]);
-          await db.query('DELETE FROM escenario_sector WHERE id_escenario=?', [idValue]);
-          for (const pid of finalPestelIds) await db.query('INSERT IGNORE INTO escenario_pestel (id_escenario, id_pestel) VALUES (?, ?)', [idValue, pid]);
-          for (const sid of finalSectorIds) await db.query('INSERT IGNORE INTO escenario_sector (id_escenario, id_sector) VALUES (?, ?)', [idValue, sid]);
+          await importarRepository.updateEscenario(idValue, {
+            tituloFin, nombreFin, descCortaFin, descLargaFin, razonCambioFin, fuenteFin, urlFuenteStored,
+            urlImagenFin, urlVideoFin, referenciasFin, horizonteTemporal, probInt, autor,
+            finalPestelIds, finalSectorIds,
+          }, topicoIdEsc);
         }
 
         localToReal.set(localId, { realId: idValue, tipo });
@@ -394,8 +298,7 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
       }
 
       if (tipo === 'senal') {
-
-        const dup = await findDuplicateTitleOrName('senal', tituloFin, nombreFin);
+        const dup = await importarRepository.findDuplicateTitleOrName('senal', tituloFin, nombreFin);
         if (dup) {
           if (modoRevision) {
             localToReal.set(localId, { realId: dup.id, tipo });
@@ -406,35 +309,15 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
           continue;
         }
 
-
         const paisOrigenFin    = (paisOrigen || lugar)?.trim()          || null;
         const fechaArticuloFin = (fechaArticulo || fechaMencionada)?.trim() || null;
-        const urlImagenFin     = urlImagen?.trim() || null;
-        const urlVideoFin      = urlVideo?.trim()  || null;
-
-        await db.query(
-          `INSERT INTO senal
-             (id_senal, titulo_senal, nombre_senal,
-              desc_corta_senal, desc_larga_senal, razon_cambio,
-              fuente_senal, url_fuente,
-              url_imagen_senal, url_video_senal,
-              pais_origen, fecha_senal_articulo,
-              id_topico, id_estado, id_usuario_creador, fecha_publicacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())`,
-          [newId, tituloFin, nombreFin, descCortaFin, descLargaFin,
-           razonCambioFin, fuenteFin, urlFuenteFin,
-           urlImagenFin, urlVideoFin,
-           paisOrigenFin, fechaArticuloFin,
-           topicoId, usuarioId]
-        );
-        for (const pid of finalPestelIds)
-          await db.query('INSERT IGNORE INTO senal_pestel (id_senal, id_pestel) VALUES (?, ?)', [newId, pid]);
-        for (const sid of finalSectorIds)
-          await db.query('INSERT IGNORE INTO senal_sector  (id_senal, id_sector) VALUES (?, ?)', [newId, sid]);
+        await importarRepository.insertSenal(newId, {
+          tituloFin, nombreFin, descCortaFin, descLargaFin, razonCambioFin, fuenteFin, urlFuenteFin,
+          paisOrigenFin, fechaArticuloFin, urlImagen, urlVideo, finalPestelIds, finalSectorIds,
+        }, topicoId, usuarioId);
 
       } else if (tipo === 'tendencia') {
-
-        const dup = await findDuplicateTitleOrName('tendencia', tituloFin, nombreFin);
+        const dup = await importarRepository.findDuplicateTitleOrName('tendencia', tituloFin, nombreFin);
         if (dup) {
           if (modoRevision) {
             localToReal.set(localId, { realId: dup.id, tipo });
@@ -445,43 +328,13 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
           continue;
         }
 
-        await db.query(
-          `INSERT INTO tendencia
-             (id_tendencia, titulo_tendencia, nombre_tendencia,
-              desc_corta_tendencia, desc_larga_tendencia, razon_cambio,
-              fuente_tendencia, url_fuente,
-              url_imagen_tendencia, url_video_tendencia,
-              autor, id_topico, id_estado, id_usuario_creador, fecha_publicacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())`,
-          [newId, tituloFin, nombreFin, descCortaFin, descLargaFin,
-           razonCambioFin, fuenteFin, urlFuenteFin,
-           urlImagen?.trim() || null, urlVideo?.trim() || null,
-           autor?.trim() || null, topicoId, usuarioId]
-        );
-        for (const pid of finalPestelIds)
-          await db.query('INSERT IGNORE INTO tendencia_pestel (id_tendencia, id_pestel) VALUES (?, ?)', [newId, pid]);
-        for (const sid of finalSectorIds)
-          await db.query('INSERT IGNORE INTO tendencia_sector  (id_tendencia, id_sector) VALUES (?, ?)', [newId, sid]);
-
-
-        for (const tema of temasRelacionados) {
-          if (!tema?.trim()) continue;
-          try {
-            const temaTopicoId = await findOrCreateTopico(tema);
-            if (temaTopicoId) {
-              await db.query(
-                'INSERT IGNORE INTO topico_relac_tendencia (id_topico, id_tendencia) VALUES (?, ?)',
-                [temaTopicoId, newId]
-              );
-            }
-          } catch (tErr) {
-            console.warn(`[IMPORTAR] Tema relacionado "${tema}" no pudo insertarse:`, tErr.message);
-          }
-        }
+        await importarRepository.insertTendencia(newId, {
+          tituloFin, nombreFin, descCortaFin, descLargaFin, razonCambioFin, fuenteFin, urlFuenteFin,
+          urlImagen, urlVideo, autor, temasRelacionados, finalPestelIds, finalSectorIds,
+        }, topicoId, usuarioId);
 
       } else if (tipo === 'escenario') {
-
-        const dup = await findDuplicateTitleOrName('escenario', tituloFin, nombreFin);
+        const dup = await importarRepository.findDuplicateTitleOrName('escenario', tituloFin, nombreFin);
         if (dup) {
           if (modoRevision) {
             localToReal.set(localId, { realId: dup.id, tipo });
@@ -493,67 +346,32 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
         }
 
         const urlFuenteStored = serializeUrlFuentes(urlsFuente, urlFuenteItem || urlFuente);
-        const probInt = probabilidad
-          ? Math.max(1, Math.min(5, parseInt(probabilidad) || 0)) || null
-          : null;
-
-        const horizonteFin = horizonteTemporal?.trim() || null;
-
+        const probInt         = probabilidad ? Math.max(1, Math.min(5, parseInt(probabilidad) || 0)) || null : null;
+        const horizonteFin    = horizonteTemporal?.trim() || null;
 
         let topicoIdEsc = topicoIdDoc;
         if (!topicoIdEsc && topicoEscenario?.trim()) {
           try {
-            topicoIdEsc = await findOrCreateTopico(topicoEscenario.trim());
+            topicoIdEsc = await importarRepository.findOrCreateTopico(topicoEscenario.trim());
           } catch (err) {
             console.warn('[IMPORTAR] topico por escenario no pudo crearse:', err.message);
           }
         }
 
-
         const referenciasFin = Array.isArray(referencias) && referencias.length > 0
-          ? JSON.stringify(referencias.filter(r => r?.trim()))
-          : null;
+          ? JSON.stringify(referencias.filter(r => r?.trim())) : null;
 
-        await db.query(
-          `INSERT INTO escenario
-             (id_escenario, titulo_escenario, nombre_escenario,
-              desc_corta_escenario, desc_larga_escenario, razon_cambio,
-              fuente_escenario, url_fuente,
-              url_imagen_escenario, url_video_escenario,
-              referencias_escenario,
-              horizonte_escenario, probabilidad,
-              autor, id_topico, id_estado, id_usuario_creador, fecha_publicacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())`,
-          [newId, tituloFin, nombreFin, descCortaFin, descLargaFin,
-           razonCambioFin, fuenteFin, urlFuenteStored,
-           urlImagen?.trim() || null, urlVideo?.trim() || null,
-           referenciasFin,
-           horizonteFin, probInt,
-           autor?.trim() || null, topicoIdEsc, usuarioId]
-        );
-        for (const pid of finalPestelIds)
-          await db.query('INSERT IGNORE INTO escenario_pestel (id_escenario, id_pestel) VALUES (?, ?)', [newId, pid]);
-        for (const sid of finalSectorIds)
-          await db.query('INSERT IGNORE INTO escenario_sector  (id_escenario, id_sector) VALUES (?, ?)', [newId, sid]);
-
+        await importarRepository.insertEscenario(newId, {
+          tituloFin, nombreFin, descCortaFin, descLargaFin, razonCambioFin, fuenteFin, urlFuenteStored,
+          urlImagen, urlVideo, referenciasFin, horizonteFin, probInt, autor, finalPestelIds, finalSectorIds,
+        }, topicoIdEsc, usuarioId);
 
         if (Array.isArray(tendenciasSoporte) && tendenciasSoporte.length > 0) {
           for (const nombreTend of tendenciasSoporte) {
             if (!nombreTend?.trim()) continue;
             try {
-              const [[tend]] = await db.query(
-                `SELECT id_tendencia FROM tendencia
-                 WHERE LOWER(TRIM(titulo_tendencia)) = LOWER(TRIM(?))
-                    OR LOWER(TRIM(nombre_tendencia)) = LOWER(TRIM(?))
-                 LIMIT 1`,
-                [nombreTend.trim(), nombreTend.trim()]
-              );
-              if (tend) {
-                await db.query(
-                  'INSERT IGNORE INTO tendencia_escenario (id_tendencia, id_escenario) VALUES (?, ?)',
-                  [tend.id_tendencia, newId]
-                );
-              }
+              const tend = await importarRepository.lookupTendenciaByName(nombreTend.trim());
+              if (tend) await importarRepository.insertRelacionTendenciaEscenario(tend.id_tendencia, newId);
             } catch (tErr) {
               console.warn(`[IMPORTAR] tendenciaSoporte "${nombreTend}" no pudo vincularse:`, tErr.message);
             }
@@ -585,22 +403,13 @@ router.post('/importar/confirmar', adminOnly, async (req, res) => {
 
     try {
       if (tipoRel === 'senal_tendencia') {
-        await db.query(
-          'INSERT IGNORE INTO senal_tendencia (id_senal, id_tendencia) VALUES (?, ?)',
-          [origen.realId, destino.realId]
-        );
+        await importarRepository.insertRelacionSenalTendencia(origen.realId, destino.realId);
         relacionesCreadas++;
       } else if (tipoRel === 'senal_escenario') {
-        await db.query(
-          'INSERT IGNORE INTO senal_escenario (id_senal, id_escenario) VALUES (?, ?)',
-          [origen.realId, destino.realId]
-        );
+        await importarRepository.insertRelacionSenalEscenario(origen.realId, destino.realId);
         relacionesCreadas++;
       } else if (tipoRel === 'tendencia_escenario') {
-        await db.query(
-          'INSERT IGNORE INTO tendencia_escenario (id_tendencia, id_escenario) VALUES (?, ?)',
-          [origen.realId, destino.realId]
-        );
+        await importarRepository.insertRelacionTendenciaEscenario(origen.realId, destino.realId);
         relacionesCreadas++;
       }
     } catch (err) {

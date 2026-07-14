@@ -5,6 +5,7 @@ import { mercadoLaboralSeed, metodologiaMercadoLaboralSeed } from '../data/merca
 import { CARRERAS_FALTANTES } from '../data/mercadoCarrerasFaltantes.js';
 import { adminOrAnalyst } from '../middleware/roles.js';
 import { auditEvent } from '../services/auditService.js';
+import * as mercadoLaboralRepository from '../repositories/empleabilidad/mercadoLaboralRepository.js';
 
 const router = Router();
 
@@ -438,44 +439,10 @@ function inferirContenidoFaltante(informe, datosEgresados, contenido) {
   };
 }
 
-async function loadInforme(idInforme) {
-  const [[puestos], [cats], [habilidades], [herramientas], [tendencias], [recomendaciones]] = await Promise.all([
-    db.query('SELECT orden, nombre_puesto AS nombre, descripcion, vacantes_texto AS vacantes, fuente_dato AS fuenteDato FROM mercado_puesto_top WHERE id_informe=? ORDER BY orden', [idInforme]),
-    db.query('SELECT id_categoria, orden, categoria, origen_datos AS origenDatos FROM mercado_habilidad_categoria WHERE id_informe=? ORDER BY orden', [idInforme]),
-    db.query(`SELECT hi.id_categoria, hi.orden, hi.habilidad
-              FROM mercado_habilidad_item hi
-              JOIN mercado_habilidad_categoria hc ON hc.id_categoria = hi.id_categoria
-              WHERE hc.id_informe=?
-              ORDER BY hc.orden, hi.orden`, [idInforme]),
-    db.query('SELECT orden, nombre, descripcion, origen_datos AS origenDatos FROM mercado_herramienta WHERE id_informe=? ORDER BY orden', [idInforme]),
-    db.query('SELECT orden, titulo, descripcion, origen_datos AS origenDatos FROM mercado_tendencia WHERE id_informe=? ORDER BY orden', [idInforme]),
-    db.query('SELECT tipo, orden, texto, origen_datos AS origenDatos FROM mercado_recomendacion WHERE id_informe=? ORDER BY tipo, orden', [idInforme]),
-  ]);
-
-  const habilidadesByCat = new Map(cats.map(cat => [cat.id_categoria, { categoria: cat.categoria, origenDatos: cat.origenDatos, habilidades: [] }]));
-  for (const item of habilidades) {
-    habilidadesByCat.get(item.id_categoria)?.habilidades.push(item.habilidad);
-  }
-
-  return {
-    puestos,
-    habilidades: Array.from(habilidadesByCat.values()),
-    herramientas,
-    tendencias,
-    recomendacionesEstudiante: recomendaciones.filter(x => x.tipo === 'estudiante_egresado').map(x => x.texto),
-    recomendacionesCurriculares: recomendaciones.filter(x => x.tipo === 'diseno_curricular').map(x => x.texto),
-  };
-}
-
 router.get('/mercado-laboral/filtros', async (_req, res) => {
   try {
     await ensureMercadoLaboralReady();
-    const [rows] = await db.query(`
-      SELECT nombre_facultad, nombre_carrera
-      FROM mercado_informe
-      WHERE activo = 1
-      ORDER BY nombre_facultad, nombre_carrera
-    `);
+    const rows = await mercadoLaboralRepository.getFiltros();
     const facultades = [];
     const map = new Map();
     for (const row of rows) {
@@ -495,7 +462,7 @@ router.get('/mercado-laboral/filtros', async (_req, res) => {
 router.get('/mercado-laboral/metodologia', async (_req, res) => {
   try {
     await ensureMercadoLaboralReady();
-    const [data] = await db.query('SELECT orden, titulo, descripcion FROM mercado_metodologia WHERE activo=1 ORDER BY orden');
+    const data = await mercadoLaboralRepository.getMetodologia();
     res.json({ data });
   } catch (e) {
     serverError(res, e, 'GET /mercado-laboral/metodologia');
@@ -506,22 +473,10 @@ router.get('/mercado-laboral/informe', async (req, res) => {
   try {
     await ensureMercadoLaboralReady();
     const { facultad, carrera } = req.query;
-    const where = ['activo = 1'];
-    const params = [];
-    if (facultad) { where.push('nombre_facultad = ?'); params.push(facultad); }
-    if (carrera) { where.push('nombre_carrera = ?'); params.push(carrera); }
+    const informe = await mercadoLaboralRepository.getInforme(facultad, carrera);
+    if (!informe) return res.status(404).json({ error: 'No se encontró informe para la carrera seleccionada.' });
 
-    const [rows] = await db.query(
-      `SELECT * FROM mercado_informe
-       WHERE ${where.join(' AND ')}
-       ORDER BY nombre_facultad, nombre_carrera
-       LIMIT 1`,
-      params
-    );
-    if (!rows.length) return res.status(404).json({ error: 'No se encontró informe para la carrera seleccionada.' });
-
-    const informe = rows[0];
-    const contenido = await loadInforme(informe.id_informe);
+    const contenido = await mercadoLaboralRepository.loadInforme(informe.id_informe);
 
     res.json({
       informe: {
@@ -555,10 +510,7 @@ router.get('/mercado-laboral/informe', async (req, res) => {
 //----------------reorg Gestion (Mercado)----------------
 router.get('/mercado-laboral/admin/informes', adminOrAnalyst, async (_req, res) => {
   try {
-    const [rows] = await db.query(
-      `SELECT id_informe, nombre_facultad, nombre_carrera, periodo, titulo_header, activo
-       FROM mercado_informe ORDER BY nombre_facultad, nombre_carrera, periodo DESC`
-    );
+    const rows = await mercadoLaboralRepository.listInformesAdmin();
     res.json({ data: rows });
   } catch (e) { serverError(res, e); }
 });
@@ -569,22 +521,23 @@ router.post('/mercado-laboral/admin/informes', adminOrAnalyst, async (req, res) 
     if (!nombreFacultad?.trim() || !nombreCarrera?.trim() || !periodo?.trim()) {
       return res.status(400).json({ error: 'Facultad, carrera y periodo son requeridos.' });
     }
-    const [result] = await db.query(
-      `INSERT INTO mercado_informe
-         (nombre_facultad, nombre_carrera, periodo, titulo_header, descripcion, fuente, origen_datos, activo)
-       VALUES (?, ?, ?, ?, ?, 'Gestion manual', 'manual', 1)`,
-      [nombreFacultad.trim(), nombreCarrera.trim(), periodo.trim(), tituloHeader?.trim() || null, descripcion?.trim() || null]
-    );
+    const id = await mercadoLaboralRepository.createInformeAdmin({
+      nombreFacultad: nombreFacultad.trim(),
+      nombreCarrera:  nombreCarrera.trim(),
+      periodo:        periodo.trim(),
+      tituloHeader:   tituloHeader?.trim() || null,
+      descripcion:    descripcion?.trim()  || null,
+    });
     await auditEvent(req, {
       evento: 'mercado_informe_creado',
       accion: 'crear_informe_mercado',
       modulo: 'mercado',
       entidad: 'mercado_informe',
-      entidadId: String(result.insertId),
+      entidadId: String(id),
       elementoTitulo: `${nombreCarrera.trim()} (${periodo.trim()})`,
       detalle: `Informe de mercado creado: ${nombreCarrera.trim()} - ${periodo.trim()}`,
     });
-    res.status(201).json({ id: result.insertId });
+    res.status(201).json({ id });
   } catch (e) { serverError(res, e); }
 });
 
@@ -592,17 +545,18 @@ router.put('/mercado-laboral/admin/informes/:id', adminOrAnalyst, async (req, re
   try {
     const { id } = req.params;
     const { nombreFacultad, nombreCarrera, periodo, tituloHeader, descripcion } = req.body;
-    const [[existing]] = await db.query('SELECT id_informe FROM mercado_informe WHERE id_informe = ?', [id]);
+    const existing = await mercadoLaboralRepository.getInformeById(id);
     if (!existing) return res.status(404).json({ error: 'Informe no encontrado.' });
     if (!nombreFacultad?.trim() || !nombreCarrera?.trim() || !periodo?.trim()) {
       return res.status(400).json({ error: 'Facultad, carrera y periodo son requeridos.' });
     }
-    await db.query(
-      `UPDATE mercado_informe
-       SET nombre_facultad = ?, nombre_carrera = ?, periodo = ?, titulo_header = ?, descripcion = ?
-       WHERE id_informe = ?`,
-      [nombreFacultad.trim(), nombreCarrera.trim(), periodo.trim(), tituloHeader?.trim() || null, descripcion?.trim() || null, id]
-    );
+    await mercadoLaboralRepository.updateInformeAdmin(id, {
+      nombreFacultad: nombreFacultad.trim(),
+      nombreCarrera:  nombreCarrera.trim(),
+      periodo:        periodo.trim(),
+      tituloHeader:   tituloHeader?.trim() || null,
+      descripcion:    descripcion?.trim()  || null,
+    });
     await auditEvent(req, {
       evento: 'mercado_informe_actualizado',
       accion: 'editar_informe_mercado',
@@ -620,9 +574,9 @@ router.patch('/mercado-laboral/admin/informes/:id/estado', adminOrAnalyst, async
   try {
     const { id } = req.params;
     const activo = req.body.activo ? 1 : 0;
-    const [[existing]] = await db.query('SELECT id_informe, nombre_carrera FROM mercado_informe WHERE id_informe = ?', [id]);
+    const existing = await mercadoLaboralRepository.getInformeById(id);
     if (!existing) return res.status(404).json({ error: 'Informe no encontrado.' });
-    await db.query('UPDATE mercado_informe SET activo = ? WHERE id_informe = ?', [activo, id]);
+    await mercadoLaboralRepository.setInformeEstado(id, activo);
     await auditEvent(req, {
       evento: 'mercado_informe_estado',
       accion: activo ? 'activar_informe_mercado' : 'archivar_informe_mercado',
@@ -639,7 +593,7 @@ router.patch('/mercado-laboral/admin/informes/:id/estado', adminOrAnalyst, async
 //----------------reorg Gestion (Mercado)----------------
 router.get('/mercado-laboral/admin/metodologia', adminOrAnalyst, async (_req, res) => {
   try {
-    const [rows] = await db.query('SELECT id_metodologia, orden, titulo, descripcion, activo FROM mercado_metodologia ORDER BY orden');
+    const rows = await mercadoLaboralRepository.listMetodologiaAdmin();
     res.json({ data: rows });
   } catch (e) { serverError(res, e); }
 });
@@ -648,11 +602,7 @@ router.post('/mercado-laboral/admin/metodologia', adminOrAnalyst, async (req, re
   try {
     const { orden, titulo, descripcion } = req.body;
     if (!orden || !titulo?.trim()) return res.status(400).json({ error: 'Orden y titulo son requeridos.' });
-    await db.query(
-      `INSERT INTO mercado_metodologia (orden, titulo, descripcion, activo) VALUES (?, ?, ?, 1)
-       ON DUPLICATE KEY UPDATE titulo = VALUES(titulo), descripcion = VALUES(descripcion)`,
-      [Number(orden), titulo.trim(), descripcion?.trim() || null]
-    );
+    await mercadoLaboralRepository.upsertMetodologia({ orden: Number(orden), titulo: titulo.trim(), descripcion: descripcion?.trim() || null });
     await auditEvent(req, {
       evento: 'mercado_metodologia_guardada',
       accion: 'guardar_metodologia',
@@ -669,10 +619,10 @@ router.put('/mercado-laboral/admin/metodologia/:id', adminOrAnalyst, async (req,
   try {
     const { id } = req.params;
     const { titulo, descripcion } = req.body;
-    const [[existing]] = await db.query('SELECT id_metodologia FROM mercado_metodologia WHERE id_metodologia = ?', [id]);
+    const existing = await mercadoLaboralRepository.getMetodologiaById(id);
     if (!existing) return res.status(404).json({ error: 'Paso no encontrado.' });
     if (!titulo?.trim()) return res.status(400).json({ error: 'Titulo es requerido.' });
-    await db.query('UPDATE mercado_metodologia SET titulo = ?, descripcion = ? WHERE id_metodologia = ?', [titulo.trim(), descripcion?.trim() || null, id]);
+    await mercadoLaboralRepository.updateMetodologia(id, { titulo: titulo.trim(), descripcion: descripcion?.trim() || null });
     await auditEvent(req, {
       evento: 'mercado_metodologia_actualizada',
       accion: 'editar_metodologia',

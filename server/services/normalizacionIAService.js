@@ -1,7 +1,7 @@
 
 
 
-import db_empl from '../db_empl.js';
+import { getProgramaForNormalizacion, getCursosBenchmark, executeNormalizationTransaction } from '../repositories/empleabilidad/normalizacionRepository.js';
 import { extractPageTextWithFetch, parseCurriculumCourses, parseHtmlCurriculumCourses } from './scrapingService.js';
 
 const HF_URL   = 'https://router.huggingface.co/v1/chat/completions';
@@ -72,17 +72,8 @@ function safeParseJson(raw) {
 }
 
 async function normalizarPrograma(idPrograma) {
-  const [rows] = await db_empl.query(
-    `SELECT pb.id_programa_benchmark, pb.nombre_programa, pb.fuente_texto_original,
-            pb.url_programa, ub.nombre_universidad
-     FROM programa_benchmark pb
-     JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
-     WHERE pb.id_programa_benchmark = ?`,
-    [idPrograma]
-  );
-  if (!rows.length) throw new Error('Programa no encontrado');
-
-  const prog = rows[0];
+  const prog = await getProgramaForNormalizacion(idPrograma);
+  if (!prog) throw new Error('Programa no encontrado');
   if (!prog.fuente_texto_original || prog.fuente_texto_original.trim().length < 30) {
     throw new Error('No hay texto fuente para normalizar. Ejecuta el scraping primero.');
   }
@@ -138,21 +129,7 @@ async function normalizarPrograma(idPrograma) {
     }
   }
   if (!cursosDeterministicos.length) {
-    const [cursosExtraidos] = await db_empl.query(
-      `SELECT nombre_curso, ciclo, descripcion_curso, fuente_url
-       FROM curso_benchmark
-       WHERE id_programa_benchmark=?
-       ORDER BY
-         CASE
-           WHEN ciclo REGEXP '^[0-9]+$' THEN 0
-           WHEN ciclo IS NULL OR ciclo = '' THEN 2
-           ELSE 1
-         END,
-         CAST(NULLIF(ciclo, '') AS UNSIGNED),
-         ciclo,
-         nombre_curso`,
-      [idPrograma]
-    );
+    const cursosExtraidos = await getCursosBenchmark(idPrograma);
     if (cursosExtraidos.length) {
       cursosDeterministicos = cursosExtraidos.map(curso => ({
         nombreCurso: curso.nombre_curso,
@@ -192,97 +169,15 @@ async function normalizarPrograma(idPrograma) {
   const habilidadesBla= Array.isArray(parsed.habilidades_blandas) ? parsed.habilidades_blandas : [];
   const areas         = Array.isArray(parsed.areas_tematicas) ? parsed.areas_tematicas : [];
 
-  const conn = await db_empl.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    await conn.query('DELETE FROM competencia_benchmark WHERE id_programa_benchmark=?', [idPrograma]);
-    for (const comp of competencias) {
-      if (!comp || comp === 'no_identificado') continue;
-      await conn.query(
-        `INSERT INTO competencia_benchmark (id_programa_benchmark, nombre_competencia, tipo_competencia, fuente_url)
-         VALUES (?, ?, 'tecnica', ?)`,
-        [idPrograma, String(comp).substring(0, 299), prog.url_programa]
-      );
-    }
-    for (const hab of habilidadesTec) {
-      if (!hab || hab === 'no_identificado') continue;
-      await conn.query(
-        `INSERT INTO competencia_benchmark (id_programa_benchmark, nombre_competencia, tipo_competencia, fuente_url)
-         VALUES (?, ?, 'tecnica', ?)`,
-        [idPrograma, String(hab).substring(0, 299), prog.url_programa]
-      );
-    }
-    for (const hab of habilidadesBla) {
-      if (!hab || hab === 'no_identificado') continue;
-      await conn.query(
-        `INSERT INTO competencia_benchmark (id_programa_benchmark, nombre_competencia, tipo_competencia, fuente_url)
-         VALUES (?, ?, 'blanda', ?)`,
-        [idPrograma, String(hab).substring(0, 299), prog.url_programa]
-      );
-    }
-
-    await conn.query('DELETE FROM curso_benchmark WHERE id_programa_benchmark=?', [idPrograma]);
-    if (cursos.length) {
-      if (textoCurricular !== prog.fuente_texto_original) {
-        await conn.query(
-          `UPDATE programa_benchmark
-           SET fuente_texto_original=?, fecha_captura=NOW()
-           WHERE id_programa_benchmark=?`,
-          [textoCurricular.substring(0, 120000), idPrograma]
-        );
-      }
-    }
-    for (const curso of cursos) {
-      await conn.query(
-        `INSERT INTO curso_benchmark
-         (id_programa_benchmark, nombre_curso, ciclo, area_formacion, descripcion_curso, competencias_detectadas_json, tecnologias_detectadas_json, fuente_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          idPrograma,
-          String(curso.nombre).substring(0, 299),
-          curso.ciclo,
-          curso.origen === 'parser' ? 'malla_externa' : (areas[0] ?? 'sugerido_ia'),
-          curso.evidencia,
-          JSON.stringify(competencias.filter(c => c !== 'no_identificado')),
-          JSON.stringify(tecnologias.filter(t => t !== 'no_identificado')),
-          prog.url_programa,
-        ]
-      );
-    }
-
-    const [[conteo]] = await conn.query(
-      `SELECT
-         (SELECT COUNT(*) FROM curso_benchmark WHERE id_programa_benchmark=?) AS cursos,
-         (SELECT COUNT(*) FROM competencia_benchmark WHERE id_programa_benchmark=?) AS competencias`,
-      [idPrograma, idPrograma]
-    );
-    const tieneEvidenciaEstructurada = Number(conteo?.cursos || 0) > 0 || Number(conteo?.competencias || 0) > 0;
-
-    await conn.query(
-      `UPDATE programa_benchmark
-       SET perfil_egreso_texto = ?,
-           estado_extraccion = ?,
-           observaciones = ?,
-           updated_at = NOW()
-       WHERE id_programa_benchmark = ?`,
-      [
-        parsed.perfil_egreso_resumen !== 'no_identificado' ? parsed.perfil_egreso_resumen : prog.fuente_texto_original?.substring(0, 2000),
-        tieneEvidenciaEstructurada ? 'verificado' : 'procesado',
-        tieneEvidenciaEstructurada
-          ? `Normalización completada. Cursos estructurados: ${Number(conteo?.cursos || 0)}. Competencias estructuradas: ${Number(conteo?.competencias || 0)}.`
-          : 'Normalización sin cursos ni competencias estructuradas. Revisar fuente o pegar malla manualmente.',
-        idPrograma,
-      ]
-    );
-
-    await conn.commit();
-  } catch (err) {
-    await conn.rollback();
-    throw err;
-  } finally {
-    conn.release();
-  }
+  await executeNormalizationTransaction(idPrograma, {
+    competencias,
+    habilidadesTec,
+    habilidadesBla,
+    cursos,
+    textoCurricular,
+    prog,
+    parsedResult: parsed,
+  });
 
   return {
     competencias: competencias.length,

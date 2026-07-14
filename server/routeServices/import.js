@@ -4,7 +4,7 @@ import { Router }     from 'express';
 import multer         from 'multer';
 import xlsx           from 'xlsx';
 import { randomUUID } from 'crypto';
-import db             from '../db.js';
+import * as importRepository from '../repositories/principal/importRepository.js';
 import { sanitizeRichHtml, validateExcelUpload } from '../utils/security.js';
 import { auditEvent } from '../services/auditService.js';
 
@@ -55,17 +55,6 @@ const COUNTRIES = [
 
 const stripAccents = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
-async function findDuplicateTitleOrName(table, idColumn, titleColumn, nameColumn, titulo, nombre) {
-  const [[dup]] = await db.query(
-    `SELECT \`${idColumn}\` AS id
-       FROM \`${table}\`
-      WHERE LOWER(TRIM(\`${titleColumn}\`)) IN (LOWER(TRIM(?)), LOWER(TRIM(?)))
-         OR LOWER(TRIM(\`${nameColumn}\`)) IN (LOWER(TRIM(?)), LOWER(TRIM(?)))
-      LIMIT 1`,
-    [titulo, nombre, titulo, nombre]
-  );
-  return dup || null;
-}
 
 
 const COUNTRIES_MAP      = new Map(COUNTRIES.map(c => [c.normalize('NFC').toLowerCase(), c]));
@@ -148,14 +137,6 @@ function resolvePais(val) {
   return allSkip ? '__skip__' : null;
 }
 
-
-async function resolveTopico(nombre) {
-  if (!nombre?.trim()) return null;
-  const n = nombre.trim();
-  await db.query('INSERT IGNORE INTO topico (nombre) VALUES (?)', [n]);
-  const [[row]] = await db.query('SELECT id_topico FROM topico WHERE nombre = ?', [n]);
-  return row?.id_topico ?? null;
-}
 
 const router = Router();
 const upload = multer({
@@ -253,8 +234,7 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
       return res.status(400).json({ error: 'El archivo no contiene filas de datos.' });
 
 
-    const [pestels] = await db.query('SELECT id_pestel, nombre_pestel FROM pestel WHERE activo = 1');
-    const [sectors] = await db.query('SELECT id_sector, nombre_sector FROM sector WHERE activo = 1');
+    const { pestels, sectors } = await importRepository.getPestelsAndSectors();
 
     const normalize = s => s.normalize('NFC').toLowerCase().trim();
 
@@ -311,7 +291,7 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
           else warnings.push({ fila: rowNum, aviso: `pais_origen "${paisRawS}" no está en la lista de países, se ignoró` });
         }
         const topicoNombre = String(row.topico_senal || '').trim() || null;
-        const idTopico = await resolveTopico(topicoNombre);
+        const idTopico = await importRepository.resolveTopico(topicoNombre);
 
         const fechaArticulo = parseDate(row.fecha_senal_articulo);
 
@@ -324,31 +304,19 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
         const newId = randomUUID();
 
         const tituloFinal = capitalizeFirst(titulo).slice(0, 180);
-        const dup = await findDuplicateTitleOrName('senal', 'id_senal', 'titulo_senal', 'nombre_senal', tituloFinal, nombre);
+        const dup = await importRepository.findDuplicateTitleOrName('senal', 'id_senal', 'titulo_senal', 'nombre_senal', tituloFinal, nombre);
         if (dup) {
           errors.push({ fila: rowNum, error: 'Ya existe una señal con ese titulo o nombre' });
           continue;
         }
 
-        await db.query(
-          `INSERT INTO senal
-             (id_senal, titulo_senal, nombre_senal,
-              desc_corta_senal, desc_larga_senal,
-              fuente_senal, url_fuente,
-              url_imagen_senal, url_video_senal,
-              pais_origen, id_topico, fecha_senal_articulo,
-              id_estado, id_usuario_creador, fecha_publicacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            newId, tituloFinal, nombre,
-            descCorta.slice(0, 280), descLarga,
-            fuente, urlFuente,
-            urlImagen, urlVideo,
-            paisOrigen, idTopico, fechaArticulo,
-            idEstado, req.user.id, fechaPublicacion,
-          ]
-        );
-
+        await importRepository.insertSenal({
+          newId, tituloFinal, nombre,
+          descCorta: descCorta.slice(0, 280), descLarga,
+          fuente, urlFuente, urlImagen, urlVideo,
+          paisOrigen, idTopico, fechaArticulo,
+          idEstado, usuarioId: req.user.id, fechaPublicacion,
+        });
 
         const pestelRaw = String(row.id_pestel || row.pestel || row.nombre_pestel || '').trim();
         if (pestelRaw) {
@@ -356,15 +324,12 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
           for (const token of tokens) {
             const pid = resolvePestel(token);
             if (pid) {
-              await db.query(
-                'INSERT IGNORE INTO senal_pestel (id_senal, id_pestel) VALUES (?, ?)', [newId, pid]
-              );
+              await importRepository.insertSenalPestel(newId, pid);
             } else {
               warnings.push({ fila: rowNum, aviso: `PESTEL "${token}" no encontrado en catálogo, se ignoró` });
             }
           }
         }
-
 
         const sectorRaw = String(row.id_sector || row.sector || '').trim();
         if (sectorRaw) {
@@ -372,9 +337,7 @@ router.post('/admin/senales/import', adminOnly, upload.single('file'), async (re
           for (const token of tokens) {
             const sid = resolveSector(token);
             if (sid) {
-              await db.query(
-                'INSERT IGNORE INTO senal_sector (id_senal, id_sector) VALUES (?, ?)', [newId, sid]
-              );
+              await importRepository.insertSenalSector(newId, sid);
             } else {
               warnings.push({ fila: rowNum, aviso: `Sector "${token}" no encontrado en catálogo, se ignoró` });
             }
@@ -417,8 +380,7 @@ router.post('/admin/tendencias/import', adminOnly, upload.single('file'), async 
       return res.status(400).json({ error: 'El archivo no contiene filas de datos.' });
 
 
-    const [pestels] = await db.query('SELECT id_pestel, nombre_pestel FROM pestel WHERE activo = 1');
-    const [sectors] = await db.query('SELECT id_sector, nombre_sector FROM sector WHERE activo = 1');
+    const { pestels, sectors } = await importRepository.getPestelsAndSectors();
     const normalize = s => s.normalize('NFC').toLowerCase().trim();
     const pestelByName = Object.fromEntries(pestels.map(p => [normalize(p.nombre_pestel), p.id_pestel]));
     const pestelById   = new Set(pestels.map(p => String(p.id_pestel)));
@@ -458,37 +420,29 @@ router.post('/admin/tendencias/import', adminOnly, upload.single('file'), async 
         const logica     = String(row.logica                || '').trim() || null;
 
         const topicoPrincipalNombre = String(row.topico_principal || '').trim() || null;
-        const idTopicoPrincipal = await resolveTopico(topicoPrincipalNombre);
+        const idTopicoPrincipal = await importRepository.resolveTopico(topicoPrincipalNombre);
         const topicoRelacRaw = String(row.topico_relacionado || '').trim();
         const idEstado   = [1,2,3].includes(Number(row.id_estado)) ? Number(row.id_estado) : 3;
         const fechaPub   = idEstado === 1 ? (parseDate(row.fecha_publicacion) || new Date().toISOString().slice(0,10)) : null;
         const newId      = randomUUID();
         const nombreFinal = nombre.slice(0, 180);
-        const dup = await findDuplicateTitleOrName('tendencia', 'id_tendencia', 'titulo_tendencia', 'nombre_tendencia', tituloFinal, nombreFinal);
+        const dup = await importRepository.findDuplicateTitleOrName('tendencia', 'id_tendencia', 'titulo_tendencia', 'nombre_tendencia', tituloFinal, nombreFinal);
         if (dup) {
           errors.push({ fila: rowNum, error: 'Ya existe una tendencia con ese titulo o nombre' });
           continue;
         }
 
-        await db.query(
-          `INSERT INTO tendencia
-             (id_tendencia, titulo_tendencia, nombre_tendencia,
-              desc_corta_tendencia, desc_larga_tendencia, razon_cambio,
-              fuente_tendencia, url_fuente,
-              url_imagen_tendencia, url_video_tendencia,
-              pais_origen, logica, id_topico,
-              id_estado, id_usuario_creador, fecha_publicacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [newId, tituloFinal, nombreFinal, descCorta.slice(0,280), descLarga,
-           null, fuente, urlFuente, urlImagen, urlVideo, paisOrigen, logica, idTopicoPrincipal,
-           idEstado, req.user.id, fechaPub]
-        );
+        await importRepository.insertTendencia({
+          newId, tituloFinal, nombreFinal, descCorta: descCorta.slice(0, 280), descLarga,
+          fuente, urlFuente, urlImagen, urlVideo, paisOrigen, logica, idTopicoPrincipal,
+          idEstado, usuarioId: req.user.id, fechaPub,
+        });
 
         const pestelRaw = String(row.id_pestel || row.pestel || row.nombre_pestel || '').trim();
         if (pestelRaw) {
           for (const t of pestelRaw.split(/[;,]/).map(n => n.trim()).filter(Boolean)) {
             const pid = resolvePestel(t);
-            if (pid) await db.query('INSERT IGNORE INTO tendencia_pestel (id_tendencia, id_pestel) VALUES (?,?)', [newId, pid]);
+            if (pid) await importRepository.insertTendenciaPestel(newId, pid);
             else warnings.push({ fila: rowNum, aviso: `PESTEL "${t}" no encontrado, se ignoró` });
           }
         }
@@ -496,15 +450,15 @@ router.post('/admin/tendencias/import', adminOnly, upload.single('file'), async 
         if (sectorRaw) {
           for (const t of sectorRaw.split(/[;,]/).map(n => n.trim()).filter(Boolean)) {
             const sid = resolveSector(t);
-            if (sid) await db.query('INSERT IGNORE INTO tendencia_sector (id_tendencia, id_sector) VALUES (?,?)', [newId, sid]);
+            if (sid) await importRepository.insertTendenciaSector(newId, sid);
             else warnings.push({ fila: rowNum, aviso: `Sector "${t}" no encontrado, se ignoró` });
           }
         }
 
         if (topicoRelacRaw) {
           for (const tn of topicoRelacRaw.split(/\s*;\s*/).map(t => t.trim()).filter(Boolean)) {
-            const rid = await resolveTopico(tn);
-            if (rid) await db.query('INSERT IGNORE INTO topico_relac_tendencia (id_topico, id_tendencia) VALUES (?,?)', [rid, newId]);
+            const rid = await importRepository.resolveTopico(tn);
+            if (rid) await importRepository.insertTopicoRelacTendencia(rid, newId);
           }
         }
         imported++;
@@ -542,8 +496,7 @@ router.post('/admin/escenarios/import', adminOnly, upload.single('file'), async 
     if (rows.length === 0)
       return res.status(400).json({ error: 'El archivo no contiene filas de datos.' });
 
-    const [pestels] = await db.query('SELECT id_pestel, nombre_pestel FROM pestel WHERE activo = 1');
-    const [sectors] = await db.query('SELECT id_sector, nombre_sector FROM sector WHERE activo = 1');
+    const { pestels, sectors } = await importRepository.getPestelsAndSectors();
     const normalize = s => s.normalize('NFC').toLowerCase().trim();
     const pestelByName = Object.fromEntries(pestels.map(p => [normalize(p.nombre_pestel), p.id_pestel]));
     const pestelById   = new Set(pestels.map(p => String(p.id_pestel)));
@@ -580,7 +533,7 @@ router.post('/admin/escenarios/import', adminOnly, upload.single('file'), async 
         const urlVideo   = String(row.url_video_escenario   || '').trim() || null;
         const horizonte  = String(row.horizonte_escenario   || '').trim().toLowerCase() || null;
         const topicoEscNombre = String(row.topico_escenario || '').trim() || null;
-        const idTopico = await resolveTopico(topicoEscNombre);
+        const idTopico = await importRepository.resolveTopico(topicoEscNombre);
         const probRaw    = Number(row.probabilidad);
         const probabilidad = [1,2,3,4,5].includes(probRaw) ? probRaw : null;
         if (row.probabilidad !== '' && row.probabilidad !== undefined && probabilidad === null)
@@ -589,7 +542,7 @@ router.post('/admin/escenarios/import', adminOnly, upload.single('file'), async 
         const fechaPub   = idEstado === 1 ? (parseDate(row.fecha_publicacion) || new Date().toISOString().slice(0,10)) : null;
         const newId      = randomUUID();
         const nombreFinal = nombre.slice(0, 180);
-        const dup = await findDuplicateTitleOrName('escenario', 'id_escenario', 'titulo_escenario', 'nombre_escenario', tituloFinal, nombreFinal);
+        const dup = await importRepository.findDuplicateTitleOrName('escenario', 'id_escenario', 'titulo_escenario', 'nombre_escenario', tituloFinal, nombreFinal);
         if (dup) {
           errors.push({ fila: rowNum, error: 'Ya existe un escenario con ese titulo o nombre' });
           continue;
@@ -598,25 +551,17 @@ router.post('/admin/escenarios/import', adminOnly, upload.single('file'), async 
         if (horizonte && !HORIZONTES_VALID.has(horizonte))
           warnings.push({ fila: rowNum, aviso: `horizonte_escenario "${horizonte}" no reconocido, se guardará tal cual` });
 
-        await db.query(
-          `INSERT INTO escenario
-             (id_escenario, titulo_escenario, nombre_escenario,
-              desc_corta_escenario, desc_larga_escenario, razon_cambio,
-              fuente_escenario, url_fuente,
-              url_imagen_escenario, url_video_escenario,
-              horizonte_escenario, probabilidad, id_topico,
-              id_estado, id_usuario_creador, fecha_publicacion)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [newId, tituloFinal, nombreFinal, descCorta.slice(0,280), descLarga,
-           null, fuente, urlFuente, urlImagen, urlVideo, horizonte, probabilidad, idTopico,
-           idEstado, req.user.id, fechaPub]
-        );
+        await importRepository.insertEscenario({
+          newId, tituloFinal, nombreFinal, descCorta: descCorta.slice(0, 280), descLarga,
+          fuente, urlFuente, urlImagen, urlVideo, horizonte, probabilidad, idTopico,
+          idEstado, usuarioId: req.user.id, fechaPub,
+        });
 
         const pestelRaw = String(row.id_pestel || row.pestel || row.nombre_pestel || '').trim();
         if (pestelRaw) {
           for (const t of pestelRaw.split(/[;,]/).map(n => n.trim()).filter(Boolean)) {
             const pid = resolvePestel(t);
-            if (pid) await db.query('INSERT IGNORE INTO escenario_pestel (id_escenario, id_pestel) VALUES (?,?)', [newId, pid]);
+            if (pid) await importRepository.insertEscenarioPestel(newId, pid);
             else warnings.push({ fila: rowNum, aviso: `PESTEL "${t}" no encontrado, se ignoró` });
           }
         }
@@ -624,7 +569,7 @@ router.post('/admin/escenarios/import', adminOnly, upload.single('file'), async 
         if (sectorRaw) {
           for (const t of sectorRaw.split(/[;,]/).map(n => n.trim()).filter(Boolean)) {
             const sid = resolveSector(t);
-            if (sid) await db.query('INSERT IGNORE INTO escenario_sector (id_escenario, id_sector) VALUES (?,?)', [newId, sid]);
+            if (sid) await importRepository.insertEscenarioSector(newId, sid);
             else warnings.push({ fila: rowNum, aviso: `Sector "${t}" no encontrado, se ignoró` });
           }
         }
@@ -666,30 +611,6 @@ router.post('/admin/relaciones/import', adminOnly, upload.single('file'), async 
 
     const normalizeType = t => stripAccents(t.toLowerCase().trim());
 
-
-    async function resolveItem(tipo, nombre) {
-      if (!nombre?.trim()) return null;
-      const n = nombre.trim();
-      const map = {
-        senal:     ['senal',     'id_senal',     'nombre_senal'],
-        tendencia: ['tendencia', 'id_tendencia', 'nombre_tendencia'],
-        escenario: ['escenario', 'id_escenario', 'nombre_escenario'],
-      };
-      const m = map[tipo];
-      if (!m) return null;
-
-      const [[r1]] = await db.query(`SELECT ${m[1]} AS id FROM ${m[0]} WHERE ${m[2]} = ?`, [n]);
-      if (r1?.id) return r1.id;
-
-      if (n.length > 180) {
-        const [[r2]] = await db.query(`SELECT ${m[1]} AS id FROM ${m[0]} WHERE ${m[2]} = ?`, [n.slice(0, 180)]);
-        if (r2?.id) return r2.id;
-      }
-
-      const [[r3]] = await db.query(`SELECT ${m[1]} AS id FROM ${m[0]} WHERE ${m[2]} LIKE ?`, [n.slice(0, 170) + '%']);
-      return r3?.id ?? null;
-    }
-
     let imported = 0;
     const errors = [], warnings = [];
 
@@ -712,27 +633,26 @@ router.post('/admin/relaciones/import', adminOnly, upload.single('file'), async 
         if (!validTypes.includes(destinoTipo)) { errors.push({ fila: rowNum, error: `destino_tipo inválido: "${destinoTipo}"` }); continue; }
         if (origenTipo === destinoTipo) { errors.push({ fila: rowNum, error: 'origen_tipo y destino_tipo no pueden ser iguales' }); continue; }
 
-        const origenId = await resolveItem(origenTipo, origenNombre);
+        const origenId = await importRepository.resolveItem(origenTipo, origenNombre);
         if (!origenId) { warnings.push({ fila: rowNum, aviso: `No se encontró ${origenTipo} con nombre "${origenNombre}"` }); continue; }
 
         for (const destNombre of destinoNombres) {
-          const destinoId = await resolveItem(destinoTipo, destNombre);
+          const destinoId = await importRepository.resolveItem(destinoTipo, destNombre);
           if (!destinoId) { warnings.push({ fila: rowNum, aviso: `No se encontró ${destinoTipo} con nombre "${destNombre}"` }); continue; }
-
 
           const pair = [origenTipo, destinoTipo].sort().join('_');
           if (pair === 'senal_tendencia') {
             const senId  = origenTipo === 'senal'     ? origenId : destinoId;
             const tendId = origenTipo === 'tendencia' ? origenId : destinoId;
-            await db.query('INSERT IGNORE INTO senal_tendencia (id_senal, id_tendencia) VALUES (?,?)', [senId, tendId]);
+            await importRepository.insertRelacionSenalTendencia(senId, tendId);
           } else if (pair === 'escenario_senal') {
             const senId  = origenTipo === 'senal'     ? origenId : destinoId;
             const escId  = origenTipo === 'escenario' ? origenId : destinoId;
-            await db.query('INSERT IGNORE INTO senal_escenario (id_senal, id_escenario) VALUES (?,?)', [senId, escId]);
+            await importRepository.insertRelacionSenalEscenario(senId, escId);
           } else if (pair === 'escenario_tendencia') {
             const tendId = origenTipo === 'tendencia' ? origenId : destinoId;
             const escId  = origenTipo === 'escenario' ? origenId : destinoId;
-            await db.query('INSERT IGNORE INTO tendencia_escenario (id_tendencia, id_escenario) VALUES (?,?)', [tendId, escId]);
+            await importRepository.insertRelacionTendenciaEscenario(tendId, escId);
           }
           imported++;
         }

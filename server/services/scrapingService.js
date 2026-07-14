@@ -1,7 +1,15 @@
 
 
 
-import db_empl from '../db_empl.js';
+import {
+  setCandidatosDuplicado, upsertCuratedSource, upsertCuratedCandidate,
+  updateProgramaUrlAndObservaciones, upsertCandidate, updateProgramaObservaciones,
+  findExistingBenchmarkSource, insertBenchmarkSource, getCreatedBenchmarkSource,
+  insertSourceSnapshot, insertParseLog,
+  replaceBenchmarkCourses as dbReplaceBenchmarkCourses,
+  updateBenchmarkSourceAfterExtraction, updateProgramaAfterExtraction,
+  setScrapingStatus, getProgramaUrl, getProgramaWithEquivalencia,
+} from '../repositories/empleabilidad/scrapingRepository.js';
 import { getCuratedBenchmarkSources } from '../data/benchmarkingCuratedSources.js';
 import crypto from 'node:crypto';
 
@@ -973,57 +981,11 @@ async function registerCuratedSources(programa, career) {
   if (!curatedSources.length) return [];
 
   const registered = [];
-  await db_empl.query(
-    `UPDATE benchmark_source_candidate
-     SET estado='duplicado'
-     WHERE id_programa_benchmark=? AND estado='candidato'`,
-    [programa.id_programa_benchmark]
-  );
+  await setCandidatosDuplicado(programa.id_programa_benchmark);
 
   for (const source of curatedSources) {
-    await db_empl.query(
-      `INSERT INTO benchmark_source
-       (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, observaciones)
-       VALUES (?, ?, ?, ?, 'pendiente_validacion', 1, ?)
-       ON DUPLICATE KEY UPDATE
-         tipo_fuente=VALUES(tipo_fuente),
-         titulo=VALUES(titulo),
-         estado='pendiente_validacion',
-         es_fuente_principal=1,
-         observaciones=VALUES(observaciones),
-         activo=1`,
-      [
-        programa.id_programa_benchmark,
-        source.tipoFuente,
-        source.titulo,
-        source.url,
-        'Fuente curada desde mapa base de benchmarking. Requiere validacion humana.',
-      ]
-    );
-    await db_empl.query(
-      `INSERT INTO benchmark_source_candidate
-       (id_programa_benchmark, url, titulo, snippet, tipo_fuente_detectado, score_total, score_detalle_json, estado, motivo)
-       VALUES (?, ?, ?, ?, ?, 100, CAST(? AS JSON), 'aprobado', ?)
-       ON DUPLICATE KEY UPDATE
-         titulo=VALUES(titulo),
-         snippet=VALUES(snippet),
-         tipo_fuente_detectado=VALUES(tipo_fuente_detectado),
-         score_total=VALUES(score_total),
-         score_detalle_json=VALUES(score_detalle_json),
-         estado='aprobado',
-         motivo=VALUES(motivo),
-         buscado_en=NOW(),
-         updated_at=CURRENT_TIMESTAMP`,
-      [
-        programa.id_programa_benchmark,
-        source.url,
-        source.titulo,
-        'URL curada desde mapa base de benchmarking; pendiente de validacion academica.',
-        source.tipoFuente,
-        JSON.stringify({ curada: 100, carrera: 0, curricular: 0, url: 0 }),
-        'Coincidencia exacta en mapa base de fuentes oficiales.',
-      ]
-    );
+    await upsertCuratedSource(programa.id_programa_benchmark, source);
+    await upsertCuratedCandidate(programa.id_programa_benchmark, source);
     registered.push({
       url: source.url,
       title: source.titulo,
@@ -1034,30 +996,16 @@ async function registerCuratedSources(programa, career) {
     });
   }
 
-  await db_empl.query(
-    `UPDATE programa_benchmark
-     SET url_programa=?, estado_extraccion='pendiente', observaciones=?
-     WHERE id_programa_benchmark=?`,
-    [
-      curatedSources[0].url,
-      `${curatedSources.length} fuente(s) curada(s) registradas. Requiere validacion humana.`,
-      programa.id_programa_benchmark,
-    ]
+  await updateProgramaUrlAndObservaciones(
+    programa.id_programa_benchmark,
+    curatedSources[0].url,
+    `${curatedSources.length} fuente(s) curada(s) registradas. Requiere validacion humana.`
   );
   return registered;
 }
 
 async function discoverOfficialSources(idPrograma) {
-  const [[programa]] = await db_empl.query(
-    `SELECT pb.id_programa_benchmark, pb.nombre_programa, pb.url_programa,
-            ub.nombre_universidad, ub.sitio_web,
-            bpe.nombre_oficial_sugerido, bpe.aliases_json
-     FROM programa_benchmark pb
-     JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
-     LEFT JOIN benchmark_program_equivalence bpe ON bpe.id_programa_benchmark = pb.id_programa_benchmark
-     WHERE pb.id_programa_benchmark=?`,
-    [idPrograma]
-  );
+  const programa = await getProgramaWithEquivalencia(idPrograma);
   if (!programa) return { ok: false, error: 'Programa no encontrado' };
 
   const domain = getDomain(programa.sitio_web || programa.url_programa);
@@ -1116,58 +1064,19 @@ async function discoverOfficialSources(idPrograma) {
   }
 
   scored.sort((a, b) => b.score - a.score);
-  await db_empl.query(
-    `UPDATE benchmark_source_candidate
-     SET estado='duplicado'
-     WHERE id_programa_benchmark=? AND estado='candidato'`,
-    [idPrograma]
-  );
+  await setCandidatosDuplicado(idPrograma);
 
   for (const item of scored.slice(0, 12)) {
-    await db_empl.query(
-      `INSERT INTO benchmark_source_candidate
-       (id_programa_benchmark, url, titulo, snippet, tipo_fuente_detectado, score_total, score_detalle_json, estado, motivo)
-       VALUES (?, ?, ?, ?, ?, ?, CAST(? AS JSON), 'candidato', ?)
-       ON DUPLICATE KEY UPDATE
-         titulo=VALUES(titulo),
-         snippet=VALUES(snippet),
-         tipo_fuente_detectado=VALUES(tipo_fuente_detectado),
-         score_total=VALUES(score_total),
-         score_detalle_json=VALUES(score_detalle_json),
-         estado='candidato',
-         motivo=VALUES(motivo),
-         buscado_en=NOW(),
-         updated_at=CURRENT_TIMESTAMP`,
-      [
-        idPrograma,
-        item.url,
-        item.title,
-        item.snippet,
-        item.tipo,
-        item.score,
-        JSON.stringify(item.detail),
-        `Candidato oficial en ${domain}. Tipo detectado: ${item.tipo}. Score ${item.score}.`,
-      ]
-    );
+    await upsertCandidate(idPrograma, item, domain);
   }
 
   const best = scored[0];
   if (!best) {
-    await db_empl.query(
-      `UPDATE programa_benchmark
-       SET observaciones=?
-       WHERE id_programa_benchmark=?`,
-      [`No se encontro fuente exacta oficial para ${career} en ${domain}.`, idPrograma]
-    );
+    await updateProgramaObservaciones(idPrograma, `No se encontro fuente exacta oficial para ${career} en ${domain}.`);
     return { ok: false, error: 'No se encontro fuente exacta oficial', candidates: [] };
   }
 
-  await db_empl.query(
-    `UPDATE programa_benchmark
-     SET observaciones=?
-     WHERE id_programa_benchmark=?`,
-    [`${scored.slice(0, 12).length} candidatos encontrados. Requiere aprobacion de fuente.`, idPrograma]
-  );
+  await updateProgramaObservaciones(idPrograma, `${scored.slice(0, 12).length} candidatos encontrados. Requiere aprobacion de fuente.`);
 
   return { ok: true, best, candidates: scored.slice(0, 12) };
 }
@@ -1266,44 +1175,13 @@ async function extractPageTextWithFetch(url) {
 }
 
 async function findOrCreateBenchmarkSource(idPrograma, url, title = null, text = '') {
-  const [rows] = await db_empl.query(
-    `SELECT id_benchmark_source
-     FROM benchmark_source
-     WHERE id_programa_benchmark=? AND url=? AND activo=1
-     LIMIT 1`,
-    [idPrograma, url]
-  );
-  if (rows.length) return rows[0].id_benchmark_source;
+  const existing = await findExistingBenchmarkSource(idPrograma, url);
+  if (existing) return existing;
 
   const tipoFuente = inferSourceType(url, text);
-  const [result] = await db_empl.query(
-    `INSERT INTO benchmark_source
-     (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, observaciones)
-     VALUES (?, ?, ?, ?, 'pendiente_extraccion', 1, ?)
-     ON DUPLICATE KEY UPDATE
-       tipo_fuente=VALUES(tipo_fuente),
-       titulo=VALUES(titulo),
-       activo=1,
-       es_fuente_principal=1,
-       observaciones=VALUES(observaciones)`,
-    [
-      idPrograma,
-      tipoFuente,
-      title || `Fuente oficial ${tipoFuente}`,
-      url,
-      'Registrada automaticamente al extraer evidencia.',
-    ]
-  );
-
-  if (result.insertId) return result.insertId;
-  const [created] = await db_empl.query(
-    `SELECT id_benchmark_source
-     FROM benchmark_source
-     WHERE id_programa_benchmark=? AND url=? AND activo=1
-     LIMIT 1`,
-    [idPrograma, url]
-  );
-  return created[0]?.id_benchmark_source || null;
+  const insertId = await insertBenchmarkSource(idPrograma, tipoFuente, title, url, 'Registrada automaticamente al extraer evidencia.');
+  if (insertId) return insertId;
+  return await getCreatedBenchmarkSource(idPrograma, url);
 }
 
 async function createSourceSnapshot({
@@ -1320,66 +1198,28 @@ async function createSourceSnapshot({
 }) {
   const safeText = visibleText(text).substring(0, 120000);
   const hash = hashText(safeText);
-  const [result] = await db_empl.query(
-    `INSERT INTO benchmark_source_snapshot
-     (id_benchmark_source, id_programa_benchmark, url, url_final, titulo, texto_extraido,
-      hash_contenido, parser_usado, estado_parseo, cursos_detectados, observaciones)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      idBenchmarkSource || null,
-      idPrograma,
-      url,
-      urlFinal || url,
-      title || null,
-      safeText,
-      hash,
-      parser || null,
-      estadoParseo || 'sin_parsear',
-      cursosDetectados || 0,
-      observaciones || null,
-    ]
-  );
-  return { idSnapshot: result.insertId, hash, text: safeText };
+  const idSnapshot = await insertSourceSnapshot({
+    idBenchmarkSource,
+    idPrograma,
+    url,
+    urlFinal,
+    title,
+    safeText,
+    hash,
+    parser,
+    estadoParseo,
+    cursosDetectados,
+    observaciones,
+  });
+  return { idSnapshot, hash, text: safeText };
 }
 
-async function saveParseLog({ idPrograma, idSnapshot, parser, estado, cursosDetectados, detalle }) {
-  await db_empl.query(
-    `INSERT INTO benchmark_parse_log
-     (id_programa_benchmark, id_snapshot, parser_usado, estado, cursos_detectados, detalle)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      idPrograma,
-      idSnapshot || null,
-      parser || 'sin_parser',
-      estado || 'requiere_revision',
-      cursosDetectados || 0,
-      detalle || null,
-    ]
-  );
+async function saveParseLog(args) {
+  await insertParseLog(args);
 }
 
 async function replaceBenchmarkCourses(idPrograma, url, courses) {
-  await db_empl.query(
-    `DELETE FROM curso_benchmark
-     WHERE id_programa_benchmark=?`,
-    [idPrograma]
-  );
-
-  for (const course of courses) {
-    await db_empl.query(
-      `INSERT INTO curso_benchmark
-       (id_programa_benchmark, nombre_curso, ciclo, area_formacion, descripcion_curso, fuente_url)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        idPrograma,
-        course.nombreCurso,
-        course.ciclo || null,
-        'malla_externa',
-        course.evidencia || null,
-        url,
-      ]
-    );
-  }
+  await dbReplaceBenchmarkCourses(idPrograma, url, courses);
 }
 
 async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHtml }) {
@@ -1474,33 +1314,19 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
       : `No se encontraron ciclos/cursos suficientes en ${url}.`,
   });
 
-  await db_empl.query(
-    `UPDATE benchmark_source
-     SET estado=?, fecha_captura=NOW(), extractor='selenium',
-         extractor_version='malla_v1', evidencia_resumen=?, snapshot_hash=?
-     WHERE id_benchmark_source=?`,
-    [
-      parsed.courses.length ? 'extraido' : 'pendiente_validacion',
-      parsed.courses.length
-        ? `${parsed.courses.length} cursos detectados con ${parsed.parser}.`
-        : `Texto capturado sin malla estructurada con ${parsed.parser}.`,
-      snapshot.hash,
-      idBenchmarkSource,
-    ]
-  );
+  await updateBenchmarkSourceAfterExtraction(idBenchmarkSource, {
+    estado: parsed.courses.length ? 'extraido' : 'pendiente_validacion',
+    evidenciaResumen: parsed.courses.length
+      ? `${parsed.courses.length} cursos detectados con ${parsed.parser}.`
+      : `Texto capturado sin malla estructurada con ${parsed.parser}.`,
+    snapshotHash: snapshot.hash,
+  });
 
-  await db_empl.query(
-    `UPDATE programa_benchmark
-     SET fuente_texto_original=?, url_programa=COALESCE(NULLIF(?, ''), url_programa),
-         fecha_captura=NOW(), estado_extraccion='procesado', observaciones=?
-     WHERE id_programa_benchmark=?`,
-    [
-      snapshot.text,
-      url,
-      `${titleForStorage ? `Titulo: ${titleForStorage}. ` : ''}Parser: ${parsed.parser}. Cursos detectados: ${parsed.courses.length}.`,
-      idPrograma,
-    ]
-  );
+  await updateProgramaAfterExtraction(idPrograma, {
+    textoOriginal: snapshot.text,
+    url,
+    observaciones: `${titleForStorage ? `Titulo: ${titleForStorage}. ` : ''}Parser: ${parsed.parser}. Cursos detectados: ${parsed.courses.length}.`,
+  });
 
   return {
     ok: true,
@@ -1515,17 +1341,11 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
 
 async function scrapeProgramaUrl(idPrograma, url) {
   if (!url || !url.startsWith('http')) {
-    await db_empl.query(
-      'UPDATE programa_benchmark SET estado_extraccion=?, observaciones=? WHERE id_programa_benchmark=?',
-      ['error', 'URL inválida o ausente', idPrograma]
-    );
+    await setScrapingStatus(idPrograma, 'error', 'URL inválida o ausente');
     return { ok: false, error: 'URL inválida o ausente' };
   }
 
-  await db_empl.query(
-    'UPDATE programa_benchmark SET estado_extraccion=?, observaciones=? WHERE id_programa_benchmark=?',
-    ['pendiente', 'Scraping iniciado...', idPrograma]
-  );
+  await setScrapingStatus(idPrograma, 'pendiente', 'Scraping iniciado...');
 
 
   if (/\.pdf($|\?)/i.test(url)) {
@@ -1541,10 +1361,7 @@ async function scrapeProgramaUrl(idPrograma, url) {
       });
     } catch (pdfErr) {
       const msg = String(pdfErr.message || pdfErr).substring(0, 500);
-      await db_empl.query(
-        'UPDATE programa_benchmark SET estado_extraccion=?, observaciones=?, fecha_captura=NOW() WHERE id_programa_benchmark=?',
-        ['error', `Error extracción PDF: ${msg}`, idPrograma]
-      );
+      await setScrapingStatus(idPrograma, 'error', `Error extracción PDF: ${msg}`);
       return { ok: false, error: msg };
     }
   }
@@ -1563,15 +1380,6 @@ async function scrapeProgramaUrl(idPrograma, url) {
       text: result.text,
       rawHtml: result.rawHtml || '',
     });
-
-    await db_empl.query(
-      `UPDATE programa_benchmark
-       SET fuente_texto_original=?, fecha_captura=NOW(), estado_extraccion='procesado', observaciones=?
-       WHERE id_programa_benchmark=?`,
-      [result.text, `Título: ${result.title}`, idPrograma]
-    );
-
-    return { ok: true, textLength: result.text.length, title: result.title };
   } catch (err) {
     const msg = String(err.message || err).substring(0, 500);
     try {
@@ -1586,21 +1394,9 @@ async function scrapeProgramaUrl(idPrograma, url) {
       });
     } catch (fallbackErr) {
       const fallbackMsg = String(fallbackErr.message || fallbackErr).substring(0, 300);
-      await db_empl.query(
-        `UPDATE programa_benchmark
-         SET estado_extraccion='error', observaciones=?, fecha_captura=NOW()
-         WHERE id_programa_benchmark=?`,
-        [`Error extracción. Selenium: ${msg}. Fetch: ${fallbackMsg}`, idPrograma]
-      );
+      await setScrapingStatus(idPrograma, 'error', `Error extracción. Selenium: ${msg}. Fetch: ${fallbackMsg}`);
       return { ok: false, error: `Selenium: ${msg}. Fetch: ${fallbackMsg}` };
     }
-    await db_empl.query(
-      `UPDATE programa_benchmark
-       SET estado_extraccion='error', observaciones=?, fecha_captura=NOW()
-       WHERE id_programa_benchmark=?`,
-      [`Error scraping: ${msg}`, idPrograma]
-    );
-    return { ok: false, error: msg };
   } finally {
     if (driver) {
       try { await driver.quit(); } catch {}
@@ -1612,12 +1408,8 @@ async function scrapeProgramaUrl(idPrograma, url) {
 async function scraperBatch(ids) {
   const results = [];
   for (const id of ids) {
-    const [rows] = await db_empl.query(
-      'SELECT id_programa_benchmark, url_programa FROM programa_benchmark WHERE id_programa_benchmark=?',
-      [id]
-    );
-    if (!rows.length) { results.push({ id, ok: false, error: 'Programa no encontrado' }); continue; }
-    const row = rows[0];
+    const row = await getProgramaUrl(id);
+    if (!row) { results.push({ id, ok: false, error: 'Programa no encontrado' }); continue; }
     const r = await scrapeProgramaUrl(row.id_programa_benchmark, row.url_programa);
     results.push({ id, ...r });
   }
@@ -1635,16 +1427,6 @@ async function cargarTextoManual(idPrograma, textoFuente, urlOrigen) {
     title: 'Texto cargado manualmente',
     text: textoFuente,
   });
-
-  await db_empl.query(
-    `UPDATE programa_benchmark
-     SET fuente_texto_original=?, url_programa=COALESCE(NULLIF(?, ''), url_programa),
-         fecha_captura=NOW(), estado_extraccion='procesado',
-         observaciones='Texto cargado manualmente'
-     WHERE id_programa_benchmark=?`,
-    [textoFuente.substring(0, 30000), urlOrigen || '', idPrograma]
-  );
-  return { ok: true };
 }
 
 export { scrapeProgramaUrl, scraperBatch, cargarTextoManual, discoverOfficialSources, parseCurriculumCourses, parseHtmlCurriculumCourses, extractPageTextWithFetch };
