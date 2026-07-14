@@ -946,4 +946,40 @@ router.get('/admin/notificaciones', async (_req, res) => {
   }
 });
 
+// ── TEMPORAL: ejecutar stored procedures en Railway ──────────────────────────
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import db_empl from '../db_empl.js';
+
+router.post('/admin/run-procedures', adminOnly, async (req, res) => {
+  const __dir = dirname(fileURLToPath(import.meta.url));
+  const sqlDir = join(__dir, '../db');
+
+  const results = {};
+
+  for (const [file, conn] of [
+    ['procedures_radar.sql', db],
+    ['procedures_empl.sql',  db_empl],
+  ]) {
+    const raw = readFileSync(join(sqlDir, file), 'utf8');
+    const stmts = raw
+      .replace(/DELIMITER\s+\$\$/gi, '')
+      .replace(/DELIMITER\s+;/gi, '')
+      .split('$$')
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && !s.startsWith('--'));
+
+    let ok = 0, errors = [];
+    for (const stmt of stmts) {
+      try { await conn.query(stmt); ok++; }
+      catch (e) { errors.push(e.message.substring(0, 120)); }
+    }
+    results[file] = { ok, errors };
+  }
+
+  res.json({ ok: true, results });
+});
+// ── FIN TEMPORAL ─────────────────────────────────────────────────────────────
+
 export default router;
