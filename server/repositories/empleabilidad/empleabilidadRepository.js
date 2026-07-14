@@ -1,4 +1,4 @@
-import db from '../../db.js';
+import db from '../../db_empl.js';
 
 export async function getSatisfaccion(anio, facultad, carrera, programa, ciclo) {
   const [results] = await db.query('CALL empl_getSatisfaccion(?, ?, ?, ?, ?)', [
