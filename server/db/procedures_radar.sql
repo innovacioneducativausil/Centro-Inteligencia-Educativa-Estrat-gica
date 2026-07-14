@@ -1046,7 +1046,7 @@ END $$
 
 DROP PROCEDURE IF EXISTS radar_resolveItem $$
 CREATE PROCEDURE radar_resolveItem(IN p_tipo VARCHAR(20), IN p_nombre VARCHAR(300))
-BEGIN
+proc_exit: BEGIN
   SET p_nombre = TRIM(p_nombre);
   IF p_nombre IS NULL OR p_nombre = '' THEN
     SELECT NULL AS id; LEAVE proc_exit;
