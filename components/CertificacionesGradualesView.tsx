@@ -175,7 +175,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   };
 
   const selectStyle: React.CSSProperties = {
-    height: 42,
+    height: 40,
     minWidth: 154,
     border: `1px solid ${border}`,
     borderRadius: 8,
@@ -187,7 +187,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   };
 
   const buttonStyle: React.CSSProperties = {
-    height: 42,
+    height: 40,
     border: `1px solid ${border}`,
     borderRadius: 8,
     background: card,
@@ -202,17 +202,17 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
 
   return (
     <div className="cert-page" style={{ minHeight: '100%', background: surface, color: text, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <header className="cert-header" style={{ minHeight: 126, padding: '20px 24px 16px', borderBottom: `1px solid ${border}`, background: surface, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
+      <header className="cert-header" style={{ minHeight: 108, padding: '16px 24px 12px', borderBottom: `1px solid ${border}`, background: surface, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ margin: 0, color: isDark ? '#dbeafe' : NAVY, fontSize: 28, lineHeight: 1.15, fontWeight: 900 }}>
+            <h1 style={{ margin: 0, color: isDark ? '#dbeafe' : NAVY, fontSize: 27, lineHeight: 1.05, fontWeight: 900 }}>
               Constructor de Certificaciones Graduales
             </h1>
             <span style={{ border: '1px solid #b4c5ff', background: '#dbe1ff', color: '#2c4383', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 800 }}>
               Beta
             </span>
           </div>
-          <p style={{ margin: '8px 0 10px', color: muted, fontSize: 15 }}>
+          <p style={{ margin: '8px 0 8px', color: muted, fontSize: 14 }}>
             Diseña las 3 certificaciones graduales de la carrera
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -239,10 +239,10 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         </div>
       </header>
 
-      <div className="cert-workspace-grid" style={{ flex: 1, minHeight: 0, display: 'grid', gap: 24, padding: 24, paddingBottom: 0, overflow: 'hidden' }}>
+      <div className="cert-workspace-grid" style={{ flex: 1, minHeight: 0, display: 'grid', gap: 16, padding: 16, paddingBottom: 0, overflow: 'hidden' }}>
         <section style={{ background: card, border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ padding: 16, borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
-            <h2 style={{ margin: '0 0 16px', fontSize: 17, color: isDark ? '#dbeafe' : NAVY, fontWeight: 900 }}>Cursos disponibles</h2>
+          <div style={{ padding: 14, borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+            <h2 style={{ margin: '0 0 12px', fontSize: 16, color: isDark ? '#dbeafe' : NAVY, fontWeight: 900 }}>Cursos disponibles</h2>
             <div style={{ position: 'relative' }}>
               <Search size={15} color={muted} style={{ position: 'absolute', top: 12, left: 10 }} />
               <input
@@ -252,33 +252,25 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                 style={{ width: '100%', height: 38, boxSizing: 'border-box', border: `1px solid ${border}`, borderRadius: 8, padding: '0 10px 0 32px', background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}
               />
             </div>
-            <div className="cert-cycle-filters" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-              {[
-                ['all', 'Todos'],
-                ...ciclosDisponibles.map(ciclo => [String(ciclo), `Ciclo ${ciclo}`]),
-                ['suggested', 'Alta afinidad'],
-              ].map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setCycleFilter(key)}
-                  style={{
-                    border: 'none',
-                    borderRadius: 6,
-                    background: cycleFilter === key ? (key === 'suggested' ? '#7af7e1' : '#dbe1ff') : '#e6e8ea',
-                    color: cycleFilter === key && key === 'suggested' ? '#003b34' : '#334155',
-                    padding: '6px 9px',
-                    fontSize: 11,
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="cert-cycle-filters" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, marginTop: 12 }}>
+              <select
+                value={cycleFilter === 'suggested' ? 'all' : cycleFilter}
+                onChange={event => setCycleFilter(event.target.value)}
+                style={{ height: 31, border: 'none', borderRadius: 6, background: '#e6e8ea', color: '#334155', padding: '0 8px', fontSize: 11, fontWeight: 800, minWidth: 0 }}
+              >
+                <option value="all">Todos los ciclos</option>
+                {ciclosDisponibles.map(ciclo => <option key={ciclo} value={String(ciclo)}>Ciclo {ciclo}</option>)}
+              </select>
+              <button
+                onClick={() => setCycleFilter('suggested')}
+                style={{ border: 'none', borderRadius: 6, background: cycleFilter === 'suggested' ? '#7af7e1' : '#e6e8ea', color: cycleFilter === 'suggested' ? '#003b34' : '#334155', padding: '0 9px', fontSize: 11, fontWeight: 800, cursor: 'pointer', height: 31 }}
+              >
+                Alta afinidad
+              </button>
             </div>
           </div>
 
-          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+          <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'hidden' }}>
             {cursosFiltrados.map(curso => {
               const selected = selectedIds.has(curso.id);
               const score = scoreCurso(curso);
@@ -301,8 +293,8 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                     borderRadius: 8,
                     background: selected ? '#f2f4f6' : (isDark ? '#0f172a' : '#ffffff'),
                     color: text,
-                    minHeight: 94,
-                    padding: '13px 12px 12px 14px',
+                    minHeight: 88,
+                    padding: '12px 12px 10px 14px',
                     cursor: selected ? 'default' : 'grab',
                     opacity: selected ? 0.48 : 1,
                     boxShadow: selected ? 'none' : '0 2px 8px rgba(0,32,96,0.04)',
@@ -332,7 +324,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         </section>
 
         <section style={{ background: card, border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ height: 70, padding: '0 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ height: 58, padding: '0 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <h2 style={{ margin: 0, color: isDark ? '#dbeafe' : NAVY, fontSize: 17, fontWeight: 900 }}>Estructura de Certificaciones (3)</h2>
             <button title="Expandir" style={{ width: 32, height: 32, border: 'none', background: 'transparent', color: isDark ? '#dbeafe' : NAVY, cursor: 'pointer' }}>
               <Expand size={20} />
@@ -344,7 +336,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
               flex: 1,
               minHeight: 0,
               padding: 16,
-              overflow: 'auto',
+              overflow: 'hidden',
               backgroundColor: isDark ? '#0f172a' : '#ffffff',
               backgroundImage: isDark ? 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.10) 1px, transparent 0)' : 'radial-gradient(circle at 1px 1px, #e0e3e5 1px, transparent 0)',
               backgroundSize: '24px 24px',
@@ -357,22 +349,22 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                 const maxCycle = filledCursos.length ? Math.max(...filledCursos.map(curso => curso.ciclo)) : null;
                 const avgAffinity = filledCursos.length ? Math.round(filledCursos.reduce((sum, curso) => sum + scoreCurso(curso), 0) / filledCursos.length) : null;
                 return (
-                  <article key={certIndex} style={{ position: 'relative', background: isDark ? '#111827' : '#f8fafc', border: `1px solid ${border}`, borderRadius: 10, padding: 16, minHeight: 500, display: 'flex', flexDirection: 'column', boxShadow: '0 2px 8px rgba(0,32,96,0.04)' }}>
+                  <article key={certIndex} style={{ position: 'relative', background: isDark ? '#111827' : '#f8fafc', border: `1px solid ${border}`, borderRadius: 10, padding: 16, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column', boxShadow: '0 2px 8px rgba(0,32,96,0.04)' }}>
                     <div style={{ position: 'absolute', top: -12, right: -8, width: 32, height: 32, borderRadius: 999, background: '#e6e8ea', border: `1px solid ${border}`, color: '#1f2937', display: 'grid', placeItems: 'center', fontSize: 16, fontWeight: 900 }}>
                       {certIndex + 1}
                     </div>
                     <input
                       value={slot.nombre}
                       onChange={event => updateSlot(certIndex, { nombre: event.target.value })}
-                      style={{ border: `1px dashed ${border}`, background: 'transparent', color: isDark ? '#dbeafe' : NAVY, height: 38, padding: '0 10px', fontSize: 14, fontWeight: 900, outline: 'none' }}
+                      style={{ border: `1px dashed ${border}`, background: 'transparent', color: isDark ? '#dbeafe' : NAVY, height: 36, padding: '0 10px', fontSize: 14, fontWeight: 900, outline: 'none' }}
                     />
                     <textarea
                       value={slot.descripcion}
                       onChange={event => updateSlot(certIndex, { descripcion: event.target.value })}
                       placeholder="Breve descripcion de la competencia..."
-                      style={{ marginTop: 8, border: 'none', background: 'transparent', color: muted, resize: 'none', height: 45, fontSize: 12, outline: 'none' }}
+                      style={{ marginTop: 6, border: 'none', background: 'transparent', color: muted, resize: 'none', height: 36, fontSize: 12, outline: 'none' }}
                     />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, marginTop: 12 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, marginTop: 10 }}>
                       {[0, 1, 2, 3].map(slotIndex => {
                         const curso = selectedCursos[slotIndex];
                         const targetKey = `${certIndex}-${slotIndex}`;
@@ -388,7 +380,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                             onDragLeave={() => setDropTarget(null)}
                             onDrop={event => onDropSlot(event, certIndex, slotIndex)}
                             style={{
-                              minHeight: 68,
+                              minHeight: 58,
                               borderRadius: 8,
                               border: curso ? `1px solid ${border}` : `2px dashed ${activeDrop ? TEAL : border}`,
                               background: curso ? (isDark ? '#0f172a' : '#ffffff') : (activeDrop ? 'rgba(122,247,225,0.16)' : 'rgba(247,249,251,0.62)'),
@@ -420,7 +412,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                         );
                       })}
                     </div>
-                    <div style={{ borderTop: `1px solid ${border}`, marginTop: 16, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8, color: muted, fontSize: 12 }}>
+                    <div style={{ borderTop: `1px solid ${border}`, marginTop: 12, paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6, color: muted, fontSize: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Obtencion est.:</span><strong style={{ color: text }}>{maxCycle ? cycleName(maxCycle) : '-- ciclo'}</strong></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Afinidad mercado:</span><strong style={{ color: text }}>{avgAffinity ? `${avgAffinity}%` : '--%'}</strong></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Estado:</span><strong style={{ color: filledCursos.length >= 4 ? TEAL : DANGER }}>{filledCursos.length}/4 Cursos</strong></div>
@@ -433,11 +425,11 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         </section>
 
         <aside style={{ background: NAVY, color: '#fff', borderRadius: 10, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ height: 60, padding: '0 18px', borderBottom: '1px solid rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div style={{ height: 56, padding: '0 18px', borderBottom: '1px solid rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             <Bot size={22} color={TEAL_BRIGHT} />
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 900 }}>Copiloto IA</h2>
           </div>
-          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: 1 }}>
+          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'hidden', flex: 1 }}>
             <p style={{ margin: 0, color: '#b4c5ff', fontSize: 13, lineHeight: 1.45 }}>
               Arrastra cursos a las tarjetas para recibir recomendaciones de competencias y estructura.
             </p>
@@ -491,7 +483,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         </aside>
       </div>
 
-      <footer className="cert-footer" style={{ minHeight: 64, borderTop: `1px solid ${border}`, background: isDark ? '#111827' : '#eceef0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0 }}>
+      <footer className="cert-footer" style={{ height: 56, borderTop: `1px solid ${border}`, background: isDark ? '#111827' : '#eceef0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
           <div>
             <div style={{ color: muted, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.8 }}>Estado General</div>
@@ -515,20 +507,19 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         </button>
       </footer>
       <style>{`
+        .cert-page {
+          height: 100%;
+        }
         .cert-workspace-grid {
-          grid-template-columns: minmax(250px, 280px) minmax(720px, 1fr) minmax(330px, 408px);
+          grid-template-columns: minmax(240px, 264px) minmax(0, 1fr) minmax(300px, 360px);
         }
         .cert-cards-grid {
-          grid-template-columns: repeat(3, minmax(240px, 1fr));
-        }
-        .cert-cycle-filters {
-          max-height: 96px;
-          overflow-y: auto;
-          padding-right: 2px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          height: 100%;
         }
         @media (max-width: 1500px) {
           .cert-header {
-            padding: 16px 18px 14px !important;
+            padding: 14px 18px 10px !important;
             gap: 16px !important;
           }
           .cert-header h1 {
@@ -538,7 +529,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
             gap: 8px !important;
           }
           .cert-workspace-grid {
-            grid-template-columns: minmax(232px, 250px) minmax(680px, 1fr) minmax(300px, 330px);
+            grid-template-columns: minmax(220px, 248px) minmax(0, 1fr) minmax(280px, 320px);
             gap: 14px !important;
             padding: 18px !important;
             padding-bottom: 0 !important;
@@ -550,10 +541,10 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         }
         @media (max-width: 1220px) {
           .cert-page {
-            overflow: auto !important;
+            overflow: hidden !important;
           }
           .cert-header {
-            flex-direction: column;
+            flex-direction: row;
             min-height: auto !important;
           }
           .cert-header-controls {
@@ -561,17 +552,26 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
             justify-content: flex-start !important;
           }
           .cert-workspace-grid {
-            grid-template-columns: minmax(230px, 280px) minmax(680px, 1fr);
-            overflow: visible !important;
+            grid-template-columns: minmax(210px, 230px) minmax(0, 1fr) minmax(250px, 280px);
+            gap: 10px !important;
+            padding: 12px !important;
+            padding-bottom: 0 !important;
           }
           .cert-workspace-grid > aside {
-            grid-column: 1 / -1;
-            min-height: 360px !important;
+            grid-column: auto;
+            min-height: 0 !important;
+          }
+          .cert-cards-grid {
+            gap: 8px !important;
           }
         }
         @media (max-width: 900px) {
+          .cert-page {
+            overflow: auto !important;
+          }
           .cert-workspace-grid {
             grid-template-columns: 1fr;
+            overflow: visible !important;
           }
           .cert-cards-grid {
             grid-template-columns: 1fr;
