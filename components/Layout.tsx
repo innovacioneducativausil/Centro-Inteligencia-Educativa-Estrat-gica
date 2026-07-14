@@ -416,7 +416,7 @@ const Layout: React.FC<LayoutProps> = ({
       <main
 
         className={`${themeColors.bg} ${themeColors.text}`}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: activeView === 'radar' ? 'hidden' : 'auto' }}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: activeView === 'radar' || activeView === 'certificaciones' ? 'hidden' : 'auto' }}
         onClick={() => { if (profileOpen) setProfileOpen(false); if (bellOpen) setBellOpen(false); }}
       >
         {children}

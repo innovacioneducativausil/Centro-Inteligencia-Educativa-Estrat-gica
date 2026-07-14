@@ -201,8 +201,8 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const progressText = `Certificacion 1: ${slots[0].cursoIds.filter(Boolean).length}/4 | Certificacion 2: ${slots[1].cursoIds.filter(Boolean).length}/4 | Certificacion 3: ${slots[2].cursoIds.filter(Boolean).length}/4`;
 
   return (
-    <div className="cert-page" style={{ minHeight: '100%', background: surface, color: text, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <header className="cert-header" style={{ minHeight: 108, padding: '16px 24px 12px', borderBottom: `1px solid ${border}`, background: surface, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
+    <div className="cert-page" style={{ height: '100%', background: surface, color: text, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <header className="cert-header" style={{ minHeight: 108, padding: '16px 24px 12px', borderBottom: `1px solid ${border}`, background: surface, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, flexShrink: 0 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 style={{ margin: 0, color: isDark ? '#dbeafe' : NAVY, fontSize: 27, lineHeight: 1.05, fontWeight: 900 }}>
@@ -270,7 +270,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
             </div>
           </div>
 
-          <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'hidden' }}>
+          <div className="cert-course-list" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0, scrollbarWidth: 'thin' }}>
             {cursosFiltrados.map(curso => {
               const selected = selectedIds.has(curso.id);
               const score = scoreCurso(curso);
@@ -293,7 +293,8 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                     borderRadius: 8,
                     background: selected ? '#f2f4f6' : (isDark ? '#0f172a' : '#ffffff'),
                     color: text,
-                    minHeight: 88,
+                    minHeight: 86,
+                    flexShrink: 0,
                     padding: '12px 12px 10px 14px',
                     cursor: selected ? 'default' : 'grab',
                     opacity: selected ? 0.48 : 1,
@@ -429,7 +430,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
             <Bot size={22} color={TEAL_BRIGHT} />
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 900 }}>Copiloto IA</h2>
           </div>
-          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'hidden', flex: 1 }}>
+          <div className="cert-ai-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'hidden', flex: 1, minHeight: 0 }}>
             <p style={{ margin: 0, color: '#b4c5ff', fontSize: 13, lineHeight: 1.45 }}>
               Arrastra cursos a las tarjetas para recibir recomendaciones de competencias y estructura.
             </p>
@@ -516,6 +517,54 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         .cert-cards-grid {
           grid-template-columns: repeat(3, minmax(0, 1fr));
           height: 100%;
+        }
+        .cert-course-list::-webkit-scrollbar {
+          width: 8px;
+        }
+        .cert-course-list::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 999px;
+        }
+        .cert-course-list::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        @media (max-height: 820px) and (min-width: 901px) {
+          .cert-header {
+            min-height: 92px !important;
+            padding-top: 12px !important;
+            padding-bottom: 8px !important;
+          }
+          .cert-header h1 {
+            font-size: 25px !important;
+          }
+          .cert-header p {
+            margin-top: 6px !important;
+            margin-bottom: 6px !important;
+          }
+          .cert-workspace-grid {
+            padding-top: 12px !important;
+            gap: 14px !important;
+          }
+          .cert-cards-grid article {
+            padding: 14px !important;
+          }
+          .cert-cards-grid textarea {
+            height: 28px !important;
+          }
+          .cert-cards-grid article > div:nth-of-type(2) {
+            gap: 8px !important;
+            margin-top: 6px !important;
+          }
+          .cert-cards-grid article > div:nth-of-type(2) > div {
+            min-height: 50px !important;
+          }
+          .cert-footer {
+            height: 52px !important;
+          }
+          .cert-ai-body {
+            gap: 10px !important;
+            padding: 14px !important;
+          }
         }
         @media (max-width: 1500px) {
           .cert-header {
