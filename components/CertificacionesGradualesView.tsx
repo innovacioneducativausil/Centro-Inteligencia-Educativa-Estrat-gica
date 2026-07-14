@@ -11,7 +11,7 @@ interface CertificacionesGradualesViewProps {
 type CertSlot = {
   nombre: string;
   descripcion: string;
-  cursoIds: string[];
+  cursoIds: Array<string | null>;
 };
 
 const NAVY = '#000d33';
@@ -27,9 +27,9 @@ function cycleName(ciclo: number) {
 
 function initialSlots(): CertSlot[] {
   return [
-    { nombre: 'Nombre (Ej: Cert. en Modelado BIM)', descripcion: '', cursoIds: [] },
-    { nombre: 'Nombre de Certificacion 2', descripcion: '', cursoIds: [] },
-    { nombre: 'Nombre de Certificacion 3', descripcion: '', cursoIds: [] },
+    { nombre: 'Nombre (Ej: Cert. en Modelado BIM)', descripcion: '', cursoIds: [null, null, null, null] },
+    { nombre: 'Nombre de Certificacion 2', descripcion: '', cursoIds: [null, null, null, null] },
+    { nombre: 'Nombre de Certificacion 3', descripcion: '', cursoIds: [null, null, null, null] },
   ];
 }
 
@@ -71,9 +71,9 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
 
   const programa = CERTIFICACIONES_PROGRAMAS.find(p => p.code === programCode) ?? CERTIFICACIONES_PROGRAMAS[0];
   const cursos = [...programa.cursos];
-  const selectedIds = new Set(slots.flatMap(slot => slot.cursoIds));
-  const assignedCount = slots.reduce((total, slot) => total + slot.cursoIds.length, 0);
-  const completeCount = slots.filter(slot => slot.cursoIds.length >= 4 && slot.nombre.trim()).length;
+  const selectedIds = new Set(slots.flatMap(slot => slot.cursoIds.filter(Boolean) as string[]));
+  const assignedCount = slots.reduce((total, slot) => total + slot.cursoIds.filter(Boolean).length, 0);
+  const completeCount = slots.filter(slot => slot.cursoIds.filter(Boolean).length >= 4 && slot.nombre.trim()).length;
   const canEdit = ['admin', 'analista', 'editor', 'usuario'].includes(userRole || 'usuario');
   const allComplete = completeCount === 3;
 
@@ -99,14 +99,11 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     if (!canEdit || selectedIds.has(cursoId)) return;
     setSlots(prev => {
       const next = prev.map(slot => ({ ...slot, cursoIds: [...slot.cursoIds] }));
-      const targetIndex = certIndex ?? next.findIndex(slot => slot.cursoIds.length < 4);
-      if (targetIndex < 0 || next[targetIndex].cursoIds.length >= 4) return prev;
-      if (position === undefined || position >= next[targetIndex].cursoIds.length) {
-        next[targetIndex].cursoIds.push(cursoId);
-      } else {
-        next[targetIndex].cursoIds.splice(position, 0, cursoId);
-      }
-      next[targetIndex].cursoIds = next[targetIndex].cursoIds.slice(0, 4);
+      const targetIndex = certIndex ?? next.findIndex(slot => slot.cursoIds.some(id => !id));
+      if (targetIndex < 0) return prev;
+      const targetPosition = position ?? next[targetIndex].cursoIds.findIndex(id => !id);
+      if (targetPosition < 0 || targetPosition > 3 || next[targetIndex].cursoIds[targetPosition]) return prev;
+      next[targetIndex].cursoIds[targetPosition] = cursoId;
       return next;
     });
   };
@@ -114,7 +111,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const removeCurso = (certIndex: number, cursoId: string) => {
     if (!canEdit) return;
     setSlots(prev => prev.map((slot, idx) => idx === certIndex
-      ? { ...slot, cursoIds: slot.cursoIds.filter(id => id !== cursoId) }
+      ? { ...slot, cursoIds: slot.cursoIds.map(id => id === cursoId ? null : id) }
       : slot
     ));
   };
@@ -137,7 +134,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
           ...slot,
           nombre: programa.code === 'P25' ? 'Certificacion en ensenanza del ingles' : 'Certificacion en desarrollo y acompanamiento infantil',
           descripcion: 'Ruta basada en cursos intermedios con evidencia aplicable.',
-          cursoIds: ids,
+          cursoIds: [ids[0] ?? null, ids[1] ?? null, ids[2] ?? null, ids[3] ?? null],
         }
       : slot
     ));
@@ -199,7 +196,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     cursor: 'pointer',
   };
 
-  const progressText = `Certificacion 1: ${slots[0].cursoIds.length}/4 | Certificacion 2: ${slots[1].cursoIds.length}/4 | Certificacion 3: ${slots[2].cursoIds.length}/4`;
+  const progressText = `Certificacion 1: ${slots[0].cursoIds.filter(Boolean).length}/4 | Certificacion 2: ${slots[1].cursoIds.filter(Boolean).length}/4 | Certificacion 3: ${slots[2].cursoIds.filter(Boolean).length}/4`;
 
   return (
     <div style={{ minHeight: '100%', background: surface, color: text, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -354,9 +351,10 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(260px, 1fr))', gap: 16, alignItems: 'start' }}>
               {slots.map((slot, certIndex) => {
-                const selectedCursos = slot.cursoIds.map(id => cursoById.get(id)).filter(Boolean) as CertificacionesCurso[];
-                const maxCycle = selectedCursos.length ? Math.max(...selectedCursos.map(curso => curso.ciclo)) : null;
-                const avgAffinity = selectedCursos.length ? Math.round(selectedCursos.reduce((sum, curso) => sum + scoreCurso(curso), 0) / selectedCursos.length) : null;
+                const selectedCursos = slot.cursoIds.map(id => id ? cursoById.get(id) ?? null : null);
+                const filledCursos = selectedCursos.filter(Boolean) as CertificacionesCurso[];
+                const maxCycle = filledCursos.length ? Math.max(...filledCursos.map(curso => curso.ciclo)) : null;
+                const avgAffinity = filledCursos.length ? Math.round(filledCursos.reduce((sum, curso) => sum + scoreCurso(curso), 0) / filledCursos.length) : null;
                 return (
                   <article key={certIndex} style={{ position: 'relative', background: isDark ? '#111827' : '#f8fafc', border: `1px solid ${border}`, borderRadius: 10, padding: 16, minHeight: 500, display: 'flex', flexDirection: 'column', boxShadow: '0 2px 8px rgba(0,32,96,0.04)' }}>
                     <div style={{ position: 'absolute', top: -12, right: -8, width: 32, height: 32, borderRadius: 999, background: '#e6e8ea', border: `1px solid ${border}`, color: '#1f2937', display: 'grid', placeItems: 'center', fontSize: 16, fontWeight: 900 }}>
@@ -424,7 +422,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                     <div style={{ borderTop: `1px solid ${border}`, marginTop: 16, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8, color: muted, fontSize: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Obtencion est.:</span><strong style={{ color: text }}>{maxCycle ? cycleName(maxCycle) : '-- ciclo'}</strong></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Afinidad mercado:</span><strong style={{ color: text }}>{avgAffinity ? `${avgAffinity}%` : '--%'}</strong></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Estado:</span><strong style={{ color: selectedCursos.length >= 4 ? TEAL : DANGER }}>{selectedCursos.length}/4 Cursos</strong></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Estado:</span><strong style={{ color: filledCursos.length >= 4 ? TEAL : DANGER }}>{filledCursos.length}/4 Cursos</strong></div>
                     </div>
                   </article>
                 );
