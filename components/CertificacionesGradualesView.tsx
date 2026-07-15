@@ -95,13 +95,19 @@ type AiInsight = {
   cursos: string[];
 };
 
+type MercadoFiltroFacultad = {
+  nombre: string;
+  carreras: string[];
+};
+
 const NAVY = '#000d33';
 const PANEL = '#f7f9fb';
 const LINE = '#c5c6d2';
 const TEAL = '#007164';
 const TEAL_BRIGHT = '#7af7e1';
 const DANGER = '#dc2626';
-const CERTIFICACIONES_EDIT_ROLES = new Set(['admin', 'usuario', 'analista', 'editor']);
+const CERTIFICACIONES_EDIT_ROLES = new Set(['admin', 'usuario']);
+const CERTIFICACIONES_COPILOT_PROMPT = 'Actua como copiloto experto en diseno curricular y empleabilidad. Analiza automaticamente la malla curricular de la carrera seleccionada, el informe de mercado laboral asociado y los cursos actualmente asignados a las certificaciones. Considera solo cursos de 5.o ciclo en adelante. Cada certificacion debe tener exactamente 4 cursos. Los cursos pueden estar en distintos ciclos o en un mismo ciclo. Un curso puede repetirse en mas de una certificacion si aporta a competencias diferentes. No inventes cursos, ciclos ni informacion laboral. Los nombres deben representar competencias o areas de especializacion, no puestos de trabajo. Genera insights breves y accionables indicando hallazgo, recomendacion concreta, justificacion breve basada en la malla y el mercado laboral, certificacion y cursos involucrados.';
 
 function cycleName(ciclo: number) {
   return `Ciclo ${ciclo}`;
@@ -186,6 +192,19 @@ function marketScore(curso: CertificacionesCurso, keywords: string[]) {
   return scoreCurso(curso) + matches * 8 + (curso.ciclo >= 5 ? 10 : 0);
 }
 
+function resolveMercadoSelection(facultades: MercadoFiltroFacultad[], carrera: string, facultad?: string) {
+  const carreraKey = normalizeKey(carrera);
+  const facultadKey = normalizeKey(facultad || '');
+  const candidates = facultades.flatMap(fac => fac.carreras.map(car => ({ facultad: fac.nombre, carrera: car })));
+  return candidates.find(item => normalizeKey(item.carrera) === carreraKey && (!facultadKey || normalizeKey(item.facultad) === facultadKey))
+    ?? candidates.find(item => normalizeKey(item.carrera) === carreraKey)
+    ?? candidates.find(item => {
+      const key = normalizeKey(item.carrera);
+      return key.includes(carreraKey) || carreraKey.includes(key);
+    })
+    ?? null;
+}
+
 const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> = ({ themeColors: C, userRole }) => {
   const isDark = C.cardBg?.includes('slate-9') ?? false;
   const text = isDark ? '#e5edf9' : '#0b1538';
@@ -205,6 +224,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [mercadoFacultades, setMercadoFacultades] = useState<MercadoFiltroFacultad[]>([]);
   const [mercadoInforme, setMercadoInforme] = useState<MercadoInforme | null>(null);
   const [mercadoStatus, setMercadoStatus] = useState('');
   const [aiInsights, setAiInsights] = useState<AiInsight[]>([]);
@@ -221,6 +241,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const allComplete = completeCount === 3;
 
   const cursoById = useMemo(() => new Map(cursos.map(curso => [curso.id, curso])), [cursos]);
+  const mercadoTerms = useMemo(() => mercadoKeywords(mercadoInforme), [mercadoInforme]);
 
   useEffect(() => {
     let alive = true;
@@ -296,11 +317,31 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
 
   useEffect(() => {
     let alive = true;
+    fetch('/api/mercado-laboral/filtros', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => {
+        if (!alive) return;
+        setMercadoFacultades(Array.isArray(data?.facultades) ? data.facultades : []);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
     setMercadoInforme(null);
     setMercadoStatus('');
     if (!programa?.program) return () => { alive = false; };
-    const params = new URLSearchParams({ carrera: programa.program });
-    if (programa.nombreFacultad) params.set('facultad', programa.nombreFacultad);
+    if (!mercadoFacultades.length) {
+      setMercadoStatus('Cargando catalogo de informes de mercado...');
+      return () => { alive = false; };
+    }
+    const mercadoSelection = resolveMercadoSelection(mercadoFacultades, programa.program, programa.nombreFacultad);
+    if (!mercadoSelection) {
+      setMercadoStatus('Sin informe de mercado para esta carrera');
+      return () => { alive = false; };
+    }
+    const params = new URLSearchParams({ facultad: mercadoSelection.facultad, carrera: mercadoSelection.carrera });
     setMercadoStatus('Cargando informe de mercado...');
     fetch(`/api/mercado-laboral/informe?${params.toString()}`, { credentials: 'include' })
       .then(res => res.ok ? res.json() : Promise.reject())
@@ -315,7 +356,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         setMercadoStatus('Sin informe de mercado para esta carrera');
       });
     return () => { alive = false; };
-  }, [programCode, programa?.program, programa?.nombreFacultad]);
+  }, [programCode, programa?.program, programa?.nombreFacultad, mercadoFacultades]);
 
   const cursosFiltrados = useMemo(() => {
     const term = normalizeText(query.trim());
@@ -329,8 +370,8 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     .sort((a, b) => a - b);
 
   const suggested = cursos
-    .filter(curso => curso.ciclo >= 4 && curso.ciclo <= 8)
-    .sort((a, b) => scoreCurso(b) - scoreCurso(a))
+    .filter(curso => curso.ciclo >= 5)
+    .sort((a, b) => marketScore(b, mercadoTerms) - marketScore(a, mercadoTerms))
     .slice(0, 12);
   const topSuggestion = suggested[0];
   const secondSuggestion = suggested[1];
@@ -420,26 +461,39 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   };
 
   const autoAnalyze = () => {
-    const keywords = mercadoKeywords(mercadoInforme);
+    void CERTIFICACIONES_COPILOT_PROMPT;
+    const keywords = mercadoTerms;
     const pool = cursos
       .filter(curso => curso.ciclo >= 5 && !/^ELECTIVO/i.test(curso.nombre))
       .sort((a, b) => marketScore(b, keywords) - marketScore(a, keywords))
       .slice(0, 12);
+    let poolCursor = 0;
+    const completeCursoIds = (currentIds: Array<string | null>) => {
+      const next = [...currentIds];
+      for (let i = 0; i < next.length; i++) {
+        const current = next[i] ? cursoById.get(next[i]!) : null;
+        if (current && current.ciclo >= 5) continue;
+        const replacement = pool[poolCursor % Math.max(pool.length, 1)];
+        next[i] = replacement?.id ?? null;
+        poolCursor += 1;
+      }
+      return next;
+    };
     const nextSlots = [
       {
-        nombre: 'Certificacion en competencia aplicada 1',
-        descripcion: 'Ruta sugerida desde malla e informe de mercado disponible.',
-        cursoIds: pool.slice(0, 4).map(c => c.id),
+        nombre: slots[0].nombre.startsWith('Nombre') ? 'Certificacion en competencia aplicada 1' : slots[0].nombre,
+        descripcion: slots[0].descripcion || 'Ruta sugerida desde malla e informe de mercado disponible.',
+        cursoIds: completeCursoIds(slots[0].cursoIds),
       },
       {
-        nombre: 'Certificacion en competencia aplicada 2',
-        descripcion: 'Agrupa cursos de especializacion con evidencia progresiva.',
-        cursoIds: pool.slice(4, 8).map(c => c.id),
+        nombre: slots[1].nombre.startsWith('Nombre') ? 'Certificacion en competencia aplicada 2' : slots[1].nombre,
+        descripcion: slots[1].descripcion || 'Agrupa cursos de especializacion con evidencia progresiva.',
+        cursoIds: completeCursoIds(slots[1].cursoIds),
       },
       {
-        nombre: 'Certificacion en proyecto integrador aplicado',
-        descripcion: 'Cierra con cursos avanzados y producto demostrable.',
-        cursoIds: pool.slice(8, 12).map(c => c.id),
+        nombre: slots[2].nombre.startsWith('Nombre') ? 'Certificacion en proyecto integrador aplicado' : slots[2].nombre,
+        descripcion: slots[2].descripcion || 'Cierra con cursos avanzados y producto demostrable.',
+        cursoIds: completeCursoIds(slots[2].cursoIds),
       },
     ];
     setSlots(nextSlots);
@@ -769,17 +823,17 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                 Oportunidad detectada
               </div>
               <h3 style={{ margin: '12px 0 8px', fontSize: 16, color: '#fff' }}>
-                Demanda en {topSuggestion?.nombre.includes('ENGLISH') ? 'competencias bilingues' : 'diseño educativo aplicado'}
+                {mercadoInforme?.informe?.carrera ? `Informe laboral: ${mercadoInforme.informe.carrera}` : 'Analisis pendiente de informe laboral'}
               </h3>
               <p style={{ margin: '0 0 12px', color: '#b4c5ff', fontSize: 12, lineHeight: 1.45 }}>
-                La malla muestra cursos de ciclos medios con buena afinidad para construir una primera certificacion gradual.
+                El Copiloto cruza cursos desde 5.o ciclo con habilidades, herramientas, tendencias y recomendaciones del modulo Mercado.
               </p>
               <ul style={{ margin: '0 0 14px', paddingLeft: 18, color: '#fff', fontSize: 12, lineHeight: 1.7 }}>
                 {topSuggestion && <li>{topSuggestion.nombre} ({cycleName(topSuggestion.ciclo)})</li>}
                 {secondSuggestion && <li>{secondSuggestion.nombre} ({cycleName(secondSuggestion.ciclo)})</li>}
               </ul>
               <button onClick={() => applySuggestion(0)} style={{ width: '100%', height: 36, border: 'none', borderRadius: 6, background: TEAL, color: '#fff', fontSize: 13, fontWeight: 900, cursor: 'pointer' }}>
-                Aplicar a Cert. 1
+                Aplicar sugerencia a Cert. 1
               </button>
             </div>
 
