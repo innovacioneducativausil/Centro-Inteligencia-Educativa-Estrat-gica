@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, BadgeCheck, BookOpen, Bot, Expand, Save, Search, Sparkles, X } from 'lucide-react';
 import { ThemeColors } from '../types';
 import { CERTIFICACIONES_PROGRAMAS, CertificacionesCurso } from './certificacionesData';
@@ -12,6 +12,58 @@ type CertSlot = {
   nombre: string;
   descripcion: string;
   cursoIds: Array<string | null>;
+};
+
+type ProgramaOption = {
+  code: string;
+  program: string;
+  modalidad?: string;
+  grado?: string;
+  titulo?: string;
+  sourceFile?: string;
+  totalCursos?: number;
+  totalCreditos?: number;
+  nombreFacultad?: string;
+  idCarrera?: number;
+  cursos: CertificacionesCurso[];
+};
+
+type CurricularCarrera = {
+  id_carrera: number;
+  nombre_carrera: string;
+  id_facultad: number;
+  nombre_facultad: string;
+};
+
+type MallaOption = {
+  id_malla: number;
+  nombre_version: string;
+  anio_inicio: number;
+  es_vigente: number;
+  nombre_carrera: string;
+  nombre_facultad: string;
+  total_cursos: number;
+};
+
+type MapaCurso = {
+  id: number;
+  nombre: string;
+  codigo?: string | null;
+  ciclo: number;
+  orden?: number | null;
+  creditos: number | null;
+  tipoCurso?: string | null;
+  horasTeoria?: number | null;
+  horasPractica?: number | null;
+  horasLab?: number | null;
+  prerequisito?: string | null;
+  mencion?: string | null;
+};
+
+type MapaCiclo = {
+  label: string;
+  numero: number;
+  cursos: MapaCurso[];
 };
 
 const NAVY = '#000d33';
@@ -35,6 +87,32 @@ function initialSlots(): CertSlot[] {
 
 function normalizeText(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function normalizeKey(value: string) {
+  return normalizeText(value).replace(/[^a-z0-9]/g, '');
+}
+
+function toCertCurso(curso: MapaCurso, carreraCode: string): CertificacionesCurso {
+  return {
+    id: `${carreraCode}-${curso.id}`,
+    codigoOficial: curso.codigo || `CUR${curso.id}`,
+    codigoCurso: String(curso.id),
+    ciclo: Number(curso.ciclo) || 1,
+    nombre: curso.nombre,
+    coordinacion: '',
+    tipoEstudios: curso.tipoCurso || 'Malla curricular',
+    condicion: 'Obligatorio',
+    modalidadCurso: 'Presencial',
+    creditos: Number(curso.creditos) || 0,
+    horasAutonomas: 0,
+    prerequisito: curso.prerequisito || '',
+    horas: {
+      teoria: Number(curso.horasTeoria) || 0,
+      practica: Number(curso.horasPractica) || 0,
+      laboratorio: Number(curso.horasLab) || 0,
+    },
+  };
 }
 
 function scoreCurso(curso: CertificacionesCurso) {
@@ -62,7 +140,11 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const card = isDark ? '#111827' : '#ffffff';
   const surface = isDark ? '#0f172a' : PANEL;
 
-  const [programCode, setProgramCode] = useState(CERTIFICACIONES_PROGRAMAS[0].code);
+  const staticProgramas = CERTIFICACIONES_PROGRAMAS as ProgramaOption[];
+  const [programas, setProgramas] = useState<ProgramaOption[]>(staticProgramas);
+  const [programCode, setProgramCode] = useState(staticProgramas[0].code);
+  const [apiCursos, setApiCursos] = useState<CertificacionesCurso[] | null>(null);
+  const [mallaStatus, setMallaStatus] = useState('');
   const [query, setQuery] = useState('');
   const [cycleFilter, setCycleFilter] = useState<string>('all');
   const [slots, setSlots] = useState<CertSlot[]>(initialSlots);
@@ -70,14 +152,87 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const programa = CERTIFICACIONES_PROGRAMAS.find(p => p.code === programCode) ?? CERTIFICACIONES_PROGRAMAS[0];
-  const cursos = [...programa.cursos];
+  const programa = programas.find(p => p.code === programCode) ?? programas[0] ?? staticProgramas[0];
+  const staticMatch = staticProgramas.find(p => normalizeKey(p.program) === normalizeKey(programa.program));
+  const cursos = [...(apiCursos ?? (programa.cursos?.length ? programa.cursos : staticMatch?.cursos ?? []))];
   const assignedCount = slots.reduce((total, slot) => total + slot.cursoIds.filter(Boolean).length, 0);
   const completeCount = slots.filter(slot => slot.cursoIds.filter(Boolean).length >= 4 && slot.nombre.trim()).length;
   const canEdit = ['admin', 'analista', 'editor', 'usuario'].includes(userRole || 'usuario');
   const allComplete = completeCount === 3;
 
   const cursoById = useMemo(() => new Map(cursos.map(curso => [curso.id, curso])), [cursos]);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/curricular/filtros', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => {
+        if (!alive || !Array.isArray(data?.carreras)) return;
+        const byKey = new Map<string, ProgramaOption>();
+        staticProgramas.forEach(program => byKey.set(normalizeKey(program.program), program));
+        (data.carreras as CurricularCarrera[]).forEach(carrera => {
+          const key = normalizeKey(carrera.nombre_carrera);
+          const existing = byKey.get(key);
+          byKey.set(key, {
+            ...(existing ?? {}),
+            code: `CUR-${carrera.id_carrera}`,
+            program: carrera.nombre_carrera.toUpperCase(),
+            nombreFacultad: carrera.nombre_facultad,
+            idCarrera: carrera.id_carrera,
+            cursos: existing?.cursos ?? [],
+            totalCursos: existing?.totalCursos,
+            totalCreditos: existing?.totalCreditos,
+          });
+        });
+        const next = Array.from(byKey.values()).sort((a, b) => a.program.localeCompare(b.program));
+        setProgramas(next);
+        const preferida = next.find(p => normalizeKey(p.program).includes('arquitecturaurbanismoyterritorio')) ?? next[0];
+        if (preferida) setProgramCode(preferida.code);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    setApiCursos(null);
+    setMallaStatus('');
+    if (!programa?.idCarrera) return () => { alive = false; };
+
+    const params = new URLSearchParams({ carrera: programa.program });
+    if (programa.nombreFacultad) params.set('facultad', programa.nombreFacultad);
+    setMallaStatus('Cargando malla...');
+
+    fetch(`/api/curricular/mallas?${params.toString()}`, { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(async (mallas: MallaOption[]) => {
+        if (!alive) return;
+        const vigente = Array.isArray(mallas)
+          ? (mallas.find(malla => Number(malla.es_vigente) === 1) ?? mallas[0])
+          : null;
+        if (!vigente?.id_malla) {
+          setMallaStatus('Sin malla cargada para esta carrera');
+          setApiCursos([]);
+          return;
+        }
+        const mapaRes = await fetch(`/api/curricular/mapa/${vigente.id_malla}`, { credentials: 'include' });
+        if (!mapaRes.ok) throw new Error('mapa');
+        const ciclos = await mapaRes.json() as MapaCiclo[];
+        if (!alive) return;
+        const mapped = Array.isArray(ciclos)
+          ? ciclos.flatMap(ciclo => ciclo.cursos.map(curso => toCertCurso({ ...curso, ciclo: curso.ciclo || ciclo.numero }, programa.code)))
+          : [];
+        setApiCursos(mapped);
+        setMallaStatus(mapped.length ? `${mapped.length} cursos cargados` : 'Malla sin cursos cargados');
+      })
+      .catch(() => {
+        if (!alive) return;
+        const fallback = staticProgramas.find(p => normalizeKey(p.program) === normalizeKey(programa.program));
+        setApiCursos(fallback?.cursos ?? []);
+        setMallaStatus(fallback?.cursos?.length ? 'Usando malla XLSM de respaldo' : 'No se pudo cargar la malla');
+      });
+    return () => { alive = false; };
+  }, [programCode, programa?.idCarrera, programa?.program, programa?.nombreFacultad]);
 
   const cursosFiltrados = useMemo(() => {
     const term = normalizeText(query.trim());
@@ -225,7 +380,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
 
         <div className="cert-header-controls" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <select value={programCode} onChange={e => { setProgramCode(e.target.value); reset(); }} style={selectStyle}>
-            {CERTIFICACIONES_PROGRAMAS.map(p => <option key={p.code} value={p.code}>{p.program}</option>)}
+            {programas.map(p => <option key={p.code} value={p.code}>{p.program}</option>)}
           </select>
           <select style={selectStyle} value="2027-01" onChange={() => undefined}>
             <option value="2027-01">Plan 2027-01</option>
@@ -320,6 +475,11 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                 </button>
               );
             })}
+            {!cursosFiltrados.length && (
+              <div style={{ border: `1px dashed ${border}`, borderRadius: 8, padding: 16, color: muted, fontSize: 12, lineHeight: 1.45, textAlign: 'center' }}>
+                {mallaStatus || 'No hay cursos para los filtros seleccionados.'}
+              </div>
+            )}
           </div>
         </section>
 
