@@ -101,6 +101,7 @@ const LINE = '#c5c6d2';
 const TEAL = '#007164';
 const TEAL_BRIGHT = '#7af7e1';
 const DANGER = '#dc2626';
+const CERTIFICACIONES_EDIT_ROLES = new Set(['admin', 'usuario', 'analista', 'editor']);
 
 function cycleName(ciclo: number) {
   return `Ciclo ${ciclo}`;
@@ -216,7 +217,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const cursos = [...(apiCursos ?? (programa.cursos?.length ? programa.cursos : staticMatch?.cursos ?? []))];
   const assignedCount = slots.reduce((total, slot) => total + slot.cursoIds.filter(Boolean).length, 0);
   const completeCount = slots.filter(slot => slot.cursoIds.filter(Boolean).length >= 4 && slot.nombre.trim()).length;
-  const canEdit = ['admin', 'analista', 'editor', 'usuario'].includes(userRole || 'usuario');
+  const canEdit = CERTIFICACIONES_EDIT_ROLES.has(userRole || 'usuario');
   const allComplete = completeCount === 3;
 
   const cursoById = useMemo(() => new Map(cursos.map(curso => [curso.id, curso])), [cursos]);
