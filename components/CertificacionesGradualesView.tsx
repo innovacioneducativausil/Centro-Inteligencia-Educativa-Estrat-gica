@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, BadgeCheck, BookOpen, Bot, Expand, Save, Search, Sparkles, X } from 'lucide-react';
 import { ThemeColors } from '../types';
 import { CERTIFICACIONES_PROGRAMAS, CertificacionesCurso } from './certificacionesData';
@@ -64,6 +64,35 @@ type MapaCiclo = {
   label: string;
   numero: number;
   cursos: MapaCurso[];
+};
+
+type MercadoInforme = {
+  informe?: {
+    facultad?: string;
+    carrera?: string;
+    periodo?: string;
+    tituloHeader?: string;
+    descripcionHeader?: string;
+    insightHeader?: string;
+    descripcion?: string;
+    objetivoFinal?: string;
+  };
+  mercado?: {
+    puestos?: Array<{ nombre?: string; nombre_puesto?: string; descripcion?: string }>;
+    habilidades?: Array<{ categoria?: string; habilidades?: string[] }>;
+    herramientas?: Array<{ nombre?: string; descripcion?: string }>;
+    tendencias?: Array<{ titulo?: string; descripcion?: string }>;
+    recomendacionesCurriculares?: string[];
+    recomendacionesEstudiante?: string[];
+  };
+};
+
+type AiInsight = {
+  hallazgo: string;
+  recomendacion: string;
+  justificacion: string;
+  certificacion: string;
+  cursos: string[];
 };
 
 const NAVY = '#000d33';
@@ -132,6 +161,30 @@ function getCourseStripe(curso: CertificacionesCurso) {
   return '#94a3b8';
 }
 
+function mercadoKeywords(mercado: MercadoInforme | null) {
+  const texts = [
+    mercado?.informe?.descripcionHeader,
+    mercado?.informe?.insightHeader,
+    mercado?.informe?.descripcion,
+    mercado?.informe?.objetivoFinal,
+    ...(mercado?.mercado?.puestos ?? []).flatMap(item => [item.nombre, item.nombre_puesto, item.descripcion]),
+    ...(mercado?.mercado?.habilidades ?? []).flatMap(cat => [cat.categoria, ...(cat.habilidades ?? [])]),
+    ...(mercado?.mercado?.herramientas ?? []).flatMap(item => [item.nombre, item.descripcion]),
+    ...(mercado?.mercado?.tendencias ?? []).flatMap(item => [item.titulo, item.descripcion]),
+    ...(mercado?.mercado?.recomendacionesCurriculares ?? []),
+    ...(mercado?.mercado?.recomendacionesEstudiante ?? []),
+  ].filter(Boolean).join(' ');
+
+  const stop = new Set(['para', 'con', 'los', 'las', 'una', 'uno', 'por', 'del', 'que', 'como', 'desde', 'sobre', 'profesional', 'carrera', 'mercado']);
+  return Array.from(new Set(normalizeText(texts).split(/[^a-z0-9]+/).filter(word => word.length > 4 && !stop.has(word)))).slice(0, 50);
+}
+
+function marketScore(curso: CertificacionesCurso, keywords: string[]) {
+  const haystack = normalizeText(`${curso.nombre} ${curso.tipoEstudios} ${curso.coordinacion}`);
+  const matches = keywords.filter(keyword => haystack.includes(keyword)).length;
+  return scoreCurso(curso) + matches * 8 + (curso.ciclo >= 5 ? 10 : 0);
+}
+
 const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> = ({ themeColors: C, userRole }) => {
   const isDark = C.cardBg?.includes('slate-9') ?? false;
   const text = isDark ? '#e5edf9' : '#0b1538';
@@ -151,6 +204,12 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [mercadoInforme, setMercadoInforme] = useState<MercadoInforme | null>(null);
+  const [mercadoStatus, setMercadoStatus] = useState('');
+  const [aiInsights, setAiInsights] = useState<AiInsight[]>([]);
+  const [aiSummary, setAiSummary] = useState('Arrastra cursos a las tarjetas para recibir recomendaciones de competencias y estructura.');
+  const [savingImage, setSavingImage] = useState(false);
+  const certRef = useRef<HTMLDivElement>(null);
 
   const programa = programas.find(p => p.code === programCode) ?? programas[0] ?? staticProgramas[0];
   const staticMatch = staticProgramas.find(p => normalizeKey(p.program) === normalizeKey(programa.program));
@@ -234,6 +293,29 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     return () => { alive = false; };
   }, [programCode, programa?.idCarrera, programa?.program, programa?.nombreFacultad]);
 
+  useEffect(() => {
+    let alive = true;
+    setMercadoInforme(null);
+    setMercadoStatus('');
+    if (!programa?.program) return () => { alive = false; };
+    const params = new URLSearchParams({ carrera: programa.program });
+    if (programa.nombreFacultad) params.set('facultad', programa.nombreFacultad);
+    setMercadoStatus('Cargando informe de mercado...');
+    fetch(`/api/mercado-laboral/informe?${params.toString()}`, { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => {
+        if (!alive) return;
+        setMercadoInforme(data);
+        setMercadoStatus('Informe de mercado conectado');
+      })
+      .catch(() => {
+        if (!alive) return;
+        setMercadoInforme(null);
+        setMercadoStatus('Sin informe de mercado para esta carrera');
+      });
+    return () => { alive = false; };
+  }, [programCode, programa?.program, programa?.nombreFacultad]);
+
   const cursosFiltrados = useMemo(() => {
     const term = normalizeText(query.trim());
     return cursos
@@ -297,28 +379,95 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     ));
   };
 
+  const buildInsight = (certIndex: number, certCursos: CertificacionesCurso[], keywords: string[]): AiInsight => {
+    const best = certCursos
+      .map(curso => ({ curso, score: marketScore(curso, keywords) }))
+      .sort((a, b) => b.score - a.score);
+    const missing = 4 - certCursos.length;
+    const involved = certCursos.map(curso => `${curso.nombre} (${cycleName(curso.ciclo)})`);
+    const similarNames = slots
+      .map((slot, idx) => ({ idx, name: normalizeText(slot.nombre) }))
+      .filter(item => item.idx !== certIndex && item.name && normalizeText(slots[certIndex].nombre).includes(item.name.slice(0, 12)));
+
+    if (missing > 0) {
+      return {
+        hallazgo: `La Certificacion ${certIndex + 1} aun no completa los 4 cursos requeridos.`,
+        recomendacion: `Agregar ${missing} curso(s) de 5.o ciclo en adelante con mayor relacion a competencias demandadas.`,
+        justificacion: mercadoInforme ? 'El informe de mercado aporta habilidades y tendencias para priorizar cursos con mayor afinidad.' : 'La recomendacion se basa solo en la malla porque no hay informe de mercado conectado.',
+        certificacion: `Certificacion ${certIndex + 1}`,
+        cursos: involved,
+      };
+    }
+    if (similarNames.length) {
+      return {
+        hallazgo: `La Certificacion ${certIndex + 1} puede parecer poco diferenciada frente a otra certificacion.`,
+        recomendacion: 'Ajustar el nombre hacia una competencia especifica y ordenar los cursos de base a aplicacion.',
+        justificacion: 'Los nombres similares reducen claridad para el estudiante y para la evidencia de empleabilidad.',
+        certificacion: `Certificacion ${certIndex + 1}`,
+        cursos: involved,
+      };
+    }
+    return {
+      hallazgo: `${best[0]?.curso.nombre ?? 'La ruta'} concentra la mayor afinidad con la malla y el mercado.`,
+      recomendacion: `Nombrar la certificacion como area de especializacion y cerrar con una evidencia aplicada vinculada a ${best[0]?.curso.nombre ?? 'los cursos seleccionados'}.`,
+      justificacion: mercadoInforme
+        ? 'La recomendacion cruza cursos desde 5.o ciclo con habilidades, herramientas y tendencias del informe de mercado.'
+        : 'La recomendacion respeta la malla disponible; no se agrego informacion laboral externa.',
+      certificacion: `Certificacion ${certIndex + 1}`,
+      cursos: involved,
+    };
+  };
+
   const autoAnalyze = () => {
+    const keywords = mercadoKeywords(mercadoInforme);
     const pool = cursos
-      .filter(curso => curso.ciclo >= 4 && curso.ciclo <= 8 && !/^ELECTIVO/i.test(curso.nombre))
-      .sort((a, b) => scoreCurso(b) - scoreCurso(a))
+      .filter(curso => curso.ciclo >= 5 && !/^ELECTIVO/i.test(curso.nombre))
+      .sort((a, b) => marketScore(b, keywords) - marketScore(a, keywords))
       .slice(0, 12);
-    setSlots([
+    const nextSlots = [
       {
-        nombre: programa.code === 'P25' ? 'Certificacion en competencia comunicativa en ingles' : 'Certificacion en acompanamiento infantil temprano',
-        descripcion: 'Competencia tecnica con cursos de especialidad y aplicacion progresiva.',
+        nombre: 'Certificacion en competencia aplicada 1',
+        descripcion: 'Ruta sugerida desde malla e informe de mercado disponible.',
         cursoIds: pool.slice(0, 4).map(c => c.id),
       },
       {
-        nombre: 'Certificacion en diseno curricular y evaluacion',
-        descripcion: 'Integra programacion, evaluacion e investigacion educativa.',
+        nombre: 'Certificacion en competencia aplicada 2',
+        descripcion: 'Agrupa cursos de especializacion con evidencia progresiva.',
         cursoIds: pool.slice(4, 8).map(c => c.id),
       },
       {
-        nombre: 'Certificacion en proyecto educativo aplicado',
-        descripcion: 'Cierra la ruta con evidencia integradora y productos acreditables.',
+        nombre: 'Certificacion en proyecto integrador aplicado',
+        descripcion: 'Cierra con cursos avanzados y producto demostrable.',
         cursoIds: pool.slice(8, 12).map(c => c.id),
       },
-    ]);
+    ];
+    setSlots(nextSlots);
+    const insights = nextSlots.map((slot, idx) =>
+      buildInsight(idx, slot.cursoIds.map(id => cursoById.get(id || '')).filter(Boolean) as CertificacionesCurso[], keywords)
+    );
+    setAiInsights(insights);
+    setAiSummary(mercadoInforme
+      ? `Analisis generado con malla curricular, informe de mercado de ${mercadoInforme.informe?.periodo ?? 'mercado'} y cursos asignados.`
+      : 'Analisis generado con malla curricular. No se encontro informe de mercado asociado para esta carrera.');
+  };
+
+  const saveProposalImage = async () => {
+    if (!certRef.current || savingImage) return;
+    setSavingImage(true);
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(certRef.current, {
+        backgroundColor: isDark ? '#0f172a' : PANEL,
+        scale: Math.min(window.devicePixelRatio || 1, 2),
+        useCORS: true,
+      });
+      const link = document.createElement('a');
+      link.download = `certificaciones_${programa.program.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } finally {
+      setSavingImage(false);
+    }
   };
 
   const onDropSlot = (event: React.DragEvent, certIndex: number, slotIndex: number) => {
@@ -356,7 +505,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const progressText = `Certificacion 1: ${slots[0].cursoIds.filter(Boolean).length}/4 | Certificacion 2: ${slots[1].cursoIds.filter(Boolean).length}/4 | Certificacion 3: ${slots[2].cursoIds.filter(Boolean).length}/4`;
 
   return (
-    <div className={`cert-page ${isExpanded ? 'cert-expanded' : ''}`} style={{ height: '100%', background: surface, color: text, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div ref={certRef} className={`cert-page ${isExpanded ? 'cert-expanded' : ''}`} style={{ height: '100%', background: surface, color: text, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <header className="cert-header" style={{ minHeight: 108, padding: '16px 24px 12px', borderBottom: `1px solid ${border}`, background: surface, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, flexShrink: 0 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -595,8 +744,11 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
           </div>
           <div className="cert-ai-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0, scrollbarWidth: 'thin' }}>
             <p style={{ margin: 0, color: '#b4c5ff', fontSize: 13, lineHeight: 1.45 }}>
-              Arrastra cursos a las tarjetas para recibir recomendaciones de competencias y estructura.
+              {aiSummary}
             </p>
+            <div style={{ color: mercadoInforme ? TEAL_BRIGHT : '#b4c5ff', fontSize: 11, fontWeight: 800 }}>
+              {mercadoStatus || 'Informe de mercado pendiente'}
+            </div>
 
             <div style={{ background: 'rgba(255,218,214,0.18)', border: '1px solid rgba(255,218,214,0.35)', borderRadius: 8, padding: 14 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -629,6 +781,23 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                 Aplicar a Cert. 1
               </button>
             </div>
+
+            {aiInsights.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ color: '#b4c5ff', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Recomendaciones IA</div>
+                {aiInsights.map((item, idx) => (
+                  <div key={`${item.certificacion}-${idx}`} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: 12 }}>
+                    <div style={{ color: TEAL_BRIGHT, fontSize: 11, fontWeight: 900, marginBottom: 6 }}>{item.certificacion}</div>
+                    <p style={{ margin: '0 0 6px', fontSize: 12, lineHeight: 1.4 }}><strong>Hallazgo:</strong> {item.hallazgo}</p>
+                    <p style={{ margin: '0 0 6px', fontSize: 12, lineHeight: 1.4 }}><strong>Recomendacion:</strong> {item.recomendacion}</p>
+                    <p style={{ margin: '0 0 8px', fontSize: 11, lineHeight: 1.4, color: '#b4c5ff' }}>{item.justificacion}</p>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, lineHeight: 1.5 }}>
+                      {item.cursos.slice(0, 4).map(curso => <li key={curso}>{curso}</li>)}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div style={{ marginTop: 'auto' }}>
               <div style={{ color: '#b4c5ff', fontSize: 11, fontWeight: 900, marginBottom: 10 }}>Sugerencias basadas en competencias:</div>
@@ -665,8 +834,8 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
             </div>
           </div>
         </div>
-        <button disabled={!allComplete} style={{ height: 40, minWidth: 278, border: 'none', borderRadius: 8, background: allComplete ? NAVY : '#7c879d', color: '#fff', opacity: allComplete ? 1 : 0.82, fontSize: 15, fontWeight: 900, cursor: allComplete ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          Guardar propuesta completa
+        <button onClick={saveProposalImage} style={{ height: 40, minWidth: 278, border: 'none', borderRadius: 8, background: allComplete ? NAVY : '#7c879d', color: '#fff', opacity: savingImage ? 0.7 : 1, fontSize: 15, fontWeight: 900, cursor: savingImage ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          {savingImage ? 'Guardando imagen...' : 'Guardar propuesta completa'}
           <Save size={16} />
         </button>
       </footer>
@@ -701,19 +870,46 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         }
         .cert-expanded .cert-workspace-grid {
           grid-template-columns: 1fr !important;
+          padding: 12px !important;
+          overflow: hidden !important;
         }
         .cert-expanded .cert-workspace-grid > section:first-child,
         .cert-expanded .cert-workspace-grid > aside {
           display: none !important;
         }
+        .cert-expanded .cert-workspace-grid > section {
+          min-height: 0 !important;
+        }
+        .cert-expanded .cert-workspace-grid > section > div:last-child {
+          overflow: auto !important;
+        }
         .cert-expanded .cert-cards-grid {
           grid-template-columns: repeat(3, minmax(260px, 1fr)) !important;
+          height: auto !important;
+          min-height: 100% !important;
+          align-items: stretch !important;
         }
         .cert-expanded .cert-cards-grid article {
+          height: auto !important;
+          min-height: 520px !important;
           padding: 18px !important;
         }
         .cert-expanded .cert-slot-list > div {
-          min-height: 70px !important;
+          min-height: 64px !important;
+        }
+        .cert-expanded .cert-footer {
+          display: none !important;
+        }
+        .cert-expanded .cert-header {
+          min-height: auto !important;
+          padding-top: 10px !important;
+          padding-bottom: 8px !important;
+        }
+        .cert-expanded .cert-header h1 {
+          font-size: 22px !important;
+        }
+        .cert-expanded .cert-header p {
+          display: none !important;
         }
         @media (max-height: 820px) and (min-width: 901px) {
           .cert-header {
