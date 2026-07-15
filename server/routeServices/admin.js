@@ -946,4 +946,26 @@ router.get('/admin/notificaciones', async (_req, res) => {
   }
 });
 
+import db_empl from '../db_empl.js';
+router.get('/admin/diag-benchmarking', adminOnly, async (_req, res) => {
+  const results = {};
+  const tests = [
+    { key: 'empl_getCoberturaStats',    sql: 'CALL empl_getCoberturaStats()'       },
+    { key: 'empl_getUniversidades',     sql: 'CALL empl_getUniversidades(1, NULL)' },
+    { key: 'empl_getProgramas',         sql: 'CALL empl_getProgramas(NULL, NULL, NULL)' },
+    { key: 'empl_getInforme',           sql: "CALL empl_getInforme(NULL, NULL)"    },
+    { key: 'mercado_informe_cols',      sql: 'SHOW COLUMNS FROM mercado_informe'   },
+    { key: 'univ_benchmark_cols',       sql: 'SHOW COLUMNS FROM universidad_benchmark' },
+  ];
+  for (const t of tests) {
+    try {
+      const [r] = await db_empl.query(t.sql);
+      results[t.key] = { ok: true, rows: Array.isArray(r[0]) ? r[0].length : r.length };
+    } catch (e) {
+      results[t.key] = { ok: false, error: e.message };
+    }
+  }
+  res.json(results);
+});
+
 export default router;
