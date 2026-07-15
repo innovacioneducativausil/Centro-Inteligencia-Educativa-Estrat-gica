@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, BadgeCheck, BookOpen, Bot, CheckCircle2, Expand, RotateCcw, Save, Search, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, BookOpen, Bot, Expand, Save, Search, Sparkles, X } from 'lucide-react';
 import { ThemeColors } from '../types';
 import { CERTIFICACIONES_PROGRAMAS, CertificacionesCurso } from './certificacionesData';
 
@@ -68,10 +68,10 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const [slots, setSlots] = useState<CertSlot[]>(initialSlots);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const programa = CERTIFICACIONES_PROGRAMAS.find(p => p.code === programCode) ?? CERTIFICACIONES_PROGRAMAS[0];
   const cursos = [...programa.cursos];
-  const selectedIds = new Set(slots.flatMap(slot => slot.cursoIds.filter(Boolean) as string[]));
   const assignedCount = slots.reduce((total, slot) => total + slot.cursoIds.filter(Boolean).length, 0);
   const completeCount = slots.filter(slot => slot.cursoIds.filter(Boolean).length >= 4 && slot.nombre.trim()).length;
   const canEdit = ['admin', 'analista', 'editor', 'usuario'].includes(userRole || 'usuario');
@@ -91,14 +91,14 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     .sort((a, b) => a - b);
 
   const suggested = cursos
-    .filter(curso => curso.ciclo >= 4 && curso.ciclo <= 8 && !selectedIds.has(curso.id))
+    .filter(curso => curso.ciclo >= 4 && curso.ciclo <= 8)
     .sort((a, b) => scoreCurso(b) - scoreCurso(a))
     .slice(0, 12);
   const topSuggestion = suggested[0];
   const secondSuggestion = suggested[1];
 
   const addCurso = (cursoId: string, certIndex?: number, position?: number) => {
-    if (!canEdit || selectedIds.has(cursoId)) return;
+    if (!canEdit) return;
     setSlots(prev => {
       const next = prev.map(slot => ({ ...slot, cursoIds: [...slot.cursoIds] }));
       const targetIndex = certIndex ?? next.findIndex(slot => slot.cursoIds.some(id => !id));
@@ -110,10 +110,10 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     });
   };
 
-  const removeCurso = (certIndex: number, cursoId: string) => {
+  const removeCurso = (certIndex: number, slotIndex: number) => {
     if (!canEdit) return;
     setSlots(prev => prev.map((slot, idx) => idx === certIndex
-      ? { ...slot, cursoIds: slot.cursoIds.map(id => id === cursoId ? null : id) }
+      ? { ...slot, cursoIds: slot.cursoIds.map((id, currentIndex) => currentIndex === slotIndex ? null : id) }
       : slot
     ));
   };
@@ -201,7 +201,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
   const progressText = `Certificacion 1: ${slots[0].cursoIds.filter(Boolean).length}/4 | Certificacion 2: ${slots[1].cursoIds.filter(Boolean).length}/4 | Certificacion 3: ${slots[2].cursoIds.filter(Boolean).length}/4`;
 
   return (
-    <div className="cert-page" style={{ height: '100%', background: surface, color: text, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className={`cert-page ${isExpanded ? 'cert-expanded' : ''}`} style={{ height: '100%', background: surface, color: text, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <header className="cert-header" style={{ minHeight: 108, padding: '16px 24px 12px', borderBottom: `1px solid ${border}`, background: surface, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, flexShrink: 0 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -272,13 +272,12 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
 
           <div className="cert-course-list" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0, scrollbarWidth: 'thin' }}>
             {cursosFiltrados.map(curso => {
-              const selected = selectedIds.has(curso.id);
               const score = scoreCurso(curso);
               return (
                 <button
                   key={curso.id}
-                  draggable={!selected && canEdit}
-                  disabled={selected || !canEdit}
+                  draggable={canEdit}
+                  disabled={!canEdit}
                   onClick={() => addCurso(curso.id)}
                   onDragStart={event => {
                     setDraggingId(curso.id);
@@ -291,14 +290,14 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                     textAlign: 'left',
                     border: `1px solid ${border}`,
                     borderRadius: 8,
-                    background: selected ? '#f2f4f6' : (isDark ? '#0f172a' : '#ffffff'),
+                    background: isDark ? '#0f172a' : '#ffffff',
                     color: text,
                     minHeight: 86,
                     flexShrink: 0,
                     padding: '12px 12px 10px 14px',
-                    cursor: selected ? 'default' : 'grab',
-                    opacity: selected ? 0.48 : 1,
-                    boxShadow: selected ? 'none' : '0 2px 8px rgba(0,32,96,0.04)',
+                    cursor: canEdit ? 'grab' : 'default',
+                    opacity: canEdit ? 1 : 0.56,
+                    boxShadow: '0 2px 8px rgba(0,32,96,0.04)',
                     overflow: 'hidden',
                   }}
                 >
@@ -327,7 +326,11 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         <section style={{ background: card, border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ height: 58, padding: '0 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <h2 style={{ margin: 0, color: isDark ? '#dbeafe' : NAVY, fontSize: 17, fontWeight: 900 }}>Estructura de Certificaciones (3)</h2>
-            <button title="Expandir" style={{ width: 32, height: 32, border: 'none', background: 'transparent', color: isDark ? '#dbeafe' : NAVY, cursor: 'pointer' }}>
+            <button
+              title={isExpanded ? 'Volver a vista normal' : 'Expandir estructura'}
+              onClick={() => setIsExpanded(value => !value)}
+              style={{ width: 32, height: 32, border: 'none', background: 'transparent', color: isDark ? '#dbeafe' : NAVY, cursor: 'pointer' }}
+            >
               <Expand size={20} />
             </button>
           </div>
@@ -365,7 +368,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                       placeholder="Breve descripcion de la competencia..."
                       style={{ marginTop: 6, border: 'none', background: 'transparent', color: muted, resize: 'none', height: 36, fontSize: 12, outline: 'none' }}
                     />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, marginTop: 10 }}>
+                    <div className="cert-slot-list" style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minHeight: 0, marginTop: 10 }}>
                       {[0, 1, 2, 3].map(slotIndex => {
                         const curso = selectedCursos[slotIndex];
                         const targetKey = `${certIndex}-${slotIndex}`;
@@ -396,7 +399,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                               <div style={{ width: '100%', minWidth: 0 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
                                   <span style={{ color: TEAL, fontSize: 10, fontWeight: 900 }}>{curso.codigoOficial || curso.codigoCurso}</span>
-                                  <button onClick={() => removeCurso(certIndex, curso.id)} title="Quitar curso" style={{ border: 'none', background: 'transparent', color: muted, cursor: 'pointer', padding: 0 }}>
+                                  <button onClick={() => removeCurso(certIndex, slotIndex)} title="Quitar curso" style={{ border: 'none', background: 'transparent', color: muted, cursor: 'pointer', padding: 0 }}>
                                     <X size={14} />
                                   </button>
                                 </div>
@@ -413,10 +416,10 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                         );
                       })}
                     </div>
-                    <div style={{ borderTop: `1px solid ${border}`, marginTop: 12, paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6, color: muted, fontSize: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Obtencion est.:</span><strong style={{ color: text }}>{maxCycle ? cycleName(maxCycle) : '-- ciclo'}</strong></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Afinidad mercado:</span><strong style={{ color: text }}>{avgAffinity ? `${avgAffinity}%` : '--%'}</strong></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Estado:</span><strong style={{ color: filledCursos.length >= 4 ? TEAL : DANGER }}>{filledCursos.length}/4 Cursos</strong></div>
+                    <div className="cert-metrics" style={{ borderTop: `1px solid ${border}`, marginTop: 10, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5, color: muted, fontSize: 11, lineHeight: 1.25, flexShrink: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, minWidth: 0 }}><span>Obtencion est.:</span><strong style={{ color: text, whiteSpace: 'nowrap' }}>{maxCycle ? cycleName(maxCycle) : '-- ciclo'}</strong></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, minWidth: 0 }}><span>Afinidad mercado:</span><strong style={{ color: text, whiteSpace: 'nowrap' }}>{avgAffinity ? `${avgAffinity}%` : '--%'}</strong></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, minWidth: 0 }}><span>Estado:</span><strong style={{ color: filledCursos.length >= 4 ? TEAL : DANGER, whiteSpace: 'nowrap' }}>{filledCursos.length}/4 Cursos</strong></div>
                     </div>
                   </article>
                 );
@@ -430,7 +433,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
             <Bot size={22} color={TEAL_BRIGHT} />
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 900 }}>Copiloto IA</h2>
           </div>
-          <div className="cert-ai-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'hidden', flex: 1, minHeight: 0 }}>
+          <div className="cert-ai-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0, scrollbarWidth: 'thin' }}>
             <p style={{ margin: 0, color: '#b4c5ff', fontSize: 13, lineHeight: 1.45 }}>
               Arrastra cursos a las tarjetas para recibir recomendaciones de competencias y estructura.
             </p>
@@ -521,12 +524,36 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
         .cert-course-list::-webkit-scrollbar {
           width: 8px;
         }
+        .cert-ai-body::-webkit-scrollbar {
+          width: 8px;
+        }
         .cert-course-list::-webkit-scrollbar-thumb {
           background: #cbd5e1;
           border-radius: 999px;
         }
-        .cert-course-list::-webkit-scrollbar-track {
+        .cert-ai-body::-webkit-scrollbar-thumb {
+          background: rgba(180,197,255,0.45);
+          border-radius: 999px;
+        }
+        .cert-course-list::-webkit-scrollbar-track,
+        .cert-ai-body::-webkit-scrollbar-track {
           background: transparent;
+        }
+        .cert-expanded .cert-workspace-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .cert-expanded .cert-workspace-grid > section:first-child,
+        .cert-expanded .cert-workspace-grid > aside {
+          display: none !important;
+        }
+        .cert-expanded .cert-cards-grid {
+          grid-template-columns: repeat(3, minmax(260px, 1fr)) !important;
+        }
+        .cert-expanded .cert-cards-grid article {
+          padding: 18px !important;
+        }
+        .cert-expanded .cert-slot-list > div {
+          min-height: 70px !important;
         }
         @media (max-height: 820px) and (min-width: 901px) {
           .cert-header {
@@ -551,12 +578,18 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
           .cert-cards-grid textarea {
             height: 28px !important;
           }
-          .cert-cards-grid article > div:nth-of-type(2) {
+          .cert-slot-list {
             gap: 8px !important;
             margin-top: 6px !important;
           }
-          .cert-cards-grid article > div:nth-of-type(2) > div {
+          .cert-slot-list > div {
             min-height: 50px !important;
+          }
+          .cert-metrics {
+            margin-top: 8px !important;
+            padding-top: 7px !important;
+            gap: 4px !important;
+            font-size: 10.5px !important;
           }
           .cert-footer {
             height: 52px !important;
