@@ -946,28 +946,5 @@ router.get('/admin/notificaciones', async (_req, res) => {
   }
 });
 
-import db_empl from '../db_empl.js';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-const __dirnameAdmin = dirname(fileURLToPath(import.meta.url));
-
-router.post('/admin/run-empl-collation-fix', adminOnly, async (_req, res) => {
-  const sqlFile = join(__dirnameAdmin, '../db/procedures_empl.sql');
-  const raw = readFileSync(sqlFile, 'utf8');
-  const statements = raw
-    .split('\n')
-    .filter(l => !/^\s*DELIMITER\b/i.test(l))
-    .join('\n')
-    .split('$$')
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
-
-  let ok = 0; const errors = [];
-  for (const sql of statements) {
-    try { await db_empl.query(sql); ok++; } catch (e) { errors.push(e.message); }
-  }
-  res.json({ ok, errors: errors.length, details: errors.slice(0, 10) });
-});
 
 export default router;
