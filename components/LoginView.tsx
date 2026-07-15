@@ -7,7 +7,7 @@ export interface AuthUser {
   nombre: string;
   nombreCompleto: string;
   correo: string;
-  rol: 'admin' | 'usuario' | 'editor' | 'analista' | 'lector';
+  rol: 'admin' | 'usuario';
   rolLabel: string;
   iniciales: string;
   modulosPermitidos?: string[];

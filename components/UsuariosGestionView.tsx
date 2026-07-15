@@ -21,8 +21,8 @@ interface UserRow {
 }
 
 //----------------OBS-01 / TI-02----------------
-const ROLES = ['usuario', 'lector', 'analista', 'editor'];
-const EDIT_ROLES = ['admin', ...ROLES];
+const ROLES = ['usuario'];
+const EDIT_ROLES = ['admin', 'usuario'];
 const MODULES = [
   { key: 'inicio', label: 'Inicio' },
   { key: 'radar', label: 'Radar' },

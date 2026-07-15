@@ -12,12 +12,12 @@ const router = Router();
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.rol)) {
-      return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador o analista.' });
+      return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador.' });
     }
     next();
   };
 }
-const adminOnly = requireRole('admin', 'analista');
+const adminOnly = requireRole('admin');
 
 
 function serializeUrlFuentes(urlsFuente, fallbackUrl) {

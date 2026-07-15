@@ -203,7 +203,7 @@ function requireRole(...roles) {
     next();
   };
 }
-const adminOnly = requireRole('admin', 'analista');
+const adminOnly = requireRole('admin');
 
 
 function parseDate(val) {

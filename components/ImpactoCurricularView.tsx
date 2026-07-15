@@ -127,7 +127,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
   const text     = isDark ? '#f1f5f9' : '#1e293b';
   const muted    = isDark ? '#94a3b8' : '#64748b';
   const border   = isDark ? 'rgba(148,163,184,0.15)' : '#e2e8f0';
-  const canEdit  = userRole === 'admin' || userRole === 'analista';
+  const canEdit  = userRole === 'admin';
 
   const [kpis, setKpis]             = useState<KpisImpacto | null>(null);
   const [impactos, setImpactos]     = useState<Impacto[]>([]);

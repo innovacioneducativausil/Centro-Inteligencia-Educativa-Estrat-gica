@@ -4,6 +4,7 @@ import { ensureColumn } from './schemaMaintenance.js';
 
 const HASH_USUARIO2026 = '$2b$10$TcGMVTczjVtjsCBGlNv2HeqBZZBm9ooqtz1pN2NOYSXRx5IYWPccC';
 const HASH_USIL_ADMIN_2026 = '$2b$10$VFWnxWhh5OLch4n2vLZ2y..Y5FULqqvqleWKG/8EDEZllZCYY/oaC';
+const HASH_FACULTAD_2026 = '$2b$10$y0OirhP6qJdRzRxgjzeWBOsJIvZi/nNJfRA3HsuwCGzYEpPtsi8q.';
 
 const USUARIOS_NUEVOS = [
   { id: '6d1a4b91-bbb9-4ff6-bcd0-62700b5fcc09', nombre: 'Paolo Tejada Pinto', corto: 'Paolo', correo: 'ptejada@usil.edu.pe' },
@@ -24,6 +25,7 @@ const USUARIOS_SOLICITADOS = [
   { nombre: 'Frank Garcia', corto: 'Frank', correo: 'fgarciacr@usil.edu.pe', rol: 'usuario', reemplazarSiNombre: ['F Garcia'] },
   { nombre: 'Camila Chumbes', corto: 'Camila', correo: 'cchumbes@usil.edu.pe', rol: 'usuario', reemplazarSiNombre: ['C Chumbes'] },
   { nombre: 'Innovacion Educativa', corto: 'Innovacion', correo: 'innovacioneducativa@usil.edu.pe', rol: 'admin', hash: HASH_USIL_ADMIN_2026 },
+  { nombre: 'Facultad HTG', corto: 'Facultad', correo: 'facultadhtg@usil.edu.pe', rol: 'usuario', hash: HASH_FACULTAD_2026 },
 ];
 
 async function ensureUsuarioColumns() {
@@ -57,7 +59,7 @@ async function normalizeAllUsers() {
     },
   });
 
-  const rolesValidos = new Set(['admin', 'usuario', 'lector', 'analista', 'editor']);
+  const rolesValidos = new Set(['admin', 'usuario']);
 
   for (const u of usuarios) {
     const now = new Date();

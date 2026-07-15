@@ -33,6 +33,12 @@ const COOKIE_MAX_AGE_MS = 8 * 60 * 60 * 1000;
 const OTP_EXPIRES_MS = 5 * 60 * 1000;
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
+const PASSWORD_ONLY_EMAILS = new Set(
+  (process.env.PASSWORD_ONLY_EMAILS || 'facultadhtg@usil.edu.pe')
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 function authCookieOptions() {
   return {
@@ -345,6 +351,9 @@ router.post('/auth/forgot-password', async (req, res) => {
     const normalizedCorreo = correo.trim().toLowerCase();
     const user = await findUserForForgotPassword(normalizedCorreo);
     if (!user || !user.activo) {
+      return res.json({ message: 'Hemos enviado un codigo de verificacion a tu correo institucional.' });
+    }
+    if (PASSWORD_ONLY_EMAILS.has(normalizedCorreo)) {
       return res.json({ message: 'Hemos enviado un codigo de verificacion a tu correo institucional.' });
     }
 

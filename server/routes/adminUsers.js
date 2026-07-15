@@ -18,8 +18,8 @@ import {
 
 const router = Router();
 //----------------OBS-01 / TI-02----------------
-const MANAGED_ROLES = new Set(['usuario', 'lector', 'analista', 'editor']);
-const EDITABLE_ROLES = new Set(['admin', 'usuario', 'lector', 'analista', 'editor']);
+const MANAGED_ROLES = new Set(['usuario']);
+const EDITABLE_ROLES = new Set(['admin', 'usuario']);
 const ALL_MODULES = ['inicio', 'radar', 'empleabilidad', 'certificaciones', 'impactos', 'curricular', 'mercadoLaboral', 'informes', 'gestion'];
 const DEFAULT_USER_MODULES = ['inicio', 'radar', 'empleabilidad', 'certificaciones', 'impactos', 'curricular', 'mercadoLaboral'];
 const DEFAULT_ADMIN_MODULES = ALL_MODULES;

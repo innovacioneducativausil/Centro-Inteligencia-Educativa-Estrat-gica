@@ -975,7 +975,7 @@ const EmpleabilidadView: React.FC<EmpleabilidadViewProps> = ({ themeColors: C, u
     const stored = localStorage.getItem('radar_empleabilidad_tab') as TabEmpl | null;
     return stored && VALID_EMPLEABILIDAD_TABS.includes(stored) ? stored : 'resumen';
   });
-  const canImport = userRole === 'admin' || userRole === 'analista' || userRole === 'editor';
+  const canImport = userRole === 'admin';
 
 
   const [selProgramas, setSelProgramas] = useState<string[]>([]);
