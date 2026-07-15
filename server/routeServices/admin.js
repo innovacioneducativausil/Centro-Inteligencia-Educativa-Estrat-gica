@@ -947,25 +947,27 @@ router.get('/admin/notificaciones', async (_req, res) => {
 });
 
 import db_empl from '../db_empl.js';
-router.get('/admin/diag-benchmarking', adminOnly, async (_req, res) => {
-  const results = {};
-  const tests = [
-    { key: 'empl_getCoberturaStats',    sql: 'CALL empl_getCoberturaStats()'       },
-    { key: 'empl_getUniversidades',     sql: 'CALL empl_getUniversidades(1, NULL)' },
-    { key: 'empl_getProgramas',         sql: 'CALL empl_getProgramas(NULL, NULL, NULL)' },
-    { key: 'empl_getInforme',           sql: "CALL empl_getInforme(NULL, NULL)"    },
-    { key: 'mercado_informe_cols',      sql: 'SHOW COLUMNS FROM mercado_informe'   },
-    { key: 'univ_benchmark_cols',       sql: 'SHOW COLUMNS FROM universidad_benchmark' },
-  ];
-  for (const t of tests) {
-    try {
-      const [r] = await db_empl.query(t.sql);
-      results[t.key] = { ok: true, rows: Array.isArray(r[0]) ? r[0].length : r.length };
-    } catch (e) {
-      results[t.key] = { ok: false, error: e.message };
-    }
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+const __dirnameAdmin = dirname(fileURLToPath(import.meta.url));
+
+router.post('/admin/run-empl-collation-fix', adminOnly, async (_req, res) => {
+  const sqlFile = join(__dirnameAdmin, '../db/procedures_empl.sql');
+  const raw = readFileSync(sqlFile, 'utf8');
+  const statements = raw
+    .split('\n')
+    .filter(l => !/^\s*DELIMITER\b/i.test(l))
+    .join('\n')
+    .split('$$')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  let ok = 0; const errors = [];
+  for (const sql of statements) {
+    try { await db_empl.query(sql); ok++; } catch (e) { errors.push(e.message); }
   }
-  res.json(results);
+  res.json({ ok, errors: errors.length, details: errors.slice(0, 10) });
 });
 
 export default router;

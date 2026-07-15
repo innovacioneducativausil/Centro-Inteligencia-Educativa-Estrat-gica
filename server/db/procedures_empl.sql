@@ -388,8 +388,8 @@ CREATE PROCEDURE empl_getInforme(
 )
 BEGIN
   SELECT * FROM mercado_informe
-  WHERE (p_facultad IS NULL OR nombre_facultad = p_facultad)
-    AND (p_carrera  IS NULL OR nombre_carrera  = p_carrera)
+  WHERE (p_facultad IS NULL OR nombre_facultad COLLATE utf8mb4_unicode_ci = p_facultad)
+    AND (p_carrera  IS NULL OR nombre_carrera  COLLATE utf8mb4_unicode_ci = p_carrera)
     AND activo = 1
   ORDER BY nombre_facultad, nombre_carrera
   LIMIT 1;
@@ -489,7 +489,7 @@ CREATE PROCEDURE empl_getUniversidades(
 BEGIN
   SELECT * FROM universidad_benchmark
   WHERE (p_activo IS NULL OR activo = p_activo)
-    AND (p_tipo   IS NULL OR p_tipo = '' OR tipo_benchmark = p_tipo)
+    AND (p_tipo   IS NULL OR p_tipo = '' OR tipo_benchmark COLLATE utf8mb4_unicode_ci = p_tipo)
   ORDER BY tipo_benchmark, nombre_universidad;
 END $$
 
@@ -537,7 +537,7 @@ CREATE PROCEDURE empl_findUniversidadByNombreTipo(IN p_nombre VARCHAR(300), IN p
 BEGIN
   SELECT id_universidad_benchmark
   FROM universidad_benchmark
-  WHERE nombre_universidad = p_nombre AND tipo_benchmark = p_tipo
+  WHERE nombre_universidad COLLATE utf8mb4_unicode_ci = p_nombre AND tipo_benchmark COLLATE utf8mb4_unicode_ci = p_tipo
   LIMIT 1;
 END $$
 
@@ -571,7 +571,7 @@ BEGIN
   JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
   WHERE (p_id_carrera IS NULL OR pb.carrera_equivalente_id = p_id_carrera)
     AND (p_id_univ    IS NULL OR pb.id_universidad_benchmark = p_id_univ)
-    AND (p_tipo IS NULL OR p_tipo = '' OR ub.tipo_benchmark = p_tipo)
+    AND (p_tipo IS NULL OR p_tipo = '' OR ub.tipo_benchmark COLLATE utf8mb4_unicode_ci = p_tipo)
     AND ub.activo = 1
   ORDER BY ub.tipo_benchmark, ub.nombre_universidad, pb.nombre_programa;
 END $$
@@ -619,7 +619,7 @@ BEGIN
   FROM programa_benchmark
   WHERE id_universidad_benchmark = p_id_univ
     AND carrera_equivalente_id   = p_id_carrera
-    AND nombre_programa          = p_nombre
+    AND nombre_programa COLLATE utf8mb4_unicode_ci = p_nombre
   LIMIT 1;
 END $$
 
@@ -906,7 +906,7 @@ BEGIN
   FROM competencia_benchmark cb
   JOIN programa_benchmark pb ON pb.id_programa_benchmark = cb.id_programa_benchmark
   JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
-  WHERE pb.carrera_equivalente_id = p_id_carrera AND ub.tipo_benchmark = p_tipo AND ub.activo = 1
+  WHERE pb.carrera_equivalente_id = p_id_carrera AND ub.tipo_benchmark COLLATE utf8mb4_unicode_ci = p_tipo AND ub.activo = 1
   ORDER BY ub.nombre_universidad, cb.tipo_competencia, cb.nombre_competencia;
 
   SELECT pb.id_programa_benchmark, pb.id_universidad_benchmark, pb.nombre_programa, pb.url_programa,
@@ -924,7 +924,7 @@ BEGIN
   LEFT JOIN curso_benchmark cu ON cu.id_programa_benchmark = pb.id_programa_benchmark
   LEFT JOIN benchmark_source bs ON bs.id_programa_benchmark = pb.id_programa_benchmark AND bs.activo = 1
   LEFT JOIN benchmark_source_candidate bsc ON bsc.id_programa_benchmark = pb.id_programa_benchmark
-  WHERE pb.carrera_equivalente_id = p_id_carrera AND ub.tipo_benchmark = p_tipo AND ub.activo = 1
+  WHERE pb.carrera_equivalente_id = p_id_carrera AND ub.tipo_benchmark COLLATE utf8mb4_unicode_ci = p_tipo AND ub.activo = 1
   GROUP BY pb.id_programa_benchmark, pb.id_universidad_benchmark, pb.nombre_programa, pb.url_programa,
            pb.estado_extraccion, pb.fecha_captura, pb.duracion, pb.modalidad, pb.estado_validacion,
            ub.nombre_universidad, ub.pais, ub.tipo_benchmark
