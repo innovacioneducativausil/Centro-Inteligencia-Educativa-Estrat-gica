@@ -4,8 +4,8 @@ import App from './App'
 
 const RAILWAY_API_URL = 'https://centro-inteligencia-educativa-estrat-gica-production.up.railway.app';
 const configuredApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-const shouldUseDirectApi = window.location.hostname.endsWith('.vercel.app');
-const apiBaseUrl = configuredApiUrl || (shouldUseDirectApi ? RAILWAY_API_URL : '');
+const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const apiBaseUrl = configuredApiUrl || (isLocalHost ? '' : RAILWAY_API_URL);
 
 if (apiBaseUrl) {
   const nativeFetch = window.fetch.bind(window);
