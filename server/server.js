@@ -60,10 +60,22 @@ const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
   : [
       'http://localhost:5173',
+      'http://localhost:5174',
       'http://127.0.0.1:5173',
+      'http://127.0.0.1:5174',
       'https://centro-inteligencia-educativa-estra.vercel.app',
     ];
 
+const allowedOriginPatterns = [
+  /^https:\/\/[a-z0-9-]+\.vercel\.app$/i,
+  /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i,
+];
+
+function isAllowedOrigin(origin) {
+  return !origin
+    || allowedOrigins.includes(origin)
+    || allowedOriginPatterns.some(pattern => pattern.test(origin));
+}
 
 //----------------TI-38----------------
 app.use(helmet({
@@ -81,7 +93,7 @@ app.use(helmet({
       objectSrc: ["'none'"],
       frameAncestors: ["'self'"],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-      connectSrc: ["'self'", ...allowedOrigins],
+      connectSrc: ["'self'", 'https://*.vercel.app', 'https://*.up.railway.app', ...allowedOrigins],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
       fontSrc: ["'self'", 'data:', 'https:'],
@@ -93,7 +105,7 @@ app.use(helmet({
 app.use(cors({
   origin: (origin, cb) => {
 
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (isAllowedOrigin(origin)) return cb(null, true);
     cb(new Error(`Origin no permitido: ${origin}`));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
