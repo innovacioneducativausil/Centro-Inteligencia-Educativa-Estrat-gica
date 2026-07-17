@@ -192,6 +192,18 @@ function marketScore(curso: CertificacionesCurso, keywords: string[]) {
   return scoreCurso(curso) + matches * 8 + (curso.ciclo >= 5 ? 10 : 0);
 }
 
+function certificationNameFromCourses(cursos: CertificacionesCurso[], index: number) {
+  const text = normalizeText(cursos.map(curso => curso.nombre).join(' '));
+  if (/bim|modelado|arquitect|urban|territorio|construccion/.test(text)) return 'Certificacion en Modelado y Gestion Digital del Territorio';
+  if (/base|datos|informacion|analit|estadistica|inteligencia/.test(text)) return 'Certificacion en Analitica e Informacion Aplicada';
+  if (/investig|metodolog|proyecto|tesis|seminario/.test(text)) return 'Certificacion en Investigacion y Proyecto Aplicado';
+  if (/gestion|administr|finanza|negocio|emprend/.test(text)) return 'Certificacion en Gestion Estrategica Aplicada';
+  if (/software|programacion|sistema|ciber|cloud|digital/.test(text)) return 'Certificacion en Soluciones Digitales Aplicadas';
+  if (/educacion|didact|curricul|evaluacion|aprendizaje/.test(text)) return 'Certificacion en Diseno y Evaluacion Educativa';
+  if (/english|ingles|comunicacion|idioma|language/.test(text)) return 'Certificacion en Comunicacion Especializada';
+  return `Certificacion en Especializacion Aplicada ${index + 1}`;
+}
+
 function resolveMercadoSelection(facultades: MercadoFiltroFacultad[], carrera: string, facultad?: string) {
   const carreraKey = normalizeKey(carrera);
   const facultadKey = normalizeKey(facultad || '');
@@ -410,11 +422,14 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
 
   const applySuggestion = (targetIndex = 0) => {
     const ids = suggested.slice(0, 4).map(curso => curso.id);
+    const suggestedCursos = ids.map(id => cursoById.get(id)).filter(Boolean) as CertificacionesCurso[];
     setSlots(prev => prev.map((slot, idx) => idx === targetIndex
       ? {
           ...slot,
-          nombre: programa.code === 'P25' ? 'Certificacion en ensenanza del ingles' : 'Certificacion en desarrollo y acompanamiento infantil',
-          descripcion: 'Ruta basada en cursos intermedios con evidencia aplicable.',
+          nombre: certificationNameFromCourses(suggestedCursos, idx),
+          descripcion: mercadoInforme
+            ? 'Ruta sugerida desde cursos de 5.o ciclo en adelante e informe laboral conectado.'
+            : 'Ruta sugerida desde cursos de 5.o ciclo en adelante disponibles en la malla.',
           cursoIds: [ids[0] ?? null, ids[1] ?? null, ids[2] ?? null, ids[3] ?? null],
         }
       : slot
@@ -479,21 +494,27 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
       }
       return next;
     };
+    const cert0Ids = completeCursoIds(slots[0].cursoIds);
+    const cert1Ids = completeCursoIds(slots[1].cursoIds);
+    const cert2Ids = completeCursoIds(slots[2].cursoIds);
+    const cert0Cursos = cert0Ids.map(id => cursoById.get(id || '')).filter(Boolean) as CertificacionesCurso[];
+    const cert1Cursos = cert1Ids.map(id => cursoById.get(id || '')).filter(Boolean) as CertificacionesCurso[];
+    const cert2Cursos = cert2Ids.map(id => cursoById.get(id || '')).filter(Boolean) as CertificacionesCurso[];
     const nextSlots = [
       {
-        nombre: slots[0].nombre.startsWith('Nombre') ? 'Certificacion en competencia aplicada 1' : slots[0].nombre,
+        nombre: slots[0].nombre.startsWith('Nombre') ? certificationNameFromCourses(cert0Cursos, 0) : slots[0].nombre,
         descripcion: slots[0].descripcion || 'Ruta sugerida desde malla e informe de mercado disponible.',
-        cursoIds: completeCursoIds(slots[0].cursoIds),
+        cursoIds: cert0Ids,
       },
       {
-        nombre: slots[1].nombre.startsWith('Nombre') ? 'Certificacion en competencia aplicada 2' : slots[1].nombre,
+        nombre: slots[1].nombre.startsWith('Nombre') ? certificationNameFromCourses(cert1Cursos, 1) : slots[1].nombre,
         descripcion: slots[1].descripcion || 'Agrupa cursos de especializacion con evidencia progresiva.',
-        cursoIds: completeCursoIds(slots[1].cursoIds),
+        cursoIds: cert1Ids,
       },
       {
-        nombre: slots[2].nombre.startsWith('Nombre') ? 'Certificacion en proyecto integrador aplicado' : slots[2].nombre,
+        nombre: slots[2].nombre.startsWith('Nombre') ? certificationNameFromCourses(cert2Cursos, 2) : slots[2].nombre,
         descripcion: slots[2].descripcion || 'Cierra con cursos avanzados y producto demostrable.',
-        cursoIds: completeCursoIds(slots[2].cursoIds),
+        cursoIds: cert2Ids,
       },
     ];
     setSlots(nextSlots);
@@ -854,19 +875,18 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
               </div>
             )}
 
-            <div style={{ marginTop: 'auto' }}>
-              <div style={{ color: '#b4c5ff', fontSize: 11, fontWeight: 900, marginBottom: 10 }}>Sugerencias basadas en competencias:</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  programa.code === 'P25' ? 'Certificacion en Competencia Comunicativa en Ingles' : 'Certificacion en Acompanamiento y Desarrollo Infantil',
-                  'Certificacion en Diseno Curricular y Evaluacion Educativa',
-                ].map((label, idx) => (
-                  <button key={label} onClick={() => updateSlot(idx, { nombre: label })} style={{ textAlign: 'left', border: '1px solid rgba(255,255,255,0.13)', background: 'rgba(255,255,255,0.05)', color: idx === 0 ? TEAL_BRIGHT : '#fff', borderRadius: 6, padding: '10px 12px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
-                    {label}
-                  </button>
-                ))}
+            {aiInsights.length > 0 && (
+              <div style={{ marginTop: 'auto' }}>
+                <div style={{ color: '#b4c5ff', fontSize: 11, fontWeight: 900, marginBottom: 10 }}>Nombres sugeridos por IA:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {slots.map((slot, idx) => (
+                    <button key={`${slot.nombre}-${idx}`} onClick={() => updateSlot(idx, { nombre: slot.nombre })} style={{ textAlign: 'left', border: '1px solid rgba(255,255,255,0.13)', background: 'rgba(255,255,255,0.05)', color: idx === 0 ? TEAL_BRIGHT : '#fff', borderRadius: 6, padding: '10px 12px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+                      {slot.nombre}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </aside>
       </div>
@@ -924,11 +944,10 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
           background: transparent;
         }
         .cert-expanded .cert-workspace-grid {
-          grid-template-columns: 1fr !important;
+          grid-template-columns: minmax(260px, 300px) minmax(0, 1fr) !important;
           padding: 12px !important;
           overflow: hidden !important;
         }
-        .cert-expanded .cert-workspace-grid > section:first-child,
         .cert-expanded .cert-workspace-grid > aside {
           display: none !important;
         }
