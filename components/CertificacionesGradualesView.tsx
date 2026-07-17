@@ -107,7 +107,7 @@ const TEAL = '#007164';
 const TEAL_BRIGHT = '#7af7e1';
 const DANGER = '#dc2626';
 const CERTIFICACIONES_EDIT_ROLES = new Set(['admin', 'usuario']);
-const CERTIFICACIONES_COPILOT_PROMPT = 'Actua como copiloto experto en diseno curricular y empleabilidad. Analiza automaticamente la malla curricular de la carrera seleccionada, el informe de mercado laboral asociado y los cursos actualmente asignados a las certificaciones. Considera solo cursos de 5.o ciclo en adelante. Cada certificacion debe tener exactamente 4 cursos. Los cursos pueden estar en distintos ciclos o en un mismo ciclo. Un curso puede repetirse en mas de una certificacion si aporta a competencias diferentes. No inventes cursos, ciclos ni informacion laboral. Los nombres deben representar competencias o areas de especializacion, no puestos de trabajo. Genera insights breves y accionables indicando hallazgo, recomendacion concreta, justificacion breve basada en la malla y el mercado laboral, certificacion y cursos involucrados.';
+const CERTIFICACIONES_COPILOT_PROMPT = 'Actua como copiloto experto en diseno curricular y empleabilidad. Analiza automaticamente la malla curricular de la carrera seleccionada, el informe de mercado laboral asociado y los cursos actualmente asignados a las certificaciones. Considera solo cursos de 4.o a 8.o ciclo. Cada certificacion debe tener exactamente 4 cursos. Los cursos pueden estar en distintos ciclos o en un mismo ciclo. Un curso puede repetirse en mas de una certificacion si aporta a competencias diferentes. No inventes cursos, ciclos ni informacion laboral. Los nombres deben representar competencias o areas de especializacion, no puestos de trabajo. Genera insights breves y accionables indicando hallazgo, recomendacion concreta, justificacion breve basada en la malla y el mercado laboral, certificacion y cursos involucrados.';
 
 function cycleName(ciclo: number) {
   return `Ciclo ${ciclo}`;
@@ -189,7 +189,7 @@ function mercadoKeywords(mercado: MercadoInforme | null) {
 function marketScore(curso: CertificacionesCurso, keywords: string[]) {
   const haystack = normalizeText(`${curso.nombre} ${curso.tipoEstudios} ${curso.coordinacion}`);
   const matches = keywords.filter(keyword => haystack.includes(keyword)).length;
-  return scoreCurso(curso) + matches * 8 + (curso.ciclo >= 5 ? 10 : 0);
+  return scoreCurso(curso) + matches * 8 + (curso.ciclo >= 4 && curso.ciclo <= 8 ? 10 : 0);
 }
 
 function certificationNameFromCourses(cursos: CertificacionesCurso[], index: number) {
@@ -382,7 +382,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     .sort((a, b) => a - b);
 
   const suggested = cursos
-    .filter(curso => curso.ciclo >= 5)
+    .filter(curso => curso.ciclo >= 4 && curso.ciclo <= 8)
     .sort((a, b) => marketScore(b, mercadoTerms) - marketScore(a, mercadoTerms))
     .slice(0, 12);
   const topSuggestion = suggested[0];
@@ -428,8 +428,8 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
           ...slot,
           nombre: certificationNameFromCourses(suggestedCursos, idx),
           descripcion: mercadoInforme
-            ? 'Ruta sugerida desde cursos de 5.o ciclo en adelante e informe laboral conectado.'
-            : 'Ruta sugerida desde cursos de 5.o ciclo en adelante disponibles en la malla.',
+            ? 'Ruta sugerida desde cursos de 4.o a 8.o ciclo e informe laboral conectado.'
+            : 'Ruta sugerida desde cursos de 4.o a 8.o ciclo disponibles en la malla.',
           cursoIds: [ids[0] ?? null, ids[1] ?? null, ids[2] ?? null, ids[3] ?? null],
         }
       : slot
@@ -449,7 +449,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     if (missing > 0) {
       return {
         hallazgo: `La Certificacion ${certIndex + 1} aun no completa los 4 cursos requeridos.`,
-        recomendacion: `Agregar ${missing} curso(s) de 5.o ciclo en adelante con mayor relacion a competencias demandadas.`,
+        recomendacion: `Agregar ${missing} curso(s) de 4.o a 8.o ciclo con mayor relacion a competencias demandadas.`,
         justificacion: mercadoInforme ? 'El informe de mercado aporta habilidades y tendencias para priorizar cursos con mayor afinidad.' : 'La recomendacion se basa solo en la malla porque no hay informe de mercado conectado.',
         certificacion: `Certificacion ${certIndex + 1}`,
         cursos: involved,
@@ -468,7 +468,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
       hallazgo: `${best[0]?.curso.nombre ?? 'La ruta'} concentra la mayor afinidad con la malla y el mercado.`,
       recomendacion: `Nombrar la certificacion como area de especializacion y cerrar con una evidencia aplicada vinculada a ${best[0]?.curso.nombre ?? 'los cursos seleccionados'}.`,
       justificacion: mercadoInforme
-        ? 'La recomendacion cruza cursos desde 5.o ciclo con habilidades, herramientas y tendencias del informe de mercado.'
+        ? 'La recomendacion cruza cursos de 4.o a 8.o ciclo con habilidades, herramientas y tendencias del informe de mercado.'
         : 'La recomendacion respeta la malla disponible; no se agrego informacion laboral externa.',
       certificacion: `Certificacion ${certIndex + 1}`,
       cursos: involved,
@@ -479,7 +479,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     void CERTIFICACIONES_COPILOT_PROMPT;
     const keywords = mercadoTerms;
     const pool = cursos
-      .filter(curso => curso.ciclo >= 5 && !/^ELECTIVO/i.test(curso.nombre))
+      .filter(curso => curso.ciclo >= 4 && curso.ciclo <= 8 && !/^ELECTIVO/i.test(curso.nombre))
       .sort((a, b) => marketScore(b, keywords) - marketScore(a, keywords))
       .slice(0, 12);
     let poolCursor = 0;
@@ -487,7 +487,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
       const next = [...currentIds];
       for (let i = 0; i < next.length; i++) {
         const current = next[i] ? cursoById.get(next[i]!) : null;
-        if (current && current.ciclo >= 5) continue;
+        if (current && current.ciclo >= 4 && current.ciclo <= 8) continue;
         const replacement = pool[poolCursor % Math.max(pool.length, 1)];
         next[i] = replacement?.id ?? null;
         poolCursor += 1;
@@ -847,7 +847,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
                 {mercadoInforme?.informe?.carrera ? `Informe laboral: ${mercadoInforme.informe.carrera}` : 'Analisis pendiente de informe laboral'}
               </h3>
               <p style={{ margin: '0 0 12px', color: '#b4c5ff', fontSize: 12, lineHeight: 1.45 }}>
-                El Copiloto cruza cursos desde 5.o ciclo con habilidades, herramientas, tendencias y recomendaciones del modulo Mercado.
+                El Copiloto cruza cursos de 4.o a 8.o ciclo con habilidades, herramientas, tendencias y recomendaciones del modulo Mercado.
               </p>
               <ul style={{ margin: '0 0 14px', paddingLeft: 18, color: '#fff', fontSize: 12, lineHeight: 1.7 }}>
                 {topSuggestion && <li>{topSuggestion.nombre} ({cycleName(topSuggestion.ciclo)})</li>}
