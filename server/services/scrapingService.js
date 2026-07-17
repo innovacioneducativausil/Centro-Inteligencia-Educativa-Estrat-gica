@@ -11,6 +11,7 @@ import {
   setScrapingStatus, getProgramaUrl, getProgramaWithEquivalencia,
 } from '../repositories/empleabilidad/scrapingRepository.js';
 import { getCuratedBenchmarkSources } from '../data/benchmarkingCuratedSources.js';
+import { getKnownCurriculumByUrl, shouldPreferKnownCurriculum } from '../data/benchmarkingKnownCurricula.js';
 import crypto from 'node:crypto';
 
 const DELAY_BETWEEN_REQUESTS_MS = 3000;
@@ -61,6 +62,15 @@ function normalizeText(value = '') {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 }
+
+const COURSE_NOISE_WORDS = [
+  'admision', 'admission', 'solicita informacion', 'inscribete', 'campus',
+  'beneficios', 'por que estudiar', 'porque estudiar', 'campo laboral',
+  'perfil del egresado', 'perfil de egreso', 'mision', 'vision',
+  'estudia', 'estudiar', 'aprende', 'conoce', 'descubre', 'postula',
+  'descarga', 'modalidad', 'duracion', 'grado academico', 'titulo profesional',
+  'convenios', 'empleabilidad',
+];
 
 function getDomain(url = '') {
   try {
@@ -188,6 +198,18 @@ function spanishCycleToNumber(value = '') {
   return numberMatch ? numberMatch[1] : null;
 }
 
+function isStandaloneCycleHeader(line = '') {
+  const normalized = normalizeText(line).replace(/\s+/g, ' ').trim();
+  if (!normalized || normalized.length > 70) return false;
+  return /^(?:ciclo|semestre|cycle|semester|term|year)\s+[0-9]{1,2}$/.test(normalized)
+    || /^(?:ciclo|semestre|cycle|semester|term|year)\s+[ivx]{1,5}$/.test(normalized)
+    || /^(?:primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)$/.test(normalized)
+    || /^(?:ciclo|semestre)\s+(?:primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)$/.test(normalized)
+    || /^(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:cycle|semester|term|year)$/.test(normalized)
+    || /^(?:cycle|semester|term|year)\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)$/.test(normalized)
+    || /^[ivx]{1,5}\s+(?:ciclo|semestre|cycle|semester|term|year)$/.test(normalized);
+}
+
 function lastCycleToNumber(value = '') {
   const text = String(value || '');
   const normalized = normalizeText(text);
@@ -244,25 +266,36 @@ function isLikelyCourseName(line = '') {
   if (text.length < 3 || text.length > 140) return false;
   const n = normalizeText(text);
   if (isCurriculumMetadataLine(text)) return false;
+  if (/https?:\/\/|www\.|@/.test(n)) return false;
+  if (/[?Â¿!Â¡]/.test(text)) return false;
+  if (/[.;:]$/.test(text)) return false;
+  if ((text.match(/[,.;:]/g) || []).length > 3) return false;
   if (/^(malla curricular|curriculum|study plan|plan de estudios|ciclo|semestre|semester|term|year|periodo|periodo academico|electivo|elective)$/.test(n)) return false;
   if (SECTION_STOP_WORDS.some(word => n.includes(normalizeText(word)))) return false;
+  if (COURSE_NOISE_WORDS.some(word => n.includes(normalizeText(word)))) return false;
   if (/^(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)$/i.test(text)) return false;
   if (/^\d+$/.test(text)) return false;
   if (/^(dni|correo|apellidos|nombres|telefono|celular)$/i.test(text)) return false;
   if (/^(creditos?|credits?|hours?|horas?|prerequisites?|pre requisit[eo]|modalidad|character|caracter|type|code|codigo)$/i.test(n)) return false;
   if (/^(apply|admission|contact|brochure|download|postula|inscribete|conoce mas|learn more)$/i.test(n)) return false;
+  const words = n.split(/\s+/).filter(Boolean);
+  if (words.length > 14) return false;
+  if (words.length > 10 && !/^(?:[A-Z]{2,6}\d{1,5}\s+)/.test(text)) return false;
   return /[a-záéíóúñ]/i.test(text);
 }
 
 function isCurriculumMetadataLine(line = '') {
   const n = normalizeText(line);
   if (!n) return true;
+  if (/https?:\/\/|www\.|@/.test(n)) return true;
+  if (/^\+?\d[\d\s().-]{6,}$/.test(n)) return true;
   if (/^--\s*\d+\s+of\s+\d+/.test(n)) return true;
   if (/\bcreditos?\b.*\bcreditos?\b/.test(n)) return true;
   if (/\bhoras?\s+(practicas|teoricas)\b.*\bhoras?\s+(practicas|teoricas)\b/.test(n)) return true;
   if (/^(codigo|nombre del curso|horas teoricas|horas practicas|creditos|formato presencial|formato blended|formato virtual|tipo de curso|requisitos|ht hp|cp cv|competencias especificas|competencias generales)$/.test(n)) return true;
-  if (/\b(creditos generales|creditos obligatorios|creditos electivos|creditaje total|niveles de las competencias|logro inicial|logro intermedio|logro final|fecha de aprobacion|rectificado al)\b/.test(n)) return true;
-  if (/^(areas|cursos|creditaje total|total de creditos|total de horas)\s*\d*/.test(n)) return true;
+  if (/\b(creditos generales|creditos obligatorios|creditos electivos|creditaje total|niveles de las competencias|logro inicial|logro intermedio|logro final|fecha de aprobacion|rectificado al|sumilla|prerrequisito|pre requisito|requisito)\b/.test(n)) return true;
+  if (/^(areas|cursos|creditaje total|total de creditos|total de horas|duracion|modalidad|turno|sede|campus)\s*\d*/.test(n)) return true;
+  if (/\b(malla curricular|plan de estudios)\b.*\b(descarga|pdf|brochure|ingresantes|vigente)\b/.test(n)) return true;
   return false;
 }
 
@@ -343,13 +376,7 @@ function parseLineBasedCurriculum(rawText = '') {
     }
 
 
-    if (/^(?:ciclo|semestre|cycle|semester|term|year)\s+[0-9]{1,2}$/.test(normalized)
-      || /^(?:ciclo|semestre|cycle|semester|term|year)\s+[ivx]{1,5}$/.test(normalized)
-      || /^(?:primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)\s+(?:ciclo|semestre)$/.test(normalized)
-      || /^(?:ciclo|semestre)\s+(?:primer|primero|segundo|tercer|tercero|cuarto|quinto|sexto|septimo|setimo|octavo|noveno|decimo|undecimo|duodecimo)$/.test(normalized)
-      || /^(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:cycle|semester|term|year)$/.test(normalized)
-      || /^(?:cycle|semester|term|year)\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)$/.test(normalized)
-      || /^[ivx]{1,5}\s+(?:ciclo|semestre|cycle|semester|term|year)$/.test(normalized)) {
+    if (isStandaloneCycleHeader(line)) {
       const detected = spanishCycleToNumber(line);
       if (detected) { currentCycle = detected; continue; }
     }
@@ -513,6 +540,8 @@ function restoreSpanishAccents(courseName = '') {
 
 function knownCurriculumByOfficialUrl(url = '') {
   const normalizedUrl = normalizeText(url);
+  const mappedCourses = getKnownCurriculumByUrl(url);
+  if (mappedCourses.length) return mappedCourses;
   let courses = [];
   let label = '';
 
@@ -689,7 +718,7 @@ function parseHtmlGenericCycleLists(html = '') {
       label: cleanPageText(match[2]),
       ciclo: spanishCycleToNumber(cleanPageText(match[2])),
     }))
-    .filter(header => header.ciclo);
+    .filter(header => header.ciclo && isStandaloneCycleHeader(header.label));
   if (!headers.length) return [];
 
   const courses = [];
@@ -778,6 +807,14 @@ function parseCurriculumCourses(text = '', url = '') {
   const knownCourses = knownCurriculumByOfficialUrl(url);
   let courses = [];
   let parser = 'generic_html_malla_v1';
+
+  if (knownCourses.length && shouldPreferKnownCurriculum(url)) {
+    return {
+      parser: 'known_curriculum_map_v1',
+      courses: knownCourses,
+      status: 'parseado',
+    };
+  }
 
   if (domain.includes('ucv.edu.pe')) {
     parser = 'ucv_malla_v1';

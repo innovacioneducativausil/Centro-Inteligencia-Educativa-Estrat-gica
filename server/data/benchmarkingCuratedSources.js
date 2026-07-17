@@ -9,9 +9,10 @@ function normalize(value = '') {
 
 const URLS_BY_CAREER = {
   PSICOLOGIA: [
-    ['UPC', 'malla_curricular', 'Malla curricular Psicologia UPC', 'https://pregrado.upc.edu.pe/carrera-de-psicologia/malla-curricular/'],
+    ['UPC', 'malla_curricular', 'Malla curricular Psicologia UPC 2025', 'https://pregrado.upc.edu.pe/facultad-de-psicologia/psicologia/'],
     ['ULIMA', 'malla_curricular', 'Malla curricular Psicologia ULIMA 2025', 'https://www.ulima.edu.pe/sites/default/files/2025-01/malla-psicologia-2025.pdf'],
-    ['USMP', 'malla_curricular', 'Malla curricular Psicologia USMP', 'https://fcctp.usmp.edu.pe/site/programas-academicos/pregrado/psicologia/malla-curricular/'],
+    ['USMP', 'pagina_programa', 'Psicologia USMP', 'https://fcctp.usmp.edu.pe/site/programas-academicos/pregrado/psicologia/'],
+    ['USMP', 'plan_estudios', 'Plan curricular Psicologia USMP 2024-II PDF', 'https://fcctp.usmp.edu.pe/pdf/2024/plan-psi-2024-II.pdf'],
     ['UTP', 'malla_curricular', 'Malla curricular Psicologia UTP', 'https://utp.edu.pe/pregrado/facultad-de-psicologia/psicologia/malla-curricular'],
   ],
   ADMINISTRACION: [
