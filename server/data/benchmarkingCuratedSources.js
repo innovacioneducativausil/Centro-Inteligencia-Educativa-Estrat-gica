@@ -33,7 +33,7 @@ const URLS_BY_CAREER = {
   ],
   'DIGITAL BUSINESS MANAGEMENT': [
     ['UPC', 'malla_curricular', 'Malla curricular Administracion y Marketing UPC', 'https://pregrado.upc.edu.pe/carrera-de-administracion-y-marketing/malla-curricular/'],
-    ['UPC', 'malla_curricular', 'Malla curricular Administracion y Marketing UPC PDF', 'https://www.upc.edu.pe/transparencia-upc/mallas-curriculares/documentos/pregrado/ADMINISTRACION%20Y%20MARKETING%20PREGRADO%20FDM%20P.pdf'],
+    ['UPC', 'malla_curricular', 'Malla curricular Administracion y Marketing UPC PDF 2025', 'https://upc-cdn.b-cdn.net/transparencia/mallas-curriculares/pregrado/web-detail-version-2025/ADMINISTRACION%20Y%20MARKETING%20PREGRADO%20FDM.pdf'],
   ],
   'ECONOMIA Y FINANZAS': [
     ['UP', 'plan_estudios', 'Plan de estudios Economia UP', 'https://www.up.edu.pe/carreras-postgrado-idiomas/carreras-pregrado/economia/paginas/plan-estudios.aspx'],
