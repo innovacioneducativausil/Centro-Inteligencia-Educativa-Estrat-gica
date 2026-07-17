@@ -58,7 +58,7 @@ const URLS_BY_CAREER = {
     ['UPC', 'malla_curricular', 'Malla curricular Administracion y Marketing UPC', 'https://pregrado.upc.edu.pe/carrera-de-administracion-y-marketing/malla-curricular/'],
     ['UP', 'plan_estudios', 'Plan de estudios Marketing UP', 'https://www.up.edu.pe/carreras-postgrado-idiomas/carreras-pregrado/marketing/Paginas/plan-estudios.aspx'],
     ['USMP', 'plan_estudios', 'Plan de estudios Marketing USMP', 'https://www.administracion.usmp.edu.pe/marketing/plan-de-estudios/'],
-    ['UPN', 'malla_curricular', 'Malla curricular Administracion y Marketing UPN', 'https://www.upn.edu.pe/sites/default/files/malla-curricular/carrera-ug-administracion-marketing.pdf'],
+    ['UPN', 'malla_curricular', 'Malla curricular Administracion y Marketing UPN', 'https://www.upn.edu.pe/carrera/administracion-y-marketing'],
   ],
   'ADMINISTRACION EN TURISMO': [
     ['UPC', 'pagina_programa', 'Turismo y Administracion UPC', 'https://pregrado.upc.edu.pe/facultad-de-administracion-en-hoteleria-y-turismo/turismo-y-administracion/'],
