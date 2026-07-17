@@ -66,7 +66,6 @@ const URLS_BY_CAREER = {
     ['UNMSM', 'malla_curricular', 'Malla curricular Administracion de Turismo UNMSM PDF', 'https://administracion.unmsm.edu.pe/1web2022/wp-content/uploads/2022/02/Malla-Curricular-2018-EP-Turismo.pdf'],
     ['UNMSM', 'pagina_programa', 'Administracion de Turismo UNMSM', 'https://administracion.unmsm.edu.pe/e-p-administracion-de-turismo/'],
     ['UPN', 'malla_curricular', 'Malla curricular Administracion y Servicios Turisticos UPN', 'https://www.upn.edu.pe/carrera/administracion-y-servicios-turisticos'],
-    ['UCV', 'pagina_programa', 'Administracion Turismo y Hoteleria UCV', 'https://www.ucv.edu.pe/sube-semipresencial/administracion-turismo-y-hoteleria'],
   ],
   'ADMINISTRACION HOTELERA': [
     ['UPC', 'pagina_programa', 'Hoteleria y Administracion UPC', 'https://pregrado.upc.edu.pe/facultad-de-administracion-en-hoteleria-y-turismo/hoteleria-y-administracion/'],
@@ -118,7 +117,6 @@ const URLS_BY_CAREER = {
     ['UPN', 'pagina_programa', 'Ingenieria Agroindustrial UPN', 'https://www.upn.edu.pe/carrera/ingenieria-agroindustrial'],
     ['UPN', 'malla_curricular', 'Malla curricular Ingenieria Agroindustrial UPN', 'https://www.upn.edu.pe/sites/default/files/malla-curricular/carrera-ug-ingenieria-agroindustrial.pdf'],
     ['UNMSM', 'pagina_programa', 'Ingenieria Agroindustrial UNMSM', 'https://quimica.unmsm.edu.pe/formacion-academica/pregrado/ingenieria-agroindustrial'],
-    ['UCV', 'pagina_programa', 'Agroindustrial Engineering UCV', 'https://www.ucv.edu.pe/en/presential-undergraduate/agroindustrial-engineering'],
   ],
   'INGENIERIA AMBIENTAL': [
     ['UPC', 'malla_curricular', 'Malla curricular Ingenieria Ambiental UPC', 'https://pregrado.upc.edu.pe/carrera-de-ingenieria-ambiental/malla-curricular/'],
@@ -408,7 +406,6 @@ const UNIVERSITY_ALIASES = {
   USMP: ['UNIVERSIDAD DE SAN MARTIN DE PORRES', 'USMP'],
   UNMSM: ['UNIVERSIDAD NACIONAL MAYOR DE SAN MARCOS', 'UNMSM', 'SAN MARCOS'],
   UNI: ['UNIVERSIDAD NACIONAL DE INGENIERIA', 'UNI'],
-  UCV: ['UNIVERSIDAD CESAR VALLEJO', 'UCV'],
   USFQ: ['UNIVERSIDAD SAN FRANCISCO DE QUITO', 'USFQ'],
   TEC: ['TECNOLOGICO DE MONTERREY', 'TEC DE MONTERREY', 'TEC'],
   MIT: ['MASSACHUSETTS INSTITUTE OF TECHNOLOGY', 'MIT'],

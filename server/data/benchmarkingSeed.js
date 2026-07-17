@@ -14,7 +14,6 @@ export const BENCHMARK_UNIVERSITIES = {
   UNMSM: { nombre: 'Universidad Nacional Mayor de San Marcos', pais: 'Peru', ciudad: 'Lima', web: 'https://www.unmsm.edu.pe/' },
   UNI: { nombre: 'Universidad Nacional de Ingenieria', pais: 'Peru', ciudad: 'Lima', web: 'https://www.uni.edu.pe/' },
   URP: { nombre: 'Universidad Ricardo Palma', pais: 'Peru', ciudad: 'Lima', web: 'https://www.urp.edu.pe/' },
-  UCV: { nombre: 'Universidad Cesar Vallejo', pais: 'Peru', ciudad: 'Lima', web: 'https://www.ucv.edu.pe/' },
   USFQ: { nombre: 'Universidad San Francisco de Quito', pais: 'Ecuador', ciudad: 'Quito', web: 'https://www.usfq.edu.ec/' },
   TEC: { nombre: 'Tecnologico de Monterrey', pais: 'Mexico', ciudad: 'Monterrey', web: 'https://tec.mx/' },
   MIT: { nombre: 'Massachusetts Institute of Technology', pais: 'Estados Unidos', ciudad: 'Cambridge', web: 'https://www.mit.edu/' },
@@ -26,7 +25,7 @@ export const BENCHMARK_UNIVERSITIES = {
 const directBusiness = ['PUCP', 'UPC', 'ULIMA', 'UP', 'ESAN', 'UDEP'];
 const directEngineering = ['UPC', 'UTEC', 'PUCP', 'ULIMA', 'UPN', 'UTP'];
 const directHealth = ['UPCH', 'UCSUR', 'UPC', 'USMP', 'UNMSM'];
-const directHospitality = ['PUCP', 'UPC', 'ULIMA', 'UDEP', 'UTP', 'UCSUR', 'USMP', 'UNMSM', 'UPN', 'UCV'];
+const directHospitality = ['PUCP', 'UPC', 'ULIMA', 'UDEP', 'UTP', 'UCSUR', 'USMP', 'UNMSM', 'UPN'];
 const directHumanities = ['PUCP', 'ULIMA', 'UPC', 'UDEP'];
 const internationalCore = ['TEC', 'USFQ'];
 const internationalTech = ['MIT', 'STANFORD', 'CALTECH'];

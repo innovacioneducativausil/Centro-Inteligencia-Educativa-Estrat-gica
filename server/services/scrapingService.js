@@ -451,59 +451,6 @@ function parseTableLikeCurriculum(rawText = '') {
   return flattened;
 }
 
-function parseFlattenedUcvCurriculum(rawText = '') {
-  const segment = segmentAfterMalla(rawText).replace(/\s+/g, ' ').trim();
-  if (!segment) return [];
-
-  const knownCourses = [
-    'Pensamiento Logico', 'Habilidades Comunicativas', 'Objetivos de Desarrollo Sostenible',
-    'Fundamentos de Administracion en Turismo y Hoteleria', 'Ingles I',
-    'Cambio Climatico y Gestion de Riesgos', 'Administracion Turistica y Hotelera',
-    'Catedra Vallejo', 'Economia', 'Ingles II',
-    'Creatividad e Innovacion', 'Tecnicas Hoteleras', 'Geografia Turistica',
-    'Estadistica y Analisis de Datos', 'Ingles III',
-    'Metodologia de la Investigacion Cientifica', 'Matematica para las Finanzas',
-    'Patrimonio Turistico', 'Gastronomia y Bar', 'Ingles IV',
-    'Contabilidad para la Gestion', 'Constitucion y Derechos Humanos',
-    'Diseno de Productos y Experiencias Turisticas',
-    'Administracion del Recurso Humano en Empresas de Servicios Turisticos', 'Ingles V',
-    'Marketing Turistico', 'Destinos Turisticos Inteligentes', 'Gestion Hotelera',
-    'Experiencia Curricular Electiva', 'Ingles VI',
-    'Direccion de Empresas Turisticas', 'Planificacion Turistica Sostenible',
-    'Gestion de Restaurantes y Catering', 'Filosofia y Etica', 'Ingles VII',
-    'Gestion Publica del Turismo', 'Agencias de Viajes', 'Gestion de Proyectos', 'Ingles VIII',
-    'Trabajo de Investigacion I', 'Practica Preprofesional I', 'Ingles IX',
-    'Trabajo de Investigacion II', 'Practica Preprofesional II', 'Ingles X',
-  ];
-  const normalizedSegment = normalizeText(segment);
-  const found = [];
-  for (const course of knownCourses) {
-    const idx = normalizedSegment.indexOf(normalizeText(course));
-    if (idx >= 0) found.push({ course, idx });
-  }
-  found.sort((a, b) => a.idx - b.idx);
-  if (found.length < 8) return [];
-
-  const cycleByCourse = new Map([
-    ['Pensamiento Logico', '1'], ['Habilidades Comunicativas', '1'], ['Objetivos de Desarrollo Sostenible', '1'], ['Fundamentos de Administracion en Turismo y Hoteleria', '1'], ['Ingles I', '1'],
-    ['Cambio Climatico y Gestion de Riesgos', '2'], ['Administracion Turistica y Hotelera', '2'], ['Catedra Vallejo', '2'], ['Economia', '2'], ['Ingles II', '2'],
-    ['Creatividad e Innovacion', '3'], ['Tecnicas Hoteleras', '3'], ['Geografia Turistica', '3'], ['Estadistica y Analisis de Datos', '3'], ['Ingles III', '3'],
-    ['Metodologia de la Investigacion Cientifica', '4'], ['Matematica para las Finanzas', '4'], ['Patrimonio Turistico', '4'], ['Gastronomia y Bar', '4'], ['Ingles IV', '4'],
-    ['Contabilidad para la Gestion', '5'], ['Constitucion y Derechos Humanos', '5'], ['Diseno de Productos y Experiencias Turisticas', '5'], ['Administracion del Recurso Humano en Empresas de Servicios Turisticos', '5'], ['Ingles V', '5'],
-    ['Marketing Turistico', '6'], ['Destinos Turisticos Inteligentes', '6'], ['Gestion Hotelera', '6'], ['Experiencia Curricular Electiva', '6'], ['Ingles VI', '6'],
-    ['Direccion de Empresas Turisticas', '7'], ['Planificacion Turistica Sostenible', '7'], ['Gestion de Restaurantes y Catering', '7'], ['Filosofia y Etica', '7'], ['Ingles VII', '7'],
-    ['Gestion Publica del Turismo', '8'], ['Agencias de Viajes', '8'], ['Gestion de Proyectos', '8'], ['Ingles VIII', '8'],
-    ['Trabajo de Investigacion I', '9'], ['Practica Preprofesional I', '9'], ['Ingles IX', '9'],
-    ['Trabajo de Investigacion II', '10'], ['Practica Preprofesional II', '10'], ['Ingles X', '10'],
-  ]);
-
-  return found.map(item => ({
-    ciclo: cycleByCourse.get(item.course) || null,
-    nombreCurso: item.course,
-    evidencia: item.course,
-  }));
-}
-
 function restoreSpanishAccents(courseName = '') {
   const replacements = {
     'Pensamiento Logico': 'Pensamiento Lógico',
@@ -544,22 +491,6 @@ function knownCurriculumByOfficialUrl(url = '') {
   if (mappedCourses.length) return mappedCourses;
   let courses = [];
   let label = '';
-
-  if (normalizedUrl.includes('ucv.edu.pe') && normalizedUrl.includes('administracion-turismo-y-hoteleria')) {
-    label = 'Fallback desde URL oficial UCV Administracion en Turismo y Hoteleria';
-    courses = [
-      ['Pensamiento Logico', '1'], ['Habilidades Comunicativas', '1'], ['Objetivos de Desarrollo Sostenible', '1'], ['Fundamentos de Administracion en Turismo y Hoteleria', '1'], ['Ingles I', '1'],
-      ['Cambio Climatico y Gestion de Riesgos', '2'], ['Administracion Turistica y Hotelera', '2'], ['Catedra Vallejo', '2'], ['Economia', '2'], ['Ingles II', '2'],
-      ['Creatividad e Innovacion', '3'], ['Tecnicas Hoteleras', '3'], ['Geografia Turistica', '3'], ['Estadistica y Analisis de Datos', '3'], ['Ingles III', '3'],
-      ['Metodologia de la Investigacion Cientifica', '4'], ['Matematica para las Finanzas', '4'], ['Patrimonio Turistico', '4'], ['Gastronomia y Bar', '4'], ['Ingles IV', '4'],
-      ['Contabilidad para la Gestion', '5'], ['Constitucion y Derechos Humanos', '5'], ['Diseno de Productos y Experiencias Turisticas', '5'], ['Administracion del Recurso Humano en Empresas de Servicios Turisticos', '5'], ['Ingles V', '5'],
-      ['Marketing Turistico', '6'], ['Destinos Turisticos Inteligentes', '6'], ['Gestion Hotelera', '6'], ['Experiencia Curricular Electiva', '6'], ['Ingles VI', '6'],
-      ['Direccion de Empresas Turisticas', '7'], ['Planificacion Turistica Sostenible', '7'], ['Gestion de Restaurantes y Catering', '7'], ['Filosofia y Etica', '7'], ['Ingles VII', '7'],
-      ['Gestion Publica del Turismo', '8'], ['Agencias de Viajes', '8'], ['Gestion de Proyectos', '8'], ['Ingles VIII', '8'],
-      ['Trabajo de Investigacion I', '9'], ['Practica Preprofesional I', '9'], ['Ingles IX', '9'],
-      ['Trabajo de Investigacion II', '10'], ['Practica Preprofesional II', '10'], ['Ingles X', '10'],
-    ];
-  }
 
   if (
     normalizedUrl.includes('administracion.unmsm.edu.pe') &&
@@ -816,13 +747,7 @@ function parseCurriculumCourses(text = '', url = '') {
     };
   }
 
-  if (domain.includes('ucv.edu.pe')) {
-    parser = 'ucv_malla_v1';
-    courses = parseLineBasedCurriculum(text);
-    if (courses.length < 8) courses = parseFlattenedUcvCurriculum(text);
-  } else {
-    courses = parseLineBasedCurriculum(text);
-  }
+  courses = parseLineBasedCurriculum(text);
 
   if (courses.length < 3) {
     const tableCourses = parseTableLikeCurriculum(text);
