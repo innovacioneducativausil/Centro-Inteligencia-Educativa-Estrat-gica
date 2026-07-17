@@ -436,43 +436,58 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
     ));
   };
 
-  const buildInsight = (certIndex: number, certCursos: CertificacionesCurso[], keywords: string[]): AiInsight => {
-    const best = certCursos
+  const buildThreeInsights = (nextSlots: CertSlot[], keywords: string[]): AiInsight[] => {
+    const certCourses = nextSlots.map(slot => slot.cursoIds.map(id => cursoById.get(id || '')).filter(Boolean) as CertificacionesCurso[]);
+    const allSelected = certCourses.flat();
+    const ranked = allSelected
       .map(curso => ({ curso, score: marketScore(curso, keywords) }))
       .sort((a, b) => b.score - a.score);
-    const missing = 4 - certCursos.length;
-    const involved = certCursos.map(curso => `${curso.nombre} (${cycleName(curso.ciclo)})`);
-    const similarNames = slots
-      .map((slot, idx) => ({ idx, name: normalizeText(slot.nombre) }))
-      .filter(item => item.idx !== certIndex && item.name && normalizeText(slots[certIndex].nombre).includes(item.name.slice(0, 12)));
+    const repeated = allSelected.filter((curso, index, list) => list.findIndex(item => item.id === curso.id) !== index);
+    const incomplete = certCourses
+      .map((items, idx) => ({ idx, missing: Math.max(0, 4 - items.length), items }))
+      .filter(item => item.missing > 0);
+    const cycleSpread = certCourses.map(items => items.map(curso => curso.ciclo).sort((a, b) => a - b));
+    const marketBasis = mercadoInforme
+      ? `informe laboral de ${mercadoInforme.informe?.carrera ?? programa.program}`
+      : 'malla curricular disponible';
 
-    if (missing > 0) {
-      return {
-        hallazgo: `La Certificacion ${certIndex + 1} aun no completa los 4 cursos requeridos.`,
-        recomendacion: `Agregar ${missing} curso(s) de 4.o a 8.o ciclo con mayor relacion a competencias demandadas.`,
-        justificacion: mercadoInforme ? 'El informe de mercado aporta habilidades y tendencias para priorizar cursos con mayor afinidad.' : 'La recomendacion se basa solo en la malla porque no hay informe de mercado conectado.',
-        certificacion: `Certificacion ${certIndex + 1}`,
-        cursos: involved,
-      };
-    }
-    if (similarNames.length) {
-      return {
-        hallazgo: `La Certificacion ${certIndex + 1} puede parecer poco diferenciada frente a otra certificacion.`,
-        recomendacion: 'Ajustar el nombre hacia una competencia especifica y ordenar los cursos de base a aplicacion.',
-        justificacion: 'Los nombres similares reducen claridad para el estudiante y para la evidencia de empleabilidad.',
-        certificacion: `Certificacion ${certIndex + 1}`,
-        cursos: involved,
-      };
-    }
-    return {
-      hallazgo: `${best[0]?.curso.nombre ?? 'La ruta'} concentra la mayor afinidad con la malla y el mercado.`,
-      recomendacion: `Nombrar la certificacion como area de especializacion y cerrar con una evidencia aplicada vinculada a ${best[0]?.curso.nombre ?? 'los cursos seleccionados'}.`,
-      justificacion: mercadoInforme
-        ? 'La recomendacion cruza cursos de 4.o a 8.o ciclo con habilidades, herramientas y tendencias del informe de mercado.'
-        : 'La recomendacion respeta la malla disponible; no se agrego informacion laboral externa.',
-      certificacion: `Certificacion ${certIndex + 1}`,
-      cursos: involved,
-    };
+    return [
+      {
+        hallazgo: ranked[0]
+          ? `${ranked[0].curso.nombre} es el curso seleccionado con mayor afinidad relativa frente al ${marketBasis}.`
+          : 'Aun no hay cursos seleccionados para contrastar con la malla y el informe laboral.',
+        recomendacion: ranked[0]
+          ? 'Usarlo como ancla de competencia y acompañarlo con cursos que construyan evidencia aplicada, no solo contenido teórico.'
+          : 'Arrastrar cursos de 4.o a 8.o ciclo para que el Copiloto genere una lectura pertinente.',
+        justificacion: mercadoInforme
+          ? 'El cruce considera habilidades, herramientas, tendencias y recomendaciones del modulo Mercado junto con los cursos asignados.'
+          : 'El cruce se limita a la malla porque no se encontro informe laboral asociado.',
+        certificacion: ranked[0] ? 'Certificacion con mayor afinidad' : 'Pendiente',
+        cursos: ranked.slice(0, 4).map(item => `${item.curso.nombre} (${cycleName(item.curso.ciclo)})`),
+      },
+      {
+        hallazgo: incomplete.length
+          ? `${incomplete.length} certificacion(es) aun no tienen exactamente 4 cursos.`
+          : 'Las 3 certificaciones cumplen la estructura de 4 cursos.',
+        recomendacion: incomplete.length
+          ? 'Completar cada certificacion con cursos de 4.o a 8.o ciclo antes de validar nombres o evidencias finales.'
+          : 'Revisar el orden de los cursos para que avance de fundamentos a aplicacion/proyecto.',
+        justificacion: `Secuencia observada por certificacion: ${cycleSpread.map((cycles, idx) => `C${idx + 1}: ${cycles.length ? cycles.join('-') : 'sin cursos'}`).join(' | ')}.`,
+        certificacion: 'Estructura y coherencia',
+        cursos: certCourses.flatMap(items => items.slice(0, 2).map(curso => `${curso.nombre} (${cycleName(curso.ciclo)})`)).slice(0, 4),
+      },
+      {
+        hallazgo: repeated.length
+          ? `${Array.from(new Set(repeated.map(curso => curso.nombre))).join(', ')} articula mas de una certificacion.`
+          : 'No hay cursos repetidos entre certificaciones; cada ruta esta diferenciada por cursos.',
+        recomendacion: repeated.length
+          ? 'Mantener el curso repetido solo si evidencia competencias distintas en cada certificacion.'
+          : 'Si una competencia transversal es clave en el informe laboral, puedes repetir un curso y diferenciar la evidencia final.',
+        justificacion: 'La diferenciacion evita certificaciones redundantes y ayuda a que cada propuesta represente una competencia demostrable.',
+        certificacion: 'Diferenciacion entre certificaciones',
+        cursos: (repeated.length ? repeated : allSelected).slice(0, 4).map(curso => `${curso.nombre} (${cycleName(curso.ciclo)})`),
+      },
+    ];
   };
 
   const autoAnalyze = () => {
@@ -518,10 +533,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
       },
     ];
     setSlots(nextSlots);
-    const insights = nextSlots.map((slot, idx) =>
-      buildInsight(idx, slot.cursoIds.map(id => cursoById.get(id || '')).filter(Boolean) as CertificacionesCurso[], keywords)
-    );
-    setAiInsights(insights);
+    setAiInsights(buildThreeInsights(nextSlots, keywords));
     setAiSummary(mercadoInforme
       ? `Analisis generado con malla curricular, informe de mercado de ${mercadoInforme.informe?.periodo ?? 'mercado'} y cursos asignados.`
       : 'Analisis generado con malla curricular. No se encontro informe de mercado asociado para esta carrera.');
@@ -860,7 +872,7 @@ const CertificacionesGradualesView: React.FC<CertificacionesGradualesViewProps> 
 
             {aiInsights.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ color: '#b4c5ff', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Recomendaciones IA</div>
+                <div style={{ color: '#b4c5ff', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>3 insights IA</div>
                 {aiInsights.map((item, idx) => (
                   <div key={`${item.certificacion}-${idx}`} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: 12 }}>
                     <div style={{ color: TEAL_BRIGHT, fontSize: 11, fontWeight: 900, marginBottom: 6 }}>{item.certificacion}</div>
