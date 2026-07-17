@@ -51,7 +51,7 @@ const URLS_BY_CAREER = {
   ],
   'INTERNATIONAL BUSINESS': [
     ['UPC', 'malla_curricular', 'Malla curricular Administracion y Negocios Internacionales UPC', 'https://pregrado.upc.edu.pe/carrera-de-administracion-y-negocios-internacionales/malla-curricular/'],
-    ['UPC', 'malla_curricular', 'Malla curricular Administracion y Negocios Internacionales UPC PDF', 'https://www.upc.edu.pe/transparencia-upc/mallas-curriculares/documentos/pregrado/ADMINISTRACION%20Y%20NEGOCIOS%20INTERNACIONALES%20PREGRADO%20FDM%20PRESENCIAL.pdf'],
+    ['UPC', 'malla_curricular', 'Malla curricular Administracion y Negocios Internacionales UPC PDF 2026', 'https://upc-cdn.b-cdn.net/transparencia/mallas-curriculares/pregrado/2026/ADMINISTRACION%20Y%20NEGOCIOS%20INTERNACIONALES%20PREGRADO%20MW%20FDM%20PR.pdf'],
     ['ULIMA', 'malla_curricular', 'Malla curricular Negocios Internacionales ULIMA', 'https://www.ulima.edu.pe/sites/default/files/2025-01/malla-negocios-int-2025.pdf'],
   ],
   MARKETING: [
