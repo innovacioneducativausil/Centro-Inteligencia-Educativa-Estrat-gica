@@ -42,6 +42,7 @@ const URLS_BY_CAREER = {
     ['UPC', 'malla_curricular', 'Malla curricular Economia y Negocios Internacionales UPC', 'https://pregrado.upc.edu.pe/carrera-de-economia-y-negocios-internacionales/malla-curricular'],
     ['ESAN', 'pagina_programa', 'Economia ESAN', 'https://www.ue.edu.pe/pregrado/carreras/economia'],
     ['UDEP', 'pagina_programa', 'Economia UDEP', 'https://www.udep.edu.pe/admision/lima/economia/'],
+    ['UDEP', 'malla_curricular', 'Malla curricular Economia UDEP 2026 PDF', 'https://www.udep.edu.pe/admision/lima/wp-content/uploads/2026/04/malla-ECO-2026.pdf'],
   ],
   'ECONOMIA Y NEGOCIOS INTERNACIONALES': [
     ['UPC', 'malla_curricular', 'Malla curricular Economia y Negocios Internacionales UPC', 'https://pregrado.upc.edu.pe/carrera-de-economia-y-negocios-internacionales/malla-curricular'],
