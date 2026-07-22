@@ -85,6 +85,7 @@ const URLS_BY_CAREER = {
     ['UPC', 'malla_curricular', 'Malla curricular Comunicacion y Periodismo UPC', 'https://pregrado.upc.edu.pe/carrera-de-comunicacion-y-periodismo/malla-curricular/'],
     ['UPC', 'malla_curricular', 'Malla curricular Comunicacion Audiovisual UPC', 'https://pregrado.upc.edu.pe/carrera-de-comunicacion-audiovisual-y-medios-interactivos/malla-curricular/'],
     ['ULIMA', 'pagina_programa', 'Communication ULIMA', 'https://www.ulima.edu.pe/en/undergraduate/communication'],
+    ['ULIMA', 'malla_curricular', 'Malla curricular Communication ULIMA 2026', 'https://www.ulima.edu.pe/sites/default/files/2026-02/malla_comunicacion_ingles_2026.pdf'],
     ['UTP', 'malla_curricular', 'Malla curricular Ciencias de la Comunicacion UTP', 'https://utp.edu.pe/pregrado/facultad-de-comunicaciones/ciencias-de-la-comunicacion/malla-curricular'],
   ],
   'RELACIONES INTERNACIONALES': [
