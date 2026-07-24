@@ -90,6 +90,7 @@ const URLS_BY_CAREER = {
   ],
   'RELACIONES INTERNACIONALES': [
     ['PUCP', 'plan_estudios', 'Plan de estudios Relaciones Internacionales PUCP', 'https://facultad-ciencias-sociales.pucp.edu.pe/carreras/relaciones-internacionales/planes-de-estudio/'],
+    ['PUCP', 'plan_estudios', 'Plan de estudios Relaciones Internacionales PUCP vigente', 'https://facultad-ciencias-sociales.pucp.edu.pe/wp-content/uploads/2025/10/PA-M002407-plan-de-estudios.pdf'],
     ['PUCP', 'plan_estudios', 'Plan de estudios Relaciones Internacionales PUCP PDF', 'https://facultad-ciencias-sociales.pucp.edu.pe/wp-content/uploads/2024/09/Plan-de-Estudios-de-Relaciones-Internacionales-PUCP-2024-050924.pdf'],
     ['UPC', 'malla_curricular', 'Malla curricular Relaciones Internacionales UPC', 'https://pregrado.upc.edu.pe/carrera-de-relaciones-internacionales/malla-curricular'],
     ['UTP', 'malla_curricular', 'Malla curricular Relaciones Internacionales UTP', 'https://www.utp.edu.pe/web/sites/default/files/transparencia/P16%20-%20Relaciones%20Internacionales_0.pdf'],
