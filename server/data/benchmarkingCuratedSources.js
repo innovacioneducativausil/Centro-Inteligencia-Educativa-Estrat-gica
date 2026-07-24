@@ -103,7 +103,7 @@ const URLS_BY_CAREER = {
     ['ULIMA', 'plan_estudios', 'Plan de estudios Derecho ULIMA 2026-1', 'https://www.ulima.edu.pe/sites/default/files/career/files/plan_de_estudios_2026-1_0.pdf'],
     ['USMP', 'plan_estudios', 'Plan de estudios Derecho USMP', 'https://derecho.usmp.edu.pe/plan_de_estudios/'],
     ['UTP', 'malla_curricular', 'Malla curricular Derecho UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-derecho/derecho/malla-curricular'],
-    ['UPN', 'malla_curricular', 'Malla curricular Derecho UPN', 'https://www.upn.edu.pe/sites/default/files/malla-curricular/carrera-ug-derecho.pdf'],
+    ['UPN', 'malla_curricular', 'Malla curricular Derecho UPN', 'https://www.upn.edu.pe/carrera/derecho'],
   ],
   'EDUCACION INICIAL': [
     ['PUCP', 'plan_estudios', 'Plan de estudios Educacion PUCP', 'https://files.pucp.education/estudiante/2023/03/07110543/plan_de_estudios_educacion.pdf'],
@@ -120,7 +120,6 @@ const URLS_BY_CAREER = {
   ],
   'INGENIERIA AGROINDUSTRIAL': [
     ['UPN', 'pagina_programa', 'Ingenieria Agroindustrial UPN', 'https://www.upn.edu.pe/carrera/ingenieria-agroindustrial'],
-    ['UPN', 'malla_curricular', 'Malla curricular Ingenieria Agroindustrial UPN', 'https://www.upn.edu.pe/sites/default/files/malla-curricular/carrera-ug-ingenieria-agroindustrial.pdf'],
     ['UNMSM', 'pagina_programa', 'Ingenieria Agroindustrial UNMSM', 'https://quimica.unmsm.edu.pe/formacion-academica/pregrado/ingenieria-agroindustrial'],
   ],
   'INGENIERIA AMBIENTAL': [
@@ -131,11 +130,11 @@ const URLS_BY_CAREER = {
   ],
   'INGENIERIA BIOMEDICA': [
     ['UPC', 'malla_curricular', 'Malla curricular Ingenieria Biomedica UPC', 'https://pregrado.upc.edu.pe/carrera-de-ingenieria-biomedica/malla-curricular/'],
-    ['PUCP', 'plan_estudios', 'Plan de estudios Ingenieria Biomedica PUCP', 'https://facultad-ciencias-ingenieria.pucp.edu.pe/carreras/ingenieria-biomedica/plan-de-estudios/'],
+    ['PUCP', 'plan_estudios', 'Plan de estudios Ingenieria Biomedica PUCP 2026-2', 'https://facultad-ciencias-ingenieria.pucp.edu.pe/wp-content/uploads/2026/07/BIOMEDICA-2_ppee_FCI-2026-2.pdf'],
     ['UTEC', 'malla_curricular', 'Malla curricular Bioingenieria UTEC', 'https://www1.utec.edu.pe/carreras/bioingenieria/malla-curricular'],
   ],
   'INGENIERIA CIVIL': [
-    ['PUCP', 'plan_estudios', 'Plan de estudios Ingenieria Civil PUCP', 'https://facultad-ciencias-ingenieria.pucp.edu.pe/carreras/ingenieria-civil/plan-de-estudios/'],
+    ['PUCP', 'plan_estudios', 'Plan de estudios Ingenieria Civil PUCP 2026-2', 'https://facultad-ciencias-ingenieria.pucp.edu.pe/wp-content/uploads/2026/07/CIVIL_ppee_FCI-2026-2.pdf'],
     ['UPC', 'malla_curricular', 'Malla curricular Ingenieria Civil UPC', 'https://pregrado.upc.edu.pe/carrera-de-ingenieria-civil/malla-curricular/'],
     ['UNI', 'malla_curricular', 'Curriculum Ingenieria Civil UNI', 'https://acreditacion.uni.edu.pe/civil/curriculum/'],
     ['UTP', 'malla_curricular', 'Malla curricular Ingenieria Civil UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-ingenieria/ingenieria-civil/malla-curricular'],
@@ -161,7 +160,7 @@ const URLS_BY_CAREER = {
     ['UTP', 'malla_curricular', 'Malla curricular Ingenieria Industrial UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-ingenieria/ingenieria-industrial/malla-curricular'],
   ],
   'INGENIERIA MECATRONICA': [
-    ['PUCP', 'plan_estudios', 'Plan de estudios Ingenieria Mecatronica PUCP', 'https://facultad-ciencias-ingenieria.pucp.edu.pe/carreras/ingenieria-mecatronica/plan-de-estudios/'],
+    ['PUCP', 'plan_estudios', 'Plan de estudios Ingenieria Mecatronica PUCP 2026-1', 'https://facultad-ciencias-ingenieria.pucp.edu.pe/wp-content/uploads/2026/03/ppee_MECATRONICA-2026-1.pdf'],
     ['UPN', 'pagina_programa', 'Ingenieria Mecatronica UPN', 'https://www.upn.edu.pe/carrera/ingenieria-mecatronica'],
     ['UTEC', 'malla_curricular', 'Malla curricular Ingenieria Mecatronica UTEC', 'https://utec.edu.pe/carreras/ingenieria-mecatronica'],
   ],
