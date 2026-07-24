@@ -616,6 +616,34 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
               ]
             );
             if (rSource.affectedRows) fuentesCreadas++;
+
+            await db.query(
+              `INSERT INTO benchmark_source_candidate
+               (id_programa_benchmark, url, titulo, snippet, tipo_fuente_detectado,
+                score_total, score_detalle_json, estado, motivo)
+               VALUES (?,?,?,?,?,?,?,?,?)
+               ON DUPLICATE KEY UPDATE
+                 titulo=VALUES(titulo),
+                 snippet=VALUES(snippet),
+                 tipo_fuente_detectado=VALUES(tipo_fuente_detectado),
+                 score_total=VALUES(score_total),
+                 score_detalle_json=VALUES(score_detalle_json),
+                 estado=VALUES(estado),
+                 motivo=VALUES(motivo),
+                 buscado_en=NOW(),
+                 updated_at=CURRENT_TIMESTAMP`,
+              [
+                idProg,
+                source.url,
+                source.titulo,
+                'URL curada desde mapa base de benchmarking; disponible para aprobacion/rebusqueda.',
+                source.tipoFuente,
+                100,
+                JSON.stringify({ curada: 100, seed: 100 }),
+                'aprobado',
+                'Coincidencia exacta en mapa base de fuentes oficiales.',
+              ]
+            );
           }
           await db.query(
             `UPDATE programa_benchmark
