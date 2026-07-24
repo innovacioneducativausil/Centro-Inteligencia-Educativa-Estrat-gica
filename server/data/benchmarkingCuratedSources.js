@@ -97,7 +97,9 @@ const URLS_BY_CAREER = {
   DERECHO: [
     ['PUCP', 'malla_curricular', 'Malla curricular Derecho PUCP', 'https://facultad-derecho.pucp.edu.pe/wp-content/uploads/2022/11/malla-curricular-2022.pdf'],
     ['PUCP', 'plan_estudios', 'Planes de estudio Derecho PUCP', 'https://facultad-derecho.pucp.edu.pe/estudiantes/planes-de-estudio/'],
-    ['ULIMA', 'plan_estudios', 'Plan de estudios Derecho ULIMA', 'https://www.ulima.edu.pe/pregrado/derecho/plan-de-estudios'],
+    ['ULIMA', 'pagina_programa', 'Derecho ULIMA', 'https://www.ulima.edu.pe/pregrado/derecho'],
+    ['ULIMA', 'malla_curricular', 'Malla curricular Derecho ULIMA 2026', 'https://www.ulima.edu.pe/sites/default/files/2026-02/malla_derecho_2026.pdf'],
+    ['ULIMA', 'plan_estudios', 'Plan de estudios Derecho ULIMA 2026-1', 'https://www.ulima.edu.pe/sites/default/files/career/files/plan_de_estudios_2026-1_0.pdf'],
     ['USMP', 'plan_estudios', 'Plan de estudios Derecho USMP', 'https://derecho.usmp.edu.pe/plan_de_estudios/'],
     ['UTP', 'malla_curricular', 'Malla curricular Derecho UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-derecho/derecho/malla-curricular'],
     ['UPN', 'malla_curricular', 'Malla curricular Derecho UPN', 'https://www.upn.edu.pe/sites/default/files/malla-curricular/carrera-ug-derecho.pdf'],
