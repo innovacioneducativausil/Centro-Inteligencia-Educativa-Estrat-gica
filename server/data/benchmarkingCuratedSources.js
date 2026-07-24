@@ -126,7 +126,7 @@ const URLS_BY_CAREER = {
   'INGENIERIA AMBIENTAL': [
     ['UPC', 'malla_curricular', 'Malla curricular Ingenieria Ambiental UPC', 'https://pregrado.upc.edu.pe/carrera-de-ingenieria-ambiental/malla-curricular/'],
     ['UPC', 'malla_curricular', 'Malla curricular Ingenieria Ambiental UPC PDF', 'https://www.upc.edu.pe/transparencia-upc/mallas-curriculares/documentos/pregrado/INGENIERIA%20AMBIENTAL%20PREGRADO%20MW%20FDM%20A%20DISTANCIA.pdf'],
-    ['UTEC', 'malla_curricular', 'Malla curricular Ingenieria Ambiental UTEC', 'https://www1.utec.edu.pe/carreras/ingenieria-ambiental/malla-curricular'],
+    ['UTEC', 'malla_curricular', 'Malla curricular Ingenieria Ambiental UTEC', 'https://utec.edu.pe/carreras/ingenieria-ambiental'],
     ['UNI', 'malla_curricular', 'Curriculum Environmental Engineering UNI', 'https://acreditacion.uni.edu.pe/environmental/curriculum/'],
   ],
   'INGENIERIA BIOMEDICA': [
@@ -141,7 +141,7 @@ const URLS_BY_CAREER = {
     ['UTP', 'malla_curricular', 'Malla curricular Ingenieria Civil UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-ingenieria/ingenieria-civil/malla-curricular'],
   ],
   'INGENIERIA DE SISTEMAS DE INFORMACION': [
-    ['UPC', 'malla_curricular', 'Malla curricular Ingenieria de Sistemas de Informacion UPC', 'https://www.upc.edu.pe/transparencia-upc/mallas-curriculares/documentos/pregrado/INGENIERIA%20DE%20SISTEMAS%20DE%20INFORMACION%20PREGRADO%20MW%20FDM%20P.pdf'],
+    ['UPC', 'malla_curricular', 'Malla curricular Ingenieria de Sistemas de Informacion UPC', 'https://pregrado.upc.edu.pe/carrera-de-ingenieria-de-sistemas-de-informacion/malla-curricular'],
     ['UNI', 'malla_curricular', 'Curriculum Ingenieria de Sistemas UNI', 'https://acreditacion.uni.edu.pe/systems/curriculum/'],
     ['UTP', 'malla_curricular', 'Malla curricular Ingenieria de Sistemas UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-ingenieria/ingenieria-de-sistemas-e-informatica/malla-curricular'],
     ['UTEC', 'pagina_programa', 'Sistemas de Informacion UTEC', 'https://utec.edu.pe/carreras/sistemas-de-informacion'],
@@ -150,7 +150,7 @@ const URLS_BY_CAREER = {
     ['UPC', 'malla_curricular', 'Malla curricular Ingenieria de Software UPC', 'https://pregrado.upc.edu.pe/carrera-de-ingenieria-de-software/malla-curricular/'],
   ],
   'INGENIERIA EN CIBERSEGURIDAD': [
-    ['UPC', 'malla_curricular', 'Malla curricular Ingenieria de Ciberseguridad UPC', 'https://www.upc.edu.pe/transparencia-upc/mallas-curriculares/documentos/pregrado/INGENIERIA%20DE%20CIBERSEGURIDAD%20PREGRADO%20FDM%20SP.pdf'],
+    ['UPC', 'malla_curricular', 'Malla curricular Ingenieria de Ciberseguridad UPC', 'https://pregrado.upc.edu.pe/facultad-de-ingenieria/ingenieria-de-ciberseguridad/'],
   ],
   'INGENIERIA EN INDUSTRIAS ALIMENTARIAS': 'INGENIERIA AGROINDUSTRIAL',
   'INGENIERIA INDUSTRIAL Y COMERCIAL': [
@@ -163,7 +163,7 @@ const URLS_BY_CAREER = {
   'INGENIERIA MECATRONICA': [
     ['PUCP', 'plan_estudios', 'Plan de estudios Ingenieria Mecatronica PUCP', 'https://facultad-ciencias-ingenieria.pucp.edu.pe/carreras/ingenieria-mecatronica/plan-de-estudios/'],
     ['UPN', 'pagina_programa', 'Ingenieria Mecatronica UPN', 'https://www.upn.edu.pe/carrera/ingenieria-mecatronica'],
-    ['UTEC', 'malla_curricular', 'Malla curricular Ingenieria Mecatronica UTEC', 'https://www1.utec.edu.pe/carreras/ingenieria-mecatronica/malla-curricular'],
+    ['UTEC', 'malla_curricular', 'Malla curricular Ingenieria Mecatronica UTEC', 'https://utec.edu.pe/carreras/ingenieria-mecatronica'],
   ],
 };
 
