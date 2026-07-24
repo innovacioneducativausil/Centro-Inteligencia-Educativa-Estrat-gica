@@ -111,8 +111,7 @@ const URLS_BY_CAREER = {
     ['UTP', 'malla_curricular', 'Malla curricular Educacion Primaria UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-educacion/educacion-primaria/malla-curricular'],
   ],
   'EDUCACION SECUNDARIA CON ESPECIALIDAD EN INGLES': [
-    ['PUCP', 'plan_estudios', 'Plan de estudios Ingles - Educacion Secundaria PUCP', 'https://files.pucp.edu.pe/estudiante/2017/02/27124739/guia_estudiante_pregrado-plan_de_estudios_educacion.pdf'],
-    ['UNMSM', 'pagina_programa', 'Facultad de Educacion UNMSM', 'https://educacion.unmsm.edu.pe/'],
+    ['PUCP', 'plan_estudios', 'Plan de estudios Educacion Secundaria PUCP 2023', 'https://facultad-educacion.pucp.edu.pe/wp-content/uploads/2023/04/Educacion-Secundaria2023.pdf'],
   ],
   'CIENCIA DE DATOS': [
     ['UTEC', 'malla_curricular', 'Malla curricular Ciencia de Datos UTEC', 'https://www1.utec.edu.pe/carreras/ciencia-de-datos/malla-curricular'],
