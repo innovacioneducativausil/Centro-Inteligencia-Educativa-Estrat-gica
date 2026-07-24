@@ -2,6 +2,24 @@ function normalizeUrl(value = '') {
   return String(value).toLowerCase();
 }
 
+function normalizeKey(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function contextMatches(item, context = {}) {
+  if (!item.careerKeys?.length) return true;
+  const haystack = normalizeKey([
+    context.career,
+    context.programName,
+    context.title,
+    context.university,
+  ].filter(Boolean).join(' '));
+  return item.careerKeys.some(key => haystack.includes(normalizeKey(key)));
+}
+
 function rowsToCourses(rows, evidence) {
   return rows.map(([nombreCurso, ciclo, metadata = null]) => {
     const hasMetadata = metadata && typeof metadata === 'object' && Object.keys(metadata).length > 0;
@@ -2794,20 +2812,30 @@ const KNOWN_CURRICULA = [
     evidence: 'Malla Ingenieria Industrial UTEC 2026 extraida desde HTML oficial.',
     rows: [["Programacion I",1],["Fundamentos del Calculo",1],["Quimica General y Experimental",1],["Comunicacion Integral I",1],["Proyectos Interdisciplinarios I",1],["Introduccion a la Ingenieria Industrial",1],["Programacion Orientada a Objetos",2],["Comunicacion Integral II",2],["Calculo de Una Variable",2],["Algebra Lineal",2],["Fundamentos de Operaciones",2],["Data, Visualization & Storytelling",2],["Electivo de Hacs I",3],["Calculo Multivariable",3],["Introduccion a la Mecanica",3],["Estadistica y Probabilidades I",3],["Matematicas Discreta I",3],["Gestion de Costos",3],["Ecuaciones Diferenciales",4],["Proyectos Interdisciplinarios II",4],["Ia: Introduccion a Machine Learning",4],["Sistemas Integrados de Gestion",4],["Estadistica Aplicada y Diseno de Experimentos",4],["Investigacion de Operaciones I: Modelos Deterministicos",4],["Emprendimiento I",5],["Human Performance & Wellbeing",5],["Gestion de Cadenas de Suministro I",5],["Investigacion de Operaciones Ii: Modelos Probabilisticos",5],["Ingenieria Financiera",5],["Fundamentos de Electricidad y Magnetismo",5],["Electivo de Hacs II",6],["Lean Six Sigma",6],["Gestion de Cadenas de Suministro II",6],["Simulacion de Operaciones",6],["Electivo de Carrera I",6],["Electivo de Carrera II",6],["Electivo de Proyectos Interdisciplinarios",7],["Finanzas Corporativas",7],["Cadenas de Suministro en la Economia Circular",7],["Econometria & Estadistica Multivariada",7],["Electivo de Carrera III",7],["Electivo de Ingenieria y Computacion I",7],["Proyecto Preprofesional",8],["Emprendimiento II",8],["Introduccion a Trabajo de Investigacion en Ingenieria Industrial",8],["Decisiones Dinamicas e Inteligencia Artificial",8],["Electivo de Ingenieria y Computacion II",8],["Electivo de Hacs III",9],["Proyecto de Diseno Mayor en Ingenieria Industrial",9],["Proyecto Final de Ingenieria Industrial I",9],["Decisiones y Juegos Estrategicos",9],["Electivo de Ingenieria y Computacion III",9],["Electivo Libre I",9],["Etica y Tecnologia",10],["Electivo de Gestion",10],["Proyecto Final de Ingenieria Industrial II",10],["Gestion Estrategica de Cadenas de Suministro",10],["Electivo Libre II",10],["Electivo Libre III",10]],
   },
+  {
+    key: 'pucp_educacion_inicial_2023',
+    sourceUrlIncludes: ['files.pucp.education/estudiante/2023/03/07110543/plan_de_estudios_educacion.pdf'],
+    careerKeys: ['educacion inicial'],
+    preferred: true,
+    evidence: 'Plan de estudios Educacion Inicial PUCP extraido desde PDF oficial de Facultad de Educacion.',
+    rows: [["Estrategias para el Aprendizaje Autonomo",1],["Educacion para el Desarrollo Sostenible",1],["Investigacion y Practica Educativa 1: Identidad y Vocacion Docente",1],["Introduccion a la Filosofia",1],["Lenguaje y Sociedad",1],["Matematica 1",1],["Arte, Comunicacion y Expresion",2],["Historia Mundial del Siglo Xx",2],["Creatividad y Expresion Grafico Plastica",2],["Redaccion Academica",2],["Investigacion y Practica Educativa 2: Sistema Educativo y Espacios Formales",2],["Desarrollo Humano",2],["Educacion, Sociedad y Cultura",3],["Filosofia de la Educacion",3],["Infancia, Sociedad y Derechos",3],["Investigacion y Practica Educativa 3: Rol Docente y Escenarios Educativos Alternativos",3],["Educacion Psicomotriz en los Tres Primeros Anos",3],["Salud Infantil y Prevencion de Emergencias",3],["Procesos Cognitivos, Afectivos y Sociales",3],["Teoria de la Educacion y Corrientes Educativas",4],["Investigacion y Practica Educativa 4: la Institucion Educativa",4],["Idioma 1",4],["Estrategias para la Educacion Socioemocional",4],["Iniciacion Musical en los Tres Primeros Anos",4],["Educacion Psicomotriz de Tres a Cinco Anos",4],["Interacciones Comunicativas y Desarrollo del Lenguaje en los Tres Primeros Anos",4],["Psicologia del Aprendizaje",5],["Investigacion y Practica Educativa 5: Interaccion en el Aula y Atencion a la Diversidad",5],["Desarrollo de la Actitud y Pensamiento Cientifico",5],["Lenguaje, Iniciacion a la Lectura y Representaciones Graficas",5],["Curriculo Infantil y Programacion en los Tres Primeros Anos",5],["Educacion Musical de Tres a Cinco Anos",5],["Medios, Tecnologia y Aprendizaje en Educacion Inicial",5],["Educacion Inclusiva",6],["Investigacion y Practica 6: Liderazgo y Comunidades de Aprendizaje",6],["Literatura Infantil y Dramatizacion",6],["Iniciacion del Pensamiento Logico Matematico",6],["Educacion Ambiental en el Nivel Inicial",6],["Curriculo Infantil y Programacion de Tres a Cinco Anos",6],["Planificacion y Gestion Educativa",7],["Programas y Servicios Educativos para Ninos Menores de Seis Anos",7],["Investigacion y Practica 7: Indagacion y Problematizacion",7],["Introduccion a la Teologia",7],["Educacion para la Convivencia",7],["Antropologia de la Educacion",8],["Investigacion y Practica Educativa 8: Accion Reflexiva y Transformacion",8],["Problemas de Desarrollo Infantil",8],["Evaluacion de los Aprendizajes",8],["Familia, Educacion y Comunidad",8],["Taller de Redaccion",8],["Estadistica Aplicada a la Educacion",8],["Politicas y Legislacion Educativa",9],["Etica Profesional",9],["Investigacion y Desempeno Pre Profesional 1",9],["Educacion de la Sexualidad",10],["Idioma 2",10],["Investigacion y Desempeno Pre Profesional 2",10],["Trabajo de Investigacion para Bachillerato",10]],
+  },
 ];
 
-export function getKnownCurriculumByUrl(url = '') {
+export function getKnownCurriculumByUrl(url = '', context = {}) {
   const normalized = normalizeUrl(url);
   const match = KNOWN_CURRICULA.find(item =>
-    item.sourceUrlIncludes.some(fragment => normalized.includes(fragment))
+    item.sourceUrlIncludes.some(fragment => normalized.includes(fragment)) &&
+    contextMatches(item, context)
   );
   return match ? rowsToCourses(match.rows, match.evidence) : [];
 }
 
-export function shouldPreferKnownCurriculum(url = '') {
+export function shouldPreferKnownCurriculum(url = '', context = {}) {
   const normalized = normalizeUrl(url);
   const match = KNOWN_CURRICULA.find(item =>
-    item.sourceUrlIncludes.some(fragment => normalized.includes(fragment))
+    item.sourceUrlIncludes.some(fragment => normalized.includes(fragment)) &&
+    contextMatches(item, context)
   );
   return Boolean(match?.preferred);
 }

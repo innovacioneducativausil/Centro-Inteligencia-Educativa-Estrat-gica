@@ -99,7 +99,11 @@ async function normalizarPrograma(idPrograma) {
   const competencias  = Array.isArray(parsed.competencias) ? parsed.competencias : [];
   const cursosIA      = Array.isArray(parsed.cursos_equivalentes) ? parsed.cursos_equivalentes : [];
   let textoCurricular = prog.fuente_texto_original;
-  let parsedCurriculum = parseCurriculumCourses(textoCurricular, prog.url_programa);
+  const parseContext = {
+    career: prog.nombre_programa,
+    programName: prog.nombre_programa,
+  };
+  let parsedCurriculum = parseCurriculumCourses(textoCurricular, prog.url_programa, parseContext);
   let cursosDeterministicos = parsedCurriculum.courses || [];
   if (prog.url_programa?.startsWith('http')) {
     try {
@@ -116,7 +120,10 @@ async function normalizarPrograma(idPrograma) {
         }
       }
       if (!fetchedCourses.length) {
-        const fetchedParsed = parseCurriculumCourses(fetched.text, fetched.finalUrl || prog.url_programa);
+        const fetchedParsed = parseCurriculumCourses(fetched.text, fetched.finalUrl || prog.url_programa, {
+          ...parseContext,
+          title: fetched.title,
+        });
         fetchedCourses = fetchedParsed.courses || [];
         shouldUseFetched = !cursosDeterministicos.length || fetchedCourses.length > cursosDeterministicos.length;
       }

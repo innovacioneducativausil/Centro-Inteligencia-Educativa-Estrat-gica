@@ -485,9 +485,9 @@ function restoreSpanishAccents(courseName = '') {
   return replacements[courseName] || courseName;
 }
 
-function knownCurriculumByOfficialUrl(url = '') {
+function knownCurriculumByOfficialUrl(url = '', context = {}) {
   const normalizedUrl = normalizeText(url);
-  const mappedCourses = getKnownCurriculumByUrl(url);
+  const mappedCourses = getKnownCurriculumByUrl(url, context);
   if (mappedCourses.length) return mappedCourses;
   let courses = [];
   let label = '';
@@ -733,13 +733,13 @@ function findCurriculumPdfUrl(html = '', baseUrl = '') {
   return pdfLinks.sort((a, b) => b.score - a.score)[0]?.url || null;
 }
 
-function parseCurriculumCourses(text = '', url = '') {
+function parseCurriculumCourses(text = '', url = '', context = {}) {
   const domain = getDomain(url);
-  const knownCourses = knownCurriculumByOfficialUrl(url);
+  const knownCourses = knownCurriculumByOfficialUrl(url, context);
   let courses = [];
   let parser = 'generic_html_malla_v1';
 
-  if (knownCourses.length && shouldPreferKnownCurriculum(url)) {
+  if (knownCourses.length && shouldPreferKnownCurriculum(url, context)) {
     return {
       parser: 'known_curriculum_map_v1',
       courses: knownCourses,
@@ -1188,6 +1188,13 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
   let textForStorage = text;
   let titleForStorage = title;
   let urlFinalForStorage = urlFinal;
+  const programa = await getProgramaWithEquivalencia(idPrograma);
+  const parseContext = {
+    career: programa?.nombre_oficial_sugerido || programa?.nombre_programa,
+    programName: programa?.nombre_programa,
+    university: programa?.nombre_universidad,
+    title,
+  };
 
 
   let parsed = null;
@@ -1200,7 +1207,7 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
 
 
   if (!parsed) {
-    parsed = parseCurriculumCourses(textForStorage, urlFinalForStorage || url);
+    parsed = parseCurriculumCourses(textForStorage, urlFinalForStorage || url, parseContext);
   }
 
 
@@ -1209,7 +1216,10 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
     if (linkedPdfUrl) {
       try {
         const pdf = await extractPageTextWithFetch(linkedPdfUrl);
-        const pdfParsed = parseCurriculumCourses(pdf.text, pdf.finalUrl || linkedPdfUrl);
+        const pdfParsed = parseCurriculumCourses(pdf.text, pdf.finalUrl || linkedPdfUrl, {
+          ...parseContext,
+          title: pdf.title || titleForStorage,
+        });
         if (pdfParsed.courses.length > parsed.courses.length) {
           textForStorage = pdf.text;
           titleForStorage = pdf.title || titleForStorage;
@@ -1233,7 +1243,10 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
       const fallbackHtmlParsed = fallback.rawHtml ? parseHtmlCurriculumCourses(fallback.rawHtml) : null;
       const fallbackParsed = fallbackHtmlParsed
         ? { ...fallbackHtmlParsed, parser: `${fallbackHtmlParsed.parser}_fetch_fallback`, status: 'parseado' }
-        : parseCurriculumCourses(fallback.text, fallback.finalUrl || url);
+        : parseCurriculumCourses(fallback.text, fallback.finalUrl || url, {
+          ...parseContext,
+          title: fallback.title || titleForStorage,
+        });
       if (fallbackParsed.courses.length > parsed.courses.length) {
         textForStorage = fallback.text;
         titleForStorage = fallback.title || titleForStorage;
