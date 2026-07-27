@@ -222,6 +222,13 @@ function sourceMatchesCareer(source, careerName = '') {
   if (/academic-programs|undergraduate-programs|degree-charts\/?$|fields%20of%20concentration|graduation-requirements-all-options\/?$|bulletin\.stanford\.edu\/programs\/?$/i.test(source?.url || '')) {
     return false;
   }
+  const selectedCareer = normalizeName(careerName).toLowerCase();
+  if (
+    selectedCareer.includes('administracion y finanzas corporativas')
+    && ['economia', 'economics', 'finanza', 'finance'].some(root => haystack.includes(root))
+  ) {
+    return true;
+  }
   return matchTerms.some(term => sourceTermMatches(haystack, term))
     || equivalentRoots.some(root => haystack.includes(root));
 }
