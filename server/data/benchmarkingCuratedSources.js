@@ -118,13 +118,13 @@ const URLS_BY_CAREER = {
     ['ULIMA', 'pagina_programa', 'Arquitectura ULIMA', 'https://www.ulima.edu.pe/pregrado/arquitectura'],
     ['UPN', 'pagina_programa', 'Arquitectura y Urbanismo UPN', 'https://www.upn.edu.pe/carrera/arquitectura-y-urbanismo'],
     ['UTP', 'malla_curricular', 'Malla curricular Arquitectura UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-arquitectura/arquitectura/malla-curricular'],
-    ['UCSUR', 'malla_curricular', 'Malla Arquitectura y Urbanismo Ambiental Cientifica', 'https://www.cientifica.edu.pe/carreras/arquitectura-y-urbanismo-ambiental/'],
+    ['UCSUR', 'malla_curricular', 'Malla Arquitectura y Urbanismo Ambiental Cientifica PDF', 'https://web.cientifica.edu.pe/sites/default/files/2023-11/Arquitectura%20y%20Urbanismo%20Ambiental.pdf'],
   ],
   'ARTE Y DISENO EMPRESARIAL': [
     ['UPC', 'malla_curricular', 'Malla curricular Diseno Profesional Grafico UPC', 'https://pregrado.upc.edu.pe/facultad-de-diseno/diseno-profesional-grafico/'],
     ['UPC', 'malla_curricular', 'Malla curricular Diseno Industrial UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-DISENO/DISENO-INDUSTRIAL-MINERVA-MALLA-WEB.pdf'],
     ['PUCP', 'pagina_programa', 'Diseno Grafico PUCP', 'https://www.pucp.edu.pe/carrera/diseno-grafico/'],
-    ['UCSUR', 'malla_curricular', 'Malla Diseno Profesional Grafico Cientifica', 'https://www.cientifica.edu.pe/carreras/diseno-profesional-grafico/'],
+    ['UCSUR', 'malla_curricular', 'Malla Diseno Profesional Grafico Cientifica PDF', 'https://web.cientifica.edu.pe/sites/default/files/2023-11/Dise%C3%B1o%20Profesional%20Gr%C3%A1fico.pdf'],
   ],
   MUSICA: [
     ['UPC', 'malla_curricular', 'Malla curricular Musica UPC', 'https://pregrado.upc.edu.pe/facultad-de-artes-contemporaneas/carrera-de-musica/'],
@@ -156,12 +156,12 @@ const URLS_BY_CAREER = {
     ['UPC', 'malla_curricular', 'Malla curricular Medicina UPC', 'https://pregrado.upc.edu.pe/facultad-de-ciencias-de-la-salud/medicina/'],
     ['UPCH', 'pagina_programa', 'Medicina Cayetano Heredia', 'https://cayetano.edu.pe/pregrado/carreras/medicina/'],
     ['UCSUR', 'pagina_programa', 'Medicina Humana Universidad Cientifica del Sur', 'https://www.cientifica.edu.pe/carreras/medicina-humana/'],
-    ['UCSUR', 'malla_curricular', 'Malla curricular Medicina Humana Cientifica', 'https://www.cientifica.edu.pe/carreras/medicina-humana/'],
+    ['UCSUR', 'malla_curricular', 'Malla curricular Medicina Humana Cientifica PDF', 'https://web.cientifica.edu.pe/sites/default/files/2022-03/malla-medicina.pdf'],
     ['UNMSM', 'pagina_programa', 'Medicina Humana UNMSM', 'https://medicina.unmsm.edu.pe/escuelas-profesionales/medicina-humana/'],
   ],
   'NUTRICION Y DIETETICA': [
     ['UPC', 'malla_curricular', 'Malla curricular Nutricion y Dietetica UPC', 'https://pregrado.upc.edu.pe/facultad-de-ciencias-de-la-salud/nutricion-y-dietetica/'],
-    ['UCSUR', 'malla_curricular', 'Malla curricular Nutricion y Dietetica Cientifica', 'https://www.cientifica.edu.pe/carreras/nutricion-y-dietetica/'],
+    ['UCSUR', 'malla_curricular', 'Malla curricular Nutricion y Dietetica Cientifica PDF', 'https://web.cientifica.edu.pe/sites/default/files/2023-12/MALLA_NUTRICI%C3%93N.pdf'],
     ['UPCH', 'pagina_programa', 'Nutricion Cayetano Heredia', 'https://cayetano.edu.pe/pregrado/carreras/nutricion/'],
   ],
   'TECNOLOGIA MEDICA EN TERAPIA FISICA Y REHABILITACION': [
