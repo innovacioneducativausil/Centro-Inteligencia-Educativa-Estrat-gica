@@ -827,6 +827,79 @@ function parseMultilineCodeCreditRows(text = '') {
   return courses;
 }
 
+function parseNumberedCodeSemesterRows(text = '') {
+  if (!/\b(?:I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV)\s+Semestre\b/i.test(text)) return [];
+  const courses = [];
+  let ciclo = null;
+  let current = null;
+  const lines = String(text)
+    .replace(/\r/g, '\n')
+    .split(/\n+/)
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+
+  const semesterToNumber = value => {
+    const roman = String(value || '').toUpperCase();
+    const map = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12, XIII: 13, XIV: 14 };
+    return map[roman] ? String(map[roman]) : null;
+  };
+
+  const cleanRowName = value => cleanCurriculumCourseLine(String(value || '')
+    .replace(/\s+(Generales|Espec[ií]ficos|Especialidad)\s+Presencial\s+(Obligatorio|Electivo)\b.*$/i, '')
+    .replace(/\s+\d+(?:\.\d+)?\s+\d{1,3}(?:\s+\d{1,3}){1,5}(?:\s+(?:---|\d+(?:\s*(?:al|y)\s*\d+)*))?$/i, '')
+    .replace(/\s+(?:Cred|H\.?\s*T\.?|H\.?\s*P\.?|Total horas|Pre requisitos).*$/i, ''));
+
+  const flush = evidencia => {
+    if (!current || !ciclo) return;
+    const nombreCurso = cleanRowName(current.parts.join(' '));
+    if (isLikelyCourseName(nombreCurso)) {
+      courses.push({ ciclo, nombreCurso, evidencia: evidencia || current.raw });
+    }
+    current = null;
+  };
+
+  for (const line of lines) {
+    const semesterMatch = line.match(/^([IVX]{1,5})\s+(?:[-–]\s*)?Semestre\b/i);
+    if (semesterMatch) {
+      flush();
+      ciclo = semesterToNumber(semesterMatch[1]);
+      continue;
+    }
+    if (!ciclo || /^--\s*\d+\s+of\s+\d+/i.test(line) || /^(Subtotal|TOTAL|N[°ª]\s+C[oó]digo|C[ÓO]DIGO ASIGNATURA|PRIMER AÑO|SEGUNDO AÑO|TERCER AÑO|CUARTO AÑO|QUINTO AÑO|SEXTO AÑO|S[EÉ]TIMO AÑO)/i.test(line)) {
+      continue;
+    }
+
+    const rowMatch = line.match(/^\d{1,2}\.\s+([A-Z]{1,5}\d{3,}[A-Z]?|[A-Z0-9]{5,})\s+(.+)$/i);
+    if (rowMatch) {
+      flush();
+      current = { code: rowMatch[1], parts: [rowMatch[2]], raw: line };
+      if (/\s+(Generales|Espec[ií]ficos|Especialidad)\s+Presencial\s+(Obligatorio|Electivo)\b/i.test(line) || /\s+\d+(?:\.\d+)?\s+\d{1,3}(?:\s+\d{1,3}){1,5}/.test(line)) {
+        flush(line);
+      }
+      continue;
+    }
+
+    const unnumberedRowMatch = line.match(/^([A-Z0-9]*\d[A-Z0-9]{3,})\s+(.+)$/i);
+    if (unnumberedRowMatch && /\s+(Generales|Espec[ií]ficos|Especialidad)\s+Presencial\s+(Obligatorio|Electivo)\b/i.test(line)) {
+      flush();
+      current = { code: unnumberedRowMatch[1], parts: [unnumberedRowMatch[2]], raw: line };
+      flush(line);
+      continue;
+    }
+
+    if (current) {
+      current.parts.push(line);
+      current.raw = `${current.raw} ${line}`;
+      if (/\s+(Generales|Espec[ií]ficos|Especialidad)\s+Presencial\s+(Obligatorio|Electivo)\b/i.test(current.raw) || /\s+\d+(?:\.\d+)?\s+\d{1,3}(?:\s+\d{1,3}){1,5}/.test(current.raw)) {
+        flush(current.raw);
+      }
+    }
+  }
+
+  flush();
+  return courses;
+}
+
 function parseHtmlCurriculumCourses(html = '') {
   const parsers = [
     { parser: 'html_tab_malla_v1', courses: parseHtmlTabCurriculum(html) },
@@ -911,6 +984,14 @@ function parseCurriculumCourses(text = '', url = '', context = {}) {
     if (codeRows.length > courses.length) {
       courses = codeRows;
       parser = 'multiline_code_credit_rows_v1';
+    }
+  }
+
+  if (courses.length < 3) {
+    const numberedRows = parseNumberedCodeSemesterRows(text);
+    if (numberedRows.length > courses.length) {
+      courses = numberedRows;
+      parser = 'numbered_code_semester_rows_v1';
     }
   }
 
