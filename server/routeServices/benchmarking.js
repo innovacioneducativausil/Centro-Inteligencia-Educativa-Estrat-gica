@@ -768,6 +768,18 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
              WHERE id_programa_benchmark=?`,
             [curatedSources[0].url, idProg]
           );
+
+          const curatedUrls = curatedSources.map(source => source.url);
+          const urlPlaceholders = curatedUrls.map(() => '?').join(',');
+          await db.query(
+            `UPDATE benchmark_source
+             SET activo=0,
+                 observaciones=CONCAT(COALESCE(observaciones, ''), '\nDesactivada por no pertenecer al mapa curado vigente de esta carrera/universidad.')
+             WHERE id_programa_benchmark=?
+               AND activo=1
+               AND url NOT IN (${urlPlaceholders})`,
+            [idProg, ...curatedUrls]
+          );
         } else {
           const [rSource] = await db.query(
             `INSERT IGNORE INTO benchmark_source

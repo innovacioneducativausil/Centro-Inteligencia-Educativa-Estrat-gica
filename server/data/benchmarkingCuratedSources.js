@@ -114,20 +114,20 @@ const URLS_BY_CAREER = {
     ['PUCP', 'plan_estudios', 'Plan de estudios Educacion Secundaria PUCP 2023', 'https://facultad-educacion.pucp.edu.pe/wp-content/uploads/2023/04/Educacion-Secundaria2023.pdf'],
   ],
   'ARQUITECTURA, URBANISMO Y TERRITORIO': [
-    ['UPC', 'malla_curricular', 'Malla curricular Arquitectura UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-ARQUITECTURA/ARQUITECTURA-MINERVA-MALLA-WEB.pdf'],
+    ['UPC', 'malla_curricular', 'Malla curricular Arquitectura UPC', 'https://pregrado.upc.edu.pe/facultad-de-arquitectura/arquitectura/'],
     ['ULIMA', 'pagina_programa', 'Arquitectura ULIMA', 'https://www.ulima.edu.pe/pregrado/arquitectura'],
     ['UPN', 'pagina_programa', 'Arquitectura y Urbanismo UPN', 'https://www.upn.edu.pe/carrera/arquitectura-y-urbanismo'],
     ['UTP', 'malla_curricular', 'Malla curricular Arquitectura UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-arquitectura/arquitectura/malla-curricular'],
-    ['UCSUR', 'malla_curricular', 'Malla Arquitectura y Urbanismo Ambiental Cientifica', 'https://www.cientifica.edu.pe/wp-content/uploads/2023/10/malla-carrera-arquitectura-urbanismo-ambiental-universidad-cientifica-del-sur.pdf'],
+    ['UCSUR', 'malla_curricular', 'Malla Arquitectura y Urbanismo Ambiental Cientifica', 'https://www.cientifica.edu.pe/carreras/arquitectura-y-urbanismo-ambiental/'],
   ],
   'ARTE Y DISENO EMPRESARIAL': [
-    ['UPC', 'malla_curricular', 'Malla curricular Diseno Profesional Grafico UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-DISENO/DISENO-PROFESIONAL-GRAFICO-MINERVA-MALLA-WEB.pdf'],
+    ['UPC', 'malla_curricular', 'Malla curricular Diseno Profesional Grafico UPC', 'https://pregrado.upc.edu.pe/facultad-de-diseno/diseno-profesional-grafico/'],
     ['UPC', 'malla_curricular', 'Malla curricular Diseno Industrial UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-DISENO/DISENO-INDUSTRIAL-MINERVA-MALLA-WEB.pdf'],
     ['PUCP', 'pagina_programa', 'Diseno Grafico PUCP', 'https://www.pucp.edu.pe/carrera/diseno-grafico/'],
-    ['UCSUR', 'malla_curricular', 'Malla Diseno Profesional Grafico Cientifica', 'https://www.cientifica.edu.pe/wp-content/uploads/2026/07/malla-diseno-profesional-grafico.pdf'],
+    ['UCSUR', 'malla_curricular', 'Malla Diseno Profesional Grafico Cientifica', 'https://www.cientifica.edu.pe/carreras/diseno-profesional-grafico/'],
   ],
   MUSICA: [
-    ['UPC', 'malla_curricular', 'Malla curricular Musica UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-ARTES-CONTEMPORANEAS/MUSICA-GENERAL-MINERVA.pdf'],
+    ['UPC', 'malla_curricular', 'Malla curricular Musica UPC', 'https://pregrado.upc.edu.pe/facultad-de-artes-contemporaneas/carrera-de-musica/'],
     ['UPC', 'malla_curricular', 'Malla curricular Musica Composicion UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-ARTES-CONTEMPORANEAS/MUSICA-COMPOSICI%C3%93N-MINERVA-MALLA-WEB.pdf'],
     ['UPC', 'malla_curricular', 'Malla curricular Musica Produccion UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-ARTES-CONTEMPORANEAS/MUSICA-PRODUCCI%C3%93N-MINERVA.pdf'],
     ['PUCP', 'pagina_programa', 'Musica PUCP', 'https://www.pucp.edu.pe/carrera/musica/'],
@@ -153,15 +153,15 @@ const URLS_BY_CAREER = {
     ['UNMSM', 'plan_estudios', 'Plan curricular Enfermeria UNMSM 2018', 'https://medicina.unmsm.edu.pe/wp-content/uploads/2021/06/PLAN-CURRICULAR-EP-ENFERMERIA.pdf'],
   ],
   'MEDICINA HUMANA': [
-    ['UPC', 'malla_curricular', 'Malla curricular Medicina UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-CIENCIAS-DE-LA-SALUD/MEDICINA-MINERVA-MALLA-WEB.pdf'],
+    ['UPC', 'malla_curricular', 'Malla curricular Medicina UPC', 'https://pregrado.upc.edu.pe/facultad-de-ciencias-de-la-salud/medicina/'],
     ['UPCH', 'pagina_programa', 'Medicina Cayetano Heredia', 'https://cayetano.edu.pe/pregrado/carreras/medicina/'],
     ['UCSUR', 'pagina_programa', 'Medicina Humana Universidad Cientifica del Sur', 'https://www.cientifica.edu.pe/carreras/medicina-humana/'],
-    ['UCSUR', 'malla_curricular', 'Malla curricular Medicina Humana Cientifica', 'https://www.cientifica.edu.pe/wp-content/uploads/2023/10/malla-carrera-medicina-humanan-universidad-cientifica-del-sur.pdf'],
+    ['UCSUR', 'malla_curricular', 'Malla curricular Medicina Humana Cientifica', 'https://www.cientifica.edu.pe/carreras/medicina-humana/'],
     ['UNMSM', 'pagina_programa', 'Medicina Humana UNMSM', 'https://medicina.unmsm.edu.pe/escuelas-profesionales/medicina-humana/'],
   ],
   'NUTRICION Y DIETETICA': [
-    ['UPC', 'malla_curricular', 'Malla curricular Nutricion y Dietetica UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-CIENCIAS-DE-LA-SALUD/NUTRICION-Y-DIETETICA-MINERVA-MALLA-WEB.pdf'],
-    ['UCSUR', 'malla_curricular', 'Malla curricular Nutricion y Dietetica Cientifica', 'https://www.cientifica.edu.pe/wp-content/uploads/2023/10/malla-carrera-nutricion-dietetica.pdf'],
+    ['UPC', 'malla_curricular', 'Malla curricular Nutricion y Dietetica UPC', 'https://pregrado.upc.edu.pe/facultad-de-ciencias-de-la-salud/nutricion-y-dietetica/'],
+    ['UCSUR', 'malla_curricular', 'Malla curricular Nutricion y Dietetica Cientifica', 'https://www.cientifica.edu.pe/carreras/nutricion-y-dietetica/'],
     ['UPCH', 'pagina_programa', 'Nutricion Cayetano Heredia', 'https://cayetano.edu.pe/pregrado/carreras/nutricion/'],
   ],
   'TECNOLOGIA MEDICA EN TERAPIA FISICA Y REHABILITACION': [
@@ -174,8 +174,8 @@ const URLS_BY_CAREER = {
     ['UNMSM', 'plan_estudios', 'Plan curricular Tecnologia Medica UNMSM 2018', 'https://medicina.unmsm.edu.pe/wp-content/uploads/2021/06/PLAN-CURRICULAR-EP-TEC_MEDICA.pdf'],
   ],
   'INGENIERIA EMPRESARIAL': [
-    ['UPC', 'malla_curricular', 'Malla curricular Ingenieria de Gestion Empresarial UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-INGENIERIA/INGENIERIA-DE-GETSION-EMPRESARIAL-MINERVA-MALLA-WEB2.pdf'],
-    ['ULIMA', 'pagina_programa', 'Ingenieria Empresarial ULIMA', 'https://www.ulima.edu.pe/pregrado/ingenieria-empresarial'],
+    ['UPC', 'malla_curricular', 'Malla curricular Ingenieria de Gestion Empresarial UPC', 'https://pregrado.upc.edu.pe/facultad-de-ingenieria/ingenieria-de-gestion-empresarial/'],
+    ['ULIMA', 'plan_estudios', 'Plan de estudios Ingenieria Industrial ULIMA 2026-1', 'https://www.ulima.edu.pe/sites/default/files/career/files/ingenieria_industrial_plan_de_estudios_2026-1.pdf'],
     ['UTP', 'malla_curricular', 'Malla curricular Ingenieria Empresarial UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-ingenieria/ingenieria-empresarial/malla-curricular'],
   ],
   'CIENCIA DE DATOS': [

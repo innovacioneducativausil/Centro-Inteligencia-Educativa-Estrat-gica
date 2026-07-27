@@ -520,6 +520,30 @@ function knownCurriculumByOfficialUrl(url = '', context = {}) {
   }));
 }
 
+async function getPreferredKnownCurriculumExtraction(idPrograma, url, title = null) {
+  const programa = await getProgramaWithEquivalencia(idPrograma);
+  const parseContext = {
+    career: programa?.nombre_oficial_sugerido || programa?.nombre_programa,
+    programName: programa?.nombre_programa,
+    university: programa?.nombre_universidad,
+    title,
+  };
+  const courses = knownCurriculumByOfficialUrl(url, parseContext);
+  if (!courses.length || !shouldPreferKnownCurriculum(url, parseContext)) return null;
+
+  const text = courses
+    .map(course => `Ciclo ${course.ciclo}: ${course.nombreCurso}`)
+    .join('\n');
+
+  return {
+    url,
+    finalUrl: url,
+    title: title || `Malla curricular curada - ${url.split('/').pop().split('?')[0] || 'fuente oficial'}`,
+    text,
+    rawHtml: '',
+  };
+}
+
 
 function parseHtmlTabCurriculum(html = '') {
   if (!/id=["']tab-0["']/i.test(html)) return [];
@@ -1322,6 +1346,17 @@ async function scrapeProgramaUrl(idPrograma, url) {
 
   await setScrapingStatus(idPrograma, 'pendiente', 'Scraping iniciado...');
 
+  const knownExtraction = await getPreferredKnownCurriculumExtraction(idPrograma, url);
+  if (knownExtraction) {
+    return await persistExtraction({
+      idPrograma,
+      url,
+      urlFinal: knownExtraction.finalUrl,
+      title: knownExtraction.title,
+      text: knownExtraction.text,
+      rawHtml: knownExtraction.rawHtml,
+    });
+  }
 
   if (/\.pdf($|\?)/i.test(url)) {
     try {
