@@ -3361,6 +3361,28 @@ const KNOWN_CURRICULA = [
     ],
   },
   {
+    key: 'ulima_arquitectura_2026_1',
+    sourceUrlIncludes: [
+      'www.ulima.edu.pe/pregrado/arquitectura',
+      'www.ulima.edu.pe/sites/default/files/career/files/7000_plan_de_estudios_2026-1.pdf',
+    ],
+    preferred: true,
+    evidence: 'Plan de estudios Arquitectura ULIMA 2026-1 extraido desde PDF oficial.',
+    rows: [
+      ["Lenguaje y Comunicacion I",1],["Procesos Psicologicos",1],["Etica Ciudadana",1],["Matematica para Arquitectura",1],["Dibujo I",1],["Proyecto de Arquitectura I",1],
+      ["Lenguaje y Comunicacion II",2],["Filosofia Aplicada",2],["Economia y Empresa",2],["Introduccion al Comercio Internacional",2],["Dibujo II",2],["Proyecto de Arquitectura II",2],
+      ["Dibujo III",3],["Edificacion Sostenible I",3],["Fisica",3],["Introduccion a la Arquitectura",3],["Urbanismo y Medio Ambiente I",3],["Proyecto de Arquitectura III",3],
+      ["Edificacion Sostenible II",4],["Grafica Digital",4],["Historia y Teoria de la Arquitectura I",4],["Orientacion Estructural",4],["Tecnologia Ambiental I",4],["Proyecto de Arquitectura IV",4],
+      ["Dibujo y presentacion de Proyectos",5],["Diseno Estructural I",5],["Historia y Teoria de la Arquitectura II",5],["Instalaciones I",5],["Urbanismo y Medio Ambiente II",5],["Proyecto de Arquitectura V",5],
+      ["Diseno Estructural II",6],["Historia y Teoria de la Arquitectura III",6],["Instalaciones II",6],["Estadistica",6],["Proyecto de Arquitectura VI",6],["Electivo 1",6],
+      ["Gestion de Proyectos I",7],["Historia de la Arquitectura Peruana",7],["Metrados, Presupuesto y Programacion de Obra",7],["Proyecto de Arquitectura VII",7],["Electivo 2",7],
+      ["Desarrollo de Proyecto",8],["Gestion de Proyectos II",8],["Proyecto de Arquitectura VIII",8],["Electivo 3",8],["Electivo 4",8],
+      ["Gestion de Proyectos III",9],["Proyecto de Arquitectura IX",9],["Electivo 5",9],["Electivo 6",9],["Electivo 7",9],["Electivo Seminario",9],
+      ["Gestion de Proyectos IV",10],["Proyecto de Fin de Carrera",10],["Seminario de Investigacion en Arquitectura",10],["Electivo Seminario",10],
+      ["Seguridad, Salud Ocupacional y Bienestar Organizacional",11],["Fotografia",11],["Apuntes",11],["Cad Avanzado",11],["Arquitectura paisajista",11],["Conservacion del Patrimonio Edificado",11],["Diseno y Fabricacion Digital",11],["Acabados de Construccion",11],["Analisis Regional y Urbano",11],["Acustica",11],["Conservacion de Centros Historicos",11],["Topografia y Mecanica de Suelos",11],["Diseno Luminico Arquitectonico",11],["Historia del Arte",11],["Teoria del Diseno de la Vivienda",11],["Urbanismo y Medio Ambiente III",11],["Diseno Estructural III",11],["Tecnologia Ambiental II",11],["Diseno de Interiores",11],["Diseno y Construccion en Madera",11],["Diseno y Analisis Cartografico",11],["Arquitectura Latinoamericana Contemporanea",11],["Seminario de Arquitectura y Diseno de Interiores",11],["Seminario de Conservacion del Patrimonio Edificado",11],["Seminario de Tecnologias de Edificacion",11],["Seminario de Urbanismo y Medio Ambiente",11],
+    ],
+  },
+  {
     key: 'ucsur_diseno_profesional_grafico_2023',
     sourceUrlIncludes: [
       'www.cientifica.edu.pe/carreras/diseno-profesional-grafico',
