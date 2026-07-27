@@ -115,7 +115,7 @@ const URLS_BY_CAREER = {
   ],
   'ARQUITECTURA, URBANISMO Y TERRITORIO': [
     ['UPC', 'malla_curricular', 'Malla curricular Arquitectura UPC', 'https://pregrado.upc.edu.pe/facultad-de-arquitectura/arquitectura/'],
-    ['ULIMA', 'pagina_programa', 'Arquitectura ULIMA', 'https://www.ulima.edu.pe/pregrado/arquitectura'],
+    ['ULIMA', 'plan_estudios', 'Plan de estudios Arquitectura ULIMA 2026-1 PDF', 'https://www.ulima.edu.pe/sites/default/files/career/files/7000_plan_de_estudios_2026-1.pdf'],
     ['UPN', 'pagina_programa', 'Arquitectura y Urbanismo UPN', 'https://www.upn.edu.pe/carrera/arquitectura-y-urbanismo'],
     ['UTP', 'malla_curricular', 'Malla curricular Arquitectura UTP', 'https://www.utp.edu.pe/pregrado/facultad-de-arquitectura/arquitectura/malla-curricular'],
     ['UCSUR', 'malla_curricular', 'Malla Arquitectura y Urbanismo Ambiental Cientifica PDF', 'https://web.cientifica.edu.pe/sites/default/files/2023-11/Arquitectura%20y%20Urbanismo%20Ambiental.pdf'],
