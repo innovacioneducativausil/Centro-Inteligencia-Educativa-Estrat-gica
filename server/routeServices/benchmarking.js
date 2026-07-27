@@ -102,7 +102,7 @@ function careerEquivalentRoots(careerName = '') {
     },
     {
       selected: ['administracion'],
-      roots: ['administracion', 'business', 'management', 'strategy'],
+      roots: ['administracion', 'gestion', 'business', 'management', 'strategy'],
     },
     {
       selected: ['digital business management'],
@@ -110,7 +110,7 @@ function careerEquivalentRoots(careerName = '') {
     },
     {
       selected: ['administracion y finanzas corporativas', 'economia y finanzas'],
-      roots: ['finanza', 'economia', 'economics'],
+      roots: ['finanza', 'finance', 'economia', 'economics'],
     },
     {
       selected: ['economia y negocios internacionales', 'international business'],
@@ -123,6 +123,14 @@ function careerEquivalentRoots(careerName = '') {
     {
       selected: ['ingenieria en industrias alimentarias', 'ingenieria agroindustrial'],
       roots: ['agroindustrial', 'alimentaria', 'alimentos'],
+    },
+    {
+      selected: ['ingenieria ambiental'],
+      roots: ['ambiental', 'environmental'],
+    },
+    {
+      selected: ['ingenieria biomedica'],
+      roots: ['biomedic', 'bioingenieria', 'bioengineering'],
     },
     {
       selected: ['ciencia de datos'],
@@ -167,13 +175,25 @@ function sourceHasConflictingCareer(haystack = '', careerName = '') {
   if (selected.includes('administracion') && /\b(business|management|strategy|entrepreneurship)\b/.test(haystack)) {
     return false;
   }
+  if (selected.includes('finanza') && /\b(economia|economics|finance)\b/.test(haystack)) {
+    return false;
+  }
+  if (selected.includes('arquitect') && haystack.includes('urbanismo ambiental')) {
+    return false;
+  }
+  if (
+    haystack.includes('medicina.unmsm.edu.pe')
+    && ['enfermer', 'tecnologia medica', 'terapia fisica', 'rehabilitacion', 'nutric'].some(term => selected.includes(term))
+  ) {
+    return false;
+  }
   const groups = [
     ['psicologia', ['psicolog']],
     ['derecho', ['derecho']],
     ['arquitectura', ['arquitect']],
     ['economia', ['economia', 'económico', 'economico']],
     ['comunicacion', ['comunicacion', 'communication']],
-    ['ingenieria ambiental', ['ambiental']],
+    ['ingenieria ambiental', ['ambiental', 'environmental']],
     ['ingenieria civil', ['civil']],
     ['ingenieria mecatronica', ['mecatron']],
     ['hospitalidad', ['turism', 'turistic', 'hotel', 'gastron', 'culinar']],
