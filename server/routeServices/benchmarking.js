@@ -535,9 +535,11 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
 
       const curatedDirectCodes = getCuratedUniversityCodesForCareer(carrera.nombre_carrera)
         .filter(code => BENCHMARK_UNIVERSITIES[code]?.pais === 'Peru');
-      const directCodes = [...new Set([...(seed.direct || []), ...curatedDirectCodes])];
+      const directCodes = curatedDirectCodes.length
+        ? curatedDirectCodes
+        : (seed.direct || []);
       const entries = [
-        ...directCodes.map(code => ({ code, tipo: 'competencia_directa' })),
+        ...[...new Set(directCodes)].map(code => ({ code, tipo: 'competencia_directa' })),
         ...(seed.international || []).map(code => ({ code, tipo: 'competencia_internacional' })),
       ];
 
