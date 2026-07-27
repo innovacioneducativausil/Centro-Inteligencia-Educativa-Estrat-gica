@@ -493,9 +493,17 @@ function resolveSourcesFromMap(map, careerName, visited = new Set()) {
   return value || [];
 }
 
+function resolveNationalCareerSources(careerName) {
+  return resolveSourcesFromMap(URLS_BY_CAREER, careerName);
+}
+
+function resolveInternationalCareerSources(careerName) {
+  return resolveSourcesFromMap(INTERNATIONAL_URLS_BY_CAREER, careerName);
+}
+
 function resolveCareerSources(careerName) {
-  const national = resolveSourcesFromMap(URLS_BY_CAREER, careerName);
-  const international = resolveSourcesFromMap(INTERNATIONAL_URLS_BY_CAREER, careerName);
+  const national = resolveNationalCareerSources(careerName);
+  const international = resolveInternationalCareerSources(careerName);
   return [...national, ...international];
 }
 
@@ -515,12 +523,36 @@ export function getCuratedBenchmarkSources(careerName, universityName) {
     }));
 }
 
+export function getCuratedDirectBenchmarkSources(careerName, universityName) {
+  return resolveNationalCareerSources(careerName)
+    .filter(([code]) => isUniversityMatch(code, universityName))
+    .map(([code, tipoFuente, titulo, url]) => ({
+      code,
+      tipoFuente,
+      titulo,
+      url,
+    }));
+}
+
 export function getCuratedUniversityCodesForCareer(careerName) {
   return [...new Set(resolveCareerSources(careerName).map(([code]) => code))];
 }
 
+export function getCuratedDirectUniversityCodesForCareer(careerName) {
+  return [...new Set(resolveNationalCareerSources(careerName).map(([code]) => code))];
+}
+
 export function getAllCuratedBenchmarkSources(careerName) {
   return resolveCareerSources(careerName).map(([code, tipoFuente, titulo, url]) => ({
+    code,
+    tipoFuente,
+    titulo,
+    url,
+  }));
+}
+
+export function getAllCuratedDirectBenchmarkSources(careerName) {
+  return resolveNationalCareerSources(careerName).map(([code, tipoFuente, titulo, url]) => ({
     code,
     tipoFuente,
     titulo,
