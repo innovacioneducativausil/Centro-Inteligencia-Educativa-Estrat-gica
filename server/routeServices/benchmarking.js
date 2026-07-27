@@ -246,7 +246,8 @@ function getBenchmarkUniversityCode(universityName = '') {
     .sort((a, b) => b[1].nombre.length - a[1].nombre.length)
     .find(([code, university]) => {
       const officialName = normalizeName(university.nombre);
-      return normalized.includes(officialName) || normalized.includes(code);
+      const codeAsWord = new RegExp(`(^|\\s)${code.replace(/_/g, ' ')}(\\s|$)`);
+      return normalized.includes(officialName) || codeAsWord.test(normalized);
     })?.[0] || null;
 }
 
