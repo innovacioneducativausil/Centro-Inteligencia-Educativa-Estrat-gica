@@ -709,7 +709,7 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
           ? getCuratedDirectBenchmarkSources(carrera.nombre_carrera, univ.nombre)
           : getCuratedBenchmarkSources(carrera.nombre_carrera, univ.nombre);
         if (curatedSources.length) {
-          for (const source of curatedSources) {
+          for (const [sourceIndex, source] of curatedSources.entries()) {
             const [rSource] = await db.query(
               `INSERT INTO benchmark_source
                (id_programa_benchmark, tipo_fuente, titulo, url, estado, es_fuente_principal, observaciones)
@@ -727,7 +727,7 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
                 source.titulo,
                 source.url,
                 'pendiente_validacion',
-                1,
+                sourceIndex === 0 ? 1 : 0,
                 'Fuente curada desde mapa base de benchmarking. Requiere validacion humana antes de usar como evidencia final.',
               ]
             );

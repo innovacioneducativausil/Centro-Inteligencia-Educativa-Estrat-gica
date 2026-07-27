@@ -705,6 +705,128 @@ function parseHtmlGenericCycleLists(html = '') {
   return courses;
 }
 
+function parseInlineOrdinalCycleCurriculum(text = '') {
+  if (!/\d{1,2}\.\s*°\s*CICLO\s*:/i.test(text)) return [];
+  const courses = [];
+  const cycleMatches = [...String(text).matchAll(/(\d{1,2})\.\s*°\s*CICLO\s*:/gi)];
+  for (let i = 0; i < cycleMatches.length; i += 1) {
+    const match = cycleMatches[i];
+    const ciclo = String(Number(match[1]));
+    const start = (match.index || 0) + match[0].length;
+    const end = i + 1 < cycleMatches.length ? cycleMatches[i + 1].index : String(text).length;
+    const chunk = String(text).slice(start, end);
+    const courseMatches = [...chunk.matchAll(/([A-ZÁÉÍÓÚÑ0-9][A-ZÁÉÍÓÚÑ0-9\s,./:&-]{3,140}?)\s*\((?:P|NP|SP)\)/g)];
+    for (const courseMatch of courseMatches) {
+      const nombreCurso = cleanCurriculumCourseLine(courseMatch[1]);
+      if (isLikelyCourseName(nombreCurso)) {
+        courses.push({ ciclo, nombreCurso, evidencia: courseMatch[0] });
+      }
+    }
+  }
+  return courses;
+}
+
+function parsePlainTextPlanRows(text = '') {
+  if (!/\bNivel\s+\d{1,2}\b/i.test(text) || !/\bCOD\s+Asignatura\b/i.test(text)) return [];
+  const courses = [];
+  let ciclo = null;
+  let pending = '';
+  const lines = String(text)
+    .replace(/\r/g, '\n')
+    .split(/\n+/)
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    const levelMatch = line.match(/^Nivel\s+(\d{1,2})$/i);
+    if (levelMatch) {
+      ciclo = String(Number(levelMatch[1]));
+      pending = '';
+      continue;
+    }
+    if (!ciclo || /^COD\s+Asignatura\b/i.test(line) || /^TEO\s+PRA\s+TOT$/i.test(line) || /^TOTAL DE CR/i.test(line) || /^--\s*\d+\s+of\s+\d+/i.test(line)) {
+      continue;
+    }
+
+    const candidate = pending ? `${pending} ${line}` : line;
+    const rowMatch = candidate.match(/^\d{3,6}\s+(.+?)\s+[OE]\s+\d+\s+(?:TEO|TEO-PRA|SEM|PRA|---|-)\b/i);
+    if (rowMatch) {
+      const nombreCurso = cleanCurriculumCourseLine(rowMatch[1]);
+      if (isLikelyCourseName(nombreCurso)) {
+        courses.push({ ciclo, nombreCurso, evidencia: candidate });
+      }
+      pending = '';
+      continue;
+    }
+
+    pending = /^\d{3,6}\s+/.test(line) || pending ? candidate : '';
+  }
+  return courses;
+}
+
+function parseMultilineCodeCreditRows(text = '') {
+  if (!/\bCODIGO\s+ASIGNATURA\b/i.test(text) || !/\bCiclo\s+\d{1,2}\b/i.test(text)) return [];
+  const courses = [];
+  let ciclo = null;
+  let current = null;
+  const lines = String(text)
+    .replace(/\r/g, '\n')
+    .split(/\n+/)
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+
+  const flush = evidencia => {
+    if (!current || !ciclo) return;
+    const nombreCurso = cleanCurriculumCourseLine(current.parts.join(' '));
+    if (isLikelyCourseName(nombreCurso)) {
+      courses.push({ ciclo, nombreCurso, evidencia: evidencia || `${current.code} ${nombreCurso}` });
+    }
+    current = null;
+  };
+
+  for (const line of lines) {
+    const cycleMatch = line.match(/^Ciclo\s+(\d{1,2})$/i);
+    if (cycleMatch) {
+      flush();
+      ciclo = String(Number(cycleMatch[1]));
+      continue;
+    }
+    if (!ciclo || /^--\s*\d+\s+of\s+\d+/i.test(line) || /^(ASIGNATURA|PRE-REQUISITO|CODIGO ASIGNATURA|Cr[eé]ditos Tipo)$/i.test(line)) {
+      continue;
+    }
+
+    const sameLine = line.match(/^([A-Z]*\d[A-Z0-9]{6,})\s+(.+?)\s+\d+(?:\.\d+)?\s+[OE]\s+\d+\b/i);
+    if (sameLine) {
+      flush();
+      const nombreCurso = cleanCurriculumCourseLine(sameLine[2]);
+      if (isLikelyCourseName(nombreCurso)) {
+        courses.push({ ciclo, nombreCurso, evidencia: line });
+      }
+      continue;
+    }
+
+    const codeOnly = line.match(/^([A-Z]*\d[A-Z0-9]{6,})\s*(.*)$/i);
+    if (codeOnly) {
+      flush();
+      current = { code: codeOnly[1], parts: [] };
+      if (codeOnly[2] && !/^\d+(?:\.\d+)?\s+[OE]\b/i.test(codeOnly[2])) current.parts.push(codeOnly[2]);
+      continue;
+    }
+
+    if (current && /^\d+(?:\.\d+)?\s+[OE]\s+\d+\b/i.test(line)) {
+      flush(line);
+      continue;
+    }
+
+    if (current) {
+      current.parts.push(line);
+    }
+  }
+
+  flush();
+  return courses;
+}
+
 function parseHtmlCurriculumCourses(html = '') {
   const parsers = [
     { parser: 'html_tab_malla_v1', courses: parseHtmlTabCurriculum(html) },
@@ -767,6 +889,44 @@ function parseCurriculumCourses(text = '', url = '', context = {}) {
     return {
       parser: 'known_curriculum_map_v1',
       courses: knownCourses,
+      status: 'parseado',
+    };
+  }
+
+  courses = parseInlineOrdinalCycleCurriculum(text);
+  if (courses.length >= 3) {
+    parser = 'inline_ordinal_cycle_malla_v1';
+  }
+
+  if (courses.length < 3) {
+    const planRows = parsePlainTextPlanRows(text);
+    if (planRows.length > courses.length) {
+      courses = planRows;
+      parser = 'plain_text_plan_rows_v1';
+    }
+  }
+
+  if (courses.length < 3) {
+    const codeRows = parseMultilineCodeCreditRows(text);
+    if (codeRows.length > courses.length) {
+      courses = codeRows;
+      parser = 'multiline_code_credit_rows_v1';
+    }
+  }
+
+  if (courses.length >= 3) {
+    const deduped = [];
+    const seen = new Set();
+    for (const course of courses) {
+      const name = restoreSpanishAccents(course.nombreCurso).trim();
+      const key = `${course.ciclo || ''}|${normalizeText(name)}`;
+      if (!name || seen.has(key)) continue;
+      seen.add(key);
+      deduped.push({ ...course, nombreCurso: name });
+    }
+    return {
+      parser,
+      courses: deduped,
       status: 'parseado',
     };
   }

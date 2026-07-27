@@ -169,8 +169,8 @@ const URLS_BY_CAREER = {
     ['UPC', 'malla_curricular', 'Malla curricular Terapia Fisica UPC Minerva', 'https://upc-cdn.b-cdn.net/mallas/minerva/FACULTAD-DE-CIENCIAS-DE-LA-SALUD/TERAPIA-FISICA-MINERVA-MALLA-WEB.pdf'],
     ['UPCH', 'pagina_programa', 'Terapia Fisica y Rehabilitacion Cayetano Heredia', 'https://cayetano.edu.pe/pregrado/carreras/terapia-fisica-y-rehabilitacion/'],
     ['UPCH', 'brochure_pdf', 'Brochure Terapia Fisica Cayetano Heredia', 'https://upch-repo-comercial.s3.dualstack.us-east-1.amazonaws.com/brochures/br_fisica.pdf'],
-    ['UNMSM', 'pagina_programa', 'Tecnologia Medica UNMSM', 'https://medicina.unmsm.edu.pe/escuelas-profesionales/tecnologia-medica/'],
     ['UNMSM', 'plan_estudios', 'Plan curricular Terapia Fisica y Rehabilitacion UNMSM 2024', 'https://medicina.unmsm.edu.pe/wp-content/uploads/2021/06/PLAN-CURRICULAR-EPTM-2024-TERAPIA-FISICA-Y-REHABILITACION.pdf'],
+    ['UNMSM', 'pagina_programa', 'Tecnologia Medica UNMSM', 'https://medicina.unmsm.edu.pe/escuelas-profesionales/tecnologia-medica/'],
     ['UNMSM', 'plan_estudios', 'Plan curricular Tecnologia Medica UNMSM 2018', 'https://medicina.unmsm.edu.pe/wp-content/uploads/2021/06/PLAN-CURRICULAR-EP-TEC_MEDICA.pdf'],
   ],
   'INGENIERIA EMPRESARIAL': [
