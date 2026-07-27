@@ -103,8 +103,16 @@ export async function updateProgramaObservaciones(idPrograma, observaciones) {
 }
 
 export async function findExistingBenchmarkSource(idPrograma, url) {
-  const [results] = await db_empl.query('CALL empl_findExistingBenchmarkSource(?, ?)', [idPrograma, url]);
-  return results[0]?.[0]?.id_benchmark_source || null;
+  const [rows] = await db_empl.query(
+    `SELECT id_benchmark_source
+     FROM benchmark_source
+     WHERE id_programa_benchmark = ?
+       AND url COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+       AND activo = 1
+     LIMIT 1`,
+    [idPrograma, url]
+  );
+  return rows[0]?.id_benchmark_source || null;
 }
 
 export async function insertBenchmarkSource(idPrograma, tipoFuente, title, url, observaciones) {
@@ -115,8 +123,16 @@ export async function insertBenchmarkSource(idPrograma, tipoFuente, title, url, 
 }
 
 export async function getCreatedBenchmarkSource(idPrograma, url) {
-  const [results] = await db_empl.query('CALL empl_getCreatedBenchmarkSource(?, ?)', [idPrograma, url]);
-  return results[0]?.[0]?.id_benchmark_source || null;
+  const [rows] = await db_empl.query(
+    `SELECT id_benchmark_source
+     FROM benchmark_source
+     WHERE id_programa_benchmark = ?
+       AND url COLLATE utf8mb4_unicode_ci = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+     ORDER BY id_benchmark_source DESC
+     LIMIT 1`,
+    [idPrograma, url]
+  );
+  return rows[0]?.id_benchmark_source || null;
 }
 
 export async function insertSourceSnapshot({ idBenchmarkSource, idPrograma, url, urlFinal, title, safeText, hash, parser, estadoParseo, cursosDetectados, observaciones }) {
