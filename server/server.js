@@ -51,6 +51,7 @@ import { evaluarReglas } from './services/alertEngine.js';
 
 const app  = express();
 const PORT = process.env.API_PORT || 3001;
+const BUILD_MARKER = 'benchmarking-direct-source-filter-2026-07-27';
 
 
 app.set('trust proxy', 1);
@@ -142,6 +143,14 @@ app.use('/api/auth', authLimiter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
+});
+
+app.get('/api/version', (_req, res) => {
+  res.json({
+    status: 'ok',
+    commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || null,
+    marker: BUILD_MARKER,
+  });
 });
 
 

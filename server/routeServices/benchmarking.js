@@ -199,6 +199,66 @@ function sourceMatchesCareer(source, careerName = '') {
     || equivalentRoots.some(root => haystack.includes(root));
 }
 
+const UNIVERSITY_SOURCE_PATTERNS = {
+  UPC: [/upc\.edu\.pe/i, /upc-cdn\.b-cdn\.net/i, /\bUPC\b/i],
+  PUCP: [/pucp\.edu\.pe/i, /\bPUCP\b/i, /catolica del peru/i],
+  ULIMA: [/ulima\.edu\.pe/i, /universidad de lima/i, /\bULIMA\b/i],
+  UP: [/\/\/(?:www\.)?up\.edu\.pe/i, /universidad del pacifico/i],
+  ESAN: [/ue\.edu\.pe/i, /esan/i],
+  UDEP: [/udep\.edu\.pe/i, /universidad de piura/i],
+  UTEC: [/utec\.edu\.pe/i, /www1\.utec\.edu\.pe/i, /\bUTEC\b/i],
+  UPN: [/upn\.edu\.pe/i, /universidad privada del norte/i, /\bUPN\b/i],
+  UTP: [/utp\.edu\.pe/i, /universidad tecnologica del peru/i, /\bUTP\b/i],
+  UCSUR: [/cientifica\.edu\.pe/i, /universidad cientifica/i],
+  UNIFE: [/unife\.edu\.pe/i, /sagrado corazon/i],
+  CHAMPAGNAT: [/umch\.edu\.pe/i, /champagnat/i],
+  UCH: [/uch\.edu\.pe/i, /ciencias y humanidades/i],
+  UPCH: [/cayetano\.edu\.pe/i, /upch-repo/i, /cayetano heredia/i],
+  USMP: [/usmp\.edu\.pe/i, /san martin de porres/i, /\bUSMP\b/i],
+  UNMSM: [/unmsm\.edu\.pe/i, /san marcos/i, /\bUNMSM\b/i],
+  UNI: [/uni\.edu\.pe/i, /acreditacion\.uni\.edu\.pe/i, /\bUNI\b/i],
+  URP: [/urp\.edu\.pe/i, /ricardo palma/i],
+  UPT: [/upt\.edu\.pe/i, /privada de tacna/i],
+  UNICA: [/unica\.edu\.pe/i, /san luis gonzaga/i],
+  USFQ: [/usfq\.edu\.ec/i, /wsexternal\.usfq\.edu\.ec/i],
+  TEC: [/tec\.mx/i, /tecnologico de monterrey/i, /tec de monterrey/i],
+  ROSARIO: [/urosario\.edu\.co/i, /universidad del rosario/i],
+  AUSTRAL: [/austral\.edu\.ar/i, /universidad austral/i],
+  NAVARRA: [/unav\.edu/i, /universidad de navarra/i],
+  UBA: [/uba\.ar/i, /universidad de buenos aires/i],
+  TORINO: [/unito\.it/i, /torino/i],
+  VILLANOVA: [/villanova\.edu/i],
+  USP: [/usp\.br/i, /universidade de sao paulo/i],
+  JAVERIANA: [/javeriana\.edu\.co/i],
+  UC_CHILE: [/uc\.cl/i, /catolica de chile/i],
+  UAI_CHILE: [/uai\.cl/i, /adolfo ibanez/i],
+  USS_CHILE: [/uss\.cl/i, /san sebastian/i],
+  UNAM: [/unam\.mx/i],
+  MIT: [/mit\.edu/i],
+  STANFORD: [/stanford\.edu/i],
+  HARVARD: [/harvard\.edu/i],
+  CALTECH: [/caltech\.edu/i],
+};
+
+function getBenchmarkUniversityCode(universityName = '') {
+  const normalized = normalizeName(universityName);
+  return Object.entries(BENCHMARK_UNIVERSITIES)
+    .sort((a, b) => b[1].nombre.length - a[1].nombre.length)
+    .find(([code, university]) => {
+      const officialName = normalizeName(university.nombre);
+      return normalized.includes(officialName) || normalized.includes(code);
+    })?.[0] || null;
+}
+
+function sourceMatchesUniversity(source, universityName = '') {
+  const code = getBenchmarkUniversityCode(universityName);
+  if (!code) return true;
+  const patterns = UNIVERSITY_SOURCE_PATTERNS[code] || [];
+  if (!patterns.length) return true;
+  const haystack = `${source?.url || ''} ${source?.titulo || ''}`;
+  return patterns.some(pattern => pattern.test(haystack));
+}
+
 async function ensureBenchmarkingSchema() {
   if (schemaReady) return schemaReady;
   schemaReady = (async () => {
@@ -914,6 +974,9 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
 
     const programasDepurados = programas.map(programa => {
       const nombreCarreraParaFiltro = carreraNombre || getBenchmarkProgramBaseName(programa.nombre_programa);
+      const sourceMatchesProgram = source =>
+        sourceMatchesCareer(source, nombreCarreraParaFiltro)
+        && sourceMatchesUniversity(source, programa.nombre_universidad);
       const curated = getCuratedBenchmarkSources(nombreCarreraParaFiltro, programa.nombre_universidad)
         .map(source => ({
           titulo: source.titulo,
@@ -921,9 +984,9 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
           tipo_fuente: source.tipoFuente,
           estado: 'pendiente_validacion',
         }))
-        .filter(source => sourceMatchesCareer(source, nombreCarreraParaFiltro));
+        .filter(sourceMatchesProgram);
       const dbFuentes = (fuentesByPrograma.get(programa.id_programa_benchmark) || [])
-        .filter(source => sourceMatchesCareer(source, nombreCarreraParaFiltro));
+        .filter(sourceMatchesProgram);
       const mergedSources = [...dbFuentes, ...curated].reduce((map, source) => {
         if (!source?.url) return map;
         const key = String(source.url).replace(/\/$/, '').toLowerCase();
@@ -932,7 +995,7 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
       }, new Map());
       const fuentes = [...mergedSources.values()];
       const candidatosUtiles = (candidatosByPrograma.get(programa.id_programa_benchmark) || [])
-        .filter(candidate => sourceMatchesCareer(candidate, nombreCarreraParaFiltro));
+        .filter(sourceMatchesProgram);
 
       return {
         ...programa,
