@@ -317,9 +317,31 @@ function cleanCatalogCourseTitle(value = '') {
   return cleanPageText(value)
     .replace(/\b(?:Units|Credits|Hours|Quarter|Autumn|Winter|Spring|Summer)\b.*$/i, '')
     .replace(/\s+(?:or|and)\s*$/i, '')
+    .replace(/\s+\d{1,3}(?:-\d{1,3})?\s*$/i, '')
     .replace(/^[;:,.\-\s]+|[;:,.\-\s]+$/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function sliceCatalogRequirementText(text = '', domain = '') {
+  const normalized = normalizeText(text);
+  const markers = /catalog\.mit\.edu/i.test(domain)
+    ? ['required subjects', 'departmental program', 'restricted electives', 'summary of subject requirements']
+    : /catalog\.caltech\.edu/i.test(domain)
+      ? ['option requirements', 'course schedule', 'required courses', 'cs option requirements']
+      : ['degree requirements', 'program requirements', 'requirements'];
+  const starts = markers
+    .map(marker => normalized.indexOf(marker))
+    .filter(index => index >= 0);
+  if (!starts.length) return text.slice(0, 60000);
+  const start = Math.min(...starts);
+  const stopMarkers = ['minor', 'graduate', 'admission', 'learning outcomes', 'sample plan', 'related programs'];
+  let end = Math.min(text.length, start + 50000);
+  for (const marker of stopMarkers) {
+    const idx = normalized.indexOf(marker, start + 2000);
+    if (idx > start && idx < end) end = idx;
+  }
+  return text.slice(start, end);
 }
 
 function parseInternationalCatalogCourses(rawText = '', url = '') {
@@ -327,7 +349,7 @@ function parseInternationalCatalogCourses(rawText = '', url = '') {
   const isSupportedCatalog = /(?:catalog\.mit\.edu|catalog\.caltech\.edu|bulletin\.stanford\.edu)/i.test(domain);
   if (!isSupportedCatalog) return [];
 
-  const text = cleanPageText(rawText);
+  const text = sliceCatalogRequirementText(cleanPageText(rawText), domain);
   if (!text) return [];
 
   const courses = [];
@@ -347,7 +369,7 @@ function parseInternationalCatalogCourses(rawText = '', url = '') {
 
   if (/catalog\.mit\.edu/i.test(domain)) {
     const code = String.raw`\d{1,2}(?:\.[A-Z])?\.\d{2,4}[A-Z]?`;
-    const re = new RegExp(String.raw`\b(${code})\s+(.{5,120}?)(?=\s+(?:\d{1,2}(?:-\d{1,2})?|GIR|REST|CI-[A-Z]|HASS|Units|or)\b)`, 'gi');
+    const re = new RegExp(String.raw`\b(${code})\s+([A-Z][A-Za-z0-9 '&,()\-:]{5,120}?)(?=\s+(?:\d{1,3}(?:-\d{1,3})?|GIR|REST|CI-[A-Z]|HASS|Units|or|${code})\b)`, 'gi');
     let match;
     while ((match = re.exec(text)) !== null) addCourse(match[1], match[2], match[0]);
   } else if (/catalog\.caltech\.edu/i.test(domain)) {
@@ -1596,6 +1618,18 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
     }
   }
 
+  const shouldClearExistingCourses = parsed.status === 'requiere_revision'
+    || parsed.courses.length > 180
+    || /blocked_broad_institutional_catalog_v1/.test(parsed.parser || '');
+  if (parsed.courses.length > 180) {
+    parsed = {
+      ...parsed,
+      parser: `${parsed.parser}_quality_guard`,
+      status: 'requiere_revision',
+      courses: [],
+    };
+  }
+
   const idBenchmarkSource = await findOrCreateBenchmarkSource(idPrograma, url, titleForStorage, textForStorage);
   const snapshot = await createSourceSnapshot({
     idPrograma,
@@ -1609,10 +1643,12 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
     cursosDetectados: parsed.courses.length,
     observaciones: parsed.courses.length
       ? `Malla detectada automaticamente: ${parsed.courses.length} cursos.`
+      : shouldClearExistingCourses
+        ? 'Extraccion descartada por amplitud o fuente institucional no especifica; cursos previos limpiados.'
       : 'No se detecto una malla estructurada; requiere revision o carga manual.',
   });
 
-  if (parsed.courses.length) {
+  if (parsed.courses.length || shouldClearExistingCourses) {
     await replaceBenchmarkCourses(idPrograma, url, parsed.courses);
   }
 
@@ -1620,18 +1656,22 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
     idPrograma,
     idSnapshot: snapshot.idSnapshot,
     parser: parsed.parser,
-    estado: parsed.courses.length ? 'ok' : 'sin_malla',
+    estado: parsed.courses.length ? 'ok' : (shouldClearExistingCourses ? 'requiere_revision' : 'sin_malla'),
     cursosDetectados: parsed.courses.length,
     detalle: parsed.courses.length
       ? `Cursos guardados desde ${url}.`
-      : `No se encontraron ciclos/cursos suficientes en ${url}.`,
+      : shouldClearExistingCourses
+        ? `Extraccion descartada o limpiada por control de calidad en ${url}.`
+        : `No se encontraron ciclos/cursos suficientes en ${url}.`,
   });
 
   await updateBenchmarkSourceAfterExtraction(idBenchmarkSource, {
     estado: parsed.courses.length ? 'extraido' : 'pendiente_validacion',
     evidenciaResumen: parsed.courses.length
       ? `${parsed.courses.length} cursos detectados con ${parsed.parser}.`
-      : `Texto capturado sin malla estructurada con ${parsed.parser}.`,
+      : shouldClearExistingCourses
+        ? `Extraccion descartada por control de calidad con ${parsed.parser}.`
+        : `Texto capturado sin malla estructurada con ${parsed.parser}.`,
     snapshotHash: snapshot.hash,
   });
 
