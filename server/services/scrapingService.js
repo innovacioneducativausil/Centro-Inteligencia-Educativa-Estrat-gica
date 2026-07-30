@@ -313,6 +313,58 @@ function cleanCurriculumCourseLine(line = '') {
   return isCurriculumMetadataLine(withoutMetrics) ? '' : withoutMetrics;
 }
 
+function cleanCatalogCourseTitle(value = '') {
+  return cleanPageText(value)
+    .replace(/\b(?:Units|Credits|Hours|Quarter|Autumn|Winter|Spring|Summer)\b.*$/i, '')
+    .replace(/\s+(?:or|and)\s*$/i, '')
+    .replace(/^[;:,.\-\s]+|[;:,.\-\s]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function parseInternationalCatalogCourses(rawText = '', url = '') {
+  const domain = getDomain(url);
+  const isSupportedCatalog = /(?:catalog\.mit\.edu|catalog\.caltech\.edu|bulletin\.stanford\.edu)/i.test(domain);
+  if (!isSupportedCatalog) return [];
+
+  const text = cleanPageText(rawText);
+  if (!text) return [];
+
+  const courses = [];
+  const seen = new Set();
+  const addCourse = (codigo, nombreCurso, evidencia = '') => {
+    const name = cleanCatalogCourseTitle(nombreCurso);
+    if (!isLikelyCourseName(name)) return;
+    const key = `${normalizeText(codigo)}|${normalizeText(name)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    courses.push({
+      ciclo: 'S/C',
+      nombreCurso: codigo ? `${codigo} ${name}` : name,
+      evidencia: evidencia || `${codigo || ''} ${name}`.trim(),
+    });
+  };
+
+  if (/catalog\.mit\.edu/i.test(domain)) {
+    const code = String.raw`\d{1,2}(?:\.[A-Z])?\.\d{2,4}[A-Z]?`;
+    const re = new RegExp(String.raw`\b(${code})\s+(.{5,120}?)(?=\s+(?:\d{1,2}(?:-\d{1,2})?|GIR|REST|CI-[A-Z]|HASS|Units|or)\b)`, 'gi');
+    let match;
+    while ((match = re.exec(text)) !== null) addCourse(match[1], match[2], match[0]);
+  } else if (/catalog\.caltech\.edu/i.test(domain)) {
+    const code = String.raw`(?:[A-Z]{2,5}(?:\/[A-Z]{2,5}){0,3}\s*\d{1,3}[a-z]{0,3}|[A-Z][a-z]\s*\d{1,3}[a-z]?)`;
+    const re = new RegExp(String.raw`\b(${code})\s+([A-Z][A-Za-z0-9 '&,()\-:]{5,100}?)(?=\s+(?:-|[0-9]{1,2}\b|units?|Total|HSS|Other|$))`, 'g');
+    let match;
+    while ((match = re.exec(text)) !== null) addCourse(match[1].replace(/\s+/g, ' '), match[2], match[0]);
+  } else if (/bulletin\.stanford\.edu/i.test(domain)) {
+    const courseNameRe = /\bcourse\s+(?!or\b|and\b|units\b)([A-Z][A-Za-z0-9 '&,()\-:]{5,95}?)(?=\s+course\b|\s+or\b|\s+and\b|<\/|\s+units?\b)/gi;
+    let match;
+    while ((match = courseNameRe.exec(rawText)) !== null) addCourse('', decodeHtmlEntities(match[1]), match[0]);
+  }
+
+  if (courses.length < 3 || courses.length > 140) return [];
+  return courses;
+}
+
 function segmentAfterMalla(rawText = '') {
   const text = visibleText(rawText);
   const normalized = normalizeText(text);
@@ -900,8 +952,9 @@ function parseNumberedCodeSemesterRows(text = '') {
   return courses;
 }
 
-function parseHtmlCurriculumCourses(html = '') {
+function parseHtmlCurriculumCourses(html = '', url = '') {
   const parsers = [
+    { parser: 'international_catalog_course_codes_v1', courses: parseInternationalCatalogCourses(html, url) },
     { parser: 'html_tab_malla_v1', courses: parseHtmlTabCurriculum(html) },
     { parser: 'html_cycle_cards_malla_v1', courses: parseHtmlCycleCardCurriculum(html) },
     { parser: 'html_loop_index_malla_v1', courses: parseHtmlLoopIndexCurriculum(html) },
@@ -958,6 +1011,14 @@ function parseCurriculumCourses(text = '', url = '', context = {}) {
   let courses = [];
   let parser = 'generic_html_malla_v1';
 
+  if (/tec\.mx\/sites\/default\/files\/repositorio\/conocenos\/sacscoc\/catalogos\/profesional\/2017-eng\.pdf/i.test(url || '')) {
+    return {
+      parser: 'blocked_broad_institutional_catalog_v1',
+      courses: [],
+      status: 'requiere_revision',
+    };
+  }
+
   if (knownCourses.length && shouldPreferKnownCurriculum(url, context)) {
     return {
       parser: 'known_curriculum_map_v1',
@@ -969,6 +1030,14 @@ function parseCurriculumCourses(text = '', url = '', context = {}) {
   courses = parseInlineOrdinalCycleCurriculum(text);
   if (courses.length >= 3) {
     parser = 'inline_ordinal_cycle_malla_v1';
+  }
+
+  if (courses.length < 3) {
+    const catalogRows = parseInternationalCatalogCourses(text, url);
+    if (catalogRows.length > courses.length) {
+      courses = catalogRows;
+      parser = 'international_catalog_course_codes_v1';
+    }
   }
 
   if (courses.length < 3) {
@@ -1468,7 +1537,7 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
 
   let parsed = null;
   if (rawHtml) {
-    const htmlParsed = parseHtmlCurriculumCourses(rawHtml);
+    const htmlParsed = parseHtmlCurriculumCourses(rawHtml, urlFinalForStorage || url);
     if (htmlParsed) {
       parsed = { ...htmlParsed, status: 'parseado' };
     }
@@ -1509,7 +1578,7 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
     try {
       const fallback = await extractPageTextWithFetch(url);
 
-      const fallbackHtmlParsed = fallback.rawHtml ? parseHtmlCurriculumCourses(fallback.rawHtml) : null;
+      const fallbackHtmlParsed = fallback.rawHtml ? parseHtmlCurriculumCourses(fallback.rawHtml, fallback.finalUrl || url) : null;
       const fallbackParsed = fallbackHtmlParsed
         ? { ...fallbackHtmlParsed, parser: `${fallbackHtmlParsed.parser}_fetch_fallback`, status: 'parseado' }
         : parseCurriculumCourses(fallback.text, fallback.finalUrl || url, {
