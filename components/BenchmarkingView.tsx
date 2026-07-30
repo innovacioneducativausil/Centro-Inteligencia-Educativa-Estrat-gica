@@ -195,6 +195,9 @@ function distinctiveCareerTerms(careerName?: string) {
 function sourceHasConflictingCareerLabel(sourceText: string, careerName: string) {
   const selected = normalizeText(careerName);
   const haystack = normalizeText(sourceText);
+  const selectedTerms = distinctiveCareerTerms(careerName);
+  if (selectedTerms.some(term => haystack.includes(term))) return false;
+  if (selected.includes('finanzas') && haystack.includes('economia')) return false;
   const groups: Array<[string, string[]]> = [
     ['psicologia', ['psicolog']],
     ['derecho', ['derecho']],
