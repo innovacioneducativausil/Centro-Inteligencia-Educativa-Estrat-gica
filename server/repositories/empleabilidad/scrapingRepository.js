@@ -226,6 +226,23 @@ export async function getProgramaUrl(idPrograma) {
 }
 
 export async function getProgramaWithEquivalencia(idPrograma) {
-  const [results] = await db_empl.query('CALL empl_getProgramaWithEquivalencia(?)', [idPrograma]);
-  return results[0]?.[0] || null;
+  const [rows] = await db_empl.query(
+    `SELECT pb.id_programa_benchmark,
+            pb.nombre_programa,
+            pb.url_programa,
+            ub.nombre_universidad,
+            ub.sitio_web,
+            ub.tipo_benchmark,
+            bpe.nombre_oficial_sugerido,
+            bpe.aliases_json
+     FROM programa_benchmark pb
+     JOIN universidad_benchmark ub
+       ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
+     LEFT JOIN benchmark_program_equivalence bpe
+       ON bpe.id_programa_benchmark = pb.id_programa_benchmark
+     WHERE pb.id_programa_benchmark = ?
+     LIMIT 1`,
+    [idPrograma]
+  );
+  return rows[0] || null;
 }

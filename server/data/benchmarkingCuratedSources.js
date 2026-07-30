@@ -266,8 +266,14 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration Music', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
   'CIENCIAS DE LA ACTIVIDAD FISICA Y DEL DEPORTE': [
+    ['TEC', 'brochure_pdf', 'Tec de Monterrey - Physical Activity and Exercise catalogue', 'https://tec.mx/sites/default/files/repositorio/conocenos/sacscoc/catalogos/profesional/2017-eng.pdf'],
   ],
   ENFERMERIA: [
+    ['NAVARRA', 'plan_estudios', 'Universidad de Navarra - Plan de estudios Enfermeria', 'https://www.unav.edu/web/grado-en-enfermeria/plan-de-estudios'],
+    ['ROSARIO', 'plan_estudios', 'Universidad del Rosario - Enfermeria plan de estudios PDF', 'https://urosario.edu.co/sites/default/files/2022-06/Enfermeria-plan-de-estudios.pdf'],
+    ['ROSARIO', 'pagina_programa', 'Universidad del Rosario - Enfermeria', 'https://urosario.edu.co/en/node/70921'],
+    ['AUSTRAL', 'pagina_programa', 'Universidad Austral - Enfermeria', 'https://www.austral.edu.ar/carreras-de-grado/cienciasbiomedicas/enfermeria/'],
+    ['AUSTRAL', 'brochure_pdf', 'Universidad Austral - Enfermeria folleto 2025', 'https://www.austral.edu.ar/?jet_download=695280a2cc4431f5d7b092a9457e240118d0dbd4'],
   ],
   'MEDICINA HUMANA': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Physician and Surgeon', 'https://tec.mx/en/health-sciences/physician-and-surgeon'],
@@ -290,6 +296,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['HARVARD', 'plan_estudios', 'Harvard - Psychology Undergraduate', 'https://undergrad.psychology.fas.harvard.edu/'],
   ],
   'TECNOLOGIA MEDICA EN TERAPIA FISICA Y REHABILITACION': [
+    ['UBA', 'plan_estudios', 'Universidad de Buenos Aires - Kinesiologia y Fisiatria estructura curricular', 'https://www.fmed.uba.ar/index.php/carreras/licenciatura-en-kinesiologia-y-fisiatria/estructura-y-contenidos-generales-de-la-carrera'],
   ],
   ADMINISTRACION: [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Strategy and Business Transformation', 'https://tec.mx/en/business/bachelor-in-strategy-and-business-transformation'],
@@ -482,6 +489,18 @@ const UNIVERSITY_ALIASES = {
   STANFORD: ['STANFORD UNIVERSITY', 'STANFORD'],
   HARVARD: ['HARVARD UNIVERSITY', 'HARVARD'],
   CALTECH: ['CALIFORNIA INSTITUTE OF TECHNOLOGY', 'CALTECH'],
+  ROSARIO: ['UNIVERSIDAD DEL ROSARIO', 'ROSARIO'],
+  AUSTRAL: ['UNIVERSIDAD AUSTRAL', 'AUSTRAL'],
+  NAVARRA: ['UNIVERSIDAD DE NAVARRA', 'NAVARRA'],
+  UBA: ['UNIVERSIDAD DE BUENOS AIRES', 'UBA'],
+  TORINO: ['UNIVERSITA DEGLI STUDI DI TORINO', 'UNIVERSITY OF TURIN', 'UNIVERSIDAD DE TURIN', 'TORINO', 'TURIN'],
+  VILLANOVA: ['VILLANOVA UNIVERSITY', 'VILLANOVA'],
+  USP: ['UNIVERSIDADE DE SAO PAULO', 'UNIVERSIDAD DE SAO PAULO', 'USP'],
+  JAVERIANA: ['PONTIFICIA UNIVERSIDAD JAVERIANA', 'JAVERIANA'],
+  UC_CHILE: ['PONTIFICIA UNIVERSIDAD CATOLICA DE CHILE', 'UNIVERSIDAD CATOLICA DE CHILE', 'UC CHILE'],
+  UAI_CHILE: ['UNIVERSIDAD ADOLFO IBANEZ', 'ADOLFO IBANEZ', 'UAI'],
+  USS_CHILE: ['UNIVERSIDAD SAN SEBASTIAN', 'USS'],
+  UNAM: ['UNIVERSIDAD NACIONAL AUTONOMA DE MEXICO', 'UNAM'],
 };
 
 function resolveSourcesFromMap(map, careerName, visited = new Set()) {
@@ -534,12 +553,37 @@ export function getCuratedDirectBenchmarkSources(careerName, universityName) {
     }));
 }
 
+export function getCuratedInternationalBenchmarkSources(careerName, universityName) {
+  return resolveInternationalCareerSources(careerName)
+    .filter(([code]) => isUniversityMatch(code, universityName))
+    .map(([code, tipoFuente, titulo, url]) => ({
+      code,
+      tipoFuente,
+      titulo,
+      url,
+    }));
+}
+
+export function getCuratedSourcesByBenchmarkType(careerName, universityName, tipoBenchmark) {
+  if (tipoBenchmark === 'competencia_directa') {
+    return getCuratedDirectBenchmarkSources(careerName, universityName);
+  }
+  if (tipoBenchmark === 'competencia_internacional') {
+    return getCuratedInternationalBenchmarkSources(careerName, universityName);
+  }
+  return getCuratedBenchmarkSources(careerName, universityName);
+}
+
 export function getCuratedUniversityCodesForCareer(careerName) {
   return [...new Set(resolveCareerSources(careerName).map(([code]) => code))];
 }
 
 export function getCuratedDirectUniversityCodesForCareer(careerName) {
   return [...new Set(resolveNationalCareerSources(careerName).map(([code]) => code))];
+}
+
+export function getCuratedInternationalUniversityCodesForCareer(careerName) {
+  return [...new Set(resolveInternationalCareerSources(careerName).map(([code]) => code))];
 }
 
 export function getAllCuratedBenchmarkSources(careerName) {
@@ -553,6 +597,15 @@ export function getAllCuratedBenchmarkSources(careerName) {
 
 export function getAllCuratedDirectBenchmarkSources(careerName) {
   return resolveNationalCareerSources(careerName).map(([code, tipoFuente, titulo, url]) => ({
+    code,
+    tipoFuente,
+    titulo,
+    url,
+  }));
+}
+
+export function getAllCuratedInternationalBenchmarkSources(careerName) {
+  return resolveInternationalCareerSources(careerName).map(([code, tipoFuente, titulo, url]) => ({
     code,
     tipoFuente,
     titulo,

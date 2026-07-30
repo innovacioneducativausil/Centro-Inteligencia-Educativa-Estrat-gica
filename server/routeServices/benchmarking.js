@@ -11,12 +11,13 @@ import { scraperBatch, cargarTextoManual, discoverOfficialSources } from '../ser
 import { normalizarPrograma } from '../services/normalizacionIAService.js';
 import { BENCHMARK_SEED_BY_CAREER, BENCHMARK_UNIVERSITIES } from '../data/benchmarkingSeed.js';
 import {
-  getAllCuratedBenchmarkSources,
   getAllCuratedDirectBenchmarkSources,
-  getCuratedBenchmarkSources,
+  getAllCuratedInternationalBenchmarkSources,
   getCuratedDirectBenchmarkSources,
   getCuratedDirectUniversityCodesForCareer,
-  getCuratedUniversityCodesForCareer,
+  getCuratedInternationalBenchmarkSources,
+  getCuratedInternationalUniversityCodesForCareer,
+  getCuratedSourcesByBenchmarkType,
 } from '../data/benchmarkingCuratedSources.js';
 
 const router = Router();
@@ -584,6 +585,16 @@ router.get('/mercado-laboral/benchmarking/cobertura', async (_req, res) => {
           ultima_revision: new Date().toISOString(),
         };
       }
+      const curatedInternational = getAllCuratedInternationalBenchmarkSources(c.nombre_carrera);
+      if (curatedInternational.length) {
+        benchmarking.competencia_internacional = {
+          total_programas: new Set(curatedInternational.map(source => source.code)).size,
+          total_fuentes: curatedInternational.length,
+          fuentes_validadas: 0,
+          fuentes_pendientes: curatedInternational.length,
+          ultima_revision: new Date().toISOString(),
+        };
+      }
       return {
         ...c,
         benchmarking,
@@ -632,6 +643,10 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
       const directCodes = curatedDirectCodes.length
         ? curatedDirectCodes
         : (seed.direct || []);
+      const curatedInternationalCodes = getCuratedInternationalUniversityCodesForCareer(carrera.nombre_carrera);
+      const internationalCodes = curatedInternationalCodes.length
+        ? curatedInternationalCodes
+        : (seed.international || []);
       if (curatedDirectCodes.length) {
         const directNames = curatedDirectCodes
           .map(code => BENCHMARK_UNIVERSITIES[code]?.nombre)
@@ -652,7 +667,7 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
       }
       const entries = [
         ...[...new Set(directCodes)].map(code => ({ code, tipo: 'competencia_directa' })),
-        ...(seed.international || []).map(code => ({ code, tipo: 'competencia_internacional' })),
+        ...[...new Set(internationalCodes)].map(code => ({ code, tipo: 'competencia_internacional' })),
       ];
 
       for (const entry of entries) {
@@ -707,7 +722,7 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
 
         const curatedSources = entry.tipo === 'competencia_directa'
           ? getCuratedDirectBenchmarkSources(carrera.nombre_carrera, univ.nombre)
-          : getCuratedBenchmarkSources(carrera.nombre_carrera, univ.nombre);
+          : getCuratedInternationalBenchmarkSources(carrera.nombre_carrera, univ.nombre);
         if (curatedSources.length) {
           for (const [sourceIndex, source] of curatedSources.entries()) {
             const [rSource] = await db.query(
@@ -1010,8 +1025,12 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
     const curatedDirectCodes = tipoBenchmark === 'competencia_directa'
       ? getCuratedDirectUniversityCodesForCareer(carreraNombre)
       : [];
-    const programasFiltrados = curatedDirectCodes.length
-      ? programas.filter(programa => curatedDirectCodes.includes(getBenchmarkUniversityCode(programa.nombre_universidad)))
+    const curatedInternationalCodes = tipoBenchmark === 'competencia_internacional'
+      ? getCuratedInternationalUniversityCodesForCareer(carreraNombre)
+      : [];
+    const curatedCodes = curatedDirectCodes.length ? curatedDirectCodes : curatedInternationalCodes;
+    const programasFiltrados = curatedCodes.length
+      ? programas.filter(programa => curatedCodes.includes(getBenchmarkUniversityCode(programa.nombre_universidad)))
       : programas;
     const ids = programasFiltrados.map(p => p.id_programa_benchmark);
     const [fuentesArr, candidatosArr, cursosArr] = ids.length
@@ -1049,14 +1068,18 @@ router.get('/mercado-laboral/benchmarking/comparar/:idCarrera/:tipoBenchmark', a
       const sourceMatchesProgram = source =>
         sourceMatchesCareer(source, nombreCarreraParaFiltro)
         && sourceMatchesUniversity(source, programa.nombre_universidad);
-      const curated = getCuratedBenchmarkSources(nombreCarreraParaFiltro, programa.nombre_universidad)
+      const curated = getCuratedSourcesByBenchmarkType(
+        nombreCarreraParaFiltro,
+        programa.nombre_universidad,
+        tipoBenchmark
+      )
         .map(source => ({
           titulo: source.titulo,
           url: source.url,
           tipo_fuente: source.tipoFuente,
           estado: 'pendiente_validacion',
         }))
-        .filter(sourceMatchesProgram);
+        .filter(source => sourceMatchesUniversity(source, programa.nombre_universidad));
       const dbFuentes = (fuentesByPrograma.get(programa.id_programa_benchmark) || [])
         .filter(sourceMatchesProgram);
       const mergedSources = [...dbFuentes, ...curated].reduce((map, source) => {

@@ -10,7 +10,7 @@ import {
   updateBenchmarkSourceAfterExtraction, updateProgramaAfterExtraction,
   setScrapingStatus, getProgramaUrl, getProgramaWithEquivalencia,
 } from '../repositories/empleabilidad/scrapingRepository.js';
-import { getCuratedBenchmarkSources } from '../data/benchmarkingCuratedSources.js';
+import { getCuratedSourcesByBenchmarkType } from '../data/benchmarkingCuratedSources.js';
 import { getKnownCurriculumByUrl, shouldPreferKnownCurriculum } from '../data/benchmarkingKnownCurricula.js';
 import crypto from 'node:crypto';
 
@@ -1204,7 +1204,11 @@ function hasStrongCareerMatch(url, title, careerName) {
 }
 
 async function registerCuratedSources(programa, career) {
-  const curatedSources = getCuratedBenchmarkSources(career, programa.nombre_universidad);
+  const curatedSources = getCuratedSourcesByBenchmarkType(
+    career,
+    programa.nombre_universidad,
+    programa.tipo_benchmark
+  );
   if (!curatedSources.length) return [];
 
   const registered = [];
