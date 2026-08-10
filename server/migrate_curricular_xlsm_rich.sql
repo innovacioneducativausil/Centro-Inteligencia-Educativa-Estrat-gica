@@ -45,6 +45,25 @@ CREATE TABLE IF NOT EXISTS curso_detalle_curricular (
   CONSTRAINT fk_cdc_curso FOREIGN KEY (id_curso) REFERENCES curso(id_curso) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS malla_fundamento_curricular (
+  id_malla INT UNSIGNED NOT NULL,
+  codigo_programa VARCHAR(40) NULL,
+  grado_otorgado VARCHAR(220) NULL,
+  titulo_otorgado VARCHAR(260) NULL,
+  regimen_estudios VARCHAR(80) NULL,
+  duracion_meses SMALLINT UNSIGNED NULL,
+  fecha_aprobacion VARCHAR(80) NULL,
+  objetivo_academico TEXT NULL,
+  perfil_ingreso TEXT NULL,
+  perfil_egreso TEXT NULL,
+  objetivos_educacionales TEXT NULL,
+  resumen_plan_json JSON NULL,
+  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id_malla),
+  CONSTRAINT fk_malla_fundamento_malla FOREIGN KEY (id_malla) REFERENCES malla_version(id_malla) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS competencia_curricular (
   id_competencia INT UNSIGNED NOT NULL AUTO_INCREMENT,
   id_malla INT UNSIGNED NOT NULL,

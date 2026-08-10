@@ -82,6 +82,22 @@ function cell(sheet, address) {
   return value === undefined ? null : value;
 }
 
+function sectionText(sheet, startPattern, endPattern, startRow = 1, endRow = 220) {
+  let collecting = false;
+  const parts = [];
+  for (let row = startRow; row <= endRow; row++) {
+    const text = cleanText(cell(sheet, `B${row}`));
+    if (!text) continue;
+    if (!collecting && startPattern.test(text)) {
+      collecting = true;
+      continue;
+    }
+    if (collecting && endPattern.test(text)) break;
+    if (collecting) parts.push(text);
+  }
+  return parts.length ? parts.join('\n') : null;
+}
+
 function readSheet(workbook, name) {
   const sheet = workbook.Sheets[name];
   if (!sheet) throw new Error(`No se encontró la hoja "${name}"`);
@@ -147,6 +163,79 @@ function parseWorkbook(filePath) {
   const modalidad = cleanText(cell(fundamentos, CELL.modalidad));
   const periodo = cleanText(cell(fundamentos, CELL.periodo)) || '2025-01';
   const totalCreditos = asNumber(cell(fundamentos, CELL.creditos));
+  const fundamentosPrograma = {
+    codigoPrograma: cleanText(cell(fundamentos, 'F8')),
+    gradoOtorgado: cleanText(cell(fundamentos, 'D10')),
+    tituloOtorgado: cleanText(cell(fundamentos, 'D12')),
+    regimenEstudios: cleanText(cell(fundamentos, 'D14')),
+    duracionMeses: asNumber(cell(fundamentos, 'F14')),
+    fechaAprobacion: cleanText(cell(fundamentos, 'B18')),
+    objetivoAcademico: cleanText(cell(fundamentos, 'B27')),
+    perfilIngreso: cleanText(cell(fundamentos, 'B32')),
+    perfilEgreso: sectionText(fundamentos, /^5\.\s*PERFIL DE EGRESO/i, /^6\.\s*OBJETIVOS EDUCACIONALES/i, 30, 48),
+    objetivosEducacionales: sectionText(fundamentos, /^6\.\s*OBJETIVOS EDUCACIONALES/i, /^7\.\s*COMPETENCIAS/i, 38, 50),
+  };
+  const resumenPlan = {
+    total_cursos: asNumber(cell(plan, 'F8')),
+    total_creditos: asNumber(cell(plan, 'O8')),
+    modalidad_calculada: cleanText(cell(plan, 'P4')),
+    distribucion_tipo_estudio: [
+      {
+        tipo: 'General',
+        cursos: asNumber(cell(plan, 'F9')),
+        horas_teoria: asNumber(cell(plan, 'G9')),
+        horas_practica: asNumber(cell(plan, 'H9')),
+        horas_laboratorio: asNumber(cell(plan, 'I9')),
+        horas_total: asNumber(cell(plan, 'J9')),
+        creditos_teoria: asNumber(cell(plan, 'L9')),
+        creditos_practica: asNumber(cell(plan, 'M9')),
+        creditos_laboratorio: asNumber(cell(plan, 'N9')),
+        creditos_total: asNumber(cell(plan, 'O9')),
+      },
+      {
+        tipo: 'Específico',
+        cursos: asNumber(cell(plan, 'F10')),
+        horas_teoria: asNumber(cell(plan, 'G10')),
+        horas_practica: asNumber(cell(plan, 'H10')),
+        horas_laboratorio: asNumber(cell(plan, 'I10')),
+        horas_total: asNumber(cell(plan, 'J10')),
+        creditos_teoria: asNumber(cell(plan, 'L10')),
+        creditos_practica: asNumber(cell(plan, 'M10')),
+        creditos_laboratorio: asNumber(cell(plan, 'N10')),
+        creditos_total: asNumber(cell(plan, 'O10')),
+      },
+      {
+        tipo: 'De especialidad',
+        cursos: asNumber(cell(plan, 'F11')),
+        horas_teoria: asNumber(cell(plan, 'G11')),
+        horas_practica: asNumber(cell(plan, 'H11')),
+        horas_laboratorio: asNumber(cell(plan, 'I11')),
+        horas_total: asNumber(cell(plan, 'J11')),
+        creditos_teoria: asNumber(cell(plan, 'L11')),
+        creditos_practica: asNumber(cell(plan, 'M11')),
+        creditos_laboratorio: asNumber(cell(plan, 'N11')),
+        creditos_total: asNumber(cell(plan, 'O11')),
+      },
+    ],
+    distribucion_modalidad: [
+      {
+        modalidad: 'Presencial',
+        horas_teoria: asNumber(cell(plan, 'G12')),
+        horas_practica: asNumber(cell(plan, 'H12')),
+        horas_laboratorio: asNumber(cell(plan, 'I12')),
+        horas_total: asNumber(cell(plan, 'J12')),
+        creditos_total: asNumber(cell(plan, 'O12')),
+      },
+      {
+        modalidad: 'Virtual',
+        horas_teoria: asNumber(cell(plan, 'G13')),
+        horas_practica: asNumber(cell(plan, 'H13')),
+        horas_laboratorio: asNumber(cell(plan, 'I13')),
+        horas_total: asNumber(cell(plan, 'J13')),
+        creditos_total: asNumber(cell(plan, 'O13')),
+      },
+    ],
+  };
 
   const competencias = [];
   const seenCompetencias = new Set();
@@ -290,6 +379,8 @@ function parseWorkbook(filePath) {
     modalidad,
     periodo,
     totalCreditos,
+    fundamentosPrograma,
+    resumenPlan,
     cursos,
     competencias,
     electivosCatalogo,
@@ -359,6 +450,27 @@ async function ensureSchema(conn) {
       updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id_curso),
       CONSTRAINT fk_cdc_curso FOREIGN KEY (id_curso) REFERENCES curso(id_curso) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS malla_fundamento_curricular (
+      id_malla INT UNSIGNED NOT NULL,
+      codigo_programa VARCHAR(40) NULL,
+      grado_otorgado VARCHAR(220) NULL,
+      titulo_otorgado VARCHAR(260) NULL,
+      regimen_estudios VARCHAR(80) NULL,
+      duracion_meses SMALLINT UNSIGNED NULL,
+      fecha_aprobacion VARCHAR(80) NULL,
+      objetivo_academico TEXT NULL,
+      perfil_ingreso TEXT NULL,
+      perfil_egreso TEXT NULL,
+      objetivos_educacionales TEXT NULL,
+      resumen_plan_json JSON NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id_malla),
+      CONSTRAINT fk_malla_fundamento_malla FOREIGN KEY (id_malla) REFERENCES malla_version(id_malla) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
@@ -515,6 +627,7 @@ async function deleteMallaChildren(conn, idMalla) {
   await conn.query('DELETE FROM competencia_curricular WHERE id_malla=?', [idMalla]);
   await conn.query('DELETE FROM electivo_catalogo WHERE id_malla=?', [idMalla]);
   await conn.query('DELETE FROM mencion_curricular WHERE id_malla=?', [idMalla]);
+  await conn.query('DELETE FROM malla_fundamento_curricular WHERE id_malla=?', [idMalla]);
 }
 
 async function upsertMalla(conn, idCarrera, idImportacion, data) {
@@ -572,6 +685,26 @@ async function importCurriculum(conn, data) {
   const idFacultad = await getOrCreateFacultad(conn, FACULTAD);
   const idCarrera = await getOrCreateCarrera(conn, idFacultad, data.programa);
   const idMalla = await upsertMalla(conn, idCarrera, idImportacion, data);
+  await conn.query(
+    `INSERT INTO malla_fundamento_curricular
+      (id_malla, codigo_programa, grado_otorgado, titulo_otorgado, regimen_estudios, duracion_meses,
+       fecha_aprobacion, objetivo_academico, perfil_ingreso, perfil_egreso, objetivos_educacionales, resumen_plan_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      idMalla,
+      data.fundamentosPrograma.codigoPrograma,
+      data.fundamentosPrograma.gradoOtorgado,
+      data.fundamentosPrograma.tituloOtorgado,
+      data.fundamentosPrograma.regimenEstudios,
+      data.fundamentosPrograma.duracionMeses,
+      data.fundamentosPrograma.fechaAprobacion,
+      data.fundamentosPrograma.objetivoAcademico,
+      data.fundamentosPrograma.perfilIngreso,
+      data.fundamentosPrograma.perfilEgreso,
+      data.fundamentosPrograma.objetivosEducacionales,
+      JSON.stringify(data.resumenPlan),
+    ]
+  );
 
   const compByCode = new Map();
   for (const comp of data.competencias) {
