@@ -6,6 +6,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "postinstall": "node scripts/generatePrismaClients.js",
+    "import:education-xlsm": "node scripts/importEducationXlsmCurricula.js",
     "setup:mercado-laboral": "node scripts/setupMercadoLaboral.js"
   },
   "dependencies": {
