@@ -125,3 +125,35 @@ CREATE TABLE IF NOT EXISTS electivo_catalogo (
   KEY idx_electivo_malla (id_malla),
   CONSTRAINT fk_electivo_malla FOREIGN KEY (id_malla) REFERENCES malla_version(id_malla) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS mencion_curricular (
+  id_mencion INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  id_malla INT UNSIGNED NOT NULL,
+  codigo_mencion VARCHAR(20) NULL,
+  nombre_mencion VARCHAR(220) NOT NULL,
+  tipo VARCHAR(40) NOT NULL DEFAULT 'mencion',
+  fila_origen SMALLINT UNSIGNED NULL,
+  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id_mencion),
+  UNIQUE KEY uq_mencion_malla_nombre (id_malla, nombre_mencion),
+  CONSTRAINT fk_mencion_malla FOREIGN KEY (id_malla) REFERENCES malla_version(id_malla) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS mencion_curso (
+  id_mencion_curso INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  id_mencion INT UNSIGNED NOT NULL,
+  id_electivo INT UNSIGNED NULL,
+  codigo_oficial VARCHAR(40) NULL,
+  codigo_curso VARCHAR(40) NULL,
+  nombre_curso VARCHAR(220) NOT NULL,
+  ciclo TINYINT UNSIGNED NULL,
+  condicion VARCHAR(40) NULL,
+  nro_orden TINYINT UNSIGNED NULL,
+  fila_origen SMALLINT UNSIGNED NULL,
+  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id_mencion_curso),
+  KEY idx_mencion_curso_mencion (id_mencion),
+  KEY idx_mencion_curso_electivo (id_electivo),
+  CONSTRAINT fk_mencion_curso_mencion FOREIGN KEY (id_mencion) REFERENCES mencion_curricular(id_mencion) ON DELETE CASCADE,
+  CONSTRAINT fk_mencion_curso_electivo FOREIGN KEY (id_electivo) REFERENCES electivo_catalogo(id_electivo) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

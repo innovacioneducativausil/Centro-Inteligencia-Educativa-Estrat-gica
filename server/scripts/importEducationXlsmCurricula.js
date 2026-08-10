@@ -138,6 +138,7 @@ function parseWorkbook(filePath) {
   const fundamentos = readSheet(workbook, '1.Fundamentos');
   const plan = readSheet(workbook, '3.Plan de Estudios');
   const electivos = readSheet(workbook, '4.Electivos');
+  const mencionesSheet = readSheet(workbook, '2.Menc._Certif.');
   const sumillas = readSheet(workbook, '7.Sumillas');
   const matriz = readSheet(workbook, '8.Matriz');
 
@@ -255,6 +256,33 @@ function parseWorkbook(filePath) {
     });
   }
 
+  const mentionBlocks = [
+    { codigo: '14.1', nombreCell: 'D7', start: 9, end: 14, cols: ['B', 'C', 'D', 'E', 'F'] },
+    { codigo: '14.2', nombreCell: 'J7', start: 9, end: 14, cols: ['H', 'I', 'J', 'K', 'L'] },
+    { codigo: '14.3', nombreCell: 'D16', start: 18, end: 23, cols: ['B', 'C', 'D', 'E', 'F'] },
+    { codigo: '14.4', nombreCell: 'J16', start: 18, end: 23, cols: ['H', 'I', 'J', 'K', 'L'] },
+  ];
+
+  const menciones = mentionBlocks.map(block => {
+    const nombre = cleanText(cell(mencionesSheet, block.nombreCell));
+    const cursos = [];
+    for (let row = block.start; row <= block.end; row++) {
+      const [codigoOficialCol, codigoCursoCol, cicloCol, nombreCol, condicionCol] = block.cols;
+      const nombreCurso = cleanText(cell(mencionesSheet, `${nombreCol}${row}`));
+      const codigoOficial = cleanText(cell(mencionesSheet, `${codigoOficialCol}${row}`));
+      if (!nombreCurso && !codigoOficial) continue;
+      cursos.push({
+        sourceRow: row,
+        codigoOficial,
+        codigoCurso: cleanText(cell(mencionesSheet, `${codigoCursoCol}${row}`)),
+        ciclo: asNumber(cell(mencionesSheet, `${cicloCol}${row}`)),
+        nombre: nombreCurso,
+        condicion: cleanText(cell(mencionesSheet, `${condicionCol}${row}`)),
+      });
+    }
+    return { codigo: block.codigo, nombre, cursos };
+  }).filter(mencion => mencion.nombre && mencion.cursos.length);
+
   return {
     archivoNombre: path.basename(filePath),
     archivoHash: fileHash(filePath),
@@ -265,6 +293,7 @@ function parseWorkbook(filePath) {
     cursos,
     competencias,
     electivosCatalogo,
+    menciones,
   };
 }
 
@@ -423,6 +452,42 @@ async function ensureSchema(conn) {
       CONSTRAINT fk_electivo_malla FOREIGN KEY (id_malla) REFERENCES malla_version(id_malla) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS mencion_curricular (
+      id_mencion INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      id_malla INT UNSIGNED NOT NULL,
+      codigo_mencion VARCHAR(20) NULL,
+      nombre_mencion VARCHAR(220) NOT NULL,
+      tipo VARCHAR(40) NOT NULL DEFAULT 'mencion',
+      fila_origen SMALLINT UNSIGNED NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id_mencion),
+      UNIQUE KEY uq_mencion_malla_nombre (id_malla, nombre_mencion),
+      CONSTRAINT fk_mencion_malla FOREIGN KEY (id_malla) REFERENCES malla_version(id_malla) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS mencion_curso (
+      id_mencion_curso INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      id_mencion INT UNSIGNED NOT NULL,
+      id_electivo INT UNSIGNED NULL,
+      codigo_oficial VARCHAR(40) NULL,
+      codigo_curso VARCHAR(40) NULL,
+      nombre_curso VARCHAR(220) NOT NULL,
+      ciclo TINYINT UNSIGNED NULL,
+      condicion VARCHAR(40) NULL,
+      nro_orden TINYINT UNSIGNED NULL,
+      fila_origen SMALLINT UNSIGNED NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id_mencion_curso),
+      KEY idx_mencion_curso_mencion (id_mencion),
+      KEY idx_mencion_curso_electivo (id_electivo),
+      CONSTRAINT fk_mencion_curso_mencion FOREIGN KEY (id_mencion) REFERENCES mencion_curricular(id_mencion) ON DELETE CASCADE,
+      CONSTRAINT fk_mencion_curso_electivo FOREIGN KEY (id_electivo) REFERENCES electivo_catalogo(id_electivo) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
 }
 
 async function getOrCreateFacultad(conn, nombre) {
@@ -449,6 +514,7 @@ async function deleteMallaChildren(conn, idMalla) {
   await conn.query('DELETE FROM curso WHERE id_malla=?', [idMalla]);
   await conn.query('DELETE FROM competencia_curricular WHERE id_malla=?', [idMalla]);
   await conn.query('DELETE FROM electivo_catalogo WHERE id_malla=?', [idMalla]);
+  await conn.query('DELETE FROM mencion_curricular WHERE id_malla=?', [idMalla]);
 }
 
 async function upsertMalla(conn, idCarrera, idImportacion, data) {
@@ -482,6 +548,8 @@ async function importCurriculum(conn, data) {
     cursos: data.cursos.length,
     competencias: data.competencias.length,
     electivos_catalogo: data.electivosCatalogo.length,
+    menciones: data.menciones.length,
+    cursos_mencion: data.menciones.reduce((sum, mencion) => sum + mencion.cursos.length, 0),
     creditos_sumados: data.cursos.reduce((sum, c) => sum + (Number(c.creditos) || 0), 0),
   };
 
@@ -607,6 +675,49 @@ async function importCurriculum(conn, data) {
         electivo.creditosMinimos, electivo.mencion, electivo.sourceRow,
       ]
     );
+  }
+
+  const [electivosGuardados] = await conn.query(
+    'SELECT id_electivo, codigo_oficial, codigo_curso, nombre_curso FROM electivo_catalogo WHERE id_malla=?',
+    [idMalla]
+  );
+  const electivoByCode = new Map();
+  const electivoByName = new Map();
+  electivosGuardados.forEach(electivo => {
+    if (electivo.codigo_oficial) electivoByCode.set(electivo.codigo_oficial, electivo.id_electivo);
+    if (electivo.codigo_curso) electivoByCode.set(String(electivo.codigo_curso), electivo.id_electivo);
+    electivoByName.set(normalizeName(electivo.nombre_curso), electivo.id_electivo);
+  });
+
+  for (const mencion of data.menciones) {
+    const [result] = await conn.query(
+      `INSERT INTO mencion_curricular (id_malla, codigo_mencion, nombre_mencion, tipo)
+       VALUES (?, ?, ?, 'mencion')`,
+      [idMalla, mencion.codigo, mencion.nombre]
+    );
+    const idMencion = result.insertId;
+    for (const [index, curso] of mencion.cursos.entries()) {
+      const idElectivo = (curso.codigoOficial && electivoByCode.get(curso.codigoOficial))
+        || (curso.codigoCurso && electivoByCode.get(String(curso.codigoCurso)))
+        || (curso.nombre && electivoByName.get(normalizeName(curso.nombre)))
+        || null;
+      await conn.query(
+        `INSERT INTO mencion_curso
+          (id_mencion, id_electivo, codigo_oficial, codigo_curso, nombre_curso, ciclo, condicion, nro_orden, fila_origen)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          idMencion,
+          idElectivo,
+          curso.codigoOficial,
+          curso.codigoCurso,
+          curso.nombre,
+          curso.ciclo,
+          curso.condicion,
+          index + 1,
+          curso.sourceRow,
+        ]
+      );
+    }
   }
 
   return { idImportacion, idCarrera, idMalla, ...resumen };
