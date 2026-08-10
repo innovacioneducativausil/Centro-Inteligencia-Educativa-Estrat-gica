@@ -243,6 +243,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const [selectedPrograma, setSelectedPrograma] = useState<number | null>(null);
   const [mallaUsil, setMallaUsil] = useState<MallaUsil | null>(null);
   const [ciclosUsil, setCiclosUsil] = useState<CicloUsil[]>([]);
+  const [selectedCicloComparador, setSelectedCicloComparador] = useState('todos');
   const [loadingMallaUsil, setLoadingMallaUsil] = useState(false);
   const [loadingUnivs, setLoadingUnivs] = useState(false);
   const [loadingProgs, setLoadingProgs] = useState(false);
@@ -289,7 +290,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     setShowCandidatesFor(null);
     setProgramNotice(null);
     setProgramError(null);
+    setSelectedCicloComparador('todos');
   }, [tipo, selectedCarrera]);
+
+  useEffect(() => {
+    setSelectedCicloComparador('todos');
+  }, [selectedReferenciaUniversidad]);
 
   const loadProgramas = useCallback(() => {
     if (!selectedCarrera) { setProgramas([]); setCompetencias([]); return; }
@@ -660,6 +666,25 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   };
 
   const courseKey = (name: string) => normalizeText(name).replace(/[^a-z0-9]/g, '');
+
+  const getAvailableCycles = (courses: Array<{ ciclo?: string | number | null }>) => {
+    const cycles = new Set<string>();
+    courses.forEach(course => {
+      if (course.ciclo === null || course.ciclo === undefined || course.ciclo === '') return;
+      cycles.add(String(course.ciclo));
+    });
+    return Array.from(cycles).sort((a, b) => {
+      const na = Number(a);
+      const nb = Number(b);
+      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+      return a.localeCompare(b, 'es');
+    });
+  };
+
+  const filterCoursesByCycle = <T extends { ciclo?: string | number | null }>(courses: T[], cycle: string) => {
+    if (cycle === 'todos') return courses;
+    return courses.filter(course => String(course.ciclo || '') === cycle);
+  };
 
   const renderMallaBoard = (
     title: string,
@@ -1274,11 +1299,17 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                       nombre: cleanCourseName(curso.nombre_curso),
                       meta: curso.area_formacion || curso.fuente_url || null,
                     }));
-                    const usilKeys = new Set(cursosUsil.map(c => courseKey(c.nombre)));
-                    const extKeys = new Set(cursosExternos.map(c => courseKey(c.nombre)));
+                    const ciclosComparador = getAvailableCycles([...cursosUsil, ...cursosExternos]);
+                    const activeCiclo = selectedCicloComparador === 'todos' || ciclosComparador.includes(selectedCicloComparador)
+                      ? selectedCicloComparador
+                      : 'todos';
+                    const cursosUsilFiltrados = filterCoursesByCycle(cursosUsil, activeCiclo);
+                    const cursosExternosFiltrados = filterCoursesByCycle(cursosExternos, activeCiclo);
+                    const usilKeys = new Set(cursosUsilFiltrados.map(c => courseKey(c.nombre)));
+                    const extKeys = new Set(cursosExternosFiltrados.map(c => courseKey(c.nombre)));
                     const coincidencias = [...extKeys].filter(k => usilKeys.has(k)).length;
-                    const externosNoCubiertos = cursosExternos.filter(c => !usilKeys.has(courseKey(c.nombre))).length;
-                    const usilNoEncontrados = cursosUsil.filter(c => !extKeys.has(courseKey(c.nombre))).length;
+                    const externosNoCubiertos = cursosExternosFiltrados.filter(c => !usilKeys.has(courseKey(c.nombre))).length;
+                    const usilNoEncontrados = cursosUsilFiltrados.filter(c => !extKeys.has(courseKey(c.nombre))).length;
                     return (
                       <div key={`ref-${p.id_programa_benchmark}`} style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}>
                         <div style={{ padding: '10px 12px', background: isDark ? '#0f172a' : '#f8fafc', borderBottom: `1px solid ${border}` }}>
@@ -1294,21 +1325,49 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                             </div>
                           </div>
                         </div>
+                        <div style={{ padding: '10px 12px', borderBottom: `1px solid ${border}`,
+                          background: isDark ? '#111827' : '#fff', display: 'flex', justifyContent: 'flex-end',
+                          gap: 6, flexWrap: 'wrap' }}>
+                          {['todos', ...ciclosComparador].map(cycle => {
+                            const isActive = activeCiclo === cycle;
+                            const label = cycle === 'todos' ? 'Todos' : `Ciclo ${cycle}`;
+                            return (
+                              <button
+                                key={`cycle-${p.id_programa_benchmark}-${cycle}`}
+                                type="button"
+                                onClick={() => setSelectedCicloComparador(cycle)}
+                                style={{
+                                  border: `1px solid ${isActive ? USIL : border}`,
+                                  borderRadius: 999,
+                                  background: isActive ? USIL : card,
+                                  color: isActive ? '#fff' : text,
+                                  padding: '6px 10px',
+                                  fontSize: 10,
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 12, padding: 12 }}>
                           {renderMallaBoard(
                             'Malla USIL',
                             loadingMallaUsil
                               ? 'Cargando malla vigente...'
                               : mallaUsil
-                                ? `${mallaUsil.nombre_version} - ${cursosUsil.length} cursos`
+                                ? `${mallaUsil.nombre_version} - ${cursosUsilFiltrados.length}/${cursosUsil.length} cursos`
                                 : 'No se encontró malla vigente cargada',
-                            cursosUsil,
+                            cursosUsilFiltrados,
                             USIL
                           )}
                           {renderMallaBoard(
                             `Malla referente - ${p.nombre_universidad}`,
-                            `${cursosExternos.length} cursos extraídos desde fuente oficial`,
-                            cursosExternos,
+                            `${cursosExternosFiltrados.length}/${cursosExternos.length} cursos extraídos desde fuente oficial`,
+                            cursosExternosFiltrados,
                             CYAN
                           )}
                         </div>
