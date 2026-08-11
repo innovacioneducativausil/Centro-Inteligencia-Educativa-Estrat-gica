@@ -41,8 +41,24 @@ function overlaps(a, b) {
   return a.some(w => setB.has(w));
 }
 
-function matchCursoEvidencia(cursoNombre, { radarEv, mercadoSkills, benchEv }) {
-  const cursoKw = keywordsOf(cursoNombre);
+/**
+ * El curso se compara contra la evidencia usando TODO lo real que tenemos de
+ * él (nombre + sumilla + competencias declaradas), no solo el nombre — el
+ * nombre por sí solo es demasiado angosto (p.ej. "Coaching Educativo" no
+ * comparte palabras con una señal sobre "mentoría docente", pero su sumilla
+ * probablemente sí). Nada de esto es inventado: son campos reales ya
+ * cargados desde el Excel de la malla.
+ */
+function textoCursoParaMatching(curso) {
+  return [
+    curso.nombre_curso,
+    curso.sumilla,
+    ...(curso.competencias || []).map(c => c.nombre_competencia),
+  ].filter(Boolean).join(' ');
+}
+
+function matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv }) {
+  const cursoKw = keywordsOf(textoCursoParaMatching(curso));
 
   const radar = radarEv.filter(ev => overlaps(cursoKw, keywordsOf(`${ev.titulo} ${ev.descripcion || ''}`)));
   const mercado = mercadoSkills.filter(s => overlaps(cursoKw, keywordsOf(s)));
@@ -108,6 +124,10 @@ function safeParseJson(raw) {
   try { return JSON.parse(match[0]); } catch { return null; }
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function callProvider(url, headers, body) {
   const r = await fetch(url, {
     method: 'POST',
@@ -117,19 +137,49 @@ async function callProvider(url, headers, body) {
   });
   if (!r.ok) {
     const txt = await r.text().catch(() => '');
-    throw new Error(`${url} error ${r.status}: ${txt.substring(0, 200)}`);
+    const err = new Error(`${url} error ${r.status}: ${txt.substring(0, 200)}`);
+    err.status = r.status;
+    throw err;
   }
   const json = await r.json();
   return json?.choices?.[0]?.message?.content ?? '';
 }
 
-async function callLLM(prompt) {
+async function callGroqWithBackoff(prompt) {
+  const groqKey = process.env.GROQ_API_KEY;
+  const body = {
+    model: GROQ_MODEL,
+    messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }],
+    max_tokens: 700,
+    temperature: 0.2,
+  };
+  const headers = { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' };
+  try {
+    return await callProvider(GROQ_URL, headers, body);
+  } catch (err) {
+    if (err.status === 429) {
+      // Backoff corto y un solo reintento: evita perder el análisis por una
+      // ráfaga de llamadas que topa el límite de tokens/minuto de Groq.
+      await sleep(8000);
+      return callProvider(GROQ_URL, headers, body);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Estado compartido dentro de UNA corrida de analizarMapaCurricular: si
+ * HuggingFace responde 402 (cuota mensual agotada) una vez, se asume agotada
+ * para el resto de la corrida y se salta directo a Groq — evita esperar el
+ * timeout de un proveedor que ya sabemos que va a fallar en cada curso.
+ */
+async function callLLM(prompt, providerState = {}) {
   const hfKey = process.env.HF_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
 
-  if (hfKey && hfKey !== 'hf_TU_TOKEN_AQUI') {
+  if (hfKey && hfKey !== 'hf_TU_TOKEN_AQUI' && !providerState.hfExhausted) {
     try {
-      const content = await callProvider(
+      return await callProvider(
         HF_URL,
         { Authorization: `Bearer ${hfKey}`, 'Content-Type': 'application/json' },
         {
@@ -139,24 +189,13 @@ async function callLLM(prompt) {
           temperature: 0.2,
         }
       );
-      return content;
     } catch (err) {
+      if (err.status === 402) providerState.hfExhausted = true;
       logger.warn(`HuggingFace falló, intentando Groq: ${err.message}`, { context: 'ANALISIS_CURSO' });
     }
   }
 
-  if (groqKey) {
-    return callProvider(
-      GROQ_URL,
-      { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
-      {
-        model: GROQ_MODEL,
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }],
-        max_tokens: 700,
-        temperature: 0.2,
-      }
-    );
-  }
+  if (groqKey) return callGroqWithBackoff(prompt);
 
   throw new Error('No hay proveedor de IA configurado (HF_API_KEY / GROQ_API_KEY)');
 }
@@ -267,17 +306,24 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion) {
   }
 
   const resumen = { analizados: 0, omitidos: 0, errores: 0, total: cursos.length };
+  const providerState = { hfExhausted: false };
+  let primeraLlamada = true;
 
   for (const curso of cursos) {
-    const evidencia = matchCursoEvidencia(curso.nombre_curso, { radarEv, mercadoSkills, benchEv });
+    const evidencia = matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv });
     if (!evidencia.radar.length && !evidencia.mercado.length && !evidencia.bench.length) {
       resumen.omitidos++;
       continue;
     }
 
+    // Throttle: sin esto, una ráfaga de cursos con evidencia topa el límite
+    // de tokens/minuto de Groq (fallback) en pocos segundos.
+    if (!primeraLlamada) await sleep(1500);
+    primeraLlamada = false;
+
     try {
       const prompt = buildPrompt(curso, evidencia, emplEv);
-      const raw = await callLLM(prompt);
+      const raw = await callLLM(prompt, providerState);
       const resultado = normalizeResultado(safeParseJson(raw));
       if (!resultado) {
         resumen.errores++;
@@ -316,14 +362,24 @@ function mesAnio(dateLike) {
  */
 async function getEvidenciaCurso(idCurso) {
   const [[curso]] = await dbCurricular.query(
-    `SELECT c.id_curso, c.nombre_curso, c.numero_ciclo, ca.id_carrera, ca.nombre_carrera
+    `SELECT c.id_curso, c.nombre_curso, c.numero_ciclo, ca.id_carrera, ca.nombre_carrera, cs.sumilla
      FROM curso c
      JOIN malla_version mv ON mv.id_malla = c.id_malla
      JOIN carrera ca ON ca.id_carrera = mv.id_carrera
+     LEFT JOIN curso_sumilla cs ON cs.id_curso = c.id_curso
      WHERE c.id_curso = ?`,
     [idCurso]
   );
   if (!curso) return null;
+
+  const [competencias] = await dbCurricular.query(
+    `SELECT comp.nombre_competencia
+     FROM curso_competencia cc
+     JOIN competencia_curricular comp ON comp.id_competencia = cc.id_competencia
+     WHERE cc.id_curso = ?`,
+    [idCurso]
+  ).catch(() => [[]]);
+  curso.competencias = competencias;
 
   const [[analisis]] = await dbCurricular.query(
     `SELECT score_alineacion, estado_alineacion, tendencias_impacto, brechas_detectadas, recomendaciones_ia, analizado_en
@@ -338,7 +394,7 @@ async function getEvidenciaCurso(idCurso) {
     recogerEvidenciaBenchmarking(curso.id_carrera),
   ]);
 
-  const evidencia = matchCursoEvidencia(curso.nombre_curso, { radarEv, mercadoSkills, benchEv });
+  const evidencia = matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv });
 
   const [informe] = await dbCurricular.query(
     `SELECT fuente, periodo, documento_informe_url FROM mercado_informe WHERE nombre_carrera = ? AND activo = 1 LIMIT 1`,
