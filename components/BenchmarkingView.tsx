@@ -1,7 +1,6 @@
 ﻿
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ThemeColors } from '../types';
-import { BRAND_COLORS } from '../constants';
 import { downloadExcel } from '../services/excelExport';
 import { logActividad } from '../services/actividadService';
 
@@ -120,8 +119,15 @@ interface CoberturaCarrera extends FiltroCarrera {
   }>>;
 }
 
-const USIL = BRAND_COLORS.primary;
-const CYAN = BRAND_COLORS.button;
+const USIL = '#001a48';
+const CYAN = '#006876';
+const CYAN_LIGHT = '#58e6ff';
+const SURFACE_LOW = '#f1f4f7';
+const OUTLINE_VARIANT = '#c4c6d2';
+const FONT_HEAD = "'Manrope', 'Segoe UI', sans-serif";
+const FONT_DATA = "'Inter', 'Segoe UI', sans-serif";
+const ERROR_COLOR = '#ba1a1a';
+const CARD_SHADOW = '0 4px 12px rgba(0,45,114,0.02)';
 
 const TIPO_LABELS: Record<TipoBenchmark, string> = {
   competencia_directa:     'Competencia Directa',
@@ -223,11 +229,11 @@ function sourceHasConflictingCareerLabel(sourceText: string, careerName: string)
 
 const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRole, tiposDisponibles }) => {
   const isDark   = themeColors.bg?.includes('950') || themeColors.bg?.includes('slate-900') || false;
-  const bg       = isDark ? '#0f172a' : BRAND_COLORS.surface;
+  const bg       = isDark ? '#0f172a' : SURFACE_LOW;
   const card     = isDark ? '#1e293b' : '#ffffff';
-  const text     = isDark ? '#f1f5f9' : BRAND_COLORS.title;
-  const muted    = isDark ? '#94a3b8' : BRAND_COLORS.body;
-  const border   = isDark ? 'rgba(148,163,184,0.15)' : BRAND_COLORS.borderStrong;
+  const text     = isDark ? '#f1f5f9' : '#191c1e';
+  const muted    = isDark ? '#94a3b8' : '#444651';
+  const border   = isDark ? 'rgba(148,163,184,0.15)' : OUTLINE_VARIANT;
   const canEdit  = userRole === 'admin';
   const tiposVisibles = tiposDisponibles && tiposDisponibles.length ? tiposDisponibles : TIPOS_VISIBLES;
 
@@ -690,38 +696,57 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     title: string,
     subtitle: string,
     courses: Array<{ ciclo?: string | number | null; nombre: string; meta?: string | null }>,
-    accent: string
+    accent: string,
+    matchKeys?: Set<string>
   ) => {
     const grouped = groupCoursesByCycle(courses);
+    const MATCH_GREEN = '#16a34a';
     return (
       <div style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden', background: card,
-        display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <div style={{ padding: '10px 12px', background: isDark ? '#0f172a' : BRAND_COLORS.surface,
+        display: 'flex', flexDirection: 'column', minWidth: 0, boxShadow: CARD_SHADOW }}>
+        <div style={{ padding: '10px 12px', background: accent, color: '#fff',
           borderBottom: `1px solid ${border}`, flex: '0 0 auto' }}>
-          <div style={{ fontWeight: 800, color: accent, fontSize: 12 }}>{title}</div>
-          <div style={{ color: muted, fontSize: 10, marginTop: 2 }}>{subtitle}</div>
+          <div style={{ fontWeight: 700, fontSize: 12, fontFamily: FONT_HEAD }}>{title}</div>
+          <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, marginTop: 2 }}>{subtitle}</div>
         </div>
         {grouped.length === 0 ? (
           <div style={{ padding: 16, color: muted, fontSize: 12 }}>No hay cursos cargados para esta malla.</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-            gap: 8, padding: 10 }}>
+            gap: 8, padding: 10, background: isDark ? '#0f172a' : SURFACE_LOW }}>
             {grouped.map(([cycle, items]) => (
               <div key={`${title}-${cycle}`} style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ background: accent, color: '#fff', padding: '5px 8px',
-                  fontWeight: 800, fontSize: 11, borderRadius: '6px 6px 0 0', flex: '0 0 auto' }}>
-                  Ciclo {cycle} <span style={{ opacity: 0.75, fontWeight: 700 }}>({items.length})</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, borderBottom: `1px solid ${border}`,
+                  paddingBottom: 4, marginBottom: 6, flex: '0 0 auto' }}>
+                  <span style={{ fontWeight: 700, fontSize: 11, color: accent, fontFamily: FONT_HEAD }}>Ciclo {cycle}</span>
+                  <span style={{ color: muted, fontSize: 9 }}>({items.length})</span>
                 </div>
-                <div style={{ border: `1px solid ${border}`, borderTop: 'none', borderRadius: '0 0 6px 6px',
-                  overflow: 'visible' }}>
-                  {items.map((course, idx) => (
-                    <div key={`${cycle}-${course.nombre}-${idx}`}
-                      style={{ padding: '7px 8px', borderBottom: idx < items.length - 1 ? `1px solid ${border}` : 'none',
-                        background: isDark ? '#1e293b' : '#fff' }}>
-                      <div style={{ fontWeight: 700, fontSize: 10.5, lineHeight: 1.25 }}>{course.nombre}</div>
-                      {course.meta && <div style={{ color: muted, fontSize: 9, marginTop: 2 }}>{course.meta}</div>}
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {items.map((course, idx) => {
+                    const key = courseKey(course.nombre);
+                    const isMatched = matchKeys ? matchKeys.has(key) : false;
+                    const barColor = matchKeys ? (isMatched ? MATCH_GREEN : accent) : 'transparent';
+                    return (
+                      <div key={`${cycle}-${course.nombre}-${idx}`}
+                        style={{ position: 'relative', padding: '7px 8px 7px 12px', borderRadius: 6,
+                          border: `1px solid ${border}`, background: isDark ? '#1e293b' : '#fff', overflow: 'hidden' }}>
+                        {matchKeys && (
+                          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: barColor }} />
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                          <div style={{ fontWeight: 700, fontSize: 10.5, lineHeight: 1.25 }}>{course.nombre}</div>
+                          {matchKeys && (
+                            <span className="material-symbols-outlined"
+                              style={{ fontSize: 14, color: isMatched ? MATCH_GREEN : accent, flex: '0 0 auto' }}
+                              title={isMatched ? 'Coincide con la otra malla' : 'Sin coincidencia exacta'}>
+                              {isMatched ? 'check_circle' : 'add_circle'}
+                            </span>
+                          )}
+                        </div>
+                        {course.meta && <div style={{ color: muted, fontSize: 9, marginTop: 2 }}>{course.meta}</div>}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -733,8 +758,8 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 
   if (!canEdit) {
     return (
-      <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: 24, color: text }}>
-        <div style={{ fontWeight: 800, color: USIL, marginBottom: 6 }}>Benchmarking curricular</div>
+      <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, padding: 24, color: text, fontFamily: FONT_DATA, boxShadow: CARD_SHADOW }}>
+        <div style={{ fontWeight: 700, color: USIL, marginBottom: 6, fontFamily: FONT_HEAD, fontSize: 18 }}>Benchmarking curricular</div>
         <div style={{ color: muted, fontSize: 13 }}>
           Este módulo es de uso administrativo. Las fuentes, comparaciones y propuestas curriculares requieren curaduría y validación antes de mostrarse al resto de usuarios.
         </div>
@@ -743,15 +768,15 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   }
 
   return (
-    <div style={{ padding: 0, color: text }}>
+    <div style={{ padding: 0, color: text, fontFamily: FONT_DATA }}>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {tiposVisibles.map(t => (
           <button key={t} onClick={() => setTipo(t)}
             style={{
-              padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
-              fontWeight: 700, fontSize: 12,
-              background: tipo === t ? USIL : (isDark ? '#334155' : BRAND_COLORS.surface3),
+              padding: '8px 18px', borderRadius: 999, border: `1px solid ${tipo === t ? USIL : border}`, cursor: 'pointer',
+              fontWeight: 700, fontSize: 12, fontFamily: FONT_DATA,
+              background: tipo === t ? USIL : card,
               color: tipo === t ? '#fff' : text,
             }}>
             {TIPO_LABELS[t]}
@@ -760,15 +785,15 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         {canEdit && ['competencia_directa', 'competencia_internacional'].includes(tipo) && (
           <button onClick={handleSeedInicial} disabled={seeding}
             style={{ marginLeft: 'auto', padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`,
-              background: card, color: seeding ? muted : USIL, fontWeight: 800, fontSize: 12,
+              background: card, color: seeding ? muted : USIL, fontWeight: 700, fontSize: 12, fontFamily: FONT_DATA,
               cursor: seeding ? 'not-allowed' : 'pointer' }}>
             {seeding ? 'Rebuscando...' : 'Rebuscar fuentes'}
           </button>
         )}
       </div>
 
-      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 800, color: USIL }}>{TIPO_LABELS[tipo]}</div>
+      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 12, padding: '12px 16px', marginBottom: 12, boxShadow: CARD_SHADOW }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: USIL, fontFamily: FONT_HEAD }}>{TIPO_LABELS[tipo]}</div>
         <div style={{ fontSize: 11, color: muted, marginTop: 3 }}>
           {TIPO_DESCRIPCION[tipo]}
           {!isReferenceView && <> Total configurado en esta vista: <strong>{coberturaTipoTotal}</strong> programas.</>}
@@ -776,8 +801,8 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       </div>
 
       {error && (
-        <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8,
-          padding: '10px 14px', marginBottom: 12, color: '#991b1b', fontSize: 12 }}>
+        <div style={{ background: '#ffdad6', border: `1px solid ${ERROR_COLOR}`, borderRadius: 8,
+          padding: '10px 14px', marginBottom: 12, color: '#93000a', fontSize: 12 }}>
           {error}
         </div>
       )}
@@ -790,13 +815,13 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       )}
 
       {isReferenceView && (
-        <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: '14px 16px', marginBottom: 12 }}>
-          <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase', marginBottom: 10 }}>
+        <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, padding: '14px 16px', marginBottom: 12, boxShadow: CARD_SHADOW }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: USIL, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10, fontFamily: FONT_DATA }}>
             Filtros de comparación de malla
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 0.8fr) minmax(260px, 1.2fr) minmax(240px, 1fr)', gap: 12 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', marginBottom: 5 }}>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
                 Facultad
               </label>
               <select value={selectedFacultadReferencia}
@@ -806,7 +831,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   setSelectedReferenciaUniversidad('');
                 }}
                 style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : BRAND_COLORS.surface, color: text, fontSize: 12 }}>
+                  background: isDark ? '#0f172a' : SURFACE_LOW, color: text, fontSize: 12, fontFamily: FONT_DATA }}>
                 <option value="">- Selecciona facultad -</option>
                 {facultadesReferencia.map(facultad => (
                   <option key={facultad} value={facultad}>{facultad}</option>
@@ -814,14 +839,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', marginBottom: 5 }}>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
                 Carrera USIL
               </label>
               <select value={selectedCarrera}
                 onChange={e => setSelectedCarrera(e.target.value ? Number(e.target.value) : '')}
                 disabled={!selectedFacultadReferencia}
                 style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : BRAND_COLORS.surface, color: !selectedFacultadReferencia ? muted : text, fontSize: 12 }}>
+                  background: isDark ? '#0f172a' : SURFACE_LOW, color: !selectedFacultadReferencia ? muted : text, fontSize: 12, fontFamily: FONT_DATA }}>
                 <option value="">
                   {selectedFacultadReferencia ? '- Selecciona carrera -' : 'Primero selecciona facultad'}
                 </option>
@@ -833,14 +858,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', marginBottom: 5 }}>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
                 Universidad con malla extraída
               </label>
               <select value={selectedReferenciaUniversidad}
                 onChange={e => setSelectedReferenciaUniversidad(e.target.value ? Number(e.target.value) : '')}
                 disabled={!selectedCarrera || loadingProgs || referenciaUniversidades.length === 0}
                 style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : BRAND_COLORS.surface, color: !selectedCarrera || referenciaUniversidades.length === 0 ? muted : text, fontSize: 12 }}>
+                  background: isDark ? '#0f172a' : SURFACE_LOW, color: !selectedCarrera || referenciaUniversidades.length === 0 ? muted : text, fontSize: 12, fontFamily: FONT_DATA }}>
                 <option value="">
                   {!selectedCarrera
                     ? 'Primero selecciona una carrera'
@@ -867,10 +892,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       )}
 
       {!isReferenceView && coverageRows.length > 0 && (
-        <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden', marginBottom: 12 }}>
-          <div style={{ background: isDark ? '#1e293b' : BRAND_COLORS.surface2, padding: '10px 16px',
+        <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', marginBottom: 12, boxShadow: CARD_SHADOW }}>
+          <div style={{ background: isDark ? '#1e293b' : SURFACE_LOW, padding: '10px 16px',
             borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+            <span style={{ fontWeight: 700, fontSize: 12, color: USIL, textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: FONT_DATA }}>
               Cobertura de {TIPO_LABELS[tipo].toLowerCase()} por carrera
             </span>
             <span style={{ fontSize: 10, color: muted }}>
@@ -880,17 +905,17 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <thead style={{ position: 'sticky', top: 0 }}>
-                <tr style={{ background: isDark ? '#0f172a' : BRAND_COLORS.surface }}>
+                <tr style={{ background: isDark ? '#0f172a' : SURFACE_LOW }}>
                   {['Facultad', 'Carrera', TIPO_LABELS[tipo], 'Fuentes', 'Validadas', 'Pendientes', 'Última revisión'].map(h => (
-                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
-                      color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
+                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
+                      color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap', fontSize: 10 }}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {coverageRows.map(c => {
+                {coverageRows.map((c, idx) => {
                   const tipos = c.benchmarking || {};
                   const total = (t: TipoBenchmark, key: 'total_programas' | 'fuentes_validadas' | 'fuentes_pendientes') => tipos[t]?.[key] ?? 0;
                   const datosTipo = tipos[tipo];
@@ -899,13 +924,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   const isSelected = selectedCarrera === c.id_carrera;
                   return (
                     <tr key={c.id_carrera} onClick={() => setSelectedCarrera(c.id_carrera)}
-                      style={{ borderBottom: `1px solid ${border}`, cursor: 'pointer', background: isSelected ? '#eff6ff' : 'transparent' }}>
+                      style={{ borderBottom: `1px solid ${border}`, cursor: 'pointer',
+                        background: isSelected ? (isDark ? 'rgba(88,230,255,0.08)' : '#eaf6f8') : (idx % 2 === 1 ? (isDark ? 'transparent' : SURFACE_LOW) : 'transparent') }}>
                       <td style={{ padding: '8px 10px', color: muted }}>{c.nombre_facultad}</td>
                       <td style={{ padding: '8px 10px', fontWeight: 700 }}>{c.nombre_carrera}</td>
-                      <td style={{ padding: '8px 10px', fontWeight: 800 }}>{total(tipo, 'total_programas')}</td>
+                      <td style={{ padding: '8px 10px', fontWeight: 700, color: USIL, fontFamily: FONT_HEAD }}>{total(tipo, 'total_programas')}</td>
                       <td style={{ padding: '8px 10px' }}>{datosTipo?.total_fuentes ?? 0}</td>
-                      <td style={{ padding: '8px 10px', color: '#166534', fontWeight: 800 }}>{validadas}</td>
-                      <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>{pendientes}</td>
+                      <td style={{ padding: '8px 10px', color: '#166534', fontWeight: 700 }}>{validadas}</td>
+                      <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 700 }}>{pendientes}</td>
                       <td style={{ padding: '8px 10px', color: muted }}>
                         {datosTipo?.ultima_revision ? new Date(datosTipo.ultima_revision).toLocaleDateString('es-PE') : '-'}
                       </td>
@@ -963,13 +989,13 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {selectedCarrera && !isReferenceView && (
-            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: '12px 16px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, padding: '12px 16px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, boxShadow: CARD_SHADOW }}>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 800, color: muted, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Carrera seleccionada
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: text, marginTop: 2 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: text, marginTop: 2, fontFamily: FONT_HEAD }}>
                   {carreraSeleccionada?.nombre_carrera || 'Carrera seleccionada'}
                   {carreraSeleccionada?.nombre_facultad ? ` (${carreraSeleccionada.nombre_facultad})` : ''}
                 </div>
@@ -1007,8 +1033,8 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           )}
 
           {selectedCarrera && !isReferenceView && (
-            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, padding: '12px 16px' }}>
-              <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase', marginBottom: 10 }}>
+            <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, padding: '12px 16px', boxShadow: CARD_SHADOW }}>
+              <div style={{ fontWeight: 700, fontSize: 12, color: USIL, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
                 Flujo de comparación curricular
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(140px, 1fr))', gap: 8 }}>
@@ -1019,9 +1045,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   ['4', 'Comparación', 'Cruzar lo extraído contra malla y sílabos de la carrera seleccionada.'],
                   ['5', 'Propuesta', 'Generar brecha y propuesta curricular para revisión humana, nunca aplicar automático.'],
                 ].map(([n, title, desc]) => (
-                  <div key={n} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: 10, background: isDark ? '#0f172a' : BRAND_COLORS.surface }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: CYAN }}>Paso {n}</div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: text, marginTop: 3 }}>{title}</div>
+                  <div key={n} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: 10, background: isDark ? '#0f172a' : SURFACE_LOW }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: CYAN }}>Paso {n}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: text, marginTop: 3, fontFamily: FONT_HEAD }}>{title}</div>
                     <div style={{ fontSize: 10, color: muted, marginTop: 4, lineHeight: 1.35 }}>{desc}</div>
                   </div>
                 ))}
@@ -1043,11 +1069,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
             </div>
           )}
           {selectedCarrera && !isReferenceView && (
-            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
-              <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+            <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: CARD_SHADOW }}>
+              <div style={{ background: isDark ? '#1e293b' : SURFACE_LOW, padding: '10px 16px',
                 borderBottom: `1px solid ${border}`,
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+                <span style={{ fontWeight: 700, fontSize: 12, color: USIL, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {TIPO_LABELS[tipo]} configurada para la carrera ({programasVisibles.length})
                 </span>
                 {loadingProgs && <span style={{ fontSize: 10, color: muted }}>Cargando...</span>}
@@ -1061,9 +1087,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
-                      <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
+                      <tr style={{ background: isDark ? '#0f172a' : SURFACE_LOW }}>
                         {['Universidad', 'Pais', 'Programa', 'Estado', 'Fuentes', 'Cursos', 'Competencias', 'Captura', 'Acciones'].map(h => (
-                          <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
+                          <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 10,
                             color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                             {h}
                           </th>
@@ -1071,12 +1097,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                       </tr>
                     </thead>
                     <tbody>
-                      {programasVisibles.map(p => {
+                      {programasVisibles.map((p, idx) => {
                         const est = ESTADO_BADGE[p.estado_extraccion] ?? ESTADO_BADGE.pendiente;
                         const isBusy = !!actionLoading[p.id_programa_benchmark];
                         const hasExactSource = hasUsableSource(p);
                         return (
-                          <tr key={p.id_programa_benchmark} style={{ borderBottom: `1px solid ${border}` }}>
+                          <tr key={p.id_programa_benchmark} style={{ borderBottom: `1px solid ${border}`, background: idx % 2 === 1 ? (isDark ? 'transparent' : SURFACE_LOW) : 'transparent' }}>
                             <td style={{ padding: '8px 10px', fontWeight: 600 }}>{p.nombre_universidad}</td>
                             <td style={{ padding: '8px 10px', color: muted }}>{p.pais}</td>
                             <td style={{ padding: '8px 10px', maxWidth: 180 }}>
@@ -1094,7 +1120,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                             </td>
                             <td style={{ padding: '8px 10px' }}>
                               <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px',
-                                borderRadius: 10, background: est.bg, color: est.text }}>
+                                borderRadius: 4, background: est.bg, color: est.text }}>
                                 {est.label}
                               </span>
                               {p.observaciones && (
@@ -1182,11 +1208,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           )}
 
           {showCandidatesFor && !isReferenceView && (
-            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
-              <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+            <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: CARD_SHADOW }}>
+              <div style={{ background: isDark ? '#1e293b' : SURFACE_LOW, padding: '10px 16px',
                 borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+                  <div style={{ fontWeight: 700, fontSize: 12, color: USIL, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Candidatos de fuente oficial
                   </div>
                   <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
@@ -1214,9 +1240,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                       <col style={{ width: 190 }} />
                     </colgroup>
                     <thead>
-                      <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
+                      <tr style={{ background: isDark ? '#0f172a' : SURFACE_LOW }}>
                         {['Estado', 'Tipo', 'Titulo / URL', 'Evidencia', 'Acciones'].map(h => (
-                          <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: muted,
+                          <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: muted, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 10,
                             borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                             {h}
                           </th>
@@ -1227,7 +1253,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                       {(candidates[showCandidatesFor] || []).map(c => {
                         return (
                           <tr key={c.id_candidate} style={{ borderBottom: `1px solid ${border}` }}>
-                            <td style={{ padding: '8px 10px', fontWeight: 800 }}>{c.estado}</td>
+                            <td style={{ padding: '8px 10px', fontWeight: 700 }}>{c.estado}</td>
                             <td style={{ padding: '8px 10px' }}>{c.tipo_fuente_detectado}</td>
                             <td style={{ padding: '8px 10px' }}>
                               <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1273,10 +1299,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           )}
 
           {isReferenceView && (
-            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
-              <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+            <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: CARD_SHADOW }}>
+              <div style={{ background: isDark ? '#1e293b' : SURFACE_LOW, padding: '12px 16px',
                 borderBottom: `1px solid ${border}` }}>
-                <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: USIL, fontFamily: FONT_HEAD }}>
                   Comparador de malla USIL vs referente
                 </div>
                 <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
@@ -1310,23 +1336,36 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                     const coincidencias = [...extKeys].filter(k => usilKeys.has(k)).length;
                     const externosNoCubiertos = cursosExternosFiltrados.filter(c => !usilKeys.has(courseKey(c.nombre))).length;
                     const usilNoEncontrados = cursosUsilFiltrados.filter(c => !extKeys.has(courseKey(c.nombre))).length;
+                    const kpis: Array<{ label: string; value: number; icon: string; iconBg: string; iconColor: string; valueColor: string }> = [
+                      { label: 'Coincidencias', value: coincidencias, icon: 'done_all', iconBg: CYAN_LIGHT, iconColor: USIL, valueColor: USIL },
+                      { label: 'Externos no cubiertos', value: externosNoCubiertos, icon: 'warning', iconBg: '#ffdad6', iconColor: '#93000a', valueColor: ERROR_COLOR },
+                      { label: 'USIL sin equivalente', value: usilNoEncontrados, icon: 'verified', iconBg: '#dde3eb', iconColor: '#41474e', valueColor: text },
+                    ];
                     return (
-                      <div key={`ref-${p.id_programa_benchmark}`} style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}>
-                        <div style={{ padding: '10px 12px', background: isDark ? '#0f172a' : '#f8fafc', borderBottom: `1px solid ${border}` }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                            <div>
-                              <div style={{ fontSize: 12, fontWeight: 800, color: USIL }}>{p.nombre_universidad}</div>
-                              <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>{p.nombre_programa}</div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 10, fontWeight: 800 }}>
-                              <span style={{ color: '#166534' }}>{coincidencias} coincidencias</span>
-                              <span style={{ color: '#854d0e' }}>{externosNoCubiertos} externos no cubiertos</span>
-                              <span style={{ color: muted }}>{usilNoEncontrados} USIL sin equivalente exacto</span>
-                            </div>
+                      <div key={`ref-${p.id_programa_benchmark}`} style={{ border: `1px solid ${border}`, borderRadius: 12, overflow: 'hidden', boxShadow: CARD_SHADOW }}>
+                        <div style={{ padding: '12px', background: isDark ? '#0f172a' : SURFACE_LOW, borderBottom: `1px solid ${border}` }}>
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: USIL, fontFamily: FONT_HEAD }}>{p.nombre_universidad}</div>
+                            <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>{p.nombre_programa}</div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+                            {kpis.map(k => (
+                              <div key={k.label} style={{ background: card, border: `1px solid ${border}`, borderRadius: 12,
+                                padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', background: k.iconBg,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: 17, color: k.iconColor }}>{k.icon}</span>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 9, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</div>
+                                  <div style={{ fontSize: 16, fontWeight: 700, color: k.valueColor, fontFamily: FONT_HEAD }}>{k.value}</div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                         <div style={{ padding: '10px 12px', borderBottom: `1px solid ${border}`,
-                          background: isDark ? '#111827' : '#fff', display: 'flex', justifyContent: 'flex-end',
+                          background: card, display: 'flex', justifyContent: 'flex-end',
                           gap: 6, flexWrap: 'wrap' }}>
                           {['todos', ...ciclosComparador].map(cycle => {
                             const isActive = activeCiclo === cycle;
@@ -1343,7 +1382,8 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                   color: isActive ? '#fff' : text,
                                   padding: '6px 10px',
                                   fontSize: 10,
-                                  fontWeight: 800,
+                                  fontWeight: 700,
+                                  fontFamily: FONT_DATA,
                                   cursor: 'pointer',
                                   whiteSpace: 'nowrap',
                                 }}
@@ -1362,13 +1402,15 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                 ? `${mallaUsil.nombre_version} - ${cursosUsilFiltrados.length}/${cursosUsil.length} cursos`
                                 : 'No se encontró malla vigente cargada',
                             cursosUsilFiltrados,
-                            USIL
+                            USIL,
+                            extKeys
                           )}
                           {renderMallaBoard(
                             `Malla referente - ${p.nombre_universidad}`,
                             `${cursosExternosFiltrados.length}/${cursosExternos.length} cursos extraídos desde fuente oficial`,
                             cursosExternosFiltrados,
-                            CYAN
+                            CYAN,
+                            usilKeys
                           )}
                         </div>
                         <div style={{ padding: '0 12px 12px', color: muted, fontSize: 10, lineHeight: 1.45 }}>
@@ -1383,10 +1425,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           )}
 
           {selectedCarrera && !isReferenceView && programasVisibles.length > 0 && (
-            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
-              <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+            <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: CARD_SHADOW }}>
+              <div style={{ background: isDark ? '#1e293b' : SURFACE_LOW, padding: '10px 16px',
                 borderBottom: `1px solid ${border}` }}>
-                <div style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+                <div style={{ fontWeight: 700, fontSize: 12, color: USIL, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Comparador de malla
                 </div>
                 <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
@@ -1396,9 +1438,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead>
-                    <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
+                    <tr style={{ background: isDark ? '#0f172a' : SURFACE_LOW }}>
                       {['Programa externo', 'Entrada', 'IA', 'Comparación contra USIL', 'Resultado esperado', 'Estado curricular'].map(h => (
-                        <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700,
+                        <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 10,
                           color: muted, borderBottom: `1px solid ${border}`, whiteSpace: 'nowrap' }}>
                           {h}
                         </th>
@@ -1406,11 +1448,11 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                     </tr>
                   </thead>
                   <tbody>
-                    {programasVisibles.map(p => {
+                    {programasVisibles.map((p, idx) => {
                       const hasExactSource = hasUsableSource(p);
                       const hasEvidence = (p.total_cursos ?? 0) > 0 || (p.fuentes_validadas ?? 0) > 0 || ['procesado', 'verificado'].includes(p.estado_extraccion);
                       return (
-                        <tr key={`cmp-${p.id_programa_benchmark}`} style={{ borderBottom: `1px solid ${border}` }}>
+                        <tr key={`cmp-${p.id_programa_benchmark}`} style={{ borderBottom: `1px solid ${border}`, background: idx % 2 === 1 ? (isDark ? 'transparent' : SURFACE_LOW) : 'transparent' }}>
                           <td style={{ padding: '8px 10px', fontWeight: 700 }}>
                             {p.nombre_universidad}
                             <div style={{ color: muted, fontWeight: 500, marginTop: 2 }}>{p.nombre_programa}</div>
@@ -1427,7 +1469,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                           <td style={{ padding: '8px 10px' }}>
                             Brechas, coincidencias, cursos afectados y evidencia por fuente.
                           </td>
-                          <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 800 }}>
+                          <td style={{ padding: '8px 10px', color: '#854d0e', fontWeight: 700 }}>
                             Propuesta en revisión
                           </td>
                         </tr>
@@ -1441,10 +1483,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 
 
           {!isReferenceView && competencias.length > 0 && (
-            <div style={{ background: card, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
-              <div style={{ background: isDark ? '#1e293b' : '#f1f5f9', padding: '10px 16px',
+            <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: CARD_SHADOW }}>
+              <div style={{ background: isDark ? '#1e293b' : SURFACE_LOW, padding: '12px 16px',
                 borderBottom: `1px solid ${border}` }}>
-                <span style={{ fontWeight: 800, fontSize: 12, color: USIL, textTransform: 'uppercase' }}>
+                <span style={{ fontWeight: 700, fontSize: 14, color: USIL, fontFamily: FONT_HEAD }}>
                   Competencias detectadas en benchmarking ({competencias.length})
                 </span>
                 <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
@@ -1454,9 +1496,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               <div style={{ maxHeight: 280, overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead style={{ position: 'sticky', top: 0 }}>
-                    <tr style={{ background: isDark ? '#0f172a' : '#f8fafc' }}>
+                    <tr style={{ background: isDark ? '#0f172a' : SURFACE_LOW }}>
                       {['Universidad', 'Pais', 'Programa', 'Competencia', 'Tipo'].map(h => (
-                        <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700,
+                        <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 10,
                           color: muted, borderBottom: `1px solid ${border}` }}>
                           {h}
                         </th>
@@ -1465,14 +1507,14 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   </thead>
                   <tbody>
                     {competencias.map((c, i) => (
-                      <tr key={i} style={{ borderBottom: `1px solid ${border}` }}>
+                      <tr key={i} style={{ borderBottom: `1px solid ${border}`, background: i % 2 === 1 ? (isDark ? 'transparent' : SURFACE_LOW) : 'transparent' }}>
                         <td style={{ padding: '7px 10px', fontWeight: 600 }}>{c.nombre_universidad}</td>
                         <td style={{ padding: '7px 10px', color: muted }}>{c.pais}</td>
                         <td style={{ padding: '7px 10px', color: muted, maxWidth: 140 }}>{c.nombre_programa}</td>
                         <td style={{ padding: '7px 10px', fontWeight: 600 }}>{c.nombre_competencia}</td>
                         <td style={{ padding: '7px 10px' }}>
                           <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px',
-                            borderRadius: 8, background: '#dbeafe', color: '#1d4ed8' }}>
+                            borderRadius: 4, background: CYAN_LIGHT, color: USIL }}>
                             {c.tipo_competencia}
                           </span>
                         </td>
@@ -1493,7 +1535,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           onClick={e => { if (e.target === e.currentTarget) setShowAddUniv(false); }}>
           <div style={{ background: card, borderRadius: 12, padding: '24px 28px', width: 420,
             maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', color: text }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 800, color: USIL }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: USIL, fontFamily: FONT_HEAD }}>
               Agregar Universidad - {TIPO_LABELS[tipo]}
             </h3>
             {[
@@ -1511,7 +1553,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   onChange={e => setNewUniv(p => ({ ...p, [f.key]: e.target.value }))}
                   placeholder={f.ph}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                    background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, boxSizing: 'border-box' }}
+                    background: isDark ? '#0f172a' : SURFACE_LOW, color: text, fontSize: 12, boxSizing: 'border-box' }}
                 />
               </div>
             ))}
@@ -1540,7 +1582,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           onClick={e => { if (e.target === e.currentTarget) setShowAddProg(false); }}>
           <div style={{ background: card, borderRadius: 12, padding: '24px 28px', width: 460,
             maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', color: text }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 800, color: USIL }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: USIL, fontFamily: FONT_HEAD }}>
               Agregar Programa Benchmark
             </h3>
             <div style={{ marginBottom: 12 }}>
@@ -1550,7 +1592,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               <select value={selectedUnivForProg}
                 onChange={e => setSelectedUnivForProg(e.target.value ? Number(e.target.value) : '')}
                 style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12 }}>
+                  background: isDark ? '#0f172a' : SURFACE_LOW, color: text, fontSize: 12 }}>
                 <option value="">- Seleccionar -</option>
                 {universidades.map(u => (
                   <option key={u.id_universidad_benchmark} value={u.id_universidad_benchmark}>
@@ -1574,7 +1616,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                   onChange={e => setNewProg(p => ({ ...p, [f.key]: e.target.value }))}
                   placeholder={f.ph}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                    background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, boxSizing: 'border-box' }}
+                    background: isDark ? '#0f172a' : SURFACE_LOW, color: text, fontSize: 12, boxSizing: 'border-box' }}
                 />
               </div>
             ))}
@@ -1603,7 +1645,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           onClick={e => { if (e.target === e.currentTarget) setShowManualText(null); }}>
           <div style={{ background: card, borderRadius: 12, padding: '24px 28px', width: 520,
             maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', color: text }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: USIL }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700, color: USIL, fontFamily: FONT_HEAD }}>
               Carga Manual de Texto Fuente
             </h3>
             <p style={{ fontSize: 11, color: muted, marginBottom: 14 }}>
@@ -1615,7 +1657,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               </label>
               <input value={manualUrl} onChange={e => setManualUrl(e.target.value)} placeholder="https://..."
                 style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, boxSizing: 'border-box' }} />
+                  background: isDark ? '#0f172a' : SURFACE_LOW, color: text, fontSize: 12, boxSizing: 'border-box' }} />
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase' }}>
@@ -1624,7 +1666,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               <textarea value={manualText} onChange={e => setManualText(e.target.value)}
                 rows={8} placeholder="Pega aqui el texto del plan de estudios, perfil de egreso, cursos, etc."
                 style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12,
+                  background: isDark ? '#0f172a' : SURFACE_LOW, color: text, fontSize: 12,
                   boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
             </div>
             <div style={{ display: 'flex', gap: 8 }}>

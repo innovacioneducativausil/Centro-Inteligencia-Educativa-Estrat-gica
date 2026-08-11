@@ -143,6 +143,11 @@ const SURFACE_LOW = '#f1f4f7';
 const OUTLINE_VARIANT = '#c4c6d2';
 const FONT_HEAD = "'Manrope', 'Segoe UI', sans-serif";
 const FONT_DATA = "'Inter', 'Segoe UI', sans-serif";
+// Tokens adicionales tomados del mockup (DESIGN.md de Visión 360) que no estaban
+// declarados como constantes: tertiary-container (verde oscuro) y error (rojo).
+const TERTIARY_CONTAINER = '#003a0a';
+const TERTIARY_FIXED = '#a3f69c';
+const ERROR = '#ba1a1a';
 
 const IMP_COLOR: Record<string, { bg: string; text: string }> = {
   ALTO:  { bg: '#dcfce7', text: '#166534' },
@@ -719,7 +724,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               <span style={{ background: SURFACE_LOW, color: text, border: `1px solid ${OUTLINE_VARIANT}`, borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
                 {mallaActual?.nombre_version || 'Plan vigente'}
               </span>
-              <span style={{ background: '#a3f69c', color: '#002204', borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ background: TERTIARY_FIXED, color: '#002204', borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 Tendencia
                 <span className="material-symbols-outlined" style={{ fontSize: 13 }}>trending_up</span>
                 Estable
@@ -871,28 +876,45 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(132px, 1fr))', gap: 12 }}>
-            {[
-              { label: 'Indice de Alineacion', value: `${kpis.pctAlineacionPromedio ?? kpis.pctAlineado}%`, badge: 'IA', note: 'Lectura integral de pertinencia curricular.', accent: USIL, badgeBg: '#dbeafe', badgeText: '#1d4ed8' },
-              { label: 'Cursos alineados', value: `${cursosAlineados}/${allCursos.length}`, badge: 'Alineados', note: 'Cursos con evidencia de alineacion.', accent: '#166534', badgeBg: '#dcfce7', badgeText: '#166534' },
-              { label: 'Cursos en revision', value: String(cursosRevision), badge: 'Revision', note: 'Cursos con riesgo o brecha activa.', accent: '#ba1a1a', badgeBg: '#fee2e2', badgeText: '#991b1b' },
-              { label: 'Cursos prioritarios', value: String(cursosPrioritariosTotal), badge: 'Prioridad', note: 'Cursos para revisar primero.', accent: text, badgeBg: '#f3f4f6', badgeText: '#374151' },
-              { label: 'Oportunidades', value: String(kpis.oportunidades), badge: 'Nuevas tendencias', note: 'Posibilidad de integrar micro-credenciales.', accent: CYAN, badgeBg: '#cffafe', badgeText: '#0e7490' },
-              { label: 'Tendencia', value: 'Estable', badge: 'Actual', note: 'Sin variacion critica detectada.', accent: '#006876', badgeBg: '#ccfbf1', badgeText: '#0f766e' },
-            ].map((k, i) => (
-              <div key={i} style={{ background: card, borderRadius: 8, padding: '14px 16px',
-                borderTop: `4px solid ${k.accent}`, boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>
-                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: muted, marginBottom: 6 }}>
-                  {k.label}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 30, fontWeight: 700, color: k.accent, lineHeight: 1, fontFamily: FONT_HEAD, letterSpacing: '-0.01em' }}>{k.value}</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
-                    background: k.badgeBg, color: k.badgeText }}>{k.badge}</span>
-                </div>
-                <div style={{ fontSize: 10, color: muted }}>{k.note}</div>
+          {/* KPI Banner: solo label (label-caps, mixed-case tal cual el mockup) + valor grande en Manrope.
+              Sin badges de color ni texto descriptivo adicional, siguiendo fielmente code.html de la Vista 1. */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 16 }}>
+            <div style={{ background: card, borderRadius: 8, padding: '18px 18px', borderTop: `4px solid ${USIL}`, boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: muted, marginBottom: 8 }}>Índice de Alineación</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ fontSize: 30, fontWeight: 700, color: USIL, fontFamily: FONT_HEAD, letterSpacing: '-0.01em' }}>
+                  {kpis.pctAlineacionPromedio ?? kpis.pctAlineado}
+                </span>
+                <span style={{ fontSize: 15, fontWeight: 600, color: muted }}>%</span>
               </div>
-            ))}
+            </div>
+            <div style={{ background: card, borderRadius: 8, padding: '18px 18px', borderTop: `4px solid ${TERTIARY_CONTAINER}`, boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: muted, marginBottom: 8 }}>Cursos alineados</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: TERTIARY_CONTAINER, fontFamily: FONT_HEAD, letterSpacing: '-0.01em' }}>
+                {cursosAlineados}/{allCursos.length}
+              </div>
+            </div>
+            <div style={{ background: card, borderRadius: 8, padding: '18px 18px', borderTop: `4px solid ${ERROR}`, boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: muted, marginBottom: 8 }}>Cursos en revisión</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: ERROR, fontFamily: FONT_HEAD, letterSpacing: '-0.01em' }}>
+                {cursosRevision}
+              </div>
+            </div>
+            <div style={{ background: card, borderRadius: 8, padding: '18px 18px', borderTop: `4px solid ${text}`, boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: muted, marginBottom: 8 }}>Cursos prioritarios</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: text, fontFamily: FONT_HEAD, letterSpacing: '-0.01em' }}>
+                {cursosPrioritariosTotal}
+              </div>
+            </div>
+            <div style={{ gridColumn: 'span 2', background: card, borderRadius: 8, padding: '18px 18px', borderTop: `4px solid ${CYAN_LIGHT}`, boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: muted, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+                Oportunidades
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: CYAN_LIGHT }}>temp_preferences_custom</span>
+              </div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: CYAN, fontFamily: FONT_HEAD, letterSpacing: '-0.01em' }}>
+                {kpis.oportunidades}
+              </div>
+            </div>
           </div>
 
 
@@ -928,7 +950,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                     </div>
                     {Object.entries(EST).map(([key, val]) => (
                       <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: muted }}>
-                        <span style={{ width: 10, height: 10, borderRadius: 3, background: val.dot, flexShrink: 0 }} />
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: val.dot, flexShrink: 0 }} />
                         {val.label}
                       </span>
                     ))}
@@ -942,34 +964,71 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                       {loading ? 'Cargando cursos…' : 'No hay cursos cargados en esta malla'}
                     </div>
                   ) : vistaMapa === 'prioridad' ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
-                      {cursosPrioridad.map(curso => {
-                        const cfg = curso.estado ? EST[curso.estado] : null;
-                        const sel = selectedCurso?.id === curso.id;
-                        const stateColor = cfg ? cfg.dot : OUTLINE_VARIANT;
-                        return (
-                          <button key={curso.id} onClick={() => setSelectedCurso(curso)}
-                            style={{ textAlign: 'left', border: 'none', borderLeft: `4px solid ${stateColor}`,
-                              borderRadius: 6, padding: '12px 14px', background: isDark ? '#1e293b' : '#ffffff',
-                              cursor: 'pointer', boxShadow: sel ? `0 0 0 2px ${USIL}` : '0 2px 8px rgba(0,45,114,0.08)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                              <span style={{ fontSize: 9, fontWeight: 800, color: stateColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Ciclo {curso.ciclo}
-                              </span>
-                              <span style={{ fontSize: 10, fontWeight: 800, color: stateColor }}>
-                                {curso.pct !== null ? `${curso.pct}%` : (cfg?.label ?? '')}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: isDark ? text : '#181c1e', lineHeight: 1.35 }}>
-                              {curso.nombre}
-                            </div>
-                            <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>
-                              {[curso.codigo, curso.creditos != null ? `${curso.creditos} cr.` : null, curso.tipoCurso].filter(Boolean).join(' / ')}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    // Matriz de prioridad (2x2). El backend no expone campos independientes de
+                    // "brecha curricular actual" ni "oportunidad futura", así que se derivan por
+                    // heurística de los campos ya existentes en Curso:
+                    //  - Brecha actual ALTA  = estado en {'critico', 'riesgo'} (columna derecha).
+                    //  - Brecha actual BAJA  = estado en {'alineado', 'oportunidad'} (columna izquierda).
+                    //  - Oportunidad futura ALTA = estado === 'oportunidad' o pct < 50 (fila superior).
+                    //  - Oportunidad futura BAJA = resto de los casos (fila inferior).
+                    (() => {
+                      const brechaAlta = (c: Curso) => c.estado === 'critico' || c.estado === 'riesgo';
+                      const oportunidadAlta = (c: Curso) => c.estado === 'oportunidad' || (c.pct !== null && c.pct < 50);
+                      const cInnovar = cursosPrioridad.filter(c => !brechaAlta(c) && oportunidadAlta(c));
+                      const cActuar = cursosPrioridad.filter(c => brechaAlta(c) && oportunidadAlta(c));
+                      const cMantener = cursosPrioridad.filter(c => !brechaAlta(c) && !oportunidadAlta(c));
+                      const cOptimizar = cursosPrioridad.filter(c => brechaAlta(c) && !oportunidadAlta(c));
+
+                      const chip = (c: Curso, color: string) => (
+                        <button key={c.id} onClick={() => setSelectedCurso(c)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: isDark ? '#1e293b' : '#ffffff',
+                            border: `1px solid ${color}`, borderRadius: 6, padding: '4px 8px', fontSize: 10, fontWeight: 700,
+                            color: isDark ? text : '#181c1e', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                            outline: selectedCurso?.id === c.id ? `2px solid ${USIL}` : 'none' }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                          {c.nombre}
+                        </button>
+                      );
+
+                      const quadrant = (title: string, color: string, cursosQ: Curso[], extra: React.CSSProperties) => (
+                        <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', ...extra }}>
+                          <span style={{ fontSize: 9, fontWeight: 800, color, letterSpacing: '0.05em' }}>{title}</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignContent: 'flex-start' }}>
+                            {cursosQ.length === 0
+                              ? <span style={{ fontSize: 10, color: muted }}>Sin cursos</span>
+                              : cursosQ.map(c => chip(c, color))}
+                          </div>
+                        </div>
+                      );
+
+                      return (
+                        <div style={{ position: 'relative', background: isDark ? '#0f172a' : '#fff',
+                          border: `1px solid ${border}`, borderRadius: 10, padding: '20px 24px 36px 40px', minHeight: 440 }}>
+                          <div style={{ position: 'absolute', left: -4, top: '50%', transform: 'translateY(-50%) rotate(-90deg)',
+                            transformOrigin: 'center', fontSize: 9, fontWeight: 800, color: muted, letterSpacing: '0.05em',
+                            textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                            Oportunidad futura (Baja → Alta)
+                          </div>
+                          <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
+                            fontSize: 9, fontWeight: 800, color: muted, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            Brecha curricular actual (Baja → Alta)
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr',
+                            height: 380, border: `2px solid ${OUTLINE_VARIANT}`, borderRadius: 6, overflow: 'hidden' }}>
+                            {quadrant('INNOVAR', CYAN, cInnovar, {
+                              borderRight: `1px dashed ${OUTLINE_VARIANT}`, borderBottom: `1px dashed ${OUTLINE_VARIANT}`,
+                              background: isDark ? 'rgba(255,255,255,0.02)' : SURFACE_LOW })}
+                            {quadrant('ACTUAR AHORA', ERROR, cActuar, {
+                              borderBottom: `1px dashed ${OUTLINE_VARIANT}`,
+                              background: isDark ? 'rgba(186,26,26,0.06)' : '#fef2f2' })}
+                            {quadrant('MANTENER / MONITOREAR', muted, cMantener, {
+                              borderRight: `1px dashed ${OUTLINE_VARIANT}`, justifyContent: 'flex-end' })}
+                            {quadrant('OPTIMIZAR', CYAN, cOptimizar, {
+                              justifyContent: 'flex-end', background: isDark ? 'rgba(255,255,255,0.02)' : SURFACE_LOW })}
+                          </div>
+                        </div>
+                      );
+                    })()
                   ) : (
                     <div style={{ display: 'flex', gap: 10, minWidth: 'max-content' }}>
                       {ciclos.map(ciclo => (
@@ -1097,6 +1156,42 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                     </p>
                   ) : (
                     <>
+                      {/* "¿Por qué CIE lo señala?": el backend no expone 4 puntajes independientes
+                          (Mercado/Empleabilidad/Benchmark/Tendencias) como en el mockup, así que se
+                          aproxima con los campos reales ya disponibles del curso (tendencias, gaps,
+                          pct y estado), sin inventar cifras. */}
+                      <div>
+                        <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 8 }}>
+                          ¿Por qué CIE lo señala?
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                          <div style={{ padding: '8px 10px', borderRadius: 8, background: isDark ? '#0f172a' : SURFACE_LOW, border: `1px solid ${border}` }}>
+                            <div style={{ fontSize: 10, color: muted, marginBottom: 3 }}>Tendencias detectadas</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: CYAN }}>
+                              {selectedCurso.tendencias.length > 0 ? `${selectedCurso.tendencias.length} señales` : '—'}
+                            </div>
+                          </div>
+                          <div style={{ padding: '8px 10px', borderRadius: 8, background: isDark ? '#0f172a' : SURFACE_LOW, border: `1px solid ${border}` }}>
+                            <div style={{ fontSize: 10, color: muted, marginBottom: 3 }}>Brechas identificadas</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: selectedCurso.gaps.length > 0 ? ERROR : text }}>
+                              {selectedCurso.gaps.length > 0 ? `${selectedCurso.gaps.length} brechas` : '—'}
+                            </div>
+                          </div>
+                          <div style={{ padding: '8px 10px', borderRadius: 8, background: isDark ? '#0f172a' : SURFACE_LOW, border: `1px solid ${border}` }}>
+                            <div style={{ fontSize: 10, color: muted, marginBottom: 3 }}>Alineación con mercado</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: text }}>
+                              {selectedCurso.pct !== null ? `${selectedCurso.pct}%` : '—'}
+                            </div>
+                          </div>
+                          <div style={{ padding: '8px 10px', borderRadius: 8, background: isDark ? '#0f172a' : SURFACE_LOW, border: `1px solid ${border}` }}>
+                            <div style={{ fontSize: 10, color: muted, marginBottom: 3 }}>Estado de revisión</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: selectedCurso.estado ? EST[selectedCurso.estado].dot : text }}>
+                              {selectedCurso.estado ? EST[selectedCurso.estado].label : '—'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       {(selectedCurso.prerequisito || selectedCurso.mencion || selectedCurso.horasTeoria != null || selectedCurso.horasPractica != null || selectedCurso.horasLab != null) && (
                         <div style={{ background: isDark ? '#0f172a' : '#f8fafc',
                           border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px',
