@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { adminOrAnalyst } from '../middleware/roles.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { analizarImpacto } from '../services/motorImpactoCurricularService.js';
-import { analizarMapaCurricular } from '../services/analisisCurricularService.js';
+import { analizarMapaCurricular, getEvidenciaCurso } from '../services/analisisCurricularService.js';
 import {
   createMallaVersionPropuesta,
   createPropuestaCurricular,
@@ -54,6 +54,16 @@ router.post('/curricular/analizar-mapa/:idCarrera', adminOrAnalyst, async (req, 
     res.json(result);
   } catch (err) {
     serverError(res, err, 'POST /curricular/analizar-mapa');
+  }
+});
+
+router.get('/curricular/mapa/curso/:idCurso/evidencia', async (req, res) => {
+  try {
+    const data = await getEvidenciaCurso(Number(req.params.idCurso));
+    if (!data) return res.status(404).json({ error: 'Curso no encontrado' });
+    res.json(data);
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/mapa/curso/:idCurso/evidencia');
   }
 });
 

@@ -294,4 +294,120 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion) {
   return { ok: true, ...resumen };
 }
 
-export { analizarMapaCurricular };
+function relevancia(count) {
+  if (count >= 2) return 'alta';
+  if (count === 1) return 'media';
+  return null;
+}
+
+function mesAnio(dateLike) {
+  if (!dateLike) return null;
+  const d = new Date(dateLike);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
+}
+
+/**
+ * Reconstruye, sin volver a llamar a la IA, la evidencia real (Mercado,
+ * Empleabilidad, Benchmark, Tendencias/Radar) que el motor de análisis usó
+ * -o usaría- para este curso, agrupada como la necesita el modal
+ * "Evidencia del análisis" del frontend. Todo dato mostrado proviene de una
+ * fila real; nunca se fabrica fuente, fecha ni contenido.
+ */
+async function getEvidenciaCurso(idCurso) {
+  const [[curso]] = await dbCurricular.query(
+    `SELECT c.id_curso, c.nombre_curso, c.numero_ciclo, ca.id_carrera, ca.nombre_carrera
+     FROM curso c
+     JOIN malla_version mv ON mv.id_malla = c.id_malla
+     JOIN carrera ca ON ca.id_carrera = mv.id_carrera
+     WHERE c.id_curso = ?`,
+    [idCurso]
+  );
+  if (!curso) return null;
+
+  const [[analisis]] = await dbCurricular.query(
+    `SELECT score_alineacion, estado_alineacion, tendencias_impacto, brechas_detectadas, recomendaciones_ia, analizado_en
+     FROM analisis_curso WHERE id_curso = ? ORDER BY analizado_en DESC LIMIT 1`,
+    [idCurso]
+  );
+
+  const [radarEv, emplEv, mercadoSkills, benchEv] = await Promise.all([
+    recogerEvidenciaRadar(curso.id_carrera),
+    recogerEvidenciaEmpleabilidad(curso.id_carrera),
+    recogerEvidenciaMercado(curso.id_carrera),
+    recogerEvidenciaBenchmarking(curso.id_carrera),
+  ]);
+
+  const evidencia = matchCursoEvidencia(curso.nombre_curso, { radarEv, mercadoSkills, benchEv });
+
+  const [informe] = await dbCurricular.query(
+    `SELECT fuente, periodo, documento_informe_url FROM mercado_informe WHERE nombre_carrera = ? AND activo = 1 LIMIT 1`,
+    [curso.nombre_carrera]
+  ).then(([r]) => r).catch(() => []);
+
+  const bench = evidencia.bench.length
+    ? await dbCurricular.query(
+        `SELECT DISTINCT pb.nombre_programa, ub.nombre_universidad, pb.url_programa, pb.fecha_captura
+         FROM programa_benchmark pb
+         JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
+         WHERE pb.id_programa_benchmark IN (${[...new Set(evidencia.bench.map(b => b.id_programa_benchmark))].map(() => '?').join(',') || 'NULL'})`,
+        [...new Set(evidencia.bench.map(b => b.id_programa_benchmark))]
+      ).then(([rows]) => rows).catch(() => [])
+    : [];
+
+  const mercadoTab = {
+    señales: evidencia.mercado.map(skill => ({
+      titulo: skill,
+      fuente: informe?.fuente || 'Informe de Mercado Laboral USIL',
+      fecha: informe?.periodo || null,
+    })),
+    relevancia: relevancia(evidencia.mercado.length),
+  };
+
+  const empleabilidadTab = {
+    disponible: Boolean(emplEv && Number(emplEv.total) > 0),
+    tasaEmpleabilidad: emplEv?.tasaEmpleabilidad ?? null,
+    tasaAfinidad: emplEv?.tasaAfinidad ?? null,
+    totalEncuestados: emplEv?.total ?? 0,
+    relevancia: emplEv && Number(emplEv.total) > 0 ? 'media' : null,
+  };
+
+  const benchmarkTab = {
+    señales: bench.map(b => ({
+      titulo: b.nombre_programa,
+      fuente: b.nombre_universidad,
+      fuenteUrl: b.url_programa,
+      fecha: mesAnio(b.fecha_captura),
+    })),
+    relevancia: relevancia(evidencia.bench.length),
+  };
+
+  const tendenciasTab = {
+    señales: evidencia.radar.map(ev => ({
+      titulo: ev.titulo,
+      descripcion: ev.descripcion ? String(ev.descripcion).substring(0, 240) : null,
+      fuente: ev.fuente_url || 'Radar CIE',
+      fuenteUrl: ev.fuente_url,
+      fecha: mesAnio(ev.fecha_publicacion),
+    })),
+    relevancia: relevancia(evidencia.radar.length),
+  };
+
+  return {
+    curso: { id_curso: curso.id_curso, nombre_curso: curso.nombre_curso, numero_ciclo: curso.numero_ciclo },
+    analisis: analisis ? {
+      score: analisis.score_alineacion !== null ? Number(analisis.score_alineacion) : null,
+      estado: analisis.estado_alineacion,
+      tendencias: analisis.tendencias_impacto || [],
+      brechas: analisis.brechas_detectadas || [],
+      recomendaciones: analisis.recomendaciones_ia || [],
+      analizadoEn: analisis.analizado_en,
+    } : null,
+    mercado: mercadoTab,
+    empleabilidad: empleabilidadTab,
+    benchmark: benchmarkTab,
+    tendencias: tendenciasTab,
+  };
+}
+
+export { analizarMapaCurricular, getEvidenciaCurso };

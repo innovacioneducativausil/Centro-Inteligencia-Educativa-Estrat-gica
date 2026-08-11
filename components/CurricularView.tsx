@@ -129,6 +129,32 @@ interface FiltrosData {
   carreras:   { id_carrera: number; nombre_carrera: string; id_facultad: number; nombre_facultad: string }[];
 }
 
+type Relevancia = 'alta' | 'media' | null;
+
+interface EvidenciaSeñal {
+  titulo: string;
+  descripcion?: string | null;
+  fuente: string;
+  fuenteUrl?: string | null;
+  fecha?: string | null;
+}
+
+interface EvidenciaCursoData {
+  curso: { id_curso: number; nombre_curso: string; numero_ciclo: number };
+  analisis: {
+    score: number | null;
+    estado: EstadoCurso | null;
+    tendencias: string[];
+    brechas: string[];
+    recomendaciones: Recomendacion[];
+    analizadoEn: string | null;
+  } | null;
+  mercado: { señales: EvidenciaSeñal[]; relevancia: Relevancia };
+  empleabilidad: { disponible: boolean; tasaEmpleabilidad: string | null; tasaAfinidad: string | null; totalEncuestados: number; relevancia: Relevancia };
+  benchmark: { señales: EvidenciaSeñal[]; relevancia: Relevancia };
+  tendencias: { señales: EvidenciaSeñal[]; relevancia: Relevancia };
+}
+
 const EST: Record<EstadoCurso, { bg: string; border: string; label: string; text: string; dot: string }> = {
   alineado:    { bg: '#dcfce7', border: '#22c55e', label: 'Alineado',       text: '#166534', dot: '#22c55e' },
   riesgo:      { bg: '#ffedd5', border: '#f97316', label: 'Riesgo Parcial', text: '#9a3412', dot: '#f97316' },
@@ -436,6 +462,24 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   const [analyzingMapa, setAnalyzingMapa] = useState(false);
   const [analyzeMapaError, setAnalyzeMapaError] = useState<string | null>(null);
 
+  const [cursoEvidencia, setCursoEvidencia] = useState<EvidenciaCursoData | null>(null);
+  const [loadingEvidencia, setLoadingEvidencia] = useState(false);
+  const [showEvidenciaModal, setShowEvidenciaModal] = useState(false);
+  const [evidenciaTab, setEvidenciaTab] = useState<'mercado' | 'empleabilidad' | 'benchmark' | 'tendencias'>('mercado');
+  const [showMetodologia, setShowMetodologia] = useState(false);
+
+  useEffect(() => {
+    if (!selectedCurso) { setCursoEvidencia(null); return; }
+    let cancelled = false;
+    setLoadingEvidencia(true);
+    fetch(`/api/curricular/mapa/curso/${selectedCurso.id}/evidencia`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (!cancelled && !d.error) setCursoEvidencia(d); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingEvidencia(false); });
+    return () => { cancelled = true; };
+  }, [selectedCurso?.id]);
+
   const handleAnalizarMapa = async () => {
     if (!selCarreraId || !selMallaId) return;
     setAnalyzingMapa(true);
@@ -548,6 +592,40 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   const selectedCursoSumilla = selectedCursoKey ? vision360?.cursos.sumillas[selectedCursoKey] : null;
   const selectedCursoCompetencias = selectedCursoKey ? (vision360?.cursos.competencias[selectedCursoKey] || []) : [];
   const allCursos = ciclos.flatMap(c => c.cursos);
+  const cursosVinculados = selectedCurso
+    ? allCursos.filter(c => c.id !== selectedCurso.id
+        && selectedCursoCompetencias.some(comp => (vision360?.cursos.competencias[String(c.id)] || []).some(cc => cc.codigo === comp.codigo)))
+    : [];
+  const cursosPosterioresAfectados = selectedCurso?.codigo
+    ? allCursos.filter(c => c.prerequisito && c.prerequisito.includes(selectedCurso.codigo!))
+    : [];
+  const fuentesCount = cursoEvidencia
+    ? [cursoEvidencia.mercado.relevancia, cursoEvidencia.empleabilidad.relevancia, cursoEvidencia.benchmark.relevancia, cursoEvidencia.tendencias.relevancia].filter(Boolean).length
+    : 0;
+  const confianzaLabel = fuentesCount >= 3 ? 'Alta' : fuentesCount >= 1 ? 'Media' : 'Baja';
+  const convergenciaAlta = cursoEvidencia
+    ? [cursoEvidencia.mercado.relevancia, cursoEvidencia.empleabilidad.relevancia, cursoEvidencia.benchmark.relevancia, cursoEvidencia.tendencias.relevancia].filter(r => r === 'alta').length
+    : 0;
+
+  function renderSeñales(items: EvidenciaSeñal[] | undefined) {
+    if (!items || items.length === 0) {
+      return <div style={{ fontSize: 11, color: muted, padding: '20px 0', textAlign: 'center' }}>No se detectaron señales relacionadas con este curso en esta fuente.</div>;
+    }
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {items.map((it, i) => (
+          <div key={i} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px', background: isDark ? '#0f172a' : SURFACE_LOW }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: text, marginBottom: it.descripcion ? 4 : 0 }}>{it.titulo}</div>
+            {it.descripcion && <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>{it.descripcion}</div>}
+            <div style={{ display: 'flex', gap: 12, fontSize: 10, color: muted, flexWrap: 'wrap' }}>
+              <span>Fuente: <strong style={{ color: text }}>{it.fuenteUrl ? <a href={it.fuenteUrl} target="_blank" rel="noreferrer" style={{ color: CYAN }}>{it.fuente}</a> : it.fuente}</strong></span>
+              {it.fecha && <span>Fecha: <strong style={{ color: text }}>{it.fecha}</strong></span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
   const cursosPrioridad = [...allCursos].sort((a, b) => {
     const rank: Record<string, number> = { critico: 0, riesgo: 1, oportunidad: 2, alineado: 3 };
     return (rank[a.estado || 'alineado'] ?? 4) - (rank[b.estado || 'alineado'] ?? 4)
@@ -958,7 +1036,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               Selecciona una carrera para ver el mapa de malla curricular
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 12, alignItems: 'start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
               <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`,
                 padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
@@ -1139,261 +1217,335 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                   )}
                 </div>
               </div>
+            </div>
+          )}
 
+          {selectedCurso && activeTab === 'mapa' && (
+            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 420, maxWidth: '92vw',
+              background: card, boxShadow: '-8px 0 32px rgba(0,0,0,0.18)', zIndex: 45,
+              display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${border}` }}>
+              <div style={{ padding: '16px 18px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexShrink: 0 }}>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: CYAN, marginBottom: 4 }}>
+                    Lectura Estratégica con IA
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: USIL, fontFamily: FONT_HEAD, lineHeight: 1.25 }}>{selectedCurso.nombre}</div>
+                  <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>
+                    Ciclo {selectedCurso.ciclo}{selectedCurso.codigo ? ` · Código ${selectedCurso.codigo}` : ''}{selectedCurso.creditos != null ? ` · ${selectedCurso.creditos} créditos` : ''}
+                  </div>
+                </div>
+                <button onClick={() => setSelectedCurso(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: 22, lineHeight: 1, flexShrink: 0 }}>
+                  ×
+                </button>
+              </div>
 
-              <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`,
-                display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,45,114,0.1)',
-                position: 'sticky', top: 12, maxHeight: 'calc(100vh - 120px)' }}>
-                <div style={{ background: `linear-gradient(135deg, ${USIL}, #002d72)`, color: '#fff', padding: '14px 16px', flexShrink: 0 }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em',
-                    color: 'rgba(255,255,255,0.65)', marginBottom: 4 }}>
-                    Curso seleccionado
-                  </div>
-                  <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.3, marginBottom: 8, fontFamily: FONT_HEAD }}>
-                    {selectedCurso?.nombre ?? '—'}
-                  </div>
-                  {selectedCurso?.estado && (
-                    <span style={{ fontSize: 9, fontWeight: 800, padding: '3px 9px', borderRadius: 999,
-                      background: `${EST[selectedCurso.estado].dot}35`,
-                      border: `1px solid ${EST[selectedCurso.estado].dot}90`, color: '#fff' }}>
-                      ESTADO: {EST[selectedCurso.estado].label.toUpperCase()}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {(selectedCurso.estado === 'critico' || selectedCurso.estado === 'riesgo') && (
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: '4px 10px', borderRadius: 999,
+                      background: EST[selectedCurso.estado].bg, color: EST[selectedCurso.estado].text,
+                      textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {selectedCurso.estado === 'critico' ? 'Actualización prioritaria' : 'Requiere revisión'}
                     </span>
                   )}
-                  {selectedCurso && (
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                      {selectedCurso.codigo && (
-                        <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 999,
-                          background: 'rgba(255,255,255,0.16)', color: '#fff' }}>
-                          {selectedCurso.codigo}
-                        </span>
-                      )}
-                      <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 999,
-                        background: selectedCurso.tipoCurso === 'Electivo' ? '#ffedd5' : 'rgba(255,255,255,0.16)',
-                        color: selectedCurso.tipoCurso === 'Electivo' ? '#7c2d12' : '#fff' }}>
-                        {selectedCurso.tipoCurso}
-                      </span>
-                      {selectedCurso.creditos !== null && (
-                        <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 999,
-                          background: 'rgba(255,255,255,0.16)', color: '#fff' }}>
-                          {selectedCurso.creditos} cr.
-                        </span>
-                      )}
+                  {selectedCurso.estado === 'oportunidad' && (
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: '4px 10px', borderRadius: 999,
+                      background: EST.oportunidad.bg, color: EST.oportunidad.text, textTransform: 'uppercase', letterSpacing: '0.05em',
+                      display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>auto_awesome</span> Oportunidad emergente
+                    </span>
+                  )}
+                  {selectedCurso.estado === 'alineado' && (
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: '4px 10px', borderRadius: 999,
+                      background: EST.alineado.bg, color: EST.alineado.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Curso alineado
+                    </span>
+                  )}
+                  {!selectedCurso.estado && (
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
+                      background: SURFACE_LOW, color: muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Sin análisis IA
+                    </span>
+                  )}
+                </div>
+
+                {selectedCurso.estado && (
+                  <div style={{ display: 'flex', gap: 16, fontSize: 11, color: text, flexWrap: 'wrap' }}>
+                    <div><strong>Alineación:</strong> {selectedCurso.pct !== null ? `${selectedCurso.pct}%` : '—'}</div>
+                    <div><strong>Confianza:</strong> {confianzaLabel} ({fuentesCount} de 4 fuentes)</div>
+                  </div>
+                )}
+
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: muted, marginBottom: 8 }}>
+                    ¿Por qué CIE lo señala?
+                  </div>
+                  {loadingEvidencia ? (
+                    <div style={{ fontSize: 11, color: muted }}>Cargando evidencia…</div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                      {[
+                        { label: 'Mercado laboral', rel: cursoEvidencia?.mercado.relevancia ?? null },
+                        { label: 'Empleabilidad USIL', rel: cursoEvidencia?.empleabilidad.relevancia ?? null },
+                        { label: 'Benchmark académico', rel: cursoEvidencia?.benchmark.relevancia ?? null },
+                        { label: 'Tendencias globales', rel: cursoEvidencia?.tendencias.relevancia ?? null },
+                      ].map(item => (
+                        <div key={item.label} style={{ padding: '8px 10px', borderRadius: 8, background: isDark ? '#0f172a' : SURFACE_LOW, border: `1px solid ${border}` }}>
+                          <div style={{ fontSize: 10, color: muted, marginBottom: 3 }}>{item.label}</div>
+                          <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'capitalize',
+                            color: item.rel === 'alta' ? '#166534' : item.rel === 'media' ? '#9a3412' : muted }}>
+                            {item.rel || '—'}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {!selectedCurso ? (
-                    <p style={{ fontSize: 12, color: muted, textAlign: 'center', marginTop: 40 }}>
-                      Selecciona un curso en el mapa
-                    </p>
-                  ) : (
-                    <>
-                      {/* "¿Por qué CIE lo señala?": el backend no expone 4 puntajes independientes
-                          (Mercado/Empleabilidad/Benchmark/Tendencias) como en el mockup, así que se
-                          aproxima con los campos reales ya disponibles del curso (tendencias, gaps,
-                          pct y estado), sin inventar cifras. */}
-                      <div>
-                        <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 8 }}>
-                          ¿Por qué CIE lo señala?
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                          <div style={{ padding: '8px 10px', borderRadius: 8, background: isDark ? '#0f172a' : SURFACE_LOW, border: `1px solid ${border}` }}>
-                            <div style={{ fontSize: 10, color: muted, marginBottom: 3 }}>Tendencias detectadas</div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: CYAN }}>
-                              {selectedCurso.tendencias.length > 0 ? `${selectedCurso.tendencias.length} señales` : '—'}
-                            </div>
-                          </div>
-                          <div style={{ padding: '8px 10px', borderRadius: 8, background: isDark ? '#0f172a' : SURFACE_LOW, border: `1px solid ${border}` }}>
-                            <div style={{ fontSize: 10, color: muted, marginBottom: 3 }}>Brechas identificadas</div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: selectedCurso.gaps.length > 0 ? ERROR : text }}>
-                              {selectedCurso.gaps.length > 0 ? `${selectedCurso.gaps.length} brechas` : '—'}
-                            </div>
-                          </div>
-                          <div style={{ padding: '8px 10px', borderRadius: 8, background: isDark ? '#0f172a' : SURFACE_LOW, border: `1px solid ${border}` }}>
-                            <div style={{ fontSize: 10, color: muted, marginBottom: 3 }}>Alineación con mercado</div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: text }}>
-                              {selectedCurso.pct !== null ? `${selectedCurso.pct}%` : '—'}
-                            </div>
-                          </div>
-                          <div style={{ padding: '8px 10px', borderRadius: 8, background: isDark ? '#0f172a' : SURFACE_LOW, border: `1px solid ${border}` }}>
-                            <div style={{ fontSize: 10, color: muted, marginBottom: 3 }}>Estado de revisión</div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: selectedCurso.estado ? EST[selectedCurso.estado].dot : text }}>
-                              {selectedCurso.estado ? EST[selectedCurso.estado].label : '—'}
-                            </div>
-                          </div>
-                        </div>
+                {selectedCurso.gaps.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#ba1a1a', marginBottom: 6 }}>
+                      Brecha detectada
+                    </div>
+                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px', fontSize: 11, color: '#7f1d1d' }}>
+                      {selectedCurso.gaps[0]}
+                    </div>
+                  </div>
+                )}
+
+                {selectedCurso.estado === 'oportunidad' && selectedCurso.tendencias[0] && (
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: CYAN, marginBottom: 6 }}>
+                      Oportunidad
+                    </div>
+                    <div style={{ fontSize: 12, color: text, fontWeight: 600, lineHeight: 1.4 }}>{selectedCurso.tendencias[0]}</div>
+                  </div>
+                )}
+
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: muted, marginBottom: 8 }}>
+                    Impacto curricular
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11 }}>
+                    {[
+                      ['Competencias relacionadas', selectedCursoCompetencias.length],
+                      ['Cursos vinculados', cursosVinculados.length],
+                      ['Prerrequisito', selectedCurso.prerequisito || '—'],
+                      ['Cursos posteriores afectados', cursosPosterioresAfectados.length],
+                    ].map(([label, value]) => (
+                      <div key={label as string} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: `1px solid ${border}`, color: text }}>
+                        <span style={{ color: muted }}>{label}</span>
+                        <strong>{value}</strong>
                       </div>
-
-                      {(selectedCurso.prerequisito || selectedCurso.mencion || selectedCurso.horasTeoria != null || selectedCurso.horasPractica != null || selectedCurso.horasLab != null) && (
-                        <div style={{ background: isDark ? '#0f172a' : '#f8fafc',
-                          border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px',
-                          display: 'flex', flexDirection: 'column', gap: 5 }}>
-                          {selectedCurso.prerequisito && (
-                            <div style={{ fontSize: 10, color: muted }}>
-                              <strong style={{ color: text }}>Prerrequisito:</strong> {selectedCurso.prerequisito}
-                            </div>
-                          )}
-                          {selectedCurso.mencion && (
-                            <div style={{ fontSize: 10, color: muted }}>
-                              <strong style={{ color: text }}>MenciÃ³n:</strong> {selectedCurso.mencion}
-                            </div>
-                          )}
-                          {(selectedCurso.horasTeoria != null || selectedCurso.horasPractica != null || selectedCurso.horasLab != null) && (
-                            <div style={{ fontSize: 10, color: muted }}>
-                              <strong style={{ color: text }}>Horas:</strong> T {selectedCurso.horasTeoria ?? 0} / P {selectedCurso.horasPractica ?? 0} / L {selectedCurso.horasLab ?? 0}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {(selectedCursoSumilla?.sumilla || selectedCursoSumilla?.resultado_aprendizaje) && (
-                        <div style={{ background: isDark ? '#0f172a' : '#f8fafc',
-                          border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', color: USIL, marginBottom: 7 }}>
-                            Evidencia academica del curso
-                          </div>
-                          {selectedCursoSumilla?.sumilla && (
-                            <p style={{ margin: '0 0 8px', fontSize: 11, color: text, lineHeight: 1.45 }}>
-                              <strong>Sumilla:</strong> {compactText(selectedCursoSumilla.sumilla, 360)}
-                            </p>
-                          )}
-                          {selectedCursoSumilla?.resultado_aprendizaje && (
-                            <p style={{ margin: 0, fontSize: 11, color: text, lineHeight: 1.45 }}>
-                              <strong>Resultado:</strong> {compactText(selectedCursoSumilla.resultado_aprendizaje, 260)}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {selectedCursoCompetencias.length > 0 && (
-                        <div>
-                          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px',
-                            color: muted, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>hub</span>
-                            Competencias asociadas
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {selectedCursoCompetencias.slice(0, 6).map((comp, i) => (
-                              <div key={`${comp.codigo}-${i}`} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '8px 10px', background: isDark ? '#0f172a' : '#fff' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 3 }}>
-                                  <span style={{ fontSize: 10, fontWeight: 900, color: USIL }}>{comp.codigo}</span>
-                                  <span style={{ fontSize: 10, fontWeight: 800, color: muted }}>Nivel {comp.nivel}</span>
-                                </div>
-                                <div style={{ fontSize: 11, color: text, fontWeight: 700, lineHeight: 1.35 }}>{comp.nombre}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedCurso.pct !== null && (
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: text }}>Alineación con el mercado</span>
-                            <span style={{ fontSize: 15, fontWeight: 900, color: selectedCurso.estado ? EST[selectedCurso.estado].dot : muted }}>
-                              {selectedCurso.pct}%
-                            </span>
-                          </div>
-                          <div style={{ height: 8, borderRadius: 4, background: isDark ? '#334155' : '#e2e8f0', overflow: 'hidden' }}>
-                            <div style={{ width: `${selectedCurso.pct}%`, height: '100%', borderRadius: 4,
-                              background: selectedCurso.estado ? EST[selectedCurso.estado].dot : muted,
-                              transition: 'width .6s ease' }} />
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedCurso.tendencias.length > 0 && (
-                        <div>
-                          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px',
-                            color: muted, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>trending_up</span>
-                            Tendencias de Impacto
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                            {selectedCurso.tendencias.map((t, i) => (
-                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: text }}>
-                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} />
-                                {t}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedCurso.gaps.length > 0 && (
-                        <div>
-                          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px',
-                            color: '#ef4444', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 13, color: '#ef4444' }}>warning</span>
-                            Brechas Detectadas (Gaps)
-                          </div>
-                          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px' }}>
-                            <ul style={{ margin: 0, paddingLeft: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                              {selectedCurso.gaps.map((g, i) => (
-                                <li key={i} style={{ fontSize: 11, color: '#7f1d1d' }}>{g}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedCurso.recomendaciones.length > 0 && (
-                        <div>
-                          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px',
-                            color: USIL, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4,
-                            paddingTop: 8, borderTop: `1px solid ${border}` }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 13, color: USIL }}>bolt</span>
-                            Recomendaciones IA
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {selectedCurso.recomendaciones.map((r, i) => (
-                              <div key={i} style={{ background: isDark ? '#1e293b' : '#f8fafc',
-                                border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px' }}>
-                                <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-                                  <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
-                                    background: IMP_COLOR[r.impacto]?.bg ?? '#f3f4f6', color: IMP_COLOR[r.impacto]?.text ?? '#374151' }}>
-                                    Impacto: {r.impacto}
-                                  </span>
-                                  <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
-                                    background: URG_COLOR[r.urgencia]?.bg ?? '#f3f4f6', color: URG_COLOR[r.urgencia]?.text ?? '#374151' }}>
-                                    Urgencia: {r.urgencia}
-                                  </span>
-                                </div>
-                                <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: text, lineHeight: 1.4 }}>
-                                  {r.texto}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {!selectedCurso.estado && selectedCurso.tendencias.length === 0 && (
-                        <div style={{ textAlign: 'center', padding: '20px 0', color: muted, fontSize: 11 }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 32, display: 'block', marginBottom: 6 }}>pending</span>
-                          Aún no se ha ejecutado el análisis IA para este curso
-                        </div>
-                      )}
-
-                      {selectedCurso.estado && selectedCurso.tendencias.length === 0 && selectedCurso.gaps.length === 0 && selectedCurso.recomendaciones.length === 0 && (
-                        <div style={{ textAlign: 'center', padding: '20px 0', color: muted, fontSize: 11 }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 32, display: 'block', marginBottom: 6 }}>check_circle</span>
-                          Curso alineado sin brechas detectadas
-                        </div>
-                      )}
-                    </>
-                  )}
+                    ))}
+                  </div>
                 </div>
 
-                <div style={{ padding: '10px 14px', borderTop: `1px solid ${border}`, flexShrink: 0 }}>
-                  <button
-                    onClick={() => switchTab('impacto')}
-                    style={{ width: '100%', padding: '10px', borderRadius: 8, border: 'none',
-                      background: USIL, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(0,40,85,0.25)' }}>
-                    Ver Impacto Curricular Completo
+                {selectedCurso.recomendaciones.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: USIL, marginBottom: 8 }}>
+                      Recomendación CIE
+                    </div>
+                    <div style={{ background: isDark ? '#1e293b' : SURFACE_LOW, border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
+                          background: IMP_COLOR[selectedCurso.recomendaciones[0].impacto]?.bg ?? '#f3f4f6',
+                          color: IMP_COLOR[selectedCurso.recomendaciones[0].impacto]?.text ?? '#374151' }}>
+                          Impacto: {selectedCurso.recomendaciones[0].impacto}
+                        </span>
+                        <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
+                          background: URG_COLOR[selectedCurso.recomendaciones[0].urgencia]?.bg ?? '#f3f4f6',
+                          color: URG_COLOR[selectedCurso.recomendaciones[0].urgencia]?.text ?? '#374151' }}>
+                          Urgencia: {selectedCurso.recomendaciones[0].urgencia}
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: text, lineHeight: 1.4 }}>
+                        {selectedCurso.recomendaciones[0].texto}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {(selectedCursoSumilla?.sumilla || selectedCursoSumilla?.resultado_aprendizaje) && (
+                  <div style={{ background: isDark ? '#0f172a' : SURFACE_LOW, border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: USIL, marginBottom: 7 }}>
+                      Evidencia académica del curso
+                    </div>
+                    {selectedCursoSumilla?.sumilla && (
+                      <p style={{ margin: '0 0 8px', fontSize: 11, color: text, lineHeight: 1.45 }}>
+                        <strong>Sumilla:</strong> {compactText(selectedCursoSumilla.sumilla, 300)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ padding: '12px 18px', borderTop: `1px solid ${border}`, display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button disabled title="Próximamente"
+                    style={{ flex: 1, padding: '9px', borderRadius: 8, border: `1px solid ${border}`,
+                      background: 'transparent', color: muted, fontWeight: 700, fontSize: 12, cursor: 'not-allowed' }}>
+                    Ver sílabo
                   </button>
+                  <button onClick={() => switchTab('impacto')}
+                    style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none',
+                      background: USIL, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    Crear propuesta
+                  </button>
+                </div>
+                <button onClick={() => setShowEvidenciaModal(true)}
+                  style={{ background: 'none', border: 'none', color: CYAN, fontSize: 11, fontWeight: 700, cursor: 'pointer', textAlign: 'center', padding: 4 }}>
+                  Ver evidencia completa →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showEvidenciaModal && selectedCurso && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', zIndex: 60,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+              onClick={e => { if (e.target === e.currentTarget) setShowEvidenciaModal(false); }}>
+              <div style={{ background: card, borderRadius: 14, width: 780, maxWidth: '96vw', maxHeight: '88vh',
+                overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.35)' }}>
+                <div style={{ padding: '18px 24px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'sticky', top: 0, background: card, zIndex: 1 }}>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: USIL, fontFamily: FONT_HEAD }}>Evidencia del análisis</h2>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: SURFACE_LOW, color: text, border: `1px solid ${border}` }}>
+                        Curso: {selectedCurso.nombre}
+                      </span>
+                      {selectedCurso.estado && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
+                          background: EST[selectedCurso.estado].bg, color: EST[selectedCurso.estado].text }}>
+                          Resultado: {EST[selectedCurso.estado].label}{selectedCurso.pct !== null ? ` · ${selectedCurso.pct}/100` : ''}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: '#dcfce7', color: '#166534' }}>
+                        Confianza: {confianzaLabel}
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowEvidenciaModal(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: 22, lineHeight: 1 }}>
+                    ×
+                  </button>
+                </div>
+
+                <div style={{ padding: '16px 24px' }}>
+                  {(selectedCurso.gaps[0] || selectedCurso.recomendaciones[0]?.texto) && (
+                    <div style={{ borderLeft: `4px solid ${CYAN}`, background: isDark ? '#0f172a' : SURFACE_LOW, padding: '12px 14px', borderRadius: 8, marginBottom: 16, fontSize: 12, color: text, lineHeight: 1.5 }}>
+                      <strong>Interpretación CIE:</strong> {selectedCurso.gaps[0] || selectedCurso.recomendaciones[0]?.texto}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 4, borderBottom: `1px solid ${border}`, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {([
+                      { key: 'mercado' as const, label: 'Mercado laboral' },
+                      { key: 'empleabilidad' as const, label: 'Empleabilidad USIL' },
+                      { key: 'benchmark' as const, label: 'Benchmark' },
+                      { key: 'tendencias' as const, label: 'Tendencias globales' },
+                    ]).map(t => (
+                      <button key={t.key} onClick={() => setEvidenciaTab(t.key)}
+                        style={{ padding: '8px 12px', border: 'none', borderBottom: evidenciaTab === t.key ? `2px solid ${USIL}` : '2px solid transparent',
+                          background: 'transparent', color: evidenciaTab === t.key ? USIL : muted,
+                          fontWeight: evidenciaTab === t.key ? 800 : 600, fontSize: 12, cursor: 'pointer' }}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {evidenciaTab === 'mercado' && (
+                    <>
+                      <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: muted, marginBottom: 10 }}>
+                        Señales detectadas ({cursoEvidencia?.mercado.señales.length ?? 0})
+                      </div>
+                      {renderSeñales(cursoEvidencia?.mercado.señales)}
+                    </>
+                  )}
+                  {evidenciaTab === 'benchmark' && (
+                    <>
+                      <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: muted, marginBottom: 10 }}>
+                        Señales detectadas ({cursoEvidencia?.benchmark.señales.length ?? 0})
+                      </div>
+                      {renderSeñales(cursoEvidencia?.benchmark.señales)}
+                    </>
+                  )}
+                  {evidenciaTab === 'tendencias' && (
+                    <>
+                      <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: muted, marginBottom: 10 }}>
+                        Señales detectadas ({cursoEvidencia?.tendencias.señales.length ?? 0})
+                      </div>
+                      {renderSeñales(cursoEvidencia?.tendencias.señales)}
+                    </>
+                  )}
+                  {evidenciaTab === 'empleabilidad' && (
+                    cursoEvidencia?.empleabilidad.disponible ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                        {[
+                          ['Tasa de empleabilidad', `${cursoEvidencia.empleabilidad.tasaEmpleabilidad}%`],
+                          ['Tasa de afinidad laboral', `${cursoEvidencia.empleabilidad.tasaAfinidad}%`],
+                          ['Encuestados', cursoEvidencia.empleabilidad.totalEncuestados],
+                        ].map(([label, value]) => (
+                          <div key={label} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '12px', textAlign: 'center', background: isDark ? '#0f172a' : SURFACE_LOW }}>
+                            <div style={{ fontSize: 20, fontWeight: 800, color: USIL, fontFamily: FONT_HEAD }}>{value}</div>
+                            <div style={{ fontSize: 10, color: muted, marginTop: 4 }}>{label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 11, color: muted, padding: '20px 0', textAlign: 'center' }}>
+                        No hay datos de empleabilidad de egresados para esta carrera.
+                      </div>
+                    )
+                  )}
+
+                  <div style={{ marginTop: 24 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <span className="material-symbols-outlined" style={{ color: CYAN }}>hub</span>
+                      <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: USIL, fontFamily: FONT_HEAD }}>Convergencia de Evidencias</h3>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                      {[
+                        { label: 'Mercado', rel: cursoEvidencia?.mercado.relevancia ?? null },
+                        { label: 'Empleabilidad', rel: cursoEvidencia?.empleabilidad.relevancia ?? null },
+                        { label: 'Benchmark', rel: cursoEvidencia?.benchmark.relevancia ?? null },
+                        { label: 'Tendencias', rel: cursoEvidencia?.tendencias.relevancia ?? null },
+                      ].map(c => (
+                        <div key={c.label} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 9, fontWeight: 800, color: muted, textTransform: 'uppercase' }}>{c.label}</div>
+                          <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'capitalize',
+                            color: c.rel === 'alta' ? '#166534' : c.rel === 'media' ? '#9a3412' : muted, marginTop: 4 }}>
+                            {c.rel || '—'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 18, background: USIL, color: '#fff', borderRadius: 10, padding: '14px 18px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 12, lineHeight: 1.4 }}>
+                      <strong>Conclusión CIE:</strong> {convergenciaAlta >= 2
+                        ? 'Existe convergencia suficiente para recomendar revisión curricular.'
+                        : fuentesCount > 0
+                          ? 'Hay evidencia parcial; se recomienda monitorear antes de una revisión formal.'
+                          : 'No hay evidencia suficiente para este curso; no se recomienda ninguna acción todavía.'}
+                    </div>
+                    <button onClick={() => setShowMetodologia(v => !v)}
+                      style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', padding: '8px 14px',
+                        borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      Ver metodología de análisis
+                    </button>
+                  </div>
+                  {showMetodologia && (
+                    <p style={{ fontSize: 11, color: muted, marginTop: 10, lineHeight: 1.5 }}>
+                      El motor cruza el nombre, sumilla y competencias del curso contra señales reales de Radar, habilidades de
+                      informes de Mercado Laboral y competencias de Benchmarking (coincidencia por palabras clave). Con esa
+                      evidencia, un modelo de lenguaje (HuggingFace Qwen2.5 / Groq Llama 3.3) genera el estado, puntaje,
+                      tendencias, brechas y recomendaciones sin inventar datos fuera de lo entregado.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
