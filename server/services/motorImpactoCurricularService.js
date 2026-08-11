@@ -351,4 +351,10 @@ async function analizarImpacto(idCarrera, idMallaVersion, pesos = {}, usuarioCre
   }
 }
 
-export { analizarImpacto };
+export {
+  analizarImpacto,
+  recogerEvidenciaRadar,
+  recogerEvidenciaEmpleabilidad,
+  recogerEvidenciaMercado,
+  recogerEvidenciaBenchmarking,
+};

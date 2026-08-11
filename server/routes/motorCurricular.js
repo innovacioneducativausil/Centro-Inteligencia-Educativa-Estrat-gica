@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { adminOrAnalyst } from '../middleware/roles.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { analizarImpacto } from '../services/motorImpactoCurricularService.js';
+import { analizarMapaCurricular } from '../services/analisisCurricularService.js';
 import {
   createMallaVersionPropuesta,
   createPropuestaCurricular,
@@ -39,6 +40,20 @@ router.post('/curricular/analizar-impacto/:idCarrera', adminOrAnalyst, async (re
     res.json(result);
   } catch (err) {
     serverError(res, err, 'POST /curricular/analizar-impacto');
+  }
+});
+
+router.post('/curricular/analizar-mapa/:idCarrera', adminOrAnalyst, async (req, res) => {
+  try {
+    const { idCarrera } = req.params;
+    const { id_malla_version } = req.body;
+    if (!id_malla_version) return res.status(400).json({ error: 'id_malla_version es requerido' });
+
+    const result = await analizarMapaCurricular(Number(idCarrera), Number(id_malla_version));
+    if (!result.ok) return res.status(422).json({ error: result.error });
+    res.json(result);
+  } catch (err) {
+    serverError(res, err, 'POST /curricular/analizar-mapa');
   }
 });
 

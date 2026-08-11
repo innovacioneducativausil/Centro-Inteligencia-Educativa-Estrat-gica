@@ -433,6 +433,32 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
   useEffect(() => { fetchMalla(); }, [fetchMalla]);
 
+  const [analyzingMapa, setAnalyzingMapa] = useState(false);
+  const [analyzeMapaError, setAnalyzeMapaError] = useState<string | null>(null);
+
+  const handleAnalizarMapa = async () => {
+    if (!selCarreraId || !selMallaId) return;
+    setAnalyzingMapa(true);
+    setAnalyzeMapaError(null);
+    try {
+      const r = await fetch(`/api/curricular/analizar-mapa/${selCarreraId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id_malla_version: selMallaId }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) {
+        setAnalyzeMapaError(d.error || 'No se pudo analizar el mapa curricular');
+      } else {
+        await fetchMalla();
+      }
+    } catch (e: any) {
+      setAnalyzeMapaError(e.message ?? 'Error al analizar el mapa curricular');
+    }
+    setAnalyzingMapa(false);
+  };
+
   const handleFacultadChange = (fac: string) => {
     setSelFacultad(fac);
     const carrerasDeFac = fac === 'Todas'
@@ -699,15 +725,22 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               {carrerasFiltradas.map(c => <option key={c.id_carrera}>{c.nombre_carrera}</option>)}
             </select>
           </div>
-          {false && activeTab === 'mapa' && mallaActual && (
-            <button onClick={handleExportMapaExcel}
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                height: 40, padding: '0 16px', borderRadius: 8, border: 'none',
-                background: USIL, color: '#fff', fontSize: 12, fontWeight: 700,
-                cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
-              Exportar Excel
-            </button>
+          {canImport && mallaActual && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <button onClick={handleAnalizarMapa} disabled={analyzingMapa}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  height: 36, padding: '0 14px', borderRadius: 8, border: 'none',
+                  background: analyzingMapa ? '#94a3b8' : CYAN, color: '#fff', fontSize: 12, fontWeight: 700,
+                  cursor: analyzingMapa ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                  {analyzingMapa ? 'sync' : 'model_training'}
+                </span>
+                {analyzingMapa ? 'Analizando cursos…' : 'Analizar mapa curricular'}
+              </button>
+              {analyzeMapaError && (
+                <span style={{ fontSize: 10, color: '#ba1a1a', maxWidth: 260 }}>{analyzeMapaError}</span>
+              )}
+            </div>
           )}
         </div>
       )}
