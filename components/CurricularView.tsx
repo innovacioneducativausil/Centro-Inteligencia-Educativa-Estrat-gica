@@ -205,7 +205,7 @@ interface ImportResult {
 }
 
 type TabCurricular = 'mapa' | 'silabos' | 'benchmarking' | 'impacto';
-const VALID_CURRICULAR_TABS: TabCurricular[] = ['mapa', 'silabos', 'benchmarking', 'impacto'];
+const VALID_CURRICULAR_TABS: TabCurricular[] = ['mapa', 'benchmarking', 'impacto'];
 
 
 function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrerasFiltradas, selFacultad, filtros }: {
@@ -629,26 +629,6 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
     <div style={{ padding: '14px 20px', background: bg, minHeight: '100%', color: text, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
 
-      <div style={{ display: 'none',
-        alignItems: 'center', gap: 10,
-        padding: '10px 16px', borderRadius: 10,
-        background: '#FFF7ED', border: '1.5px solid #FED7AA',
-        boxShadow: '0 2px 8px rgba(251,146,60,0.12)',
-      }}>
-        <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#EA580C', flexShrink: 0 }}>
-          construction
-        </span>
-        <div>
-          <span style={{ fontSize: 12, fontWeight: 800, color: '#C2410C', letterSpacing: '0.2px' }}>
-            Módulo en construcción
-          </span>
-          <span style={{ fontSize: 11, color: '#9A3412', marginLeft: 8, fontWeight: 500 }}>
-            Algunas funciones pueden estar incompletas o cambiar próximamente.
-          </span>
-        </div>
-      </div>
-
-
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 18, borderBottom: `1px solid ${border}`, paddingBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap' }}>
           <h1 style={{ margin: 0, fontSize: 22, lineHeight: 1.15, fontWeight: 900, color: USIL }}>
@@ -684,27 +664,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       </div>
 
 
-      <div style={{ display: 'none', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-        {([
-          { key: 'mapa',        label: 'Vision 360',          icon: 'dashboard' },
-          { key: 'silabos',     label: 'Mapa Sílabos',       icon: 'menu_book' },
-          { key: 'benchmarking',label: 'Benchmarking',        icon: 'compare' },
-          { key: 'impacto',     label: 'Impacto Curricular',  icon: 'insights' },
-        ] as { key: TabCurricular; label: string; icon: string }[]).map(t => {
-          const active = activeTab === t.key;
-          return (
-            <button key={t.key} onClick={() => switchTab(t.key)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 40, padding: '0 16px', borderRadius: 8, border: active ? 'none' : `1px solid ${border}`, cursor: 'pointer', fontSize: 12, fontWeight: 700, transition: 'all .15s',
-                background: active ? USIL : card, color: active ? '#fff' : muted }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>{t.icon}</span>
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-
-      {(activeTab === 'mapa' || activeTab === 'silabos') && (
+      {activeTab === 'mapa' && (
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end',
           padding: '4px 0 2px' }}>
           <div style={{ width: 160 }}>
