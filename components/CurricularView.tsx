@@ -649,7 +649,42 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       </div>
 
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 18, borderBottom: `1px solid ${border}`, paddingBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap' }}>
+          <h1 style={{ margin: 0, fontSize: 22, lineHeight: 1.15, fontWeight: 900, color: USIL }}>
+            Vision 360 - Curricular
+          </h1>
+          <nav style={{ display: 'flex', gap: 22, alignItems: 'center', height: 34 }}>
+            {([
+              { key: 'mapa', label: 'Vision 360' },
+              { key: 'benchmarking', label: 'Benchmarking' },
+              { key: 'impacto', label: 'Plan de accion' },
+            ] as { key: TabCurricular; label: string }[]).map(t => {
+              const active = activeTab === t.key;
+              return (
+                <button key={t.key} onClick={() => switchTab(t.key)}
+                  style={{ height: 34, padding: 0, border: 'none', borderBottom: active ? `2px solid ${USIL}` : '2px solid transparent',
+                    background: 'transparent', color: active ? USIL : text, cursor: 'pointer',
+                    fontSize: 12, fontWeight: active ? 900 : 700 }}>
+                  {t.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+        {activeTab === 'mapa' && mallaActual && (
+          <button onClick={handleExportMapaExcel}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              height: 36, padding: '0 14px', borderRadius: 6, border: 'none',
+              background: USIL, color: '#fff', fontSize: 12, fontWeight: 800,
+              cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Export
+          </button>
+        )}
+      </div>
+
+
+      <div style={{ display: 'none', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
         {([
           { key: 'mapa',        label: 'Vision 360',          icon: 'dashboard' },
           { key: 'silabos',     label: 'Mapa Sílabos',       icon: 'menu_book' },
@@ -671,30 +706,30 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
       {(activeTab === 'mapa' || activeTab === 'silabos') && (
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end',
-          background: card, borderRadius: 12, border: `1px solid ${border}`, padding: '14px 18px' }}>
-          <div style={{ flex: 1, minWidth: 160 }}>
+          padding: '4px 0 2px' }}>
+          <div style={{ width: 160 }}>
             <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
               Facultad
             </label>
             <select value={selFacultad} onChange={e => handleFacultadChange(e.target.value)}
               style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`,
-                background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                background: card, color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               <option>Todas</option>
               {filtros.facultades.map(f => <option key={f.id_facultad}>{f.nombre_facultad}</option>)}
             </select>
           </div>
-          <div style={{ flex: 2, minWidth: 200 }}>
+          <div style={{ width: 340, maxWidth: '100%' }}>
             <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
               Carrera
             </label>
             <select value={selCarrera} onChange={e => handleCarreraChange(e.target.value)}
               style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`,
-                background: isDark ? '#0f172a' : '#f8fafc', color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                background: card, color: text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               <option>Todas</option>
               {carrerasFiltradas.map(c => <option key={c.id_carrera}>{c.nombre_carrera}</option>)}
             </select>
           </div>
-          {activeTab === 'mapa' && mallaActual && (
+          {false && activeTab === 'mapa' && mallaActual && (
             <button onClick={handleExportMapaExcel}
               style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 height: 40, padding: '0 16px', borderRadius: 8, border: 'none',
@@ -741,17 +776,15 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
             Evidencia que alimenta este analisis
           </div>
           {[
-            { icon: 'school', label: 'Malla USIL', detail: `${allCursos.length} cursos` },
-            { icon: 'hub', label: 'Competencias', detail: `${vision360?.competencias.length ?? 0} registradas` },
-            { icon: 'description', label: 'Sumillas', detail: `${sumillasCount} cursos` },
-            { icon: 'query_stats', label: 'Benchmark', detail: 'Referentes mapeados' },
-            { icon: 'workspace_premium', label: 'Menciones', detail: `${vision360?.menciones.length ?? 0} rutas` },
+            { icon: 'storefront', label: 'Mercado' },
+            { icon: 'work_outline', label: 'Empleabilidad' },
+            { icon: 'query_stats', label: 'Benchmark' },
+            { icon: 'public', label: 'Global Trends' },
           ].map(item => (
-            <div key={item.label} style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 140 }}>
+            <div key={item.label} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 20, color: CYAN }}>{item.icon}</span>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 900, color: text, lineHeight: 1.2 }}>{item.label}</div>
-                <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>{item.detail}</div>
               </div>
             </div>
           ))}
@@ -895,13 +928,14 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(150px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(132px, 1fr))', gap: 12 }}>
             {[
               { label: 'Indice de Alineacion', value: `${kpis.pctAlineacionPromedio ?? kpis.pctAlineado}%`, badge: 'IA', note: 'Lectura integral de pertinencia curricular.', accent: USIL, badgeBg: '#dbeafe', badgeText: '#1d4ed8' },
-              { label: 'En Riesgo / Crítico',     value: `${kpis.pctRiesgo}%`,       badge: `${kpis.criticos} cursos`,  note: 'Cursos con obsolescencia alta o riesgo.',     accent: '#ef4444', badgeBg: '#fee2e2', badgeText: '#991b1b' },
-              { label: 'Alineación Actual',        value: `${kpis.pctAlineado}%`,     badge: `${kpis.totalCursos} total`, note: 'Cumple con competencias core actuales.',      accent: '#22c55e', badgeBg: '#dcfce7', badgeText: '#166534' },
-              { label: 'Oportunidades Emergentes', value: String(kpis.oportunidades), badge: 'Nuevas tendencias',          note: 'Posibilidad de integrar micro-credenciales.', accent: '#3b82f6', badgeBg: '#dbeafe', badgeText: '#1d4ed8' },
-              { label: 'Cursos Críticos',          value: String(kpis.criticos),      badge: 'Requieren revisión',         note: 'Alerta de desactualización inmediata.',       accent: '#f97316', badgeBg: '#ffedd5', badgeText: '#9a3412' },
+              { label: 'Cursos alineados', value: `${cursosAlineados}/${allCursos.length}`, badge: 'Alineados', note: 'Cursos con evidencia de alineacion.', accent: '#166534', badgeBg: '#dcfce7', badgeText: '#166534' },
+              { label: 'Cursos en revision', value: String(cursosRevision), badge: 'Revision', note: 'Cursos con riesgo o brecha activa.', accent: '#ba1a1a', badgeBg: '#fee2e2', badgeText: '#991b1b' },
+              { label: 'Cursos prioritarios', value: String(cursosPrioritariosTotal), badge: 'Prioridad', note: 'Cursos para revisar primero.', accent: text, badgeBg: '#f3f4f6', badgeText: '#374151' },
+              { label: 'Oportunidades', value: String(kpis.oportunidades), badge: 'Nuevas tendencias', note: 'Posibilidad de integrar micro-credenciales.', accent: CYAN, badgeBg: '#cffafe', badgeText: '#0e7490' },
+              { label: 'Tendencia', value: 'Estable', badge: 'Actual', note: 'Sin variacion critica detectada.', accent: '#006876', badgeBg: '#ccfbf1', badgeText: '#0f766e' },
             ].map((k, i) => (
               <div key={i} style={{ background: card, borderRadius: 10, padding: '14px 16px',
                 borderTop: `4px solid ${k.accent}`, boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>

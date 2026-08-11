@@ -26,6 +26,27 @@ function mapMalla(malla) {
   };
 }
 
+function normalizeName(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function rankMallaForCurricularUx(malla) {
+  const carrera = normalizeName(malla.carrera?.nombre_carrera);
+  const version = normalizeName(malla.nombre_version);
+  if (
+    (carrera === 'educacion inicial' || carrera === 'educacion secundaria con especialidad en ingles')
+    && version.includes('xlsm')
+  ) {
+    return -1;
+  }
+  return 0;
+}
+
 async function optionalQuery(sql, params = []) {
   try {
     const [rows] = await dbCurricular.query(sql, params);
@@ -77,7 +98,9 @@ export async function getMallasCurriculares({ carrera, facultad } = {}) {
     },
   });
 
-  return rows.map(mapMalla);
+  return rows
+    .sort((a, b) => rankMallaForCurricularUx(a) - rankMallaForCurricularUx(b))
+    .map(mapMalla);
 }
 
 export async function getMallaKpis(idMalla) {
