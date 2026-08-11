@@ -1,4 +1,5 @@
 import { curricularPrisma } from '../../prismaClient.js';
+import dbCurricular from '../../db_curricular.js';
 
 function toBoolean(value) {
   return Boolean(Number(value));
@@ -23,6 +24,16 @@ function mapMalla(malla) {
     nombre_facultad: malla.carrera.facultad.nombre_facultad,
     total_cursos: malla._count?.curso || 0,
   };
+}
+
+async function optionalQuery(sql, params = []) {
+  try {
+    const [rows] = await dbCurricular.query(sql, params);
+    return rows;
+  } catch (err) {
+    if (err?.code === 'ER_NO_SUCH_TABLE' || err?.code === 'ER_BAD_FIELD_ERROR') return [];
+    throw err;
+  }
 }
 
 export async function getCurricularFiltros() {
@@ -154,6 +165,167 @@ export async function getMallaMapaRows(idMalla) {
       analizado_en: analisis.analizado_en,
     };
   });
+}
+
+export async function getMallaVision360(idMalla) {
+  const id = Number(idMalla);
+  const malla = await curricularPrisma.malla_version.findUnique({
+    where: { id_malla: id },
+    include: {
+      carrera: { include: { facultad: true } },
+      _count: { select: { curso: true } },
+    },
+  });
+  if (!malla) return null;
+
+  const [
+    fundamentos,
+    detalles,
+    sumillas,
+    competencias,
+    competenciaNiveles,
+    cursoCompetencias,
+    electivos,
+    menciones,
+    mencionCursos,
+  ] = await Promise.all([
+    optionalQuery('SELECT * FROM malla_fundamento_curricular WHERE id_malla = ? LIMIT 1', [id]),
+    optionalQuery('SELECT * FROM curso_detalle_curricular WHERE id_curso IN (SELECT id_curso FROM curso WHERE id_malla = ?)', [id]),
+    optionalQuery('SELECT * FROM curso_sumilla WHERE id_curso IN (SELECT id_curso FROM curso WHERE id_malla = ?)', [id]),
+    optionalQuery('SELECT * FROM competencia_curricular WHERE id_malla = ? ORDER BY codigo_competencia', [id]),
+    optionalQuery(
+      `SELECT cn.*
+         FROM competencia_nivel cn
+         INNER JOIN competencia_curricular cc ON cc.id_competencia = cn.id_competencia
+        WHERE cc.id_malla = ?
+        ORDER BY cc.codigo_competencia, cn.nivel`,
+      [id]
+    ),
+    optionalQuery(
+      `SELECT ccu.id_curso, ccu.id_competencia, ccu.nivel, ccu.evidencia_textual
+         FROM curso_competencia ccu
+         INNER JOIN competencia_curricular cc ON cc.id_competencia = ccu.id_competencia
+        WHERE cc.id_malla = ?`,
+      [id]
+    ),
+    optionalQuery('SELECT * FROM electivo_catalogo WHERE id_malla = ? ORDER BY ciclo_sugerido, nombre_curso', [id]),
+    optionalQuery('SELECT * FROM mencion_curricular WHERE id_malla = ? ORDER BY codigo_mencion, nombre_mencion', [id]),
+    optionalQuery(
+      `SELECT mc.*
+         FROM mencion_curso mc
+         INNER JOIN mencion_curricular m ON m.id_mencion = mc.id_mencion
+        WHERE m.id_malla = ?
+        ORDER BY m.codigo_mencion, mc.ciclo, mc.nro_orden, mc.nombre_curso`,
+      [id]
+    ),
+  ]);
+
+  const detallesByCurso = Object.fromEntries(detalles.map(row => [row.id_curso, row]));
+  const sumillasByCurso = Object.fromEntries(sumillas.map(row => [row.id_curso, row]));
+  const nivelesByCompetencia = competenciaNiveles.reduce((acc, row) => {
+    acc[row.id_competencia] ||= [];
+    acc[row.id_competencia].push({
+      nivel: row.nivel,
+      etiqueta: row.etiqueta,
+      descripcion: row.descripcion,
+    });
+    return acc;
+  }, {});
+  const competenciasById = Object.fromEntries(competencias.map(row => [row.id_competencia, row]));
+  const competenciasByCurso = cursoCompetencias.reduce((acc, row) => {
+    const comp = competenciasById[row.id_competencia];
+    if (!comp) return acc;
+    acc[row.id_curso] ||= [];
+    acc[row.id_curso].push({
+      codigo: comp.codigo_competencia,
+      nombre: comp.nombre_competencia,
+      tipo: comp.tipo_competencia,
+      nivel: row.nivel,
+      evidencia: row.evidencia_textual,
+    });
+    return acc;
+  }, {});
+  const cursosByMencion = mencionCursos.reduce((acc, row) => {
+    acc[row.id_mencion] ||= [];
+    acc[row.id_mencion].push({
+      codigoOficial: row.codigo_oficial,
+      codigoCurso: row.codigo_curso,
+      nombreCurso: row.nombre_curso,
+      ciclo: row.ciclo,
+      condicion: row.condicion,
+      orden: row.nro_orden,
+      idElectivo: row.id_electivo,
+    });
+    return acc;
+  }, {});
+
+  const fundamento = fundamentos[0] || null;
+  let resumenPlan = null;
+  if (fundamento?.resumen_plan_json) {
+    try {
+      resumenPlan = typeof fundamento.resumen_plan_json === 'string'
+        ? JSON.parse(fundamento.resumen_plan_json)
+        : fundamento.resumen_plan_json;
+    } catch {
+      resumenPlan = null;
+    }
+  }
+
+  return {
+    malla: {
+      ...mapMalla(malla),
+      periodo_aplicacion: malla.periodo_aplicacion ?? null,
+      modalidad: malla.modalidad ?? null,
+      total_creditos: malla.total_creditos ?? null,
+    },
+    fundamento: fundamento ? {
+      codigoPrograma: fundamento.codigo_programa,
+      gradoOtorgado: fundamento.grado_otorgado,
+      tituloOtorgado: fundamento.titulo_otorgado,
+      regimenEstudios: fundamento.regimen_estudios,
+      duracionMeses: fundamento.duracion_meses,
+      fechaAprobacion: fundamento.fecha_aprobacion,
+      objetivoAcademico: fundamento.objetivo_academico,
+      perfilIngreso: fundamento.perfil_ingreso,
+      perfilEgreso: fundamento.perfil_egreso,
+      objetivosEducacionales: fundamento.objetivos_educacionales,
+      resumenPlan,
+    } : null,
+    competencias: competencias.map(row => ({
+      idCompetencia: row.id_competencia,
+      codigo: row.codigo_competencia,
+      nombre: row.nombre_competencia,
+      tipo: row.tipo_competencia,
+      niveles: nivelesByCompetencia[row.id_competencia] || [],
+    })),
+    cursos: {
+      detalles: detallesByCurso,
+      sumillas: sumillasByCurso,
+      competencias: competenciasByCurso,
+    },
+    electivos: electivos.map(row => ({
+      idElectivo: row.id_electivo,
+      cicloSugerido: row.ciclo_sugerido,
+      codigoOficial: row.codigo_oficial,
+      codigoCurso: row.codigo_curso,
+      nombreCurso: row.nombre_curso,
+      carreraCoordinacion: row.carrera_coordinacion,
+      tipoEstudio: row.tipo_estudio,
+      condicion: row.condicion,
+      modalidadCurso: row.modalidad_curso,
+      creditos: row.creditos,
+      prerequisito: row.prerequisito,
+      creditosMinimos: row.creditos_minimos,
+      mencion: row.mencion,
+    })),
+    menciones: menciones.map(row => ({
+      idMencion: row.id_mencion,
+      codigo: row.codigo_mencion,
+      nombre: row.nombre_mencion,
+      tipo: row.tipo,
+      cursos: cursosByMencion[row.id_mencion] || [],
+    })),
+  };
 }
 
 async function setMallaVigente(idMalla, idCarrera) {

@@ -13,6 +13,7 @@ import {
   getCurricularFiltros,
   getMallaKpis,
   getMallaMapaRows,
+  getMallaVision360,
   getMallasCurriculares,
   getSilaboById,
   getSilabos,
@@ -132,6 +133,16 @@ router.get('/curricular/mapa/:idMalla', async (req, res) => {
     res.json(ciclos);
   } catch (err) {
     serverError(res, err, 'GET /curricular/mapa/:idMalla');
+  }
+});
+
+router.get('/curricular/mallas/:idMalla/vision360', async (req, res) => {
+  try {
+    const data = await getMallaVision360(req.params.idMalla);
+    if (!data) return res.status(404).json({ error: 'Malla no encontrada' });
+    res.json(data);
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/mallas/:idMalla/vision360');
   }
 });
 

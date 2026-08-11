@@ -64,6 +64,66 @@ interface MallaOpcion {
   total_cursos: number;
 }
 
+interface Vision360Data {
+  malla: MallaOpcion & {
+    periodo_aplicacion?: string | null;
+    modalidad?: string | null;
+    total_creditos?: number | null;
+  };
+  fundamento: {
+    codigoPrograma?: string | null;
+    gradoOtorgado?: string | null;
+    tituloOtorgado?: string | null;
+    regimenEstudios?: string | null;
+    duracionMeses?: number | null;
+    fechaAprobacion?: string | null;
+    objetivoAcademico?: string | null;
+    perfilIngreso?: string | null;
+    perfilEgreso?: string | null;
+    objetivosEducacionales?: string | null;
+    resumenPlan?: unknown;
+  } | null;
+  competencias: {
+    idCompetencia: number;
+    codigo: string;
+    nombre: string;
+    tipo?: string | null;
+    niveles: { nivel: number; etiqueta?: string | null; descripcion?: string | null }[];
+  }[];
+  cursos: {
+    detalles: Record<string, Record<string, any>>;
+    sumillas: Record<string, Record<string, any>>;
+    competencias: Record<string, {
+      codigo: string;
+      nombre: string;
+      tipo?: string | null;
+      nivel: number;
+      evidencia?: string | null;
+    }[]>;
+  };
+  electivos: {
+    idElectivo: number;
+    cicloSugerido?: number | null;
+    codigoCurso?: string | null;
+    nombreCurso: string;
+    creditos?: number | null;
+    condicion?: string | null;
+    mencion?: string | null;
+  }[];
+  menciones: {
+    idMencion: number;
+    codigo?: string | null;
+    nombre: string;
+    tipo: string;
+    cursos: {
+      codigoCurso?: string | null;
+      nombreCurso: string;
+      ciclo?: number | null;
+      condicion?: string | null;
+    }[];
+  }[];
+}
+
 interface FiltrosData {
   facultades: { id_facultad: number; nombre_facultad: string }[];
   carreras:   { id_carrera: number; nombre_carrera: string; id_facultad: number; nombre_facultad: string }[];
@@ -91,6 +151,12 @@ const URG_COLOR: Record<string, { bg: string; text: string }> = {
 };
 
 const EMPTY_KPIS: KPIs = { totalCursos: 0, pctRiesgo: 0, pctAlineado: 0, oportunidades: 0, criticos: 0, pctAlineacionPromedio: null };
+
+function compactText(value?: string | null, max = 280) {
+  const clean = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!clean) return '';
+  return clean.length > max ? `${clean.slice(0, max).trim()}...` : clean;
+}
 
 interface ImportPreview {
   totalRows: number;
@@ -231,6 +297,8 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
   const [ciclos,       setCiclos]      = useState<CicloData[]>([]);
   const [kpis,         setKpis]        = useState<KPIs>(EMPTY_KPIS);
+  const [vision360,    setVision360]   = useState<Vision360Data | null>(null);
+  const [vistaMapa,    setVistaMapa]   = useState<'malla' | 'prioridad'>('malla');
   const [loading,      setLoading]     = useState(false);
 
   const [selectedCurso, setSelectedCurso] = useState<Curso | null>(null);
@@ -301,12 +369,19 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   }, [selCarrera, selFacultad]);
 
   const fetchMalla = useCallback(async () => {
-    if (!selMallaId) { setCiclos([]); setKpis(EMPTY_KPIS); setSelectedCurso(null); return; }
+    if (!selMallaId) {
+      setCiclos([]);
+      setKpis(EMPTY_KPIS);
+      setVision360(null);
+      setSelectedCurso(null);
+      return;
+    }
     setLoading(true);
     try {
-      const [ciclosData, kpisData] = await Promise.all([
+      const [ciclosData, kpisData, visionData] = await Promise.all([
         fetch(`/api/curricular/mapa/${selMallaId}`,  { headers, credentials: 'include' }).then(r => r.json()),
         fetch(`/api/curricular/kpis/${selMallaId}`,  { headers, credentials: 'include' }).then(r => r.json()),
+        fetch(`/api/curricular/mallas/${selMallaId}/vision360`, { headers, credentials: 'include' }).then(r => r.json()),
       ]);
       if (Array.isArray(ciclosData)) {
         setCiclos(ciclosData);
@@ -314,6 +389,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
         setSelectedCurso(primero);
       }
       if (!kpisData.error) setKpis(kpisData);
+      setVision360(!visionData.error ? visionData : null);
     } catch {}
     setLoading(false);
   }, [selMallaId]);
@@ -405,6 +481,17 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   };
 
   const mallaActual = mallas.find(m => m.id_malla === selMallaId);
+  const selectedCursoKey = selectedCurso?.id ? String(selectedCurso.id) : '';
+  const selectedCursoSumilla = selectedCursoKey ? vision360?.cursos.sumillas[selectedCursoKey] : null;
+  const selectedCursoCompetencias = selectedCursoKey ? (vision360?.cursos.competencias[selectedCursoKey] || []) : [];
+  const allCursos = ciclos.flatMap(c => c.cursos);
+  const cursosPrioridad = [...allCursos].sort((a, b) => {
+    const rank: Record<string, number> = { critico: 0, riesgo: 1, oportunidad: 2, alineado: 3 };
+    return (rank[a.estado || 'alineado'] ?? 4) - (rank[b.estado || 'alineado'] ?? 4)
+      || a.ciclo - b.ciclo
+      || (a.orden || 999) - (b.orden || 999);
+  }).slice(0, 14);
+  const totalCreditos = vision360?.malla.total_creditos ?? allCursos.reduce((sum, curso) => sum + (Number(curso.creditos) || 0), 0);
 
   const handleExportMapaExcel = async () => {
     if (!mallaActual) return;
@@ -486,7 +573,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
         {([
-          { key: 'mapa',        label: 'Mapa Curricular',    icon: 'map' },
+          { key: 'mapa',        label: 'Vision 360',          icon: 'dashboard' },
           { key: 'silabos',     label: 'Mapa Sílabos',       icon: 'menu_book' },
           { key: 'benchmarking',label: 'Benchmarking',        icon: 'compare' },
           { key: 'impacto',     label: 'Impacto Curricular',  icon: 'insights' },
@@ -571,6 +658,60 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
       {activeTab === 'mapa' && (
         <>
+          <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden' }}>
+            <div style={{ padding: '16px 18px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: muted, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 4 }}>
+                  Vision 360 de malla curricular
+                </div>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: USIL }}>
+                  {mallaActual?.nombre_carrera || 'Selecciona una carrera'}
+                </h2>
+                <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>
+                  {mallaActual?.nombre_facultad || 'Facultad'} / {mallaActual?.nombre_version || 'Malla vigente'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Cursos', value: allCursos.length },
+                  { label: 'Creditos', value: totalCreditos || '-' },
+                  { label: 'Competencias', value: vision360?.competencias.length ?? 0 },
+                  { label: 'Menciones', value: vision360?.menciones.length ?? 0 },
+                  { label: 'Electivos', value: vision360?.electivos.length ?? 0 },
+                ].map(item => (
+                  <div key={item.label} style={{ minWidth: 88, border: `1px solid ${border}`, borderRadius: 8, padding: '8px 10px', background: isDark ? '#0f172a' : '#f8fafc' }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: USIL, lineHeight: 1 }}>{item.value}</div>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: muted, textTransform: 'uppercase', letterSpacing: '.7px', marginTop: 4 }}>{item.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(260px, .8fr)', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                {[
+                  ['Codigo', vision360?.fundamento?.codigoPrograma],
+                  ['Grado', vision360?.fundamento?.gradoOtorgado],
+                  ['Titulo', vision360?.fundamento?.tituloOtorgado],
+                  ['Regimen', vision360?.fundamento?.regimenEstudios],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px', background: isDark ? '#0f172a' : '#ffffff' }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: muted, textTransform: 'uppercase', letterSpacing: '.7px', marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: text, lineHeight: 1.35 }}>{value || 'No registrado'}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '12px 14px', background: isDark ? '#0f172a' : '#f8fafc' }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: USIL, textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 6 }}>
+                  Perfil de egreso
+                </div>
+                <div style={{ fontSize: 12, color: text, lineHeight: 1.5 }}>
+                  {compactText(vision360?.fundamento?.perfilEgreso, 420) || 'Aun no hay perfil de egreso estructurado para esta malla.'}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
             {[
               { label: 'En Riesgo / Crítico',     value: `${kpis.pctRiesgo}%`,       badge: `${kpis.criticos} cursos`,  note: 'Cursos con obsolescencia alta o riesgo.',     accent: '#ef4444', badgeBg: '#fee2e2', badgeText: '#991b1b' },
@@ -607,8 +748,24 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`,
                 padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0 }}>
-                  <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: USIL }}>Mapa de Malla por Ciclos</h2>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: USIL }}>
+                    {vistaMapa === 'malla' ? 'Mapa de malla por ciclos' : 'Matriz de prioridad curricular'}
+                  </h2>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', background: isDark ? '#0f172a' : '#f1f5f9', borderRadius: 8, padding: 3, border: `1px solid ${border}` }}>
+                      {[
+                        { key: 'malla' as const, label: 'Ciclos' },
+                        { key: 'prioridad' as const, label: 'Prioridad' },
+                      ].map(item => (
+                        <button key={item.key} onClick={() => setVistaMapa(item.key)}
+                          style={{ border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer',
+                            background: vistaMapa === item.key ? '#fff' : 'transparent',
+                            color: vistaMapa === item.key ? USIL : muted,
+                            boxShadow: vistaMapa === item.key ? '0 1px 3px rgba(15,23,42,.12)' : 'none' }}>
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
                     {Object.entries(EST).map(([key, val]) => (
                       <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: muted }}>
                         <span style={{ width: 10, height: 10, borderRadius: 3, background: val.dot, flexShrink: 0 }} />
@@ -623,6 +780,34 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                   {ciclos.length === 0 ? (
                     <div style={{ padding: 40, textAlign: 'center', color: muted, fontSize: 12 }}>
                       {loading ? 'Cargando cursos…' : 'No hay cursos cargados en esta malla'}
+                    </div>
+                  ) : vistaMapa === 'prioridad' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+                      {cursosPrioridad.map(curso => {
+                        const cfg = curso.estado ? EST[curso.estado] : EST['alineado'];
+                        const sel = selectedCurso?.id === curso.id;
+                        return (
+                          <button key={curso.id} onClick={() => setSelectedCurso(curso)}
+                            style={{ textAlign: 'left', border: `${sel ? 2 : 1}px solid ${curso.estado ? cfg.border : border}`,
+                              borderRadius: 10, padding: '12px 14px', background: curso.estado ? cfg.bg : (isDark ? '#334155' : '#f8fafc'),
+                              cursor: 'pointer', boxShadow: sel ? `0 0 0 2px ${USIL}` : '0 1px 4px rgba(15,23,42,.06)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                              <span style={{ fontSize: 10, fontWeight: 900, color: cfg.text, textTransform: 'uppercase' }}>
+                                Ciclo {curso.ciclo}
+                              </span>
+                              <span style={{ fontSize: 10, fontWeight: 900, color: cfg.text }}>
+                                {curso.pct !== null ? `${curso.pct}%` : cfg.label}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 13, fontWeight: 900, color: '#1e293b', lineHeight: 1.35 }}>
+                              {curso.nombre}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>
+                              {[curso.codigo, curso.creditos != null ? `${curso.creditos} cr.` : null, curso.tipoCurso].filter(Boolean).join(' / ')}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div style={{ display: 'flex', gap: 10, minWidth: 'max-content' }}>
@@ -750,6 +935,46 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                         </div>
                       )}
 
+                      {(selectedCursoSumilla?.sumilla || selectedCursoSumilla?.resultado_aprendizaje) && (
+                        <div style={{ background: isDark ? '#0f172a' : '#f8fafc',
+                          border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', color: USIL, marginBottom: 7 }}>
+                            Evidencia academica del curso
+                          </div>
+                          {selectedCursoSumilla?.sumilla && (
+                            <p style={{ margin: '0 0 8px', fontSize: 11, color: text, lineHeight: 1.45 }}>
+                              <strong>Sumilla:</strong> {compactText(selectedCursoSumilla.sumilla, 360)}
+                            </p>
+                          )}
+                          {selectedCursoSumilla?.resultado_aprendizaje && (
+                            <p style={{ margin: 0, fontSize: 11, color: text, lineHeight: 1.45 }}>
+                              <strong>Resultado:</strong> {compactText(selectedCursoSumilla.resultado_aprendizaje, 260)}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {selectedCursoCompetencias.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px',
+                            color: muted, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>hub</span>
+                            Competencias asociadas
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {selectedCursoCompetencias.slice(0, 6).map((comp, i) => (
+                              <div key={`${comp.codigo}-${i}`} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '8px 10px', background: isDark ? '#0f172a' : '#fff' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 3 }}>
+                                  <span style={{ fontSize: 10, fontWeight: 900, color: USIL }}>{comp.codigo}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 800, color: muted }}>Nivel {comp.nivel}</span>
+                                </div>
+                                <div style={{ fontSize: 11, color: text, fontWeight: 700, lineHeight: 1.35 }}>{comp.nombre}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {selectedCurso.pct !== null && (
                         <div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -857,6 +1082,61 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                       boxShadow: '0 2px 8px rgba(0,40,85,0.25)' }}>
                     Ver Impacto Curricular Completo
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {vision360 && (vision360.menciones.length > 0 || vision360.electivos.length > 0 || vision360.competencias.length > 0) && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(280px, .9fr)', gap: 12 }}>
+              <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden' }}>
+                <div style={{ padding: '12px 16px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: USIL }}>Menciones y certificaciones</div>
+                  <div style={{ fontSize: 11, color: muted }}>{vision360.menciones.length} menciones / {vision360.electivos.length} electivos</div>
+                </div>
+                <div style={{ padding: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+                  {vision360.menciones.length === 0 ? (
+                    <div style={{ fontSize: 12, color: muted }}>No hay menciones estructuradas para esta malla.</div>
+                  ) : vision360.menciones.map(mencion => (
+                    <div key={mencion.idMencion} style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden', background: isDark ? '#0f172a' : '#fff' }}>
+                      <div style={{ padding: '9px 11px', background: '#eff6ff', borderBottom: `1px solid ${border}` }}>
+                        <div style={{ fontSize: 12, fontWeight: 900, color: USIL, lineHeight: 1.35 }}>{mencion.nombre}</div>
+                        <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>{mencion.cursos.length} cursos asociados</div>
+                      </div>
+                      <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+                        {mencion.cursos.map((curso, idx) => (
+                          <div key={`${mencion.idMencion}-${idx}`} style={{ padding: '8px 11px', borderBottom: idx < mencion.cursos.length - 1 ? `1px solid ${border}` : 'none' }}>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: text, lineHeight: 1.35 }}>{curso.nombreCurso}</div>
+                            <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>
+                              {[curso.codigoCurso, curso.ciclo ? `Ciclo ${curso.ciclo}` : null, curso.condicion].filter(Boolean).join(' / ')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden' }}>
+                <div style={{ padding: '12px 16px', borderBottom: `1px solid ${border}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: USIL }}>Competencias del programa</div>
+                  <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>Tomadas desde la matriz académica del Excel.</div>
+                </div>
+                <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 330, overflowY: 'auto' }}>
+                  {vision360.competencias.slice(0, 12).map(comp => (
+                    <div key={comp.idCompetencia} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '9px 11px', background: isDark ? '#0f172a' : '#fff' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 900, color: USIL }}>{comp.codigo}</div>
+                        <div style={{ fontSize: 10, fontWeight: 800, color: muted }}>{comp.niveles.length} niveles</div>
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: text, lineHeight: 1.35, marginTop: 4 }}>{comp.nombre}</div>
+                      {comp.tipo && <div style={{ fontSize: 10, color: muted, marginTop: 3 }}>{comp.tipo}</div>}
+                    </div>
+                  ))}
+                  {vision360.competencias.length === 0 && (
+                    <div style={{ fontSize: 12, color: muted }}>No hay competencias estructuradas para esta malla.</div>
+                  )}
                 </div>
               </div>
             </div>
