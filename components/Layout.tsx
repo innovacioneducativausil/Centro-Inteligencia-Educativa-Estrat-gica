@@ -203,7 +203,6 @@ const Layout: React.FC<LayoutProps> = ({
   ].filter(item => allowedModules.has(('key' in item ? item.key : 'gestion') as string));
 
   const fontStyle = { fontFamily: "'Montserrat', system-ui, -apple-system, sans-serif" };
-  const isCurricularModule = activeView === 'curricular';
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden', ...fontStyle }}>
@@ -247,24 +246,18 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
       )}
 
-      <nav style={{ width: isCurricularModule ? 213 : 72, minWidth: isCurricularModule ? 213 : 72, background: NAV.bg, display: 'flex', flexDirection: 'column', alignItems: isCurricularModule ? 'stretch' : 'center', padding: isCurricularModule ? '24px 13px' : '12px 0', gap: 4, zIndex: 60, flexShrink: 0 }}>
+      <nav style={{ width: 72, minWidth: 72, background: NAV.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: 4, zIndex: 60, flexShrink: 0 }}>
 
 
         <div
           title="USIL Radar Prospectivo"
-          style={{ width: isCurricularModule ? '100%' : 40, height: isCurricularModule ? 42 : 40, borderRadius: isCurricularModule ? 0 : 12, overflow: 'hidden', boxShadow: isCurricularModule ? 'none' : '0 8px 18px rgba(0,0,0,0.22)', marginBottom: isCurricularModule ? 34 : 16, flexShrink: 0, cursor: 'default', display: 'flex', alignItems: 'center', gap: 10 }}
+          style={{ width: 40, height: 40, borderRadius: 12, overflow: 'hidden', boxShadow: '0 8px 18px rgba(0,0,0,0.22)', marginBottom: 16, flexShrink: 0, cursor: 'default' }}
         >
           <img
             src="/Usil.jpg"
             alt="USIL"
-            style={{ width: isCurricularModule ? 34 : '100%', height: isCurricularModule ? 34 : '100%', borderRadius: isCurricularModule ? 3 : 0, objectFit: 'cover', display: 'block' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
-          {isCurricularModule && (
-            <div>
-              <div style={{ color: '#fff', fontSize: 22, lineHeight: 1, fontWeight: 900 }}>CIE</div>
-              <div style={{ color: 'rgba(255,255,255,.72)', fontSize: 10, lineHeight: 1.1, fontWeight: 800 }}>Inteligencia Educativa</div>
-            </div>
-          )}
         </div>
 
 
@@ -278,13 +271,13 @@ const Layout: React.FC<LayoutProps> = ({
               key={navKey}
               title={navLabel}
               onClick={() => { setActiveView(navKey); if (navKey === 'radar') setRadarTab('señales'); }}
-              style={{ width: isCurricularModule ? '100%' : 48, height: isCurricularModule ? 40 : 48, borderRadius: isCurricularModule ? 6 : 12, display: 'flex', flexDirection: isCurricularModule ? 'row' : 'column', alignItems: 'center', justifyContent: isCurricularModule ? 'flex-start' : 'center', gap: isCurricularModule ? 12 : 3, cursor: 'pointer', border: 'none', background: active ? (isCurricularModule ? '#58e6ff' : NAV.active) : 'none', transition: 'background .18s', position: 'relative', padding: isCurricularModule ? '0 14px' : 0, marginBottom: isCurricularModule ? 7 : 0 }}
+              style={{ width: 48, height: 48, borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, cursor: 'pointer', border: 'none', background: active ? NAV.active : 'none', transition: 'background .18s', position: 'relative' }}
               onMouseEnter={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = NAV.hover; }}
               onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
             >
-              <item.icon style={{ width: 18, height: 18, color: active ? (isCurricularModule ? '#006573' : NAV.iconOn) : 'rgba(255,255,255,.70)', transition: 'color .18s' }} strokeWidth={1.8} />
-              <span style={{ fontSize: isCurricularModule ? 14 : 8, fontWeight: isCurricularModule ? 700 : 600, color: active ? (isCurricularModule ? '#006573' : NAV.labelOn) : 'rgba(255,255,255,.74)', letterSpacing: '0.2px', transition: 'color .18s' }}>
-                {isCurricularModule ? navLabel : navShort}
+              <item.icon style={{ width: 18, height: 18, color: active ? NAV.iconOn : NAV.iconOff, transition: 'color .18s' }} strokeWidth={1.8} />
+              <span style={{ fontSize: 8, fontWeight: 600, color: active ? NAV.labelOn : NAV.labelOff, letterSpacing: '0.2px', transition: 'color .18s' }}>
+                {navShort}
               </span>
               {NEW_BADGE_KEYS.has(navKey) && (
                 <span style={{
