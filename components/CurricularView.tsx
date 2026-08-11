@@ -588,6 +588,11 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   };
 
   const mallaActual = mallas.find(m => m.id_malla === selMallaId);
+  // El nombre_version interno (ej. "2025-01 XLSM") es un identificador técnico de origen
+  // de importación, no algo pensado para mostrar al usuario — se muestra el período real.
+  const planLabel = vision360?.malla?.periodo_aplicacion
+    ? `Plan ${vision360.malla.periodo_aplicacion}`
+    : (mallaActual?.nombre_version?.replace(/\s*XLSM\s*$/i, '').trim() || 'Plan vigente');
   const selectedCursoKey = selectedCurso?.id ? String(selectedCurso.id) : '';
   const selectedCursoSumilla = selectedCursoKey ? vision360?.cursos.sumillas[selectedCursoKey] : null;
   const selectedCursoCompetencias = selectedCursoKey ? (vision360?.cursos.competencias[selectedCursoKey] || []) : [];
@@ -646,7 +651,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   );
   const promptAnalisisCurricular = vision360 && mallaActual ? [
     `Actua como especialista senior en diseno curricular universitario para USIL.`,
-    `Analiza la malla "${mallaActual.nombre_carrera}" (${mallaActual.nombre_version}) usando solo la informacion oficial estructurada en la base de datos.`,
+    `Analiza la malla "${mallaActual.nombre_carrera}" (${planLabel}) usando solo la informacion oficial estructurada en la base de datos.`,
     ``,
     `Datos disponibles:`,
     `- Codigo del programa: ${vision360.fundamento?.codigoPrograma || 'no registrado'}`,
@@ -706,7 +711,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
         rows: [
           { indicador: 'Carrera', valor: mallaActual.nombre_carrera },
           { indicador: 'Facultad', valor: mallaActual.nombre_facultad },
-          { indicador: 'Versión de malla', valor: mallaActual.nombre_version },
+          { indicador: 'Versión de malla', valor: planLabel },
           { indicador: '% en riesgo/crítico', valor: kpis.pctRiesgo },
           { indicador: '% alineado', valor: kpis.pctAlineado },
           { indicador: 'Total cursos', valor: kpis.totalCursos },
@@ -833,7 +838,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                 {mallaActual?.nombre_carrera || selCarrera || 'Selecciona una carrera'}
               </h1>
               <span style={{ background: SURFACE_LOW, color: text, border: `1px solid ${OUTLINE_VARIANT}`, borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
-                {mallaActual?.nombre_version || 'Plan vigente'}
+                {planLabel}
               </span>
               <span style={{ background: TERTIARY_FIXED, color: '#002204', borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 Tendencia
@@ -894,7 +899,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
           idCarrera={selCarreraId}
           idMallaVersion={selMallaId}
           nombreCarrera={selCarrera !== 'Todas' ? selCarrera : undefined}
-          nombreMalla={mallaActual?.nombre_version}
+          nombreMalla={planLabel}
         />
       )}
 
