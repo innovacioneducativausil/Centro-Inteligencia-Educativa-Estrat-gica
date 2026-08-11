@@ -178,6 +178,16 @@ function pickRichCurricularCareer(carreras: FiltrosData['carreras']) {
     ?? carreras[0];
 }
 
+function pickMallaVersion(rows: MallaOpcion[], carrera: string) {
+  const normalized = normalizeCurricularName(carrera);
+  if (normalized === 'educacion inicial' || normalized === 'educacion secundaria con especialidad en ingles') {
+    const enriched = rows.find(m => normalizeCurricularName(m.nombre_version).includes('xlsm'))
+      ?? rows.find(m => Number(m.total_cursos) === (normalized === 'educacion inicial' ? 58 : 55));
+    if (enriched) return enriched;
+  }
+  return rows.find((m: MallaOpcion) => m.es_vigente === 1) || rows[0];
+}
+
 interface ImportPreview {
   totalRows: number;
   headers: string[];
@@ -378,7 +388,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       .then(rows => {
         if (Array.isArray(rows)) {
           setMallas(rows);
-          const vigente = rows.find((m: MallaOpcion) => m.es_vigente === 1) || rows[0];
+          const vigente = pickMallaVersion(rows, selCarrera);
           setSelMallaId(vigente?.id_malla ?? null);
         }
       })
@@ -509,6 +519,9 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       || (a.orden || 999) - (b.orden || 999);
   }).slice(0, 14);
   const totalCreditos = vision360?.malla.total_creditos ?? allCursos.reduce((sum, curso) => sum + (Number(curso.creditos) || 0), 0);
+  const cursosAlineados = allCursos.filter(curso => curso.estado === 'alineado').length;
+  const cursosRevision = allCursos.filter(curso => curso.estado === 'riesgo' || curso.estado === 'critico').length;
+  const cursosPrioritariosTotal = cursosPrioridad.filter(curso => curso.estado === 'riesgo' || curso.estado === 'critico').length;
   const sumillasCount = Object.keys(vision360?.cursos.sumillas || {}).length;
   const hasStructuredVision = Boolean(
     vision360?.fundamento
@@ -696,6 +709,33 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
 
       {activeTab === 'mapa' && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 14, color: muted, marginBottom: 2 }}>Carrera</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0, fontSize: 24, lineHeight: 1.15, fontWeight: 900, color: USIL }}>
+                {mallaActual?.nombre_carrera || selCarrera || 'Selecciona una carrera'}
+              </h1>
+              <span style={{ background: '#e5e7eb', color: text, border: `1px solid ${border}`, borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 900 }}>
+                {mallaActual?.nombre_version || 'Plan vigente'}
+              </span>
+              <span style={{ background: '#bbf7d0', color: '#065f46', borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                Tendencia
+                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>trending_up</span>
+                Estable
+              </span>
+            </div>
+          </div>
+          {mallaActual && (
+            <div style={{ fontSize: 11, color: muted, textAlign: 'right' }}>
+              {mallaActual.nombre_facultad} / {totalCreditos || '-'} creditos
+            </div>
+          )}
+        </div>
+      )}
+
+
+      {activeTab === 'mapa' && (
         <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, padding: '12px 16px', display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,45,114,0.06)' }}>
           <div style={{ fontSize: 12, fontWeight: 900, color: text, paddingRight: 14, borderRight: `1px solid ${border}` }}>
             Evidencia que alimenta este analisis
@@ -747,7 +787,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
       {activeTab === 'mapa' && (
         <>
-          <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden' }}>
+          <div style={{ display: 'none', background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden' }}>
             <div style={{ padding: '16px 18px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 800, color: muted, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 4 }}>
@@ -802,7 +842,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
           </div>
 
           {hasStructuredVision ? (
-            <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,45,114,0.06)' }}>
+            <div style={{ display: 'none', background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,45,114,0.06)' }}>
               <div style={{ padding: '14px 18px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 900, color: CYAN, letterSpacing: '.9px', textTransform: 'uppercase', marginBottom: 4 }}>
@@ -850,20 +890,21 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               </div>
             </div>
           ) : (
-            <div style={{ background: card, borderRadius: 12, border: `1px dashed ${border}`, padding: '18px 20px', color: muted, fontSize: 12 }}>
+            <div style={{ display: 'none', background: card, borderRadius: 12, border: `1px dashed ${border}`, padding: '18px 20px', color: muted, fontSize: 12 }}>
               Selecciona Educacion Inicial o Educacion Secundaria con Especialidad en Ingles para ver la estructura enriquecida del Excel: perfil, competencias, menciones, electivos, sumillas y prompt de analisis.
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(150px, 1fr))', gap: 12 }}>
             {[
+              { label: 'Indice de Alineacion', value: `${kpis.pctAlineacionPromedio ?? kpis.pctAlineado}%`, badge: 'IA', note: 'Lectura integral de pertinencia curricular.', accent: USIL, badgeBg: '#dbeafe', badgeText: '#1d4ed8' },
               { label: 'En Riesgo / Crítico',     value: `${kpis.pctRiesgo}%`,       badge: `${kpis.criticos} cursos`,  note: 'Cursos con obsolescencia alta o riesgo.',     accent: '#ef4444', badgeBg: '#fee2e2', badgeText: '#991b1b' },
               { label: 'Alineación Actual',        value: `${kpis.pctAlineado}%`,     badge: `${kpis.totalCursos} total`, note: 'Cumple con competencias core actuales.',      accent: '#22c55e', badgeBg: '#dcfce7', badgeText: '#166534' },
               { label: 'Oportunidades Emergentes', value: String(kpis.oportunidades), badge: 'Nuevas tendencias',          note: 'Posibilidad de integrar micro-credenciales.', accent: '#3b82f6', badgeBg: '#dbeafe', badgeText: '#1d4ed8' },
               { label: 'Cursos Críticos',          value: String(kpis.criticos),      badge: 'Requieren revisión',         note: 'Alerta de desactualización inmediata.',       accent: '#f97316', badgeBg: '#ffedd5', badgeText: '#9a3412' },
             ].map((k, i) => (
               <div key={i} style={{ background: card, borderRadius: 10, padding: '14px 16px',
-                borderLeft: `4px solid ${k.accent}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                borderTop: `4px solid ${k.accent}`, boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>
                 <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: muted, marginBottom: 6 }}>
                   {k.label}
                 </div>
@@ -885,11 +926,11 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               Selecciona una carrera para ver el mapa de malla curricular
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12, flex: 1, minHeight: 0 }}>
+            <div style={{ display: 'block' }}>
 
 
               <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`,
-                padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0 }}>
                   <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: USIL }}>
                     {vistaMapa === 'malla' ? 'Mapa de malla por ciclos' : 'Matriz de prioridad curricular'}
@@ -918,7 +959,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                   </div>
                 </div>
 
-                <div style={{ overflowX: 'auto', overflowY: 'auto', flex: 1,
+                <div style={{ overflowX: 'auto', overflowY: 'visible',
                   paddingBottom: 8, scrollbarWidth: 'thin', scrollbarColor: `${border} transparent` }}>
                   {ciclos.length === 0 ? (
                     <div style={{ padding: 40, textAlign: 'center', color: muted, fontSize: 12 }}>
@@ -955,7 +996,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                   ) : (
                     <div style={{ display: 'flex', gap: 10, minWidth: 'max-content' }}>
                       {ciclos.map(ciclo => (
-                        <div key={ciclo.numero} style={{ width: 168, flexShrink: 0 }}>
+                        <div key={ciclo.numero} style={{ width: 240, flexShrink: 0, background: isDark ? '#0f172a' : '#f1f4f7', borderRadius: 8, padding: 8 }}>
                           <div style={{ textAlign: 'center', fontWeight: 800, fontSize: 12, color: USIL,
                             background: '#eef2f6', borderRadius: 8, padding: '7px 4px', marginBottom: 8,
                             border: '1px solid #c7d2e0' }}>
@@ -1010,7 +1051,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
 
               <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`,
-                display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+                display: 'none', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
                 <div style={{ background: USIL, color: '#fff', padding: '14px 16px', flexShrink: 0 }}>
                   <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px',
                     color: 'rgba(147,197,253,0.9)', marginBottom: 4 }}>
@@ -1228,6 +1269,50 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                 </div>
               </div>
             </div>
+          )}
+
+          {hasStructuredVision && (
+            <section style={{ background: card, borderRadius: 10, borderLeft: `4px solid ${USIL}`, padding: 20, boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 260 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                    <span className="material-symbols-outlined" style={{ color: CYAN, fontSize: 20 }}>temp_preferences_custom</span>
+                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: USIL }}>Lectura Estrategica con IA</h2>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
+                    {[
+                      { icon: 'school', title: 'Perfil y competencias', body: `${vision360?.competencias.length ?? 0} competencias y ${sumillasCount} sumillas disponibles para cruce.` },
+                      { icon: 'workspace_premium', title: 'Menciones', body: `${vision360?.menciones.length ?? 0} rutas con cursos asociados para certificaciones.` },
+                      { icon: 'psychology', title: 'Prompt IA', body: 'Genera brechas, cursos afectados y acciones sin inventar data fuera de la BD.' },
+                    ].map(item => (
+                      <div key={item.title} style={{ display: 'flex', gap: 10 }}>
+                        <span className="material-symbols-outlined" style={{ color: CYAN, fontSize: 18, marginTop: 2 }}>{item.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 900, color: text, marginBottom: 3 }}>{item.title}</div>
+                          <div style={{ fontSize: 12, color: muted, lineHeight: 1.45 }}>{item.body}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={handleCopyPrompt}
+                    style={{ height: 40, padding: '0 14px', borderRadius: 8, border: `1px solid ${border}`,
+                      background: card, color: USIL, cursor: 'pointer', fontSize: 12, fontWeight: 800,
+                      display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{promptCopied ? 'check' : 'content_copy'}</span>
+                    {promptCopied ? 'Copiado' : 'Copiar prompt'}
+                  </button>
+                  <button onClick={() => switchTab('impacto')}
+                    style={{ height: 40, padding: '0 18px', borderRadius: 8, border: 'none',
+                      background: USIL, color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 900,
+                      display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(0,40,85,0.25)' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>assignment_add</span>
+                    Generar Plan de Accion
+                  </button>
+                </div>
+              </div>
+            </section>
           )}
 
           {vision360 && (vision360.menciones.length > 0 || vision360.electivos.length > 0 || vision360.competencias.length > 0) && (
