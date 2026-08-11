@@ -448,8 +448,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       ]);
       if (Array.isArray(ciclosData)) {
         setCiclos(ciclosData);
-        const primero = ciclosData.flatMap((c: CicloData) => c.cursos).find((c: Curso) => c.estado !== null) ?? ciclosData[0]?.cursos[0] ?? null;
-        setSelectedCurso(primero);
+        setSelectedCurso(null);
       }
       if (!kpisData.error) setKpis(kpisData);
       setVision360(!visionData.error ? visionData : null);
@@ -461,6 +460,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
   const [analyzingMapa, setAnalyzingMapa] = useState(false);
   const [analyzeMapaError, setAnalyzeMapaError] = useState<string | null>(null);
+  const [analyzeMapaResumen, setAnalyzeMapaResumen] = useState<{ analizados: number; omitidos: number; errores: number; total: number } | null>(null);
 
   const [cursoEvidencia, setCursoEvidencia] = useState<EvidenciaCursoData | null>(null);
   const [loadingEvidencia, setLoadingEvidencia] = useState(false);
@@ -484,6 +484,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
     if (!selCarreraId || !selMallaId) return;
     setAnalyzingMapa(true);
     setAnalyzeMapaError(null);
+    setAnalyzeMapaResumen(null);
     try {
       const r = await fetch(`/api/curricular/analizar-mapa/${selCarreraId}`, {
         method: 'POST',
@@ -495,6 +496,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       if (!r.ok || d.error) {
         setAnalyzeMapaError(d.error || 'No se pudo analizar el mapa curricular');
       } else {
+        setAnalyzeMapaResumen(d);
         await fetchMalla();
       }
     } catch (e: any) {
@@ -822,6 +824,13 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               </button>
               {analyzeMapaError && (
                 <span style={{ fontSize: 10, color: '#ba1a1a', maxWidth: 260 }}>{analyzeMapaError}</span>
+              )}
+              {analyzeMapaResumen && (
+                <span style={{ fontSize: 10, color: analyzeMapaResumen.analizados > 0 ? '#166534' : '#9a3412', maxWidth: 260 }}>
+                  {analyzeMapaResumen.analizados} de {analyzeMapaResumen.total} cursos analizados
+                  {analyzeMapaResumen.omitidos > 0 ? ` (${analyzeMapaResumen.omitidos} sin evidencia relacionada)` : ''}
+                  {analyzeMapaResumen.errores > 0 ? ` · ${analyzeMapaResumen.errores} con error` : ''}
+                </span>
               )}
             </div>
           )}
@@ -1232,7 +1241,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               <div style={{ padding: '16px 18px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexShrink: 0 }}>
                 <div>
                   <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: CYAN, marginBottom: 4 }}>
-                    Lectura Estratégica con IA
+                    Análisis IA del curso
                   </div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: USIL, fontFamily: FONT_HEAD, lineHeight: 1.25 }}>{selectedCurso.nombre}</div>
                   <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>
@@ -1284,7 +1293,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
                 <div>
                   <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: muted, marginBottom: 8 }}>
-                    ¿Por qué CIE lo señala?
+                    ¿Por qué CIEE lo señala?
                   </div>
                   {loadingEvidencia ? (
                     <div style={{ fontSize: 11, color: muted }}>Cargando evidencia…</div>
@@ -1350,7 +1359,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                 {selectedCurso.recomendaciones.length > 0 && (
                   <div>
                     <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: USIL, marginBottom: 8 }}>
-                      Recomendación CIE
+                      Recomendación CIEE
                     </div>
                     <div style={{ background: isDark ? '#1e293b' : SURFACE_LOW, border: `1px solid ${border}`, borderRadius: 8, padding: '10px 12px' }}>
                       <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
@@ -1408,12 +1417,10 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
           )}
 
           {showEvidenciaModal && selectedCurso && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', zIndex: 60,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-              onClick={e => { if (e.target === e.currentTarget) setShowEvidenciaModal(false); }}>
-              <div style={{ background: card, borderRadius: 14, width: 780, maxWidth: '96vw', maxHeight: '88vh',
-                overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.35)' }}>
-                <div style={{ padding: '18px 24px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'sticky', top: 0, background: card, zIndex: 1 }}>
+            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 460, maxWidth: '92vw',
+              background: card, boxShadow: '-8px 0 32px rgba(0,0,0,0.25)', zIndex: 46,
+              overflowY: 'auto', borderLeft: `1px solid ${border}` }}>
+                <div style={{ padding: '18px 22px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'sticky', top: 0, background: card, zIndex: 1 }}>
                   <div>
                     <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: USIL, fontFamily: FONT_HEAD }}>Evidencia del análisis</h2>
                     <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
@@ -1440,7 +1447,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                 <div style={{ padding: '16px 24px' }}>
                   {(selectedCurso.gaps[0] || selectedCurso.recomendaciones[0]?.texto) && (
                     <div style={{ borderLeft: `4px solid ${CYAN}`, background: isDark ? '#0f172a' : SURFACE_LOW, padding: '12px 14px', borderRadius: 8, marginBottom: 16, fontSize: 12, color: text, lineHeight: 1.5 }}>
-                      <strong>Interpretación CIE:</strong> {selectedCurso.gaps[0] || selectedCurso.recomendaciones[0]?.texto}
+                      <strong>Interpretación CIEE:</strong> {selectedCurso.gaps[0] || selectedCurso.recomendaciones[0]?.texto}
                     </div>
                   )}
 
@@ -1531,7 +1538,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                   <div style={{ marginTop: 18, background: USIL, color: '#fff', borderRadius: 10, padding: '14px 18px',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                     <div style={{ fontSize: 12, lineHeight: 1.4 }}>
-                      <strong>Conclusión CIE:</strong> {convergenciaAlta >= 2
+                      <strong>Conclusión CIEE:</strong> {convergenciaAlta >= 2
                         ? 'Existe convergencia suficiente para recomendar revisión curricular.'
                         : fuentesCount > 0
                           ? 'Hay evidencia parcial; se recomienda monitorear antes de una revisión formal.'
@@ -1552,7 +1559,6 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                     </p>
                   )}
                 </div>
-              </div>
             </div>
           )}
 
