@@ -159,6 +159,25 @@ function compactText(value?: string | null, max = 280) {
   return clean.length > max ? `${clean.slice(0, max).trim()}...` : clean;
 }
 
+function normalizeCurricularName(value?: string | null) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function pickRichCurricularCareer(carreras: FiltrosData['carreras']) {
+  const enrichedCareers = [
+    'educacion inicial',
+    'educacion secundaria con especialidad en ingles',
+  ];
+  return carreras.find(c => enrichedCareers.includes(normalizeCurricularName(c.nombre_carrera)))
+    ?? carreras.find(c => normalizeCurricularName(c.nombre_facultad).includes('educacion'))
+    ?? carreras[0];
+}
+
 interface ImportPreview {
   totalRows: number;
   headers: string[];
@@ -301,6 +320,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   const [vision360,    setVision360]   = useState<Vision360Data | null>(null);
   const [vistaMapa,    setVistaMapa]   = useState<'malla' | 'prioridad'>('malla');
   const [loading,      setLoading]     = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   const [selectedCurso, setSelectedCurso] = useState<Curso | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -335,11 +355,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
         if (!d.error) {
           setFiltros(d);
           if (d.carreras?.length) {
-            const preferida = d.carreras.find((c: FiltrosData['carreras'][number]) =>
-              c.nombre_facultad === 'Arquitectura'
-              && c.nombre_carrera === 'Arquitectura, Urbanismo y Territorio'
-            );
-            const primera = preferida ?? d.carreras[0];
+            const primera = pickRichCurricularCareer(d.carreras);
             setSelFacultad(primera.nombre_facultad);
             setSelCarrera(primera.nombre_carrera);
             setSelCarreraId(primera.id_carrera);
@@ -402,7 +418,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
     const carrerasDeFac = fac === 'Todas'
       ? filtros.carreras
       : filtros.carreras.filter(c => c.nombre_facultad === fac);
-    const primera = carrerasDeFac[0];
+    const primera = pickRichCurricularCareer(carrerasDeFac);
     if (primera) {
       setSelCarrera(primera.nombre_carrera);
       setSelCarreraId(primera.id_carrera);
@@ -466,7 +482,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
             if (!df.error) {
               setFiltros(df);
               if (df.carreras?.length && selCarrera === 'Todas') {
-                const primera = df.carreras[0];
+                const primera = pickRichCurricularCareer(df.carreras);
                 setSelFacultad(primera.nombre_facultad);
                 setSelCarrera(primera.nombre_carrera);
                 setSelCarreraId(primera.id_carrera);
@@ -493,6 +509,54 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       || (a.orden || 999) - (b.orden || 999);
   }).slice(0, 14);
   const totalCreditos = vision360?.malla.total_creditos ?? allCursos.reduce((sum, curso) => sum + (Number(curso.creditos) || 0), 0);
+  const sumillasCount = Object.keys(vision360?.cursos.sumillas || {}).length;
+  const hasStructuredVision = Boolean(
+    vision360?.fundamento
+    || (vision360?.competencias.length ?? 0) > 0
+    || (vision360?.menciones.length ?? 0) > 0
+    || (vision360?.electivos.length ?? 0) > 0
+    || sumillasCount > 0
+  );
+  const promptAnalisisCurricular = vision360 && mallaActual ? [
+    `Actua como especialista senior en diseno curricular universitario para USIL.`,
+    `Analiza la malla "${mallaActual.nombre_carrera}" (${mallaActual.nombre_version}) usando solo la informacion oficial estructurada en la base de datos.`,
+    ``,
+    `Datos disponibles:`,
+    `- Codigo del programa: ${vision360.fundamento?.codigoPrograma || 'no registrado'}`,
+    `- Grado: ${vision360.fundamento?.gradoOtorgado || 'no registrado'}`,
+    `- Titulo: ${vision360.fundamento?.tituloOtorgado || 'no registrado'}`,
+    `- Cursos: ${allCursos.length}`,
+    `- Creditos: ${totalCreditos || 'no registrado'}`,
+    `- Competencias: ${vision360.competencias.length}`,
+    `- Sumillas: ${sumillasCount}`,
+    `- Menciones/certificaciones: ${vision360.menciones.length}`,
+    `- Electivos: ${vision360.electivos.length}`,
+    ``,
+    `Perfil de egreso:`,
+    compactText(vision360.fundamento?.perfilEgreso, 900) || 'No registrado.',
+    ``,
+    `Menciones:`,
+    vision360.menciones.length
+      ? vision360.menciones.map(m => `- ${m.nombre}: ${m.cursos.map(c => c.nombreCurso).join('; ')}`).join('\n')
+      : '- No hay menciones registradas.',
+    ``,
+    `Tareas:`,
+    `1. Cruza perfil de egreso, competencias, sumillas, cursos y menciones para detectar brechas reales.`,
+    `2. Senala los cursos afectados por ciclo y el tipo de ajuste sugerido.`,
+    `3. Propone acciones curriculares con prioridad alta, media o baja.`,
+    `4. No inventes cursos, competencias ni menciones fuera de la base de datos.`,
+  ].join('\n') : '';
+
+  const handleCopyPrompt = async () => {
+    if (!promptAnalisisCurricular) return;
+    try {
+      await navigator.clipboard.writeText(promptAnalisisCurricular);
+      setPromptCopied(true);
+      window.setTimeout(() => setPromptCopied(false), 1800);
+    } catch {
+      setPromptCopied(false);
+    }
+  };
 
   const handleExportMapaExcel = async () => {
     if (!mallaActual) return;
@@ -639,7 +703,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
           {[
             { icon: 'school', label: 'Malla USIL', detail: `${allCursos.length} cursos` },
             { icon: 'hub', label: 'Competencias', detail: `${vision360?.competencias.length ?? 0} registradas` },
-            { icon: 'description', label: 'Sumillas', detail: `${Object.keys(vision360?.cursos.sumillas || {}).length} cursos` },
+            { icon: 'description', label: 'Sumillas', detail: `${sumillasCount} cursos` },
             { icon: 'query_stats', label: 'Benchmark', detail: 'Referentes mapeados' },
             { icon: 'workspace_premium', label: 'Menciones', detail: `${vision360?.menciones.length ?? 0} rutas` },
           ].map(item => (
@@ -736,6 +800,60 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               </div>
             </div>
           </div>
+
+          {hasStructuredVision ? (
+            <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,45,114,0.06)' }}>
+              <div style={{ padding: '14px 18px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 900, color: CYAN, letterSpacing: '.9px', textTransform: 'uppercase', marginBottom: 4 }}>
+                    Lectura estrategica con IA
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: USIL }}>
+                    Prompt curricular alimentado por la BD
+                  </div>
+                  <div style={{ fontSize: 11, color: muted, marginTop: 3 }}>
+                    Usa perfil, competencias, sumillas, menciones, electivos y cursos de la malla seleccionada.
+                  </div>
+                </div>
+                <button onClick={handleCopyPrompt}
+                  style={{ height: 36, padding: '0 14px', borderRadius: 8, border: 'none',
+                    background: USIL, color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 800,
+                    display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
+                    {promptCopied ? 'check' : 'content_copy'}
+                  </span>
+                  {promptCopied ? 'Copiado' : 'Copiar prompt'}
+                </button>
+              </div>
+              <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 }}>
+                {[
+                  { label: 'Perfil', value: vision360?.fundamento?.perfilEgreso ? 'Registrado' : 'Pendiente' },
+                  { label: 'Competencias', value: `${vision360?.competencias.length ?? 0}` },
+                  { label: 'Sumillas', value: `${sumillasCount}` },
+                  { label: 'Menciones', value: `${vision360?.menciones.length ?? 0}` },
+                  { label: 'Electivos', value: `${vision360?.electivos.length ?? 0}` },
+                ].map(item => (
+                  <div key={item.label} style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '9px 11px', background: isDark ? '#0f172a' : '#f8fafc' }}>
+                    <div style={{ fontSize: 9, fontWeight: 900, color: muted, textTransform: 'uppercase', letterSpacing: '.7px' }}>{item.label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: USIL, marginTop: 3 }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding: '0 18px 16px' }}>
+                <pre style={{ margin: 0, maxHeight: 190, overflowY: 'auto', whiteSpace: 'pre-wrap',
+                  border: `1px solid ${border}`, borderRadius: 8, padding: 12,
+                  background: isDark ? '#020617' : '#f8fafc', color: text,
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                  fontSize: 11, lineHeight: 1.45 }}>
+                  {promptAnalisisCurricular}
+                </pre>
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: card, borderRadius: 12, border: `1px dashed ${border}`, padding: '18px 20px', color: muted, fontSize: 12 }}>
+              Selecciona Educacion Inicial o Educacion Secundaria con Especialidad en Ingles para ver la estructura enriquecida del Excel: perfil, competencias, menciones, electivos, sumillas y prompt de analisis.
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
             {[
