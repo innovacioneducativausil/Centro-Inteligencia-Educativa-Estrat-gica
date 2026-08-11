@@ -137,6 +137,7 @@ const EST: Record<EstadoCurso, { bg: string; border: string; label: string; text
 };
 
 const USIL = '#002855';
+const CYAN = '#00AEEF';
 
 const IMP_COLOR: Record<string, { bg: string; text: string }> = {
   ALTO:  { bg: '#dcfce7', text: '#166534' },
@@ -551,8 +552,8 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
     <div style={{ padding: '14px 20px', background: bg, minHeight: '100%', color: text, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
 
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
+      <div style={{ display: 'none',
+        alignItems: 'center', gap: 10,
         padding: '10px 16px', borderRadius: 10,
         background: '#FFF7ED', border: '1.5px solid #FED7AA',
         boxShadow: '0 2px 8px rgba(251,146,60,0.12)',
@@ -626,6 +627,30 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               Exportar Excel
             </button>
           )}
+        </div>
+      )}
+
+
+      {activeTab === 'mapa' && (
+        <div style={{ background: card, borderRadius: 12, border: `1px solid ${border}`, padding: '12px 16px', display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,45,114,0.06)' }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: text, paddingRight: 14, borderRight: `1px solid ${border}` }}>
+            Evidencia que alimenta este analisis
+          </div>
+          {[
+            { icon: 'school', label: 'Malla USIL', detail: `${allCursos.length} cursos` },
+            { icon: 'hub', label: 'Competencias', detail: `${vision360?.competencias.length ?? 0} registradas` },
+            { icon: 'description', label: 'Sumillas', detail: `${Object.keys(vision360?.cursos.sumillas || {}).length} cursos` },
+            { icon: 'query_stats', label: 'Benchmark', detail: 'Referentes mapeados' },
+            { icon: 'workspace_premium', label: 'Menciones', detail: `${vision360?.menciones.length ?? 0} rutas` },
+          ].map(item => (
+            <div key={item.label} style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 140 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 20, color: CYAN }}>{item.icon}</span>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 900, color: text, lineHeight: 1.2 }}>{item.label}</div>
+                <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>{item.detail}</div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
