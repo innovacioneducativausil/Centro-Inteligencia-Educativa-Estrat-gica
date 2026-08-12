@@ -174,7 +174,10 @@ async function callGroqWithBackoff(prompt) {
  * timeout de un proveedor que ya sabemos que va a fallar en cada curso.
  */
 async function callLLM(prompt, providerState = {}) {
-  const hfKey = process.env.HF_API_KEY;
+  // Clave dedicada exclusivamente a este motor (aislada de HF_API_KEY, que
+  // usan otras features y ya agotó su cuota) — si no está configurada, cae
+  // a la compartida como respaldo.
+  const hfKey = process.env.HF_API_KEY_ANALISIS_CURSO || process.env.HF_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
 
   if (hfKey && hfKey !== 'hf_TU_TOKEN_AQUI' && !providerState.hfExhausted) {
