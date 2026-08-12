@@ -4,6 +4,7 @@
 import dbRadar      from '../db.js';
 import dbEmpl       from '../db_empl.js';
 import dbCurricular from '../db_curricular.js';
+import { getIdCarreraEmpleabilidad } from './carreraCorrespondenciaService.js';
 
 const PESOS_DEFAULT = { radar: 0.25, mercado_laboral: 0.25, empleabilidad: 0.30, benchmarking: 0.20 };
 
@@ -68,11 +69,24 @@ async function recogerEvidenciaRadar(idCarrera) {
 
 async function recogerEvidenciaEmpleabilidad(idCarrera) {
   try {
-    const [carreras] = await dbCurricular.query(
-      'SELECT nombre_carrera FROM carrera WHERE id_carrera = ? LIMIT 1', [idCarrera]
-    );
-    if (!carreras.length) return null;
-    const nombreCarrera = carreras[0].nombre_carrera;
+    // Preferir la correspondencia explícita por ID (evita el bug de matchear
+    // por nombre, que mezclaba egresados de "Marketing" pregrado con los de
+    // "Marketing" educación continua — mismo nombre, tipo_programa distinto).
+    const idCarreraEmpleabilidad = await getIdCarreraEmpleabilidad(idCarrera);
+
+    let whereClause;
+    let param;
+    if (idCarreraEmpleabilidad) {
+      whereClause = 'ca.id_carrera = ?';
+      param = idCarreraEmpleabilidad;
+    } else {
+      const [carreras] = await dbCurricular.query(
+        'SELECT nombre_carrera FROM carrera WHERE id_carrera = ? LIMIT 1', [idCarrera]
+      );
+      if (!carreras.length) return null;
+      whereClause = 'ca.nombre_carrera = ?';
+      param = carreras[0].nombre_carrera;
+    }
 
     const [[resumen]] = await dbEmpl.query(
       `SELECT
@@ -82,8 +96,8 @@ async function recogerEvidenciaEmpleabilidad(idCarrera) {
        FROM encuesta_anual ea
        JOIN egresado eg ON eg.id_egresado = ea.id_egresado
        JOIN carrera ca  ON ca.id_carrera  = eg.id_carrera
-       WHERE ca.nombre_carrera = ? AND ea.encuestado = 1`,
-      [nombreCarrera]
+       WHERE ${whereClause} AND ea.encuestado = 1`,
+      [param]
     ).catch(() => [[null]]);
 
     return resumen ?? null;

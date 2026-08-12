@@ -49,6 +49,7 @@ import actividadRouter from './routes/actividad.js';
 import alertasRouter from './routes/alertas.js';
 import { evaluarReglas } from './services/alertEngine.js';
 import { ensureEducationXlsmImported } from './services/curricularXlsmImportService.js';
+import { ensureCarreraCorrespondencia } from './services/carreraCorrespondenciaService.js';
 
 const app  = express();
 const PORT = process.env.API_PORT || 3001;
@@ -202,6 +203,7 @@ async function startServer() {
     await cleanupExpiredArchives();
     await cleanupOldActividad();
     await ensureEducationXlsmImported();
+    await ensureCarreraCorrespondencia();
   } catch (err) {
     logger.error(err?.message || 'No se pudo preparar soporte de esquema.', {
       context: 'SCHEMA',
