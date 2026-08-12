@@ -1388,7 +1388,12 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                     </div>
                     {selectedCursoSumilla?.sumilla && (
                       <p style={{ margin: '0 0 8px', fontSize: 11, color: text, lineHeight: 1.45 }}>
-                        <strong>Sumilla:</strong> {compactText(selectedCursoSumilla.sumilla, 300)}
+                        <strong>Sumilla:</strong> {String(selectedCursoSumilla.sumilla).replace(/\s+/g, ' ').trim()}
+                      </p>
+                    )}
+                    {selectedCursoSumilla?.resultado_aprendizaje && (
+                      <p style={{ margin: 0, fontSize: 11, color: text, lineHeight: 1.45 }}>
+                        <strong>Resultado de aprendizaje:</strong> {String(selectedCursoSumilla.resultado_aprendizaje).replace(/\s+/g, ' ').trim()}
                       </p>
                     )}
                   </div>

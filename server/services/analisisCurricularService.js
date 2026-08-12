@@ -23,8 +23,10 @@ Analizas UN curso de una malla curricular contra evidencia real (señales de mer
 tendencias del sector, empleabilidad de egresados y benchmarking contra otras universidades).
 REGLA CRÍTICA: Solo puedes razonar sobre la evidencia entregada en el prompt. Nunca inventes
 datos, cifras, tecnologías ni fuentes que no estén en la evidencia.
-Si la evidencia es débil o insuficiente, dilo explícitamente y usa "riesgo" o deja arrays vacíos
-en vez de inventar contenido.
+Si la evidencia es débil o insuficiente, dilo explícitamente y deja los arrays vacíos en vez de
+inventar contenido — pero igual elige el estado_alineacion que mejor describa lo que SÍ hay
+(no asumas "riesgo" por defecto; si la evidencia muestra una tendencia emergente sobre un curso
+ya alineado, es "oportunidad", no "riesgo").
 Devuelve ÚNICAMENTE un objeto JSON válido, sin markdown, sin texto adicional.`;
 
 function keywordsOf(text) {
@@ -100,6 +102,11 @@ function buildPrompt(curso, evidencia, emplEv) {
   lines.push(
     '',
     'Instrucciones de salida:',
+    '- "estado_alineacion", elige UNO según cuál describe mejor lo que muestra la evidencia (no por defecto "riesgo"):',
+    '  · "alineado": el curso ya cubre razonablemente lo que pide la evidencia, sin brecha relevante.',
+    '  · "riesgo": hay una brecha parcial y cubrible — falta contenido o profundidad, pero el curso sigue siendo relevante.',
+    '  · "critico": el curso está claramente desactualizado o desalineado frente a la evidencia — brecha grave.',
+    '  · "oportunidad": el curso YA está razonablemente alineado, pero la evidencia muestra una tendencia emergente (tecnología, habilidad o certificación nueva) que el curso podría incorporar para diferenciarse — no es una brecha que corregir, es una mejora que aprovechar.',
     '- "tendencias_impacto": hasta 4 frases cortas y concretas (no genéricas) sobre tendencias de mercado/sector que afectan a ESTE curso. Deja el array vacío [] si la evidencia no sustenta ninguna.',
     '- "brechas_detectadas": hasta 4 frases cortas y concretas sobre brechas de ESTE curso frente a la evidencia. Deja el array vacío [] si no hay evidencia de brechas.',
     '- Nunca copies literalmente estas instrucciones ni frases de ejemplo como contenido de los arrays; si no tienes contenido real, usa un array vacío.',

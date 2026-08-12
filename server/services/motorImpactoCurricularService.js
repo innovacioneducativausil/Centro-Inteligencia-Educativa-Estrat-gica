@@ -52,6 +52,7 @@ async function recogerEvidenciaRadar(idCarrera) {
               urgencia, impacto
        FROM senal
        WHERE estado = 'publicado' AND (${likeTerms})
+       ORDER BY id_senal
        LIMIT 10`,
       params
     );
@@ -60,6 +61,7 @@ async function recogerEvidenciaRadar(idCarrera) {
               NULL AS fuente_url, NULL AS fecha_publicacion, NULL AS urgencia, NULL AS impacto
        FROM tendencia
        WHERE estado = 'publicado' AND (${likeTerms.replace(/descripcion/g, 'descripcion')})
+       ORDER BY id_tendencia
        LIMIT 5`,
       params
     );
@@ -141,6 +143,7 @@ async function recogerEvidenciaBenchmarking(idCarrera) {
        JOIN programa_benchmark pb ON pb.id_programa_benchmark = cb.id_programa_benchmark
        JOIN universidad_benchmark ub ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
        WHERE pb.carrera_equivalente_id = ? AND pb.estado_extraccion IN ('verificado','procesado')
+       ORDER BY cb.id_competencia_benchmark
        LIMIT 50`,
       [idCarrera]
     );
