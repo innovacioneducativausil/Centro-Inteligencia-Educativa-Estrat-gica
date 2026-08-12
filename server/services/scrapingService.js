@@ -54,6 +54,10 @@ const SECTION_STOP_WORDS = [
   'conoce mas', 'conoce más', 'descarga brochure', 'postula', 'autoridades',
   'contacto', 'informacion general', 'información general', 'transparencia',
   'libro de reclamaciones', 'facebook', 'youtube', 'linkedin', 'instagram',
+  // Universidades internacionales publican en ingles — sin estos, sus paginas
+  // pasaban intactas por un filtro pensado solo para mallas peruanas.
+  'apply now', 'admissions', 'contact us', 'about us', 'general information',
+  'privacy policy', 'terms of use', 'accessibility', 'nondiscrimination',
 ];
 
 function normalizeText(value = '') {
@@ -70,6 +74,10 @@ const COURSE_NOISE_WORDS = [
   'estudia', 'estudiar', 'aprende', 'conoce', 'descubre', 'postula',
   'descarga', 'modalidad', 'duracion', 'grado academico', 'titulo profesional',
   'convenios', 'empleabilidad',
+  // Equivalente en ingles, para bulletins/catalogs de universidades extranjeras.
+  'why study', 'career outcomes', 'student outcomes', 'learning outcomes',
+  'mission statement', 'accreditation', 'tuition', 'financial aid',
+  'apply now', 'request information', 'download brochure',
 ];
 
 function getDomain(url = '') {
@@ -296,6 +304,22 @@ function isCurriculumMetadataLine(line = '') {
   if (/\b(creditos generales|creditos obligatorios|creditos electivos|creditaje total|niveles de las competencias|logro inicial|logro intermedio|logro final|fecha de aprobacion|rectificado al|sumilla|prerrequisito|pre requisito|requisito)\b/.test(n)) return true;
   if (/^(areas|cursos|creditaje total|total de creditos|total de horas|duracion|modalidad|turno|sede|campus)\s*\d*/.test(n)) return true;
   if (/\b(malla curricular|plan de estudios)\b.*\b(descarga|pdf|brochure|ingresantes|vigente)\b/.test(n)) return true;
+  // Bulletins/catalogs de universidades en ingles describen requisitos con
+  // frases de lista ("select one course from the areas above", "choose one
+  // of three", "one course selected from the following", "see list D on
+  // bulletin") en vez de nombrar el curso — sin este filtro, esas frases se
+  // guardaban como si fueran el nombre real de un curso (bug real detectado
+  // en la extracción de Stanford, pero el hueco era compartido por todas las
+  // fuentes internacionales, no solo esa).
+  if (/\bfrom the (following|areas?|list)\b/.test(n)) return true;
+  if (/\bsee (the )?(list|bulletin|catalog)\b/i.test(n)) return true;
+  if (/\b(select|selected|choose|chosen|chose)\b.*\bfrom\b/.test(n)) return true;
+  if (/^of (one|two|three|four|five|six|a|the)\b/.test(n)) return true;
+  if (/\bcourse descriptions?\b/.test(n)) return true;
+  if (/^(any|one|two|three|four) (of|from) (the|these|those)\b/.test(n)) return true;
+  if (/\b(units?|credits?)\s+(from|of|in)\s+the\b/.test(n)) return true;
+  if (/\brequirements?$/.test(n)) return true;
+  if (/^(descriptions?|overview|electives?|options?|notes?|footnotes?|prerequisites?|corequisites?)$/.test(n)) return true;
   return false;
 }
 
