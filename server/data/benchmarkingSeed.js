@@ -37,6 +37,10 @@ export const BENCHMARK_UNIVERSITIES = {
   STANFORD: { nombre: 'Stanford University', pais: 'Estados Unidos', ciudad: 'Stanford', web: 'https://www.stanford.edu/' },
   HARVARD: { nombre: 'Harvard University', pais: 'Estados Unidos', ciudad: 'Cambridge', web: 'https://www.harvard.edu/' },
   CALTECH: { nombre: 'California Institute of Technology', pais: 'Estados Unidos', ciudad: 'Pasadena', web: 'https://www.caltech.edu/' },
+  UNAD: { nombre: 'Universidad Nacional Abierta y a Distancia', pais: 'Colombia', ciudad: 'Bogota', web: 'https://www.unad.edu.co/' },
+  EAN: { nombre: 'Universidad EAN', pais: 'Colombia', ciudad: 'Bogota', web: 'https://universidadean.edu.co/' },
+  UNIANDES: { nombre: 'Universidad de los Andes', pais: 'Colombia', ciudad: 'Bogota', web: 'https://uniandes.edu.co/' },
+  ANAHUAC: { nombre: 'Universidad Anahuac Mexico', pais: 'Mexico', ciudad: 'Ciudad de Mexico', web: 'https://www.anahuac.mx/' },
 };
 
 const directBusiness = ['PUCP', 'UPC', 'ULIMA', 'UP', 'ESAN', 'UDEP'];

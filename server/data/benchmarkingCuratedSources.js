@@ -228,6 +228,65 @@ const URLS_BY_CAREER = {
     ['UPN', 'pagina_programa', 'Ingenieria Mecatronica UPN', 'https://www.upn.edu.pe/carrera/ingenieria-mecatronica'],
     ['UTEC', 'malla_curricular', 'Malla curricular Ingenieria Mecatronica UTEC', 'https://utec.edu.pe/carreras/ingenieria-mecatronica'],
   ],
+  CONTABILIDAD: [
+    ['PUCP', 'plan_estudios', 'Plan de estudios Contabilidad PUCP', 'https://facultad-ciencias-contables.pucp.edu.pe/carrera/plan-de-estudios/'],
+    ['ULIMA', 'malla_curricular', 'Malla curricular Contabilidad y Finanzas ULIMA 2025', 'https://www.ulima.edu.pe/sites/default/files/2025-01/malla-contabilidad-y-finanzas-2025.pdf'],
+    ['USMP', 'plan_estudios', 'Plan de estudios Contabilidad y Finanzas USMP 2023', 'https://fccef.usmp.edu.pe/pregrado__trashed/escuela-profesional-de-contabilidad-y-finanzas/plan-de-estudios-2023-contabilidad/'],
+    ['UTP', 'malla_curricular', 'Malla curricular Contabilidad UTP', 'https://www.utp.edu.pe/sites/default/files/mallas/MALLA_Contabilidad.pdf'],
+    ['UNMSM', 'plan_estudios', 'Plan de estudios Contabilidad UNMSM 2022', 'https://contabilidad.unmsm.edu.pe/wp-content/uploads/2025/01/PLAN-DE-ESTUDIOS-FINAL-2022-EP-CONTABILIDAD.pdf'],
+    ['UP', 'plan_estudios', 'Plan de estudios Contabilidad UP', 'https://www.up.edu.pe/carreras-postgrado-idiomas/carreras-pregrado/contabilidad/paginas/plan-estudios.aspx'],
+  ],
+  'ADMINISTRACION DE LA SALUD': [
+    ['UPCH', 'pagina_programa', 'Administracion en Salud UPCH', 'https://cayetano.edu.pe/pregrado/carreras/administracion-en-salud/'],
+  ],
+  'ADMINISTRACION Y GESTION AMBIENTAL': [
+    ['PUCP', 'plan_estudios', 'Plan de estudios Ingenieria Ambiental y Sostenible PUCP', 'https://facultad-ciencias-ingenieria.pucp.edu.pe/carreras/ingenieria-ambiental-y-sostenible/plan-de-estudios/'],
+    ['UPC', 'malla_curricular', 'Malla curricular Ingenieria Ambiental UPC', 'https://pregrado.upc.edu.pe/carrera-de-ingenieria-ambiental/malla-curricular/'],
+    ['UTEC', 'pagina_programa', 'Ingenieria Ambiental UTEC', 'https://utec.edu.pe/carreras/ingenieria-ambiental'],
+    ['UNI', 'malla_curricular', 'Malla curricular Ingenieria Ambiental UNI', 'https://fia.uni.edu.pe/wp-content/uploads/2024/02/MALLA-CURRICULAR-EPIA.pdf'],
+    ['UTP', 'malla_curricular', 'Malla curricular Ingenieria Ambiental UTP', 'https://www.utp.edu.pe/sites/default/files/mallas/MALLA_Ingenieria_Ambiental.pdf'],
+  ],
+  'EDUCACION CON ESPECIALIDAD EN CIENCIA Y TECNOLOGIA': [
+    ['PUCP', 'pagina_programa', 'Educacion Secundaria PUCP (especialidad Matematica/Ciencias)', 'https://www.pucp.edu.pe/carrera/educacion-secundaria/'],
+    ['PUCP', 'plan_estudios', 'Plan de estudios Educacion Secundaria PUCP 2023', 'https://facultad-educacion.pucp.edu.pe/wp-content/uploads/2023/04/Educacion-Secundaria2023.pdf'],
+    ['UNMSM', 'pagina_programa', 'Educacion Secundaria UNMSM', 'https://educacion.unmsm.edu.pe/formacion-academica/pregrado/educacion-con-especialidad-en-secundaria'],
+    ['UPC', 'malla_curricular', 'Malla curricular Educacion y Gestion del Aprendizaje UPC', 'https://pregrado.upc.edu.pe/carrera-de-educacion-y-gestion-del-aprendizaje/malla-curricular/'],
+  ],
+  'EDUCACION ESPECIALIDAD LETRAS Y HUMANIDADES': [
+    ['PUCP', 'pagina_programa', 'Educacion Secundaria PUCP (especialidad Ciencias Sociales)', 'https://www.pucp.edu.pe/carrera/educacion-secundaria/'],
+    ['PUCP', 'plan_estudios', 'Plan de estudios Educacion Secundaria PUCP 2023', 'https://facultad-educacion.pucp.edu.pe/wp-content/uploads/2023/04/Educacion-Secundaria2023.pdf'],
+    ['UNMSM', 'pagina_programa', 'Educacion Secundaria UNMSM', 'https://educacion.unmsm.edu.pe/formacion-academica/pregrado/educacion-con-especialidad-en-secundaria'],
+    ['UPC', 'malla_curricular', 'Malla curricular Educacion y Gestion del Aprendizaje UPC', 'https://pregrado.upc.edu.pe/carrera-de-educacion-y-gestion-del-aprendizaje/malla-curricular/'],
+  ],
+
+  // Alias: carreras cuyo nombre en BD difiere (abreviatura, sufijo, o nombre equivalente)
+  // pero corresponden al mismo programa ya curado arriba.
+  'ING. AGROINDUSTRIAL Y AGRONEGOCIOS': 'INGENIERIA AGROINDUSTRIAL',
+  'INGENIERIA AGROINDUSTRIAL Y AGRONEGOCIOS': 'INGENIERIA AGROINDUSTRIAL',
+  'ING. AMBIENTAL': 'INGENIERIA AMBIENTAL',
+  'ING. CIVIL': 'INGENIERIA CIVIL',
+  'ING. EN INDUSTRIAS ALIMENTARIAS': 'INGENIERIA EN INDUSTRIAS ALIMENTARIAS',
+  'ING. INDUSTRIAL Y COMERCIAL': 'INGENIERIA INDUSTRIAL Y COMERCIAL',
+  'ADMINISTRACION DE EMPRESAS': 'ADMINISTRACION',
+  'MARKETING Y GESTION COMERCIAL': 'MARKETING',
+  'COMUNICACION Y PUBLICIDAD': 'COMUNICACIONES',
+  'NEGOCIOS INTERNACIONALES': 'ECONOMIA Y NEGOCIOS INTERNACIONALES',
+  'ADMINISTRACION Y FINANZAS': 'ADMINISTRACION Y FINANZAS CORPORATIVAS',
+  'ING. EMPRESARIAL': 'INGENIERIA EMPRESARIAL',
+  'ING. EMPRESARIAL Y DE SISTEMAS': 'INGENIERIA EMPRESARIAL',
+  'INGENIERIA EMPRESARIAL Y DE SISTEMAS': 'INGENIERIA EMPRESARIAL',
+  'ING. INFORMATICA Y DE SISTEMAS': 'INGENIERIA DE SISTEMAS DE INFORMACION',
+  'INGENIERIA INFORMATICA Y DE SISTEMAS': 'INGENIERIA DE SISTEMAS DE INFORMACION',
+  'EDUCACION SECUNDARIA': 'EDUCACION SECUNDARIA CON ESPECIALIDAD EN INGLES',
+  'EDUC INICIAL INTERCULTURAL BILINGUE': 'EDUCACION INICIAL',
+  'EDUCACION INICIAL INTERCULTURAL BILINGUE': 'EDUCACION INICIAL',
+  'EDUCACION PRIMARIA INTERCULTURAL BILINGUE': 'EDUCACION INICIAL',
+  'GASTRONOMIA Y GESTION DE RESTAURANTES': 'GESTION E INNOVACION EN GASTRONOMIA',
+  'ECONOMIA': 'ECONOMIA Y FINANZAS',
+  // CPEL (modalidad para trabajadores) equivale a la carrera regular ya curada.
+  'ING. INDUSTRIAL': 'INGENIERIA INDUSTRIAL Y COMERCIAL',
+  'INGENIERIA INDUSTRIAL': 'INGENIERIA INDUSTRIAL Y COMERCIAL',
+  'GESTION AMBIENTAL EMPRESARIAL': 'ADMINISTRACION Y GESTION AMBIENTAL',
 };
 
 const INTERNATIONAL_URLS_BY_CAREER = {
@@ -464,6 +523,57 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
     ['CALTECH', 'plan_estudios', 'Caltech - Mechanical Engineering Option', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/mechanical-engineering-option-me/'],
   ],
+  CONTABILIDAD: [
+    ['AUSTRAL', 'pagina_programa', 'Universidad Austral - Contador Publico', 'https://www.austral.edu.ar/rosario/grado/admisiones/cp/'],
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - Contaduria Publica y Finanzas', 'https://admision.tec.mx/folleto/lcpf'],
+  ],
+  'ADMINISTRACION DE LA SALUD': [
+    ['UNAD', 'pagina_programa', 'UNAD Colombia - Administracion en Salud', 'https://estudios.unad.edu.co/plan-de-estudios-administracion-en-salud'],
+    ['EAN', 'pagina_programa', 'Universidad EAN Colombia - Administracion en Salud', 'https://universidadean.edu.co/programas/carreras-profesionales/carrera-de-administracion-en-salud'],
+  ],
+  'ADMINISTRACION Y GESTION AMBIENTAL': [
+    ['NAVARRA', 'plan_estudios', 'Universidad de Navarra - Grado en Ciencias Ambientales', 'https://www.unav.edu/web/grado-en-ciencias-ambientales/plan-de-estudios'],
+    ['UNIANDES', 'plan_estudios', 'Universidad de los Andes - Ingenieria Ambiental', 'https://aspirantes.uniandes.edu.co/es/plan-de-estudios-de-ingenier%C3%ADa-ambiental'],
+    ['ANAHUAC', 'pagina_programa', 'Universidad Anahuac Mexico - Ingenieria Ambiental', 'https://mexico.anahuac.mx/licenciaturas/ingenieria-ambiental'],
+  ],
+  'EDUCACION CON ESPECIALIDAD EN CIENCIA Y TECNOLOGIA': [
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - Education', 'https://tec.mx/en/education'],
+    ['USFQ', 'pagina_programa', 'USFQ - Education', 'https://www.usfq.edu.ec/en/undergraduate-programs/education'],
+    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+  ],
+  'EDUCACION ESPECIALIDAD LETRAS Y HUMANIDADES': [
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - Education', 'https://tec.mx/en/education'],
+    ['USFQ', 'pagina_programa', 'USFQ - Education', 'https://www.usfq.edu.ec/en/undergraduate-programs/education'],
+    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+  ],
+
+  // Alias: mismos que en URLS_BY_CAREER (ver comentario arriba).
+  'ING. AGROINDUSTRIAL Y AGRONEGOCIOS': 'INGENIERIA AGROINDUSTRIAL',
+  'INGENIERIA AGROINDUSTRIAL Y AGRONEGOCIOS': 'INGENIERIA AGROINDUSTRIAL',
+  'ING. AMBIENTAL': 'INGENIERIA AMBIENTAL',
+  'ING. CIVIL': 'INGENIERIA CIVIL',
+  'ING. EN INDUSTRIAS ALIMENTARIAS': 'INGENIERIA EN INDUSTRIAS ALIMENTARIAS',
+  'ING. INDUSTRIAL Y COMERCIAL': 'INGENIERIA INDUSTRIAL Y COMERCIAL',
+  'ADMINISTRACION DE EMPRESAS': 'ADMINISTRACION',
+  'MARKETING Y GESTION COMERCIAL': 'MARKETING',
+  'COMUNICACION Y PUBLICIDAD': 'COMUNICACIONES',
+  'NEGOCIOS INTERNACIONALES': 'ECONOMIA Y NEGOCIOS INTERNACIONALES',
+  'ADMINISTRACION Y FINANZAS': 'ADMINISTRACION Y FINANZAS CORPORATIVAS',
+  'ING. EMPRESARIAL': 'INGENIERIA EMPRESARIAL',
+  'ING. EMPRESARIAL Y DE SISTEMAS': 'INGENIERIA EMPRESARIAL',
+  'INGENIERIA EMPRESARIAL Y DE SISTEMAS': 'INGENIERIA EMPRESARIAL',
+  'ING. INFORMATICA Y DE SISTEMAS': 'INGENIERIA DE SISTEMAS DE INFORMACION',
+  'INGENIERIA INFORMATICA Y DE SISTEMAS': 'INGENIERIA DE SISTEMAS DE INFORMACION',
+  'EDUCACION SECUNDARIA': 'EDUCACION SECUNDARIA CON ESPECIALIDAD EN INGLES',
+  'EDUC INICIAL INTERCULTURAL BILINGUE': 'EDUCACION INICIAL',
+  'EDUCACION INICIAL INTERCULTURAL BILINGUE': 'EDUCACION INICIAL',
+  'EDUCACION PRIMARIA INTERCULTURAL BILINGUE': 'EDUCACION INICIAL',
+  'GASTRONOMIA Y GESTION DE RESTAURANTES': 'GESTION E INNOVACION EN GASTRONOMIA',
+  'ECONOMIA': 'ECONOMIA Y FINANZAS',
+  // CPEL (modalidad para trabajadores) equivale a la carrera regular ya curada.
+  'ING. INDUSTRIAL': 'INGENIERIA INDUSTRIAL Y COMERCIAL',
+  'INGENIERIA INDUSTRIAL': 'INGENIERIA INDUSTRIAL Y COMERCIAL',
+  'GESTION AMBIENTAL EMPRESARIAL': 'ADMINISTRACION Y GESTION AMBIENTAL',
 };
 
 const UNIVERSITY_ALIASES = {

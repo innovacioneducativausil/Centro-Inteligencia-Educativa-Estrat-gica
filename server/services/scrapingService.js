@@ -368,8 +368,35 @@ function sliceCatalogRequirementText(text = '', domain = '') {
   return text.slice(start, end);
 }
 
+function parseTecDeMonterreyPlan(rawHtml = '') {
+  const courses = [];
+  const seen = new Set();
+  const semesterRe = /encabezado--numero"[^>]*>\s*<span>(\d{1,2})<\/span>[\s\S]{0,400}?<ul class="planDeEstudios__semestre__materias">([\s\S]*?)<\/ul>/g;
+  let semMatch;
+  while ((semMatch = semesterRe.exec(rawHtml)) !== null) {
+    const ciclo = semMatch[1];
+    const block = semMatch[2];
+    const courseRe = /<li class="planDeEstudios__materia"[^>]*>([^<]+)<\/li>/g;
+    let courseMatch;
+    while ((courseMatch = courseRe.exec(block)) !== null) {
+      const name = cleanCatalogCourseTitle(decodeHtmlEntities(courseMatch[1]));
+      if (!isLikelyCourseName(name)) continue;
+      const key = `${ciclo}|${normalizeText(name)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      courses.push({ ciclo, nombreCurso: name, evidencia: courseMatch[0] });
+    }
+  }
+  if (courses.length < 3 || courses.length > 200) return [];
+  return courses;
+}
+
 function parseInternationalCatalogCourses(rawText = '', url = '') {
   const domain = getDomain(url);
+  if (/tec\.mx/i.test(domain)) {
+    return parseTecDeMonterreyPlan(rawText);
+  }
+
   const isSupportedCatalog = /(?:catalog\.mit\.edu|catalog\.caltech\.edu|bulletin\.stanford\.edu)/i.test(domain);
   if (!isSupportedCatalog) return [];
 
