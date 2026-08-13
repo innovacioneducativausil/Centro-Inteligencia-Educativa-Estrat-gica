@@ -402,9 +402,10 @@ function parseInternationalCatalogCourses(rawText = '', url = '') {
     let match;
     while ((match = re.exec(text)) !== null) addCourse(match[1].replace(/\s+/g, ' '), match[2], match[0]);
   } else if (/bulletin\.stanford\.edu/i.test(domain)) {
-    const courseNameRe = /\bcourse\s+(?!or\b|and\b|units\b)([A-Z][A-Za-z0-9 '&,()\-:]{5,95}?)(?=\s+course\b|\s+or\b|\s+and\b|<\/|\s+units?\b)/gi;
+    const code = String.raw`[A-Z][A-Z&]{1,9}\d{1,4}[A-Za-z]{0,2}`;
+    const re = new RegExp(String.raw`\b(${code})\s*-\s*(.+?)(?=\s+(?:${code})\s*-|\s+OR\s+${code}\b|\s+AND\s+${code}\b|\.\s+[A-Z]|$)`, 'g');
     let match;
-    while ((match = courseNameRe.exec(rawText)) !== null) addCourse('', decodeHtmlEntities(match[1]), match[0]);
+    while ((match = re.exec(text)) !== null) addCourse(match[1], decodeHtmlEntities(match[2]), match[0]);
   }
 
   if (courses.length < 3 || courses.length > 140) return [];
@@ -1582,7 +1583,13 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
 
 
   let parsed = null;
-  if (rawHtml) {
+
+  const knownCourses = knownCurriculumByOfficialUrl(urlFinalForStorage || url, parseContext);
+  if (knownCourses.length && shouldPreferKnownCurriculum(urlFinalForStorage || url, parseContext)) {
+    parsed = { parser: 'known_curriculum_map_v1', courses: knownCourses, status: 'parseado' };
+  }
+
+  if (!parsed && rawHtml) {
     const htmlParsed = parseHtmlCurriculumCourses(rawHtml, urlFinalForStorage || url);
     if (htmlParsed) {
       parsed = { ...htmlParsed, status: 'parseado' };
