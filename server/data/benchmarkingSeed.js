@@ -67,7 +67,8 @@ export const BENCHMARK_SEED_BY_CAREER = {
   'ARQUITECTURA, URBANISMO Y TERRITORIO': { direct: ['UPC', 'PUCP', 'ULIMA', 'URP', 'UNI', 'UPN', 'UTP', 'UCSUR'], international: ['MIT', 'HARVARD', 'TEC', 'USP', 'JAVERIANA', 'UC_CHILE', 'UBA', 'UAI_CHILE', 'USS_CHILE', 'UNAM'] },
   'ARTE Y DISENO EMPRESARIAL': { direct: ['PUCP', 'ULIMA', 'UPC', 'UDEP'], international: internationalCore },
   'MUSICA': { direct: ['PUCP', 'ULIMA', 'UPC'], international: internationalCore },
-  'CIENCIAS DE LA ACTIVIDAD FISICA Y DEL DEPORTE': { direct: ['UPC', 'UPT', 'UNICA'], international: internationalCore },
+  // TEC no ofrece este programa en su oferta vigente (verificado contra el catalogo 2024); se excluye del fallback.
+  'CIENCIAS DE LA ACTIVIDAD FISICA Y DEL DEPORTE': { direct: ['UPC', 'UPT', 'UNICA'], international: ['USFQ'] },
   'ENFERMERIA': { direct: directHealth, international: internationalCore },
   'MEDICINA HUMANA': { direct: directHealth, international: ['HARVARD', 'STANFORD', 'TEC'] },
   'NUTRICION Y DIETETICA': { direct: directHealth, international: internationalCore },
