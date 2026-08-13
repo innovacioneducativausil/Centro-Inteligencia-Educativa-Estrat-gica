@@ -343,6 +343,38 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     setActionLoading(p => ({ ...p, [idPrograma]: '' }));
   };
 
+  const handleScrapingBatch = async (idsAll: number[]) => {
+    if (!idsAll.length) return;
+    setActionLoading(p => ({ ...p, [-2]: 'scraping' }));
+    setProgramError(null);
+    setProgramNotice(null);
+    let ok = 0;
+    let fail = 0;
+    let cursosTotal = 0;
+    try {
+      for (let i = 0; i < idsAll.length; i += 10) {
+        const batch = idsAll.slice(i, i + 10);
+        const result = await apiFetch<{ results?: Array<{ ok: boolean; cursosDetectados?: number }> }>(
+          '/api/mercado-laboral/benchmarking/scraping',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: batch }),
+          }
+        );
+        (result.results || []).forEach(r => {
+          if (r.ok) { ok++; cursosTotal += r.cursosDetectados ?? 0; } else { fail++; }
+        });
+        setProgramNotice(`Re-extrayendo… ${Math.min(i + 10, idsAll.length)}/${idsAll.length} programas procesados.`);
+      }
+      setProgramNotice(`Re-extracción completada: ${ok} programas OK (${cursosTotal} cursos detectados en total), ${fail} con error. Revisa antes de validar.`);
+      loadProgramas();
+    } catch (e: any) {
+      setProgramError(e.message);
+    }
+    setActionLoading(p => ({ ...p, [-2]: '' }));
+  };
+
   const loadCandidates = async (idPrograma: number) => {
     try {
       setProgramError(null);
@@ -1019,6 +1051,16 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                           background: card, color: actionLoading[-1] ? muted : USIL, fontWeight: 700, fontSize: 12,
                           cursor: actionLoading[-1] ? 'not-allowed' : 'pointer' }}>
                         {actionLoading[-1] ? 'Buscando...' : 'Buscar fuentes de la carrera'}
+                      </button>
+                    )}
+                    {programasVisibles.length > 0 && (
+                      <button onClick={() => handleScrapingBatch(programasVisibles.map(p => p.id_programa_benchmark))}
+                        disabled={!!actionLoading[-2]}
+                        title="Vuelve a extraer todos los programas de esta carrera que ya tienen fuente aprobada — útil para refrescar con una versión corregida del extractor"
+                        style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`,
+                          background: card, color: actionLoading[-2] ? muted : USIL, fontWeight: 700, fontSize: 12,
+                          cursor: actionLoading[-2] ? 'not-allowed' : 'pointer' }}>
+                        {actionLoading[-2] ? 'Re-extrayendo...' : `Re-extraer todos (${programasVisibles.length})`}
                       </button>
                     )}
                     <button onClick={() => setShowAddProg(true)}
