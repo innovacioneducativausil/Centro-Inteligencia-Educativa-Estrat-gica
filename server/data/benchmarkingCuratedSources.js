@@ -636,9 +636,18 @@ function resolveCareerSources(careerName) {
   return [...national, ...international];
 }
 
+function escapeRegExp(value = '') {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function isUniversityMatch(code, universityName) {
   const normalized = normalize(universityName);
-  return (UNIVERSITY_ALIASES[code] || [code]).some(alias => normalized.includes(alias));
+  return (UNIVERSITY_ALIASES[code] || [code]).some(alias => {
+    // Word-boundary match: a short alias like 'TEC' must not match inside an
+    // unrelated word (e.g. 'Massachusetts Institute of TEChnology').
+    const re = new RegExp(`(^|[^A-Z])${escapeRegExp(alias)}([^A-Z]|$)`);
+    return re.test(normalized);
+  });
 }
 
 export function getCuratedBenchmarkSources(careerName, universityName) {
