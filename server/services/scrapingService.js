@@ -1199,7 +1199,7 @@ async function fetchText(url) {
     const res = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'user-agent': 'Mozilla/5.0 (compatible; AcademicBenchmarkBot/1.0; official-source-discovery)',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'accept': 'text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5',
       },
       redirect: 'follow',
@@ -1222,7 +1222,7 @@ async function fetchPdfText(url) {
     const res = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'user-agent': 'Mozilla/5.0 (compatible; AcademicBenchmarkBot/1.0; academic research)',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'accept': 'application/pdf,*/*',
       },
       redirect: 'follow',
