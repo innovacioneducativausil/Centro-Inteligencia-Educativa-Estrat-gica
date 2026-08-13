@@ -325,7 +325,8 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration Music', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
   'CIENCIAS DE LA ACTIVIDAD FISICA Y DEL DEPORTE': [
-    ['TEC', 'brochure_pdf', 'Tec de Monterrey - Physical Activity and Exercise catalogue', 'https://tec.mx/sites/default/files/repositorio/conocenos/sacscoc/catalogos/profesional/2017-eng.pdf'],
+    // TEC no ofrece esta carrera en su oferta vigente (0 menciones en el catalogo
+    // 2024); el PDF antiguo aqui no tenia malla real, solo texto de programas.
   ],
   ENFERMERIA: [
     ['NAVARRA', 'plan_estudios', 'Universidad de Navarra - Plan de estudios Enfermeria', 'https://www.unav.edu/web/grado-en-enfermeria/plan-de-estudios'],
