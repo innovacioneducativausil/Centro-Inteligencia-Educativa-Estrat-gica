@@ -423,6 +423,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
   COMUNICACIONES: [
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - Communication and Digital Production', 'https://tec.mx/en/humanities-and-education/ba-in-communication-and-digital-producion'],
     ['USFQ', 'malla_curricular', 'USFQ - Cine/Comunicacion Audiovisual portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1CIN&out=1'],
     ['STANFORD', 'plan_estudios', 'Stanford - Communication BA', 'https://bulletin.stanford.edu/programs/COMMU-BA'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],

@@ -665,6 +665,24 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
           );
         }
       }
+      if (curatedInternationalCodes.length) {
+        const internationalNames = curatedInternationalCodes
+          .map(code => BENCHMARK_UNIVERSITIES[code]?.nombre)
+          .filter(Boolean);
+        if (internationalNames.length) {
+          await db.query(
+            `UPDATE programa_benchmark pb
+             JOIN universidad_benchmark ub
+               ON ub.id_universidad_benchmark = pb.id_universidad_benchmark
+             SET pb.carrera_equivalente_id = NULL,
+                 pb.observaciones = CONCAT(COALESCE(pb.observaciones, ''), '\nRetirado de competencia internacional por no estar en el mapa curado vigente.')
+             WHERE pb.carrera_equivalente_id = ?
+               AND ub.tipo_benchmark = 'competencia_internacional'
+               AND ub.nombre_universidad NOT IN (?)`,
+            [carrera.id_carrera, internationalNames]
+          );
+        }
+      }
       const entries = [
         ...[...new Set(directCodes)].map(code => ({ code, tipo: 'competencia_directa' })),
         ...[...new Set(internationalCodes)].map(code => ({ code, tipo: 'competencia_internacional' })),
