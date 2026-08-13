@@ -300,11 +300,11 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['USFQ', 'pagina_programa', 'USFQ - College of Hospitality, Culinary Arts and Tourism', 'https://www.usfq.edu.ec/en/academic-colleges/college-hospitality-culinary-arts-and-tourism'],
   ],
   'ARTE CULINARIO': [
-    ['USFQ', 'brochure_pdf', 'USFQ - Malla Gastronomia PDF', 'https://www.usfq.edu.ec/sites/default/files/2020-07/malla_gastronomia.pdf'],
+    ['USFQ', 'malla_curricular', 'USFQ - Gastronomia portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1GST&out=1'],
     ['USFQ', 'pagina_programa', 'USFQ - College of Hospitality, Culinary Arts and Tourism', 'https://www.usfq.edu.ec/en/academic-colleges/college-hospitality-culinary-arts-and-tourism'],
   ],
   'GESTION E INNOVACION EN GASTRONOMIA': [
-    ['USFQ', 'brochure_pdf', 'USFQ - Malla Gastronomia PDF', 'https://www.usfq.edu.ec/sites/default/files/2020-07/malla_gastronomia.pdf'],
+    ['USFQ', 'malla_curricular', 'USFQ - Gastronomia portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1GST&out=1'],
   ],
   'ARQUITECTURA, URBANISMO Y TERRITORIO': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Arquitectura', 'https://tec.mx/en/architecture-art-and-design/ba-in-architecture'],
@@ -330,10 +330,9 @@ const INTERNATIONAL_URLS_BY_CAREER = {
   ],
   ENFERMERIA: [
     ['NAVARRA', 'plan_estudios', 'Universidad de Navarra - Plan de estudios Enfermeria', 'https://www.unav.edu/web/grado-en-enfermeria/plan-de-estudios'],
-    ['ROSARIO', 'plan_estudios', 'Universidad del Rosario - Enfermeria plan de estudios PDF', 'https://urosario.edu.co/sites/default/files/2022-06/Enfermeria-plan-de-estudios.pdf'],
-    ['ROSARIO', 'pagina_programa', 'Universidad del Rosario - Enfermeria', 'https://urosario.edu.co/en/node/70921'],
+    ['ROSARIO', 'pagina_programa', 'Universidad del Rosario - Enfermeria plan de estudios por semestre', 'https://urosario.edu.co/en/node/70921'],
+    ['AUSTRAL', 'plan_estudios', 'Universidad Austral - Enfermeria Plan de Estudios', 'https://www.austral.edu.ar/?jet_download=c5bf7ae1d46774da7aaa2dd6af86e9c74e556a85'],
     ['AUSTRAL', 'pagina_programa', 'Universidad Austral - Enfermeria', 'https://www.austral.edu.ar/carreras-de-grado/cienciasbiomedicas/enfermeria/'],
-    ['AUSTRAL', 'brochure_pdf', 'Universidad Austral - Enfermeria folleto 2025', 'https://www.austral.edu.ar/?jet_download=695280a2cc4431f5d7b092a9457e240118d0dbd4'],
   ],
   'MEDICINA HUMANA': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Physician and Surgeon', 'https://tec.mx/en/health-sciences/physician-and-surgeon'],
@@ -431,7 +430,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
   ],
   'RELACIONES INTERNACIONALES': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - International Relations', 'https://tec.mx/en/social-sciences-and-government/ba-in-international-relations'],
-    ['USFQ', 'brochure_pdf', 'USFQ - Relaciones Internacionales PDF', 'https://www.usfq.edu.ec/sites/default/files/2020-07/malla_relaciones_internacionales.pdf'],
+    ['USFQ', 'malla_curricular', 'USFQ - Relaciones Internacionales portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1REL&out=1'],
     ['USFQ', 'brochure_pdf', 'USFQ - Relaciones Internacionales PDF v2', 'https://www.usfq.edu.ec/sites/default/files/2020-10/malla-relaciones-internacionales.pdf'],
     ['STANFORD', 'plan_estudios', 'Stanford - International Relations BA', 'https://bulletin.stanford.edu/programs/INTLR-BA'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
@@ -443,19 +442,19 @@ const INTERNATIONAL_URLS_BY_CAREER = {
   ],
   'EDUCACION INICIAL': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
-    ['USFQ', 'pagina_programa', 'USFQ - Education', 'https://www.usfq.edu.ec/en/undergraduate-programs/education'],
+    ['USFQ', 'malla_curricular', 'USFQ - Educacion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1EDU&out=1'],
     ['STANFORD', 'plan_estudios', 'Stanford - Education MA', 'https://bulletin.stanford.edu/programs/ED-MA'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
   'EDUCACION SECUNDARIA CON ESPECIALIDAD EN INGLES': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
-    ['USFQ', 'pagina_programa', 'USFQ - Education', 'https://www.usfq.edu.ec/en/undergraduate-programs/education'],
+    ['USFQ', 'malla_curricular', 'USFQ - Educacion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1EDU&out=1'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
   'CIENCIA DE DATOS': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Data Science and AI', 'https://tec.mx/en/Engineering-and-Sciences/bs-in-data-science-and-artificial-intelligence'],
     ['TEC', 'pagina_programa', 'Tec de Monterrey - CS and Technology', 'https://tec.mx/en/computer-science-and-information-technologies/bs-in-computer-science-and-technology'],
-    ['USFQ', 'pagina_programa', 'USFQ - Computer Science', 'https://www.usfq.edu.ec/en/undergraduate-programs/computer-science'],
+    ['USFQ', 'malla_curricular', 'USFQ - Computacion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1CMP&out=1'],
     ['MIT', 'plan_estudios', 'MIT - CS Engineering Course 6-3', 'https://catalog.mit.edu/degree-charts/computer-science-engineering-course-6-3/'],
     ['MIT', 'plan_estudios', 'MIT - CS Economics and Data Science 6-14', 'https://catalog.mit.edu/degree-charts/master-computer-science-economics-data-science-course-6-14-p/'],
     ['STANFORD', 'plan_estudios', 'Stanford - CS BS', 'https://bulletin.stanford.edu/programs/CS-BS'],
@@ -495,7 +494,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
   'INGENIERIA DE SISTEMAS DE INFORMACION': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - CS and Technology', 'https://tec.mx/en/computer-science-and-information-technologies/bs-in-computer-science-and-technology'],
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Data Science and AI', 'https://tec.mx/en/Engineering-and-Sciences/bs-in-data-science-and-artificial-intelligence'],
-    ['USFQ', 'pagina_programa', 'USFQ - Computer Science', 'https://www.usfq.edu.ec/en/undergraduate-programs/computer-science'],
+    ['USFQ', 'malla_curricular', 'USFQ - Computacion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1CMP&out=1'],
     ['MIT', 'plan_estudios', 'MIT - CS Engineering Course 6-3', 'https://catalog.mit.edu/degree-charts/computer-science-engineering-course-6-3/'],
     ['STANFORD', 'plan_estudios', 'Stanford - CS BS', 'https://bulletin.stanford.edu/programs/CS-BS'],
     ['HARVARD', 'plan_estudios', 'Harvard - CS Concentration', 'https://csadvising.seas.harvard.edu/concentration/requirements/'],
@@ -503,7 +502,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
   ],
   'INGENIERIA DE SOFTWARE': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - CS and Technology', 'https://tec.mx/en/computer-science-and-information-technologies/bs-in-computer-science-and-technology'],
-    ['USFQ', 'pagina_programa', 'USFQ - Computer Science', 'https://www.usfq.edu.ec/en/undergraduate-programs/computer-science'],
+    ['USFQ', 'malla_curricular', 'USFQ - Computacion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1CMP&out=1'],
     ['MIT', 'plan_estudios', 'MIT - CS Engineering Course 6-3', 'https://catalog.mit.edu/degree-charts/computer-science-engineering-course-6-3/'],
     ['STANFORD', 'plan_estudios', 'Stanford - CS BS', 'https://bulletin.stanford.edu/programs/CS-BS'],
     ['HARVARD', 'plan_estudios', 'Harvard - CS Concentration', 'https://csadvising.seas.harvard.edu/concentration/requirements/'],
@@ -540,12 +539,12 @@ const INTERNATIONAL_URLS_BY_CAREER = {
   ],
   'EDUCACION CON ESPECIALIDAD EN CIENCIA Y TECNOLOGIA': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
-    ['USFQ', 'pagina_programa', 'USFQ - Education', 'https://www.usfq.edu.ec/en/undergraduate-programs/education'],
+    ['USFQ', 'malla_curricular', 'USFQ - Educacion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1EDU&out=1'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
   'EDUCACION ESPECIALIDAD LETRAS Y HUMANIDADES': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
-    ['USFQ', 'pagina_programa', 'USFQ - Education', 'https://www.usfq.edu.ec/en/undergraduate-programs/education'],
+    ['USFQ', 'malla_curricular', 'USFQ - Educacion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1EDU&out=1'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
 
