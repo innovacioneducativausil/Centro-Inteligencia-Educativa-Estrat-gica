@@ -390,7 +390,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
   'ECONOMIA Y FINANZAS': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Finance', 'https://tec.mx/en/business/ba-in-financial-management'],
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Finance and Accounting', 'https://tec.mx/en/business/ba-in-finance-and-accounting'],
-    ['TEC', 'pagina_programa', 'Tec de Monterrey - Law, Economics and IR', 'https://tec.mx/en/law-economics-international-relations'],
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - Economics', 'https://tec.mx/en/law-economics-international-relations/ba-in-economics'],
     ['USFQ', 'malla_curricular', 'USFQ - Administracion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1ADM&out=1'],
     ['MIT', 'plan_estudios', 'MIT - Economics Course 14', 'https://catalog.mit.edu/degree-charts/economics-course-14/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Economics BA', 'https://bulletin.stanford.edu/programs/ECON-BA'],
@@ -428,7 +428,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
   'RELACIONES INTERNACIONALES': [
-    ['TEC', 'pagina_programa', 'Tec de Monterrey - Law, Economics and IR', 'https://tec.mx/en/law-economics-international-relations'],
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - International Relations', 'https://tec.mx/en/social-sciences-and-government/ba-in-international-relations'],
     ['USFQ', 'brochure_pdf', 'USFQ - Relaciones Internacionales PDF', 'https://www.usfq.edu.ec/sites/default/files/2020-07/malla_relaciones_internacionales.pdf'],
     ['USFQ', 'brochure_pdf', 'USFQ - Relaciones Internacionales PDF v2', 'https://www.usfq.edu.ec/sites/default/files/2020-10/malla-relaciones-internacionales.pdf'],
     ['STANFORD', 'plan_estudios', 'Stanford - International Relations BA', 'https://bulletin.stanford.edu/programs/INTLR-BA'],
@@ -436,17 +436,17 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['MIT', 'plan_estudios', 'MIT - Political Science Course 17', 'https://catalog.mit.edu/degree-charts/political-science-course-17/'],
   ],
   DERECHO: [
-    ['TEC', 'pagina_programa', 'Tec de Monterrey - Law, Economics and IR', 'https://tec.mx/en/law-economics-international-relations'],
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - Law', 'https://tec.mx/en/social-sciences-and-government/ba-in-law'],
     ['USFQ', 'malla_curricular', 'USFQ - Derecho/Jurisprudencia portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1JUR&out=1'],
   ],
   'EDUCACION INICIAL': [
-    ['TEC', 'pagina_programa', 'Tec de Monterrey - Education', 'https://tec.mx/en/education'],
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
     ['USFQ', 'pagina_programa', 'USFQ - Education', 'https://www.usfq.edu.ec/en/undergraduate-programs/education'],
     ['STANFORD', 'plan_estudios', 'Stanford - Education MA', 'https://bulletin.stanford.edu/programs/ED-MA'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
   'EDUCACION SECUNDARIA CON ESPECIALIDAD EN INGLES': [
-    ['TEC', 'pagina_programa', 'Tec de Monterrey - Education', 'https://tec.mx/en/education'],
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
     ['USFQ', 'pagina_programa', 'USFQ - Education', 'https://www.usfq.edu.ec/en/undergraduate-programs/education'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
@@ -537,12 +537,12 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['ANAHUAC', 'pagina_programa', 'Universidad Anahuac Mexico - Ingenieria Ambiental', 'https://mexico.anahuac.mx/licenciaturas/ingenieria-ambiental'],
   ],
   'EDUCACION CON ESPECIALIDAD EN CIENCIA Y TECNOLOGIA': [
-    ['TEC', 'pagina_programa', 'Tec de Monterrey - Education', 'https://tec.mx/en/education'],
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
     ['USFQ', 'pagina_programa', 'USFQ - Education', 'https://www.usfq.edu.ec/en/undergraduate-programs/education'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
   'EDUCACION ESPECIALIDAD LETRAS Y HUMANIDADES': [
-    ['TEC', 'pagina_programa', 'Tec de Monterrey - Education', 'https://tec.mx/en/education'],
+    ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
     ['USFQ', 'pagina_programa', 'USFQ - Education', 'https://www.usfq.edu.ec/en/undergraduate-programs/education'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
   ],
