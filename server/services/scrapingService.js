@@ -368,6 +368,117 @@ function sliceCatalogRequirementText(text = '', domain = '') {
   return text.slice(start, end);
 }
 
+const HARVARD_DEPT_ALIASES = {
+  CS: ['CS', 'COMPSCI'],
+  MATH: ['MATH'],
+  AM: ['AM', 'APMTH'],
+  STAT: ['STAT', 'STATS', 'STATISTICS'],
+  ES: ['ES', 'ENGSCI'],
+  NEURO: ['NEURO', 'NEUROSCI'],
+  ECON: ['ECON', 'ECONOMICS'],
+  GOV: ['GOV', 'GOVERNMENT'],
+  PHIL: ['PHIL', 'PHILOS'],
+  PSY: ['PSY', 'PSYCH'],
+  HIST: ['HIST', 'HISTORY'],
+  GENED: ['GENED'],
+};
+
+const HARVARD_CODE_DENYLIST = new Set([
+  'table', 'section', 'chapter', 'requirement', 'requirements', 'figure', 'page', 'note', 'notes',
+  'year', 'years', 'semester', 'semesters', 'grade', 'grades', 'track', 'tracks', 'area', 'areas',
+  'tag', 'tags', 'step', 'steps', 'option', 'options', 'course', 'courses', 'unit', 'units', 'credit',
+  'credits', 'plan', 'plans', 'field', 'fields', 'part', 'parts', 'level', 'levels', 'type', 'types',
+  'group', 'groups', 'list', 'lists', 'item', 'items', 'fall', 'spring', 'summer', 'winter', 'systems',
+  'world', 'science', 'sciences', 'computer', 'form', 'forms',
+]);
+
+function splitHarvardCode(raw) {
+  const m = String(raw).toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().match(/^([A-Z&]+)\s*(\d{1,4}[A-Z]{0,2})$/);
+  if (!m) return null;
+  return { dept: m[1], num: m[2] };
+}
+
+function harvardDeptMatches(a, b) {
+  if (a === b) return true;
+  return Object.values(HARVARD_DEPT_ALIASES).some(aliases => aliases.includes(a) && aliases.includes(b));
+}
+
+function extractHarvardCourseCodeCandidates(text = '') {
+  const re = /\b([A-Z][A-Za-z]{1,9})\s(\d{1,4}[a-zA-Z]{0,2})\b/g;
+  const seen = new Set();
+  const candidates = [];
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const dept = m[1];
+    if (HARVARD_CODE_DENYLIST.has(dept.toLowerCase())) continue;
+    const code = `${dept} ${m[2]}`;
+    if (seen.has(code)) continue;
+    seen.add(code);
+    candidates.push(code);
+  }
+  return candidates;
+}
+
+async function resolveHarvardCourseCode(code) {
+  const queried = splitHarvardCode(code);
+  if (!queried) return null;
+  const url = `https://my.harvard.edu/search/?q=${encodeURIComponent(code)}&school=All&term=All&sort=relevance&page=1&browseSchool=false`;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const j = await res.json();
+    if (!j.total_hits) return null;
+    const hits = String(j.hits || '');
+    const cardRe = /badge-light[^>]*>\s*([A-Z&]{2,12}\s{1,4}\d{1,4}[A-Za-z]{0,2})\s*<\/span>[\s\S]{0,600}?href="\/course\/[^"]+"[^>]*>\s*([^<]+?)\s*<\/a>/g;
+    let m;
+    while ((m = cardRe.exec(hits)) !== null) {
+      const found = splitHarvardCode(m[1]);
+      if (!found) continue;
+      if (found.num === queried.num && harvardDeptMatches(found.dept, queried.dept)) {
+        return { codigo: m[1].replace(/\s+/g, ' ').trim(), nombre: m[2].trim() };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveHarvardCoursesFromText(text = '', url = '') {
+  const candidates = extractHarvardCourseCodeCandidates(text).slice(0, 60);
+  if (candidates.length < 3) return [];
+
+  const results = [];
+  const CONCURRENCY = 5;
+  for (let i = 0; i < candidates.length; i += CONCURRENCY) {
+    const batch = candidates.slice(i, i + CONCURRENCY);
+    const resolved = await Promise.all(batch.map(resolveHarvardCourseCode));
+    for (const r of resolved) {
+      if (r) results.push(r);
+    }
+  }
+
+  const seen = new Set();
+  const courses = [];
+  for (const r of results) {
+    const key = normalizeText(r.nombre);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    courses.push({
+      ciclo: 'S/C',
+      nombreCurso: `${r.codigo} - ${r.nombre}`,
+      evidencia: `Resuelto via my.harvard.edu/search desde ${url}`,
+    });
+  }
+  return courses;
+}
+
 function parseTecDeMonterreyPlan(rawHtml = '') {
   const courses = [];
   const seen = new Set();
@@ -1636,6 +1747,13 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
     const htmlParsed = parseHtmlCurriculumCourses(rawHtml, urlFinalForStorage || url);
     if (htmlParsed) {
       parsed = { ...htmlParsed, status: 'parseado' };
+    }
+  }
+
+  if (!parsed && /harvard\.edu/i.test(getDomain(urlFinalForStorage || url))) {
+    const harvardCourses = await resolveHarvardCoursesFromText(textForStorage, urlFinalForStorage || url);
+    if (harvardCourses.length >= 3) {
+      parsed = { parser: 'harvard_catalog_code_resolver_v1', courses: harvardCourses, status: 'parseado' };
     }
   }
 
