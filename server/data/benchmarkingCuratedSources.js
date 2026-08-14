@@ -352,7 +352,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Clinical Psychology and Health', 'https://tec.mx/en/health-sciences/bs-in-clinical-psychology-and-health'],
     ['MIT', 'plan_estudios', 'MIT - Brain and Cognitive Sciences Course 9', 'https://catalog.mit.edu/degree-charts/brain-cognitive-sciences-course-9/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Psychology BA', 'https://bulletin.stanford.edu/programs/PSYCH-BA'],
-    ['HARVARD', 'plan_estudios', 'Harvard - Psychology Undergraduate', 'https://undergrad.psychology.fas.harvard.edu/'],
+    ['HARVARD', 'plan_estudios', 'Harvard - Psychology Requirements', 'https://undergrad.psychology.fas.harvard.edu/requirements'],
   ],
   'TECNOLOGIA MEDICA EN TERAPIA FISICA Y REHABILITACION': [
     ['UBA', 'plan_estudios', 'Universidad de Buenos Aires - Kinesiologia y Fisiatria estructura curricular', 'https://www.fmed.uba.ar/index.php/carreras/licenciatura-en-kinesiologia-y-fisiatria/estructura-y-contenidos-generales-de-la-carrera'],
