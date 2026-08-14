@@ -1520,7 +1520,23 @@ async function extractPageText(driver, url) {
 }
 
 async function extractPageTextWithFetch(url) {
-  if (/\.pdf($|\?)/i.test(url)) {
+  let looksLikePdf = /\.pdf($|\?)/i.test(url);
+  if (!looksLikePdf) {
+    // Some sites serve PDFs from download endpoints without a .pdf suffix
+    // (e.g. "?jet_download=<hash>"). Check the real Content-Type before
+    // assuming it's HTML, otherwise binary PDF bytes get mis-parsed as text.
+    try {
+      const headRes = await fetch(url, {
+        method: 'HEAD',
+        headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+        redirect: 'follow',
+      });
+      looksLikePdf = (headRes.headers.get('content-type') || '').includes('pdf');
+    } catch {
+      // HEAD not supported or network error; fall through to the HTML path.
+    }
+  }
+  if (looksLikePdf) {
     const pdfText = await fetchPdfText(url);
     if (pdfText && pdfText.length > 100) {
       return {
@@ -1770,7 +1786,20 @@ async function scrapeProgramaUrl(idPrograma, url) {
     });
   }
 
-  if (/\.pdf($|\?)/i.test(url)) {
+  let looksLikePdf = /\.pdf($|\?)/i.test(url);
+  if (!looksLikePdf) {
+    try {
+      const headRes = await fetch(url, {
+        method: 'HEAD',
+        headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+        redirect: 'follow',
+      });
+      looksLikePdf = (headRes.headers.get('content-type') || '').includes('pdf');
+    } catch {
+      // HEAD not supported or network error; fall through to the normal HTML/Selenium path.
+    }
+  }
+  if (looksLikePdf) {
     try {
       const result = await extractPageTextWithFetch(url);
       return await persistExtraction({
