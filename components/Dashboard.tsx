@@ -7,6 +7,7 @@ import {
   generateScenarioMatrix, expandScenarioDetail,
   ScenarioMatrixData,
 } from '../services/geminiService';
+import StrategicRadarChart from './StrategicRadarChart';
 
 interface DashboardProps {
   themeColors: ThemeColors;
@@ -512,6 +513,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeColors, setActiveView, setRa
         </div>
       </section>
 
+      <StrategicRadarChart themeColors={themeColors} setActiveView={setActiveView} setRadarTab={setRadarTab} />
 
       <section
         className="py-20 px-8"
