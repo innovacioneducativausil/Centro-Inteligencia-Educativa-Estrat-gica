@@ -9,6 +9,7 @@ import { adminOnly } from '../middleware/roles.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { scraperBatch, cargarTextoManual, discoverOfficialSources } from '../services/scrapingService.js';
 import { normalizarPrograma } from '../services/normalizacionIAService.js';
+import { matchCursosInternacionales } from '../services/cursoMatchingService.js';
 import { BENCHMARK_SEED_BY_CAREER, BENCHMARK_UNIVERSITIES } from '../data/benchmarkingSeed.js';
 import {
   getAllCuratedDirectBenchmarkSources,
@@ -484,6 +485,23 @@ async function ensureBenchmarkingSchema() {
       await db.query(
         `ALTER TABLE programa_benchmark
          ADD COLUMN estado_validacion ENUM('registrado','pendiente_extraccion','extraido','pendiente_validacion','validado','rechazado','desactualizado','reemplazado') NOT NULL DEFAULT 'registrado' AFTER estado_extraccion`
+      );
+    }
+    const [cbCols] = await db.query(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'curso_benchmark'
+         AND COLUMN_NAME = 'id_curso_usil_match'`
+    );
+    if (!cbCols.length) {
+      await db.query(
+        `ALTER TABLE curso_benchmark
+         ADD COLUMN id_curso_usil_match INT UNSIGNED NULL AFTER fuente_url,
+         ADD COLUMN match_confianza TINYINT UNSIGNED NULL AFTER id_curso_usil_match,
+         ADD COLUMN match_metodo VARCHAR(30) NULL AFTER match_confianza,
+         ADD COLUMN match_calculado_en TIMESTAMP NULL AFTER match_metodo,
+         ADD KEY idx_cb_usil_match (id_curso_usil_match)`
       );
     }
     console.log('✅ Schema benchmarking listo en empleabilidad_usil');
@@ -1017,6 +1035,14 @@ router.post('/mercado-laboral/benchmarking/normalizar-ia', adminOnly, async (req
     const result = await normalizarPrograma(id_programa);
     res.json(result);
   } catch (e) { serverError(res, e, 'POST /benchmarking/normalizar-ia'); }
+});
+
+
+router.post('/mercado-laboral/benchmarking/programas/:id/match-ia', adminOnly, async (req, res) => {
+  try {
+    const result = await matchCursosInternacionales(req.params.id);
+    res.json({ ok: true, ...result });
+  } catch (e) { serverError(res, e, 'POST /benchmarking/programas/:id/match-ia'); }
 });
 
 

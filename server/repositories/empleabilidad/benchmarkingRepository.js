@@ -195,6 +195,18 @@ export async function getCandidatosByProgramas(ids) {
 
 export async function getCursosByProgramas(ids) {
   if (!ids.length) return [];
-  const [results] = await db.query('CALL empl_getCursosByProgramas(?)', [JSON.stringify(ids)]);
-  return results[0];
+  const placeholders = ids.map(() => '?').join(',');
+  const [rows] = await db.query(
+    `SELECT id_programa_benchmark, nombre_curso, ciclo, area_formacion, descripcion_curso, fuente_url,
+            id_curso_usil_match, match_confianza, match_metodo
+     FROM curso_benchmark
+     WHERE id_programa_benchmark IN (${placeholders})
+     ORDER BY
+       CASE WHEN ciclo REGEXP '^[0-9]+$' THEN 0 WHEN ciclo IS NULL OR ciclo = '' THEN 2 ELSE 1 END,
+       CAST(NULLIF(ciclo, '') AS UNSIGNED),
+       ciclo,
+       nombre_curso`,
+    ids
+  );
+  return rows;
 }

@@ -56,6 +56,9 @@ interface CursoBenchmark {
   area_formacion: string | null;
   descripcion_curso: string | null;
   fuente_url: string | null;
+  id_curso_usil_match?: number | null;
+  match_confianza?: number | null;
+  match_metodo?: string | null;
 }
 
 interface CursoUsil {
@@ -339,6 +342,23 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
       loadProgramas();
     } catch (e: any) {
       setProgramError(e.message);
+    }
+    setActionLoading(p => ({ ...p, [idPrograma]: '' }));
+  };
+
+  const handleMatchIA = async (idPrograma: number) => {
+    setActionLoading(p => ({ ...p, [idPrograma]: 'match-ia' }));
+    setProgramError(null);
+    setProgramNotice(null);
+    try {
+      const result = await apiFetch<{ ok: boolean; coincidenciasEncontradas?: number; totalCursosExternos?: number; error?: string }>(
+        `/api/mercado-laboral/benchmarking/programas/${idPrograma}/match-ia`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      );
+      setProgramNotice(`Análisis con IA completado: ${result.coincidenciasEncontradas ?? 0} de ${result.totalCursosExternos ?? 0} cursos tienen equivalente en la malla USIL. Revisa antes de usar como evidencia final.`);
+      loadProgramas();
+    } catch (e: any) {
+      setProgramError(e.message || 'No se pudo completar el análisis con IA.');
     }
     setActionLoading(p => ({ ...p, [idPrograma]: '' }));
   };
@@ -672,18 +692,19 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
 
   const cursosUsil = ciclosUsil.flatMap(ciclo =>
     ciclo.cursos.map(curso => ({
+      id: curso.id,
       ciclo: String(ciclo.numero),
       nombre: curso.nombre,
       meta: [curso.codigo, curso.creditos != null ? `${curso.creditos} cr.` : null].filter(Boolean).join(' - '),
     }))
   );
 
-  const groupCoursesByCycle = (courses: Array<{ ciclo?: string | number | null; nombre: string; meta?: string | null }>) => {
-    const map = new Map<string, Array<{ nombre: string; meta?: string | null }>>();
+  const groupCoursesByCycle = (courses: Array<{ ciclo?: string | number | null; nombre: string; meta?: string | null; matchToken?: string; matchConfianza?: number | null }>) => {
+    const map = new Map<string, Array<{ nombre: string; meta?: string | null; matchToken?: string; matchConfianza?: number | null }>>();
     courses.forEach(course => {
       const cycle = course.ciclo ? String(course.ciclo) : 'S/C';
       const list = map.get(cycle) || [];
-      list.push({ nombre: cleanCourseName(course.nombre), meta: course.meta });
+      list.push({ nombre: cleanCourseName(course.nombre), meta: course.meta, matchToken: course.matchToken, matchConfianza: course.matchConfianza });
       map.set(cycle, list);
     });
     return Array.from(map.entries()).sort(([a], [b]) => {
@@ -727,10 +748,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   const renderMallaBoard = (
     title: string,
     subtitle: string,
-    courses: Array<{ ciclo?: string | number | null; nombre: string; meta?: string | null }>,
+    courses: Array<{ ciclo?: string | number | null; nombre: string; meta?: string | null; matchToken?: string; matchConfianza?: number | null }>,
     accent: string,
-    matchKeys?: Set<string>
+    matchKeys?: Set<string>,
+    getKey?: (course: { nombre: string; matchToken?: string }) => string
   ) => {
+    const resolveKey = getKey || ((course: { nombre: string }) => courseKey(course.nombre));
     const grouped = groupCoursesByCycle(courses);
     const MATCH_GREEN = '#16a34a';
     return (
@@ -755,7 +778,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {items.map((course, idx) => {
-                    const key = courseKey(course.nombre);
+                    const key = resolveKey(course);
                     const isMatched = matchKeys ? matchKeys.has(key) : false;
                     const barColor = matchKeys ? (isMatched ? MATCH_GREEN : accent) : 'transparent';
                     return (
@@ -770,7 +793,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                           {matchKeys && (
                             <span className="material-symbols-outlined"
                               style={{ fontSize: 14, color: isMatched ? MATCH_GREEN : accent, flex: '0 0 auto' }}
-                              title={isMatched ? 'Coincide con la otra malla' : 'Sin coincidencia exacta'}>
+                              title={isMatched
+                                ? (course.matchConfianza != null ? `Equivalente (confianza IA: ${course.matchConfianza}%)` : 'Coincide con la otra malla')
+                                : 'Sin coincidencia'}>
                               {isMatched ? 'check_circle' : 'add_circle'}
                             </span>
                           )}
@@ -1362,22 +1387,36 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
               ) : (
                 <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {programasReferencia.map(p => {
+                    const isInternacional = p.tipo_benchmark === 'competencia_internacional';
                     const cursosExternos = (p.cursos || []).map(curso => ({
                       ciclo: curso.ciclo,
                       nombre: cleanCourseName(curso.nombre_curso),
                       meta: curso.area_formacion || curso.fuente_url || null,
+                      matchedUsilId: curso.id_curso_usil_match ?? null,
+                      matchConfianza: curso.match_confianza ?? null,
                     }));
+                    const cursosSinAnalizarIA = isInternacional && cursosExternos.length > 0
+                      && cursosExternos.every(c => c.matchedUsilId == null);
                     const ciclosComparador = getAvailableCycles([...cursosUsil, ...cursosExternos]);
                     const activeCiclo = selectedCicloComparador === 'todos' || ciclosComparador.includes(selectedCicloComparador)
                       ? selectedCicloComparador
                       : 'todos';
                     const cursosUsilFiltrados = filterCoursesByCycle(cursosUsil, activeCiclo);
                     const cursosExternosFiltrados = filterCoursesByCycle(cursosExternos, activeCiclo);
-                    const usilKeys = new Set(cursosUsilFiltrados.map(c => courseKey(c.nombre)));
-                    const extKeys = new Set(cursosExternosFiltrados.map(c => courseKey(c.nombre)));
-                    const coincidencias = [...extKeys].filter(k => usilKeys.has(k)).length;
-                    const externosNoCubiertos = cursosExternosFiltrados.filter(c => !usilKeys.has(courseKey(c.nombre))).length;
-                    const usilNoEncontrados = cursosUsilFiltrados.filter(c => !extKeys.has(courseKey(c.nombre))).length;
+                    // Competencia directa (mallas peruanas, ambas en español): coincidencia por texto normalizado.
+                    // Competencia internacional (idiomas distintos): coincidencia por el par calculado con IA
+                    // (curso_benchmark.id_curso_usil_match), cacheado en BD via /match-ia.
+                    const getUsilKey = (c: { id?: number; nombre: string }) =>
+                      isInternacional && c.id != null ? `usil:${c.id}` : courseKey(c.nombre);
+                    const getExtKey = (c: { nombre: string; matchedUsilId?: number | null }) =>
+                      isInternacional
+                        ? (c.matchedUsilId != null ? `usil:${c.matchedUsilId}` : `sinmatch:${courseKey(c.nombre)}`)
+                        : courseKey(c.nombre);
+                    const usilKeys = new Set(cursosUsilFiltrados.map(getUsilKey));
+                    const extKeys = new Set(cursosExternosFiltrados.map(getExtKey));
+                    const coincidencias = cursosExternosFiltrados.filter(c => usilKeys.has(getExtKey(c))).length;
+                    const externosNoCubiertos = cursosExternosFiltrados.length - coincidencias;
+                    const usilNoEncontrados = cursosUsilFiltrados.filter(c => !extKeys.has(getUsilKey(c))).length;
                     const kpis: Array<{ label: string; value: number; icon: string; iconBg: string; iconColor: string; valueColor: string }> = [
                       { label: 'Coincidencias', value: coincidencias, icon: 'done_all', iconBg: CYAN_LIGHT, iconColor: USIL, valueColor: USIL },
                       { label: 'Externos no cubiertos', value: externosNoCubiertos, icon: 'warning', iconBg: '#ffdad6', iconColor: '#93000a', valueColor: ERROR_COLOR },
@@ -1386,9 +1425,31 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                     return (
                       <div key={`ref-${p.id_programa_benchmark}`} style={{ border: `1px solid ${border}`, borderRadius: 12, overflow: 'hidden', boxShadow: CARD_SHADOW }}>
                         <div style={{ padding: '12px', background: isDark ? '#0f172a' : SURFACE_LOW, borderBottom: `1px solid ${border}` }}>
-                          <div style={{ marginBottom: 10 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: USIL, fontFamily: FONT_HEAD }}>{p.nombre_universidad}</div>
-                            <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>{p.nombre_programa}</div>
+                          <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: USIL, fontFamily: FONT_HEAD }}>{p.nombre_universidad}</div>
+                              <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>{p.nombre_programa}</div>
+                              {isInternacional && (
+                                <div style={{ fontSize: 9, color: muted, marginTop: 4 }}>
+                                  {cursosSinAnalizarIA
+                                    ? 'Aun no se analizo la equivalencia con USIL (comparacion por texto exacto no aplica entre idiomas distintos).'
+                                    : 'Equivalencia calculada con IA (semantica, cruza espanol/ingles). Requiere revision academica.'}
+                                </div>
+                              )}
+                            </div>
+                            {isInternacional && canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => handleMatchIA(p.id_programa_benchmark)}
+                                disabled={actionLoading[p.id_programa_benchmark] === 'match-ia'}
+                                style={{ borderRadius: 8, background: cursosSinAnalizarIA ? USIL : (isDark ? '#1e293b' : '#fff'),
+                                  color: cursosSinAnalizarIA ? '#fff' : text, border: cursosSinAnalizarIA ? 'none' : `1px solid ${border}`,
+                                  padding: '6px 12px', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', flex: '0 0 auto' }}>
+                                {actionLoading[p.id_programa_benchmark] === 'match-ia'
+                                  ? 'Analizando...'
+                                  : cursosSinAnalizarIA ? 'Analizar equivalencia (IA)' : 'Re-analizar (IA)'}
+                              </button>
+                            )}
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
                             {kpis.map(k => (
@@ -1445,14 +1506,16 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                                 : 'No se encontró malla vigente cargada',
                             cursosUsilFiltrados,
                             USIL,
-                            extKeys
+                            extKeys,
+                            getUsilKey
                           )}
                           {renderMallaBoard(
                             `Malla referente - ${p.nombre_universidad}`,
                             `${cursosExternosFiltrados.length}/${cursosExternos.length} cursos extraídos desde fuente oficial`,
                             cursosExternosFiltrados,
                             CYAN,
-                            usilKeys
+                            usilKeys,
+                            getExtKey
                           )}
                         </div>
                         <div style={{ padding: '0 12px 12px', color: muted, fontSize: 10, lineHeight: 1.45 }}>
