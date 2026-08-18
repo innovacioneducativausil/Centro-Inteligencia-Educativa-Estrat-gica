@@ -362,7 +362,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['USFQ', 'malla_curricular', 'USFQ - Administracion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1ADM&out=1'],
     ['MIT', 'plan_estudios', 'MIT - Management Course 15-1', 'https://catalog.mit.edu/degree-charts/management-course-15-1/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Management Science and Engineering BS', 'https://bulletin.stanford.edu/programs/MGTSC-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'brochure_pdf', 'Harvard - Economics Concentration Requirements', 'https://www.economics.harvard.edu/sites/g/files/omnuum5991/files/econ/files/concentration-requirements_2020.pdf'],
     ['CALTECH', 'plan_estudios', 'Caltech - Business Economics and Management', 'https://www.catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/business-economics-and-management-option-bem/'],
   ],
   'ADMINISTRACION Y EMPRENDIMIENTO': [
@@ -378,7 +378,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['USFQ', 'malla_curricular', 'USFQ - Administracion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1ADM&out=1'],
     ['MIT', 'plan_estudios', 'MIT - Management Course 15-1', 'https://catalog.mit.edu/degree-charts/management-course-15-1/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Management Science and Engineering BS', 'https://bulletin.stanford.edu/programs/MGTSC-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'brochure_pdf', 'Harvard - Economics Concentration Requirements', 'https://www.economics.harvard.edu/sites/g/files/omnuum5991/files/econ/files/concentration-requirements_2020.pdf'],
     ['CALTECH', 'plan_estudios', 'Caltech - Economics Option', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/economics-option-ec/'],
   ],
   'DIGITAL BUSINESS MANAGEMENT': [
@@ -394,7 +394,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['USFQ', 'malla_curricular', 'USFQ - Administracion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1ADM&out=1'],
     ['MIT', 'plan_estudios', 'MIT - Economics Course 14', 'https://catalog.mit.edu/degree-charts/economics-course-14/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Economics BA', 'https://bulletin.stanford.edu/programs/ECON-BA'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'brochure_pdf', 'Harvard - Economics Concentration Requirements', 'https://www.economics.harvard.edu/sites/g/files/omnuum5991/files/econ/files/concentration-requirements_2020.pdf'],
     ['CALTECH', 'plan_estudios', 'Caltech - Economics Option', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/economics-option-ec/'],
   ],
   'ECONOMIA Y NEGOCIOS INTERNACIONALES': [
@@ -402,7 +402,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['USFQ', 'malla_curricular', 'USFQ - Administracion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1ADM&out=1'],
     ['MIT', 'plan_estudios', 'MIT - Management Course 15-1', 'https://catalog.mit.edu/degree-charts/management-course-15-1/'],
     ['STANFORD', 'plan_estudios', 'Stanford - International Relations BA', 'https://bulletin.stanford.edu/programs/INTLR-BA'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'brochure_pdf', 'Harvard - Economics Concentration Requirements', 'https://www.economics.harvard.edu/sites/g/files/omnuum5991/files/econ/files/concentration-requirements_2020.pdf'],
   ],
   'INGENIERIA EMPRESARIAL': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Industrial Engineering', 'https://tec.mx/en/engineering-and-sciences/bs-in-industrial-engineering'],
@@ -414,13 +414,13 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Global Business', 'https://tec.mx/en/business/ba-in-international-business'],
     ['USFQ', 'malla_curricular', 'USFQ - Administracion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1ADM&out=1'],
     ['STANFORD', 'plan_estudios', 'Stanford - Management Science and Engineering BS', 'https://bulletin.stanford.edu/programs/MGTSC-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'brochure_pdf', 'Harvard - Economics Concentration Requirements', 'https://www.economics.harvard.edu/sites/g/files/omnuum5991/files/econ/files/concentration-requirements_2020.pdf'],
   ],
   MARKETING: [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Marketing BA', 'https://tec.mx/en/business/ba-in-marketing'],
     ['USFQ', 'malla_curricular', 'USFQ - Administracion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1ADM&out=1'],
     ['STANFORD', 'plan_estudios', 'Stanford - Management Science and Engineering BS', 'https://bulletin.stanford.edu/programs/MGTSC-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'brochure_pdf', 'Harvard - Economics Concentration Requirements', 'https://www.economics.harvard.edu/sites/g/files/omnuum5991/files/econ/files/concentration-requirements_2020.pdf'],
   ],
   COMUNICACIONES: [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Communication and Digital Production', 'https://tec.mx/en/humanities-and-education/ba-in-communication-and-digital-producion'],
