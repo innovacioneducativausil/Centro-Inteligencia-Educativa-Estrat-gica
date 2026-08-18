@@ -747,7 +747,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   };
 
   return (
-    <div style={{ padding: '14px 20px', background: bg, minHeight: '100%', color: text, display: 'flex', flexDirection: 'column', gap: 12, fontFamily: FONT_DATA }}>
+    <div style={{ padding: '14px 20px 28px', background: bg, minHeight: '100%', color: text, display: 'flex', flexDirection: 'column', gap: 12, fontFamily: FONT_DATA, width: '100%', maxWidth: 1440, margin: '0 auto', boxSizing: 'border-box' }}>
 
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 18, borderBottom: `1px solid ${border}`, paddingBottom: 10 }}>
@@ -915,92 +915,6 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
 
       {activeTab === 'mapa' && (
         <>
-          {vision360?.fundamento && (
-            <div style={{ background: card, borderRadius: 8, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>
-              <div style={{ padding: '10px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, color: CYAN }}>badge</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: USIL, fontFamily: FONT_HEAD }}>Ficha del programa</span>
-              </div>
-              <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(260px, .8fr)', gap: 14 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                  {[
-                    ['Código', vision360.fundamento.codigoPrograma],
-                    ['Grado', vision360.fundamento.gradoOtorgado],
-                    ['Título', vision360.fundamento.tituloOtorgado],
-                    ['Régimen', vision360.fundamento.regimenEstudios],
-                  ].map(([label, value]) => (
-                    <div key={label} style={{ border: `1px solid ${border}`, borderRadius: 6, padding: '10px 12px', background: isDark ? '#0f172a' : SURFACE_LOW }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>{label}</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: text, lineHeight: 1.35 }}>{value || 'No registrado'}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ border: `1px solid ${border}`, borderRadius: 6, padding: '12px 14px', background: isDark ? '#0f172a' : SURFACE_LOW }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: USIL, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>
-                    Perfil de egreso
-                  </div>
-                  <div style={{ fontSize: 12, color: text, lineHeight: 1.5 }}>
-                    {compactText(vision360.fundamento.perfilEgreso, 420) || 'Aún no hay perfil de egreso estructurado para esta malla.'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {hasStructuredVision ? (
-            <div style={{ background: card, borderRadius: 8, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,45,114,0.08)' }}>
-              <div style={{ padding: '14px 18px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: CYAN, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 4 }}>
-                    Lectura estratégica con IA
-                  </div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: USIL, fontFamily: FONT_HEAD }}>
-                    Prompt curricular alimentado por la BD
-                  </div>
-                  <div style={{ fontSize: 11, color: muted, marginTop: 3 }}>
-                    Usa perfil, competencias, sumillas, menciones, electivos y cursos de la malla seleccionada.
-                  </div>
-                </div>
-                <button onClick={handleCopyPrompt}
-                  style={{ height: 36, padding: '0 14px', borderRadius: 6, border: 'none',
-                    background: USIL, color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 700,
-                    display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-                    {promptCopied ? 'check' : 'content_copy'}
-                  </span>
-                  {promptCopied ? 'Copiado' : 'Copiar prompt'}
-                </button>
-              </div>
-              <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 }}>
-                {[
-                  { label: 'Perfil', value: vision360?.fundamento?.perfilEgreso ? 'Registrado' : 'Pendiente' },
-                  { label: 'Competencias', value: `${vision360?.competencias.length ?? 0}` },
-                  { label: 'Sumillas', value: `${sumillasCount}` },
-                  { label: 'Menciones', value: `${vision360?.menciones.length ?? 0}` },
-                  { label: 'Electivos', value: `${vision360?.electivos.length ?? 0}` },
-                ].map(item => (
-                  <div key={item.label} style={{ border: `1px solid ${border}`, borderRadius: 6, padding: '9px 11px', background: isDark ? '#0f172a' : SURFACE_LOW }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '.05em' }}>{item.label}</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: USIL, marginTop: 3, fontFamily: FONT_HEAD }}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ padding: '0 18px 16px' }}>
-                <pre style={{ margin: 0, maxHeight: 190, overflowY: 'auto', whiteSpace: 'pre-wrap',
-                  border: `1px solid ${border}`, borderRadius: 6, padding: 12,
-                  background: isDark ? '#020617' : SURFACE_LOW, color: text,
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                  fontSize: 11, lineHeight: 1.45 }}>
-                  {promptAnalisisCurricular}
-                </pre>
-              </div>
-            </div>
-          ) : (
-            <div style={{ background: card, borderRadius: 8, border: `1px dashed ${OUTLINE_VARIANT}`, padding: '18px 20px', color: muted, fontSize: 12 }}>
-              Selecciona Educación Inicial o Educación Secundaria con Especialidad en Inglés para ver la estructura enriquecida del Excel: perfil, competencias, menciones, electivos, sumillas y prompt de análisis.
-            </div>
-          )}
-
           {/* KPI Banner: solo label (label-caps, mixed-case tal cual el mockup) + valor grande en Manrope.
               Sin badges de color ni texto descriptivo adicional, siguiendo fielmente code.html de la Vista 1. */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 16 }}>
