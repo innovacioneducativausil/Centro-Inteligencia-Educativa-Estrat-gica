@@ -1810,10 +1810,11 @@ async function persistExtraction({ idPrograma, url, urlFinal, title, text, rawHt
     }
   }
 
+  const isTrustedCuratedParser = /^known_curriculum_map_v1/.test(parsed.parser || '');
   const shouldClearExistingCourses = parsed.status === 'requiere_revision'
-    || parsed.courses.length > 180
+    || (!isTrustedCuratedParser && parsed.courses.length > 180)
     || /blocked_broad_institutional_catalog_v1/.test(parsed.parser || '');
-  if (parsed.courses.length > 180) {
+  if (!isTrustedCuratedParser && parsed.courses.length > 180) {
     parsed = {
       ...parsed,
       parser: `${parsed.parser}_quality_guard`,
