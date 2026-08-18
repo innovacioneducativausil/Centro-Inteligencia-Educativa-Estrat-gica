@@ -1519,7 +1519,9 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                           )}
                         </div>
                         <div style={{ padding: '0 12px 12px', color: muted, fontSize: 10, lineHeight: 1.45 }}>
-                          La comparación por ahora usa coincidencia exacta normalizada de nombres de cursos. Las brechas curriculares y propuestas deben generarse después con revisión humana.
+                          {isInternacional
+                            ? 'La comparación usa equivalencia semántica calculada con IA (cruza español/inglés). Las brechas curriculares y propuestas deben generarse después con revisión humana.'
+                            : 'La comparación por ahora usa coincidencia exacta normalizada de nombres de cursos. Las brechas curriculares y propuestas deben generarse después con revisión humana.'}
                         </div>
                       </div>
                     );
