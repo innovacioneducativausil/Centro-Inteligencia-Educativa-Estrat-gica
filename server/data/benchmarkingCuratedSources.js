@@ -464,7 +464,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
   'INGENIERIA AGROINDUSTRIAL': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Food Engineering', 'https://tec.mx/en/bioengineering-and-chemical-processes/bs-in-food-engineering'],
     ['MIT', 'plan_estudios', 'MIT - Biological Engineering Course 20', 'https://catalog.mit.edu/degree-charts/biological-engineering-course-20/'],
-    ['CALTECH', 'plan_estudios', 'Caltech - Chemical Engineering Option', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/chemical-engineering-option-and-minor-che/'],
+    ['CALTECH', 'plan_estudios', 'Caltech - Chemical Engineering Option', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/chemical-engineering-option-che/'],
   ],
   'INGENIERIA AMBIENTAL': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Sustainable Development Engineering', 'https://tec.mx/en/engineering-and-sciences/bs-in-sustainable-development-engineering'],
@@ -473,7 +473,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['STANFORD', 'plan_estudios', 'Stanford - Earth Systems BS', 'https://bulletin.stanford.edu/programs/EASYS-BS'],
     ['STANFORD', 'plan_estudios', 'Stanford - Civil Engineering BS', 'https://bulletin.stanford.edu/programs/CE-BS'],
     ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration Environmental Science', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
-    ['CALTECH', 'plan_estudios', 'Caltech - Environmental Science and Engineering', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/environmental-science-and-engineering-option-ease/'],
+    ['CALTECH', 'plan_estudios', 'Caltech - Environmental Science and Engineering', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/environmental-science-and-engineering-option-and-minor-ese/'],
   ],
   'INGENIERIA BIOMEDICA': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Biomedical Engineering', 'https://tec.mx/en/innovation-and-transformation/bs-in-biomedical-engineering'],
