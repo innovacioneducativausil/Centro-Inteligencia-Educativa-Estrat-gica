@@ -699,12 +699,12 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     }))
   );
 
-  const groupCoursesByCycle = (courses: Array<{ ciclo?: string | number | null; nombre: string; meta?: string | null; matchToken?: string; matchConfianza?: number | null }>) => {
-    const map = new Map<string, Array<{ nombre: string; meta?: string | null; matchToken?: string; matchConfianza?: number | null }>>();
+  const groupCoursesByCycle = <T extends { ciclo?: string | number | null; nombre: string }>(courses: T[]) => {
+    const map = new Map<string, Array<T>>();
     courses.forEach(course => {
       const cycle = course.ciclo ? String(course.ciclo) : 'S/C';
       const list = map.get(cycle) || [];
-      list.push({ nombre: cleanCourseName(course.nombre), meta: course.meta, matchToken: course.matchToken, matchConfianza: course.matchConfianza });
+      list.push({ ...course, nombre: cleanCourseName(course.nombre) });
       map.set(cycle, list);
     });
     return Array.from(map.entries()).sort(([a], [b]) => {
@@ -745,15 +745,15 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
     return courses.filter(course => String(course.ciclo || '') === cycle);
   };
 
-  const renderMallaBoard = (
+  const renderMallaBoard = <T extends { ciclo?: string | number | null; nombre: string; meta?: string | null; matchConfianza?: number | null }>(
     title: string,
     subtitle: string,
-    courses: Array<{ ciclo?: string | number | null; nombre: string; meta?: string | null; matchToken?: string; matchConfianza?: number | null }>,
+    courses: T[],
     accent: string,
     matchKeys?: Set<string>,
-    getKey?: (course: { nombre: string; matchToken?: string }) => string
+    getKey?: (course: T) => string
   ) => {
-    const resolveKey = getKey || ((course: { nombre: string }) => courseKey(course.nombre));
+    const resolveKey = getKey || ((course: T) => courseKey(course.nombre));
     const grouped = groupCoursesByCycle(courses);
     const MATCH_GREEN = '#16a34a';
     return (
