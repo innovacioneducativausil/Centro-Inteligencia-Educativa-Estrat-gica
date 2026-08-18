@@ -3,6 +3,7 @@ import { curricularPrisma } from '../prismaClient.js';
 
 const HF_URL = 'https://router.huggingface.co/v1/chat/completions';
 const HF_MODEL = 'Qwen/Qwen2.5-7B-Instruct:together';
+const MATCH_BATCH_SIZE = 60;
 
 const SYSTEM_PROMPT = `Eres un experto en analisis curricular universitario comparando mallas de distintas universidades y distintos idiomas.
 Tu tarea es identificar pares de cursos EQUIVALENTES tematicamente entre dos listas (mismo contenido academico central, aunque el nombre sea distinto o este en otro idioma).
@@ -114,36 +115,40 @@ async function matchCursosInternacionales(idProgramaBenchmark) {
     [idProgramaBenchmark]
   );
 
-  const payload = {
-    model: HF_MODEL,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: buildMatchPrompt(cursosUsil, cursosExternos, programa.nombre_universidad) },
-    ],
-    max_tokens: 3000,
-    temperature: 0.1,
-  };
-
-  const hfResp = await fetchWithRetry(payload);
-  const rawContent = hfResp?.choices?.[0]?.message?.content ?? '';
-  const pares = safeParseJsonArray(rawContent);
-
   let matched = 0;
-  for (const par of pares) {
-    const usilIdx = Number(par.usil_idx) - 1;
-    const extIdx = Number(par.externo_idx) - 1;
-    const confianza = Math.max(0, Math.min(100, Math.round(Number(par.confianza) || 0)));
-    const usil = cursosUsil[usilIdx];
-    const ext = cursosExternos[extIdx];
-    if (!usil || !ext || confianza < 50) continue;
+  for (let batchStart = 0; batchStart < cursosExternos.length; batchStart += MATCH_BATCH_SIZE) {
+    const batch = cursosExternos.slice(batchStart, batchStart + MATCH_BATCH_SIZE);
 
-    await db.query(
-      `UPDATE curso_benchmark
-       SET id_curso_usil_match = ?, match_confianza = ?, match_metodo = 'ia_semantica', match_calculado_en = NOW()
-       WHERE id_curso_benchmark = ?`,
-      [usil.id_curso, confianza, ext.id_curso_benchmark]
-    );
-    matched++;
+    const payload = {
+      model: HF_MODEL,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: buildMatchPrompt(cursosUsil, batch, programa.nombre_universidad) },
+      ],
+      max_tokens: 3000,
+      temperature: 0.1,
+    };
+
+    const hfResp = await fetchWithRetry(payload);
+    const rawContent = hfResp?.choices?.[0]?.message?.content ?? '';
+    const pares = safeParseJsonArray(rawContent);
+
+    for (const par of pares) {
+      const usilIdx = Number(par.usil_idx) - 1;
+      const extIdx = Number(par.externo_idx) - 1;
+      const confianza = Math.max(0, Math.min(100, Math.round(Number(par.confianza) || 0)));
+      const usil = cursosUsil[usilIdx];
+      const ext = batch[extIdx];
+      if (!usil || !ext || confianza < 50) continue;
+
+      await db.query(
+        `UPDATE curso_benchmark
+         SET id_curso_usil_match = ?, match_confianza = ?, match_metodo = 'ia_semantica', match_calculado_en = NOW()
+         WHERE id_curso_benchmark = ?`,
+        [usil.id_curso, confianza, ext.id_curso_benchmark]
+      );
+      matched++;
+    }
   }
 
   return {
