@@ -41,6 +41,8 @@ export const BENCHMARK_UNIVERSITIES = {
   EAN: { nombre: 'Universidad EAN', pais: 'Colombia', ciudad: 'Bogota', web: 'https://universidadean.edu.co/' },
   UNIANDES: { nombre: 'Universidad de los Andes', pais: 'Colombia', ciudad: 'Bogota', web: 'https://uniandes.edu.co/' },
   ANAHUAC: { nombre: 'Universidad Anahuac Mexico', pais: 'Mexico', ciudad: 'Ciudad de Mexico', web: 'https://www.anahuac.mx/' },
+  UPM_INEF: { nombre: 'Universidad Politecnica de Madrid - INEF', pais: 'Espana', ciudad: 'Madrid', web: 'https://www.inef.upm.es/' },
+  LOUGHBOROUGH: { nombre: 'Loughborough University', pais: 'Reino Unido', ciudad: 'Loughborough', web: 'https://www.lboro.ac.uk/' },
 };
 
 const directBusiness = ['PUCP', 'UPC', 'ULIMA', 'UP', 'ESAN', 'UDEP'];
