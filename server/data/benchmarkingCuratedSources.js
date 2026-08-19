@@ -311,18 +311,19 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Urbanismo', 'https://tec.mx/en/architecture-art-and-design/ba-in-urbanism'],
     ['USFQ', 'malla_curricular', 'USFQ - Arquitectura portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1ARQ&out=1'],
     ['MIT', 'plan_estudios', 'MIT - Degree Chart Architecture Course 4', 'https://catalog.mit.edu/degree-charts/architecture-course-4/'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    // Harvard College no ofrece Arquitectura profesional a nivel pregrado (GSD es solo posgrado);
+    // "History of Art and Architecture" es historia/critica del arte, no diseno/urbanismo. Retirado.
   ],
   'ARTE Y DISENO EMPRESARIAL': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Design', 'https://tec.mx/en/architecture-art-and-design/ba-in-design'],
     ['USFQ', 'malla_curricular', 'USFQ - Artes Visuales / Diseno', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1ARV&out=1'],
     ['STANFORD', 'plan_estudios', 'Stanford - Design BS', 'https://bulletin.stanford.edu/programs/DESIGN-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'plan_estudios', 'Harvard - Art, Film, and Visual Studies Concentration Requirements', 'https://afvs.fas.harvard.edu/concentration-requirements'],
   ],
   MUSICA: [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Music Technology and Production', 'https://tec.mx/en/creative-studies/ba-in-music-technology-and-production'],
     ['STANFORD', 'plan_estudios', 'Stanford - Music BA', 'https://bulletin.stanford.edu/programs/MUSIC-BA'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration Music', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'plan_estudios', 'Harvard - Music Undergraduate Concentration Guide', 'https://music.fas.harvard.edu/undergraduate-concentration-guide'],
   ],
   'CIENCIAS DE LA ACTIVIDAD FISICA Y DEL DEPORTE': [
     ['UPM_INEF', 'plan_estudios', 'INEF - Grado en Ciencias de la Actividad Fisica y del Deporte', 'https://www.inef.upm.es/sfs/INEF/Estudiantes/Estudios/GRADO/plan_estudios/2021_2022/planes_estudios_asignaturas%2017_11_21.pdf'],
@@ -341,7 +342,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['USFQ', 'brochure_pdf', 'USFQ - Malla Medicina anterior PDF', 'https://www.usfq.edu.ec/sites/default/files/2020-07/malla_medicina.pdf'],
     ['MIT', 'plan_estudios', 'MIT - Biological Engineering Course 20', 'https://catalog.mit.edu/degree-charts/biological-engineering-course-20/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Human Biology BS', 'https://bulletin.stanford.edu/programs/HUMBI-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'plan_estudios', 'Harvard - Human Developmental and Regenerative Biology (HDRB)', 'https://scienceeducation.fas.harvard.edu/hdrb'],
     ['CALTECH', 'plan_estudios', 'Caltech - Biology Option', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/biology-option-bi/'],
   ],
   'NUTRICION Y DIETETICA': [
@@ -426,14 +427,14 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Communication and Digital Production', 'https://tec.mx/en/humanities-and-education/ba-in-communication-and-digital-producion'],
     ['USFQ', 'malla_curricular', 'USFQ - Cine/Comunicacion Audiovisual portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1CIN&out=1'],
     ['STANFORD', 'plan_estudios', 'Stanford - Communication BA', 'https://bulletin.stanford.edu/programs/COMMU-BA'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    // Harvard College no ofrece un concentration especifico en Comunicaciones. Retirado.
   ],
   'RELACIONES INTERNACIONALES': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - International Relations', 'https://tec.mx/en/social-sciences-and-government/ba-in-international-relations'],
     ['USFQ', 'malla_curricular', 'USFQ - Relaciones Internacionales portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1REL&out=1'],
     ['USFQ', 'brochure_pdf', 'USFQ - Relaciones Internacionales PDF v2', 'https://www.usfq.edu.ec/sites/default/files/2020-10/malla-relaciones-internacionales.pdf'],
     ['STANFORD', 'plan_estudios', 'Stanford - International Relations BA', 'https://bulletin.stanford.edu/programs/INTLR-BA'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'plan_estudios', 'Harvard - Government Concentration Requirements', 'https://undergrad.gov.harvard.edu/concentration-requirements-1'],
     ['MIT', 'plan_estudios', 'MIT - Political Science Course 17', 'https://catalog.mit.edu/degree-charts/political-science-course-17/'],
   ],
   DERECHO: [
@@ -444,12 +445,12 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
     ['USFQ', 'malla_curricular', 'USFQ - Educacion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1EDU&out=1'],
     ['STANFORD', 'plan_estudios', 'Stanford - Education MA', 'https://bulletin.stanford.edu/programs/ED-MA'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    // Harvard College no tiene concentration de pregrado en Educacion (Graduate School of Education es solo posgrado). Retirado.
   ],
   'EDUCACION SECUNDARIA CON ESPECIALIDAD EN INGLES': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
     ['USFQ', 'malla_curricular', 'USFQ - Educacion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1EDU&out=1'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    // Harvard College no tiene concentration de pregrado en Educacion. Retirado.
   ],
   'CIENCIA DE DATOS': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Data Science and AI', 'https://tec.mx/en/Engineering-and-Sciences/bs-in-data-science-and-artificial-intelligence'],
@@ -472,14 +473,14 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['MIT', 'plan_estudios', 'MIT - Civil and Environmental Engineering 1-ENG', 'https://catalog.mit.edu/degree-charts/engineering-civil-environmental-engineering-course-1-eng/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Earth Systems BS', 'https://bulletin.stanford.edu/programs/EASYS-BS'],
     ['STANFORD', 'plan_estudios', 'Stanford - Civil Engineering BS', 'https://bulletin.stanford.edu/programs/CE-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration Environmental Science', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'plan_estudios', 'Harvard - Environmental Science and Engineering Concentration Requirements', 'https://seas.harvard.edu/environmental-science-engineering/undergraduate-program/concentration-information/concentration'],
     ['CALTECH', 'plan_estudios', 'Caltech - Environmental Science and Engineering', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/environmental-science-and-engineering-option-and-minor-ese/'],
   ],
   'INGENIERIA BIOMEDICA': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Biomedical Engineering', 'https://tec.mx/en/innovation-and-transformation/bs-in-biomedical-engineering'],
     ['MIT', 'plan_estudios', 'MIT - Biological Engineering Course 20', 'https://catalog.mit.edu/degree-charts/biological-engineering-course-20/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Bioengineering BS', 'https://bulletin.stanford.edu/programs/BIOE-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'plan_estudios', 'Harvard - Bioengineering Concentration Requirements', 'https://seas.harvard.edu/bioengineering/undergraduate-program/concentration-information/concentration-requirements'],
     ['CALTECH', 'plan_estudios', 'Caltech - Biology Option', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/biology-option-bi/'],
   ],
   'INGENIERIA CIVIL': [
@@ -488,7 +489,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['USFQ', 'brochure_pdf', 'USFQ - Ingenieria Civil PDF', 'https://www.usfq.edu.ec/sites/default/files/2020-07/malla_ing_civil.pdf'],
     ['MIT', 'plan_estudios', 'MIT - Civil and Environmental Engineering', 'https://catalog.mit.edu/degree-charts/engineering-civil-environmental-engineering-course-1-eng/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Civil Engineering BS', 'https://bulletin.stanford.edu/programs/CE-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    // Harvard College no ofrece Ingenieria Civil como concentration especifico. Retirado.
     ['CALTECH', 'plan_estudios', 'Caltech - Engineering and Applied Science Option', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/engineering-and-applied-science-option-eas/'],
   ],
   'INGENIERIA DE SISTEMAS DE INFORMACION': [
@@ -514,14 +515,14 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Industrial Engineering', 'https://tec.mx/en/engineering-and-sciences/bs-in-industrial-engineering'],
     ['MIT', 'plan_estudios', 'MIT - Mechanical/Industrial Degree Chart', 'https://catalog.mit.edu/degree-charts/mechanical-engineering-course-2/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Management Science and Engineering BS', 'https://bulletin.stanford.edu/programs/MGTSC-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    // Harvard College no ofrece Ingenieria Industrial como concentration especifico. Retirado.
     ['CALTECH', 'plan_estudios', 'Caltech - Engineering and Applied Science', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/engineering-and-applied-science-option-eas/'],
   ],
   'INGENIERIA MECATRONICA': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Mechatronics Engineering', 'https://tec.mx/en/innovation-and-transformation/bs-in-mechatronics-engineering'],
     ['MIT', 'plan_estudios', 'MIT - Mechanical Engineering Course 2', 'https://catalog.mit.edu/degree-charts/mechanical-engineering-course-2/'],
     ['STANFORD', 'plan_estudios', 'Stanford - Engineering BS', 'https://bulletin.stanford.edu/programs/ENGR-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Fields of Concentration 2026-27', 'https://handbook.college.harvard.edu/sites/g/files/omnuum5551/files/2026-03/Fields%20of%20Concentration_0.pdf'],
+    ['HARVARD', 'plan_estudios', 'Harvard - Materials Science and Mechanical Engineering Concentration Requirements', 'https://seas.harvard.edu/materials-science-mechanical-engineering/undergraduate-programs/concentration-information/requirements'],
     ['CALTECH', 'plan_estudios', 'Caltech - Mechanical Engineering Option', 'https://catalog.caltech.edu/current/information-for-undergraduate-students/graduation-requirements-all-options/mechanical-engineering-option-me/'],
   ],
   CONTABILIDAD: [
