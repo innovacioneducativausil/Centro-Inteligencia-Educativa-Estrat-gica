@@ -879,6 +879,15 @@ router.post('/mercado-laboral/benchmarking/programas', adminOnly, async (req, re
 });
 
 
+router.delete('/mercado-laboral/benchmarking/programas/:id', adminOnly, async (req, res) => {
+  try {
+    const deleted = await benchmarkingRepository.deleteProgramaIfEmpty(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Programa no encontrado' });
+    res.json({ ok: true });
+  } catch (e) { serverError(res, e, 'DELETE /benchmarking/programas/:id'); }
+});
+
+
 router.get('/mercado-laboral/benchmarking/programas/:id', async (req, res) => {
   try {
     const result = await benchmarkingRepository.getPrograma(req.params.id);

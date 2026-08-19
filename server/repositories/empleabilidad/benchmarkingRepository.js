@@ -47,6 +47,22 @@ export async function createPrograma({ id_universidad_benchmark, nombre_programa
   return results[0][0].id_programa_benchmark;
 }
 
+export async function deleteProgramaIfEmpty(id) {
+  const [[counts]] = await db.query(
+    `SELECT
+       (SELECT COUNT(*) FROM competencia_benchmark WHERE id_programa_benchmark = ?) AS competencias,
+       (SELECT COUNT(*) FROM curso_benchmark WHERE id_programa_benchmark = ?) AS cursos,
+       (SELECT COUNT(*) FROM benchmark_source WHERE id_programa_benchmark = ?) AS fuentes,
+       (SELECT COUNT(*) FROM benchmark_source_candidate WHERE id_programa_benchmark = ?) AS candidatos`,
+    [id, id, id, id]
+  );
+  if (counts.competencias || counts.cursos || counts.fuentes || counts.candidatos) {
+    throw new Error('El programa tiene datos asociados (fuentes, cursos o competencias); no se puede eliminar.');
+  }
+  const [result] = await db.query('DELETE FROM programa_benchmark WHERE id_programa_benchmark = ?', [id]);
+  return result.affectedRows > 0;
+}
+
 export async function getCarrerasCurriculares() {
   const [rows] = await dbCurricular.query(
     'SELECT ca.id_carrera, ca.nombre_carrera FROM carrera ca ORDER BY ca.nombre_carrera'
