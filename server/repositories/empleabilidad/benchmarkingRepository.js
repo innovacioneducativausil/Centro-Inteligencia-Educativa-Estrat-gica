@@ -52,13 +52,13 @@ export async function deleteProgramaIfEmpty(id) {
     `SELECT
        (SELECT COUNT(*) FROM competencia_benchmark WHERE id_programa_benchmark = ?) AS competencias,
        (SELECT COUNT(*) FROM curso_benchmark WHERE id_programa_benchmark = ?) AS cursos,
-       (SELECT COUNT(*) FROM benchmark_source WHERE id_programa_benchmark = ?) AS fuentes,
-       (SELECT COUNT(*) FROM benchmark_source_candidate WHERE id_programa_benchmark = ?) AS candidatos`,
-    [id, id, id, id]
+       (SELECT COUNT(*) FROM benchmark_source WHERE id_programa_benchmark = ?) AS fuentes`,
+    [id, id, id]
   );
-  if (counts.competencias || counts.cursos || counts.fuentes || counts.candidatos) {
+  if (counts.competencias || counts.cursos || counts.fuentes) {
     throw new Error('El programa tiene datos asociados (fuentes, cursos o competencias); no se puede eliminar.');
   }
+  await db.query('DELETE FROM benchmark_source_candidate WHERE id_programa_benchmark = ?', [id]);
   const [result] = await db.query('DELETE FROM programa_benchmark WHERE id_programa_benchmark = ?', [id]);
   return result.affectedRows > 0;
 }
