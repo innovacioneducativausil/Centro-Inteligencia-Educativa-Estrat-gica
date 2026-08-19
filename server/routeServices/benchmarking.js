@@ -1056,6 +1056,36 @@ router.post('/mercado-laboral/benchmarking/programas/:id/match-ia', adminOnly, a
 });
 
 
+router.post('/mercado-laboral/benchmarking/programas/:id/match-manual', adminOnly, async (req, res) => {
+  try {
+    const idPrograma = req.params.id;
+    const { pares } = req.body;
+    if (!Array.isArray(pares) || !pares.length) {
+      return res.status(400).json({ error: 'pares es requerido: [{id_curso_benchmark, id_curso_usil, confianza}]' });
+    }
+    await db.query(
+      `UPDATE curso_benchmark SET id_curso_usil_match = NULL, match_confianza = NULL, match_metodo = NULL, match_calculado_en = NULL
+       WHERE id_programa_benchmark = ?`,
+      [idPrograma]
+    );
+    let matched = 0;
+    for (const par of pares) {
+      const { id_curso_benchmark, id_curso_usil, confianza } = par;
+      if (!id_curso_benchmark || !id_curso_usil) continue;
+      const conf = Math.max(0, Math.min(100, Math.round(Number(confianza) || 80)));
+      await db.query(
+        `UPDATE curso_benchmark
+         SET id_curso_usil_match = ?, match_confianza = ?, match_metodo = 'manual_claude', match_calculado_en = NOW()
+         WHERE id_curso_benchmark = ? AND id_programa_benchmark = ?`,
+        [id_curso_usil, conf, id_curso_benchmark, idPrograma]
+      );
+      matched++;
+    }
+    res.json({ ok: true, matched });
+  } catch (e) { serverError(res, e, 'POST /benchmarking/programas/:id/match-manual'); }
+});
+
+
 router.get('/mercado-laboral/benchmarking/comparar/:idCarrera', async (req, res) => {
   try {
     const { idCarrera } = req.params;
