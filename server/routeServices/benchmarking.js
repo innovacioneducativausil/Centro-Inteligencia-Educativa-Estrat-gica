@@ -1052,7 +1052,11 @@ router.post('/mercado-laboral/benchmarking/programas/:id/match-ia', adminOnly, a
   try {
     const result = await matchCursosInternacionales(req.params.id);
     res.json({ ok: true, ...result });
-  } catch (e) { serverError(res, e, 'POST /benchmarking/programas/:id/match-ia'); }
+  } catch (e) {
+    // TEMP DEBUG: surface real error message in prod to diagnose match-ia 500s. Revert after diagnosis.
+    console.error('[match-ia debug]', e?.message, e?.stack);
+    res.status(500).json({ error: e?.message || 'Error interno del servidor.', debug: true });
+  }
 });
 
 
