@@ -1000,6 +1000,7 @@ router.post('/mercado-laboral/benchmarking/candidatos/:id/aprobar', adminOnly, a
       evidenciaResumen: `Aprobada desde candidatos. Score ${candidate.score_total}.`,
       observaciones: candidate.motivo || null,
     });
+    await benchmarkingRepository.demoteOtherBenchmarkSources(candidate.id_programa_benchmark, candidate.url);
     await benchmarkingRepository.updateProgramaAprobado(
       candidate.id_programa_benchmark, candidate.url, candidate.score_total
     );

@@ -112,6 +112,14 @@ export async function upsertBenchmarkSource({ idProg, tipoFuente, titulo, url, e
   return { insertId: results[0][0].id_benchmark_source };
 }
 
+export async function demoteOtherBenchmarkSources(idProg, keepUrl) {
+  await db.query(
+    `UPDATE benchmark_source SET es_fuente_principal = 0
+     WHERE id_programa_benchmark = ? AND url <> ? AND es_fuente_principal = 1`,
+    [idProg, keepUrl]
+  );
+}
+
 export async function updateProgramaUrlCurado(idProg, url, observaciones) {
   await db.query('CALL empl_updateProgramaUrlCurado(?, ?, ?)', [idProg, url, observaciones]);
 }
