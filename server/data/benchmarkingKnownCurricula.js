@@ -5168,6 +5168,22 @@ const KNOWN_CURRICULA = [
       ['Gestión del Cuidado de Enfermería', 8], ['AIAS-Gestión del Cuidado de Enfermería', 8], ['Seminario Integración academia-servicio IV', 8], ['Módulo de Profundización III', 8], ['Módulo de Profundización IV', 8], ['Opciones de Grado II', 8],
     ],
   },
+  {
+    key: 'navarra_enfermeria',
+    sourceUrlIncludes: ['unav.edu/web/grado-en-enfermeria/plan-de-estudios'],
+    preferred: true,
+    evidence: 'Malla curricular Grado en Enfermeria Universidad de Navarra, extraida manualmente de unav.edu (el scraper incluia encabezados de tabla "Primer/Segundo Semestre" como si fueran cursos).',
+    rows: [
+      ['Antropología I', 1], ['Anatomía', 1], ['Bioquímica', 1], ['Fisiología', 1], ['Fundamentos filosóficos de la enfermería', 1], ['Sociología', 1],
+      ['Antropología II', 2], ['Estadística', 2], ['Fisiopatología general', 2], ['Fundamentos metodológicos de la enfermería', 2], ['Inglés científico', 2], ['Psicología', 2], ['Preprácticum', 2],
+      ['Farmacología y microbiología', 3], ['Prácticum I', 3], ['Atención de enfermería a la persona en la edad adulta I', 3], ['Ética general I', 3], ['Ética Interfacultativa', 3], ['Nutrición y dietética', 3], ['Historia de la enfermería', 3], ['Optativa: Claves Culturales CORE', 3], ['Enfermería comunitaria I', 3],
+      ['Enfermería Comunitaria II', 4], ['Bases de la metodología científica en ciencias de la salud', 4], ['Atención de enfermería a la persona en edad adulta II', 4], ['Ética general II', 4],
+      ['Atención de enfermería a la persona en edad adulta III', 5], ['Prácticum II', 5], ['Atención de enfermería a la persona en edad adulta IV', 5], ['Gestión sanitaria', 5],
+      ['Atención de enfermería a la persona en edad adulta V', 6], ['Atención de enfermería a la persona anciana', 6], ['Atención de enfermería en la infancia y la adolescencia', 6], ['Prácticum III', 6],
+      ['Trabajo Fin de Grado', 7], ['Prácticum IV', 7], ['Deontología y legislación profesional', 7], ['Cuidados Paliativos', 7], ['Bioética', 7], ['Optativa: Claves Culturales CORE', 7], ['2 OP - Complementaria de la disciplina', 7],
+      ['Prácticum V', 8],
+    ],
+  },
 ];
 
 export function getKnownCurriculumByUrl(url = '', context = {}) {
