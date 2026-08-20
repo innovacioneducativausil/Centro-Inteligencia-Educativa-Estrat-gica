@@ -18,6 +18,7 @@ import {
   getSilaboById,
   getSilabos,
   importCurricularRows,
+  replaceCursosDeMalla,
   searchCursos,
   updateSilabo,
   updateSilaboEstado,
@@ -143,6 +144,19 @@ router.get('/curricular/mallas/:idMalla/vision360', async (req, res) => {
     res.json(data);
   } catch (err) {
     serverError(res, err, 'GET /curricular/mallas/:idMalla/vision360');
+  }
+});
+
+router.post('/curricular/mallas/:idMalla/reemplazar-cursos', adminOrAnalyst, async (req, res) => {
+  try {
+    const { cursos } = req.body;
+    if (!Array.isArray(cursos) || !cursos.length) {
+      return res.status(400).json({ error: 'cursos es requerido: [{nombreCurso, numeroCiclo, codigoCurso, tipoCurso}]' });
+    }
+    const total = await replaceCursosDeMalla(Number(req.params.idMalla), cursos);
+    res.json({ ok: true, total });
+  } catch (err) {
+    serverError(res, err, 'POST /curricular/mallas/:idMalla/reemplazar-cursos');
   }
 });
 

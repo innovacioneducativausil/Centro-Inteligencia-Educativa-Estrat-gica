@@ -414,6 +414,26 @@ async function getOrCreateMalla({ idCarrera, nombreVersion, anioInicio, esVigent
   return created.id_malla;
 }
 
+export async function replaceCursosDeMalla(idMalla, cursos) {
+  return curricularPrisma.$transaction(async (tx) => {
+    await tx.curso.deleteMany({ where: { id_malla: idMalla } });
+    let orden = 1;
+    for (const c of cursos) {
+      await tx.curso.create({
+        data: {
+          id_malla: idMalla,
+          nombre_curso: c.nombreCurso,
+          numero_ciclo: c.numeroCiclo,
+          nro_orden: orden++,
+          codigo_curso: c.codigoCurso ?? null,
+          tipo_curso: c.tipoCurso === 'Elect.' ? 'Electivo' : 'Obligatorio',
+        },
+      });
+    }
+    return cursos.length;
+  });
+}
+
 async function upsertCurso({ idMalla, nombreCurso, numeroCiclo, creditos, tipoCurso }) {
   const row = await curricularPrisma.curso.findFirst({
     where: { id_malla: idMalla, nombre_curso: nombreCurso, numero_ciclo: numeroCiclo },
