@@ -222,7 +222,7 @@ export async function getCursosByProgramas(ids) {
   if (!ids.length) return [];
   const placeholders = ids.map(() => '?').join(',');
   const [rows] = await db.query(
-    `SELECT id_programa_benchmark, nombre_curso, ciclo, area_formacion, descripcion_curso, fuente_url,
+    `SELECT id_curso_benchmark, id_programa_benchmark, nombre_curso, ciclo, area_formacion, descripcion_curso, fuente_url,
             id_curso_usil_match, match_confianza, match_metodo
      FROM curso_benchmark
      WHERE id_programa_benchmark IN (${placeholders})
