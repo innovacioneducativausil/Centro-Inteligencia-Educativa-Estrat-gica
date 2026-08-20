@@ -5152,6 +5152,22 @@ const KNOWN_CURRICULA = [
       ['Computational Analysis in CE', 9], ['Gerencia de la Construcción', 9], ['Proyecto Integrador ICV', 9],
     ],
   },
+  {
+    key: 'rosario_enfermeria',
+    sourceUrlIncludes: ['urosario.edu.co/en/node/70921'],
+    preferred: true,
+    evidence: 'Malla curricular Enfermeria Universidad del Rosario, extraida manualmente de urosario.edu.co/en/node/70921 (el scraper generaba filas duplicadas y nombres truncados, ej. "AIAS" en vez de "AIAS Biociencias").',
+    rows: [
+      ['Práctica Contexto de enfermería', 1], ['Teoría Contexto de enfermería', 1], ['Seminario de Comunicación y cuidado humanizado I', 1], ['Introducción al Socio-Humanismo', 1], ['Nuevo trívium para enfermería', 1], ['AIAS Biociencias', 1], ['Electiva I', 1],
+      ['Práctica La educación y comunicación para el cuidado de enfermería', 2], ['Teoría La educación y comunicación para el cuidado de enfermería', 2], ['Seminario Integración academia-servicio I', 2], ['Ciencias Socio-Humanísticas I', 2], ['Cátedra Rosarista', 2], ['AIAS Biomédicas I', 2], ['Electiva II', 2],
+      ['Práctica El cuidado de la familia y la comunidad', 3], ['Teoría El cuidado de la familia y la comunidad', 3], ['Seminario de Comunicación y cuidado humanizado II', 3], ['Salud de Poblaciones I', 3], ['AIAS Biomédicas II', 3], ['Electiva III', 3],
+      ['Cuidados básicos hospitalarios', 4], ['Cuidados de enfermería en la salud mental', 4], ['AIAS-Cuidados básicos hospitalarios', 4], ['AIAS-Cuidados de enfermería en la salud mental', 4], ['Seminario Integración academia-servicio II', 4], ['Ciencias Socio-Humanísticas II', 4], ['Salud de Poblaciones II', 4], ['Electiva Decanatura del medio', 4], ['Electiva IV', 4],
+      ['Cuidado de enfermería para la gestante, el neonato y el niño', 5], ['IAS-Cuidado de enfermería para la gestante, el neonato y el niño', 5], ['Seminario Identidad y liderazgo profesional I', 5], ['Medicina Traslacional I', 5], ['Constitución política e instrucción cívica', 5], ['Electiva Decanatura del medio', 5], ['Electiva V', 5],
+      ['Cuidado de enfermería para el adulto', 6], ['AIAS-Cuidado de enfermería para el adulto', 6], ['Seminario Integración academia-servicio III', 6], ['Medicina Traslacional II', 6], ['Electiva Decanatura del medio', 6], ['Electiva VI', 6],
+      ['Cuidado enfermería Adulto Mayor', 7], ['AIAS-Cuidado enfermería Adulto Mayor', 7], ['Seminario Identidad y liderazgo profesional II', 7], ['Módulo de Profundización I', 7], ['Módulo de Profundización II', 7], ['Opciones de Grado I', 7],
+      ['Gestión del Cuidado de Enfermería', 8], ['AIAS-Gestión del Cuidado de Enfermería', 8], ['Seminario Integración academia-servicio IV', 8], ['Módulo de Profundización III', 8], ['Módulo de Profundización IV', 8], ['Opciones de Grado II', 8],
+    ],
+  },
 ];
 
 export function getKnownCurriculumByUrl(url = '', context = {}) {
