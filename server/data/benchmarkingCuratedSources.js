@@ -415,7 +415,6 @@ const INTERNATIONAL_URLS_BY_CAREER = {
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Global Business', 'https://tec.mx/en/business/ba-in-international-business'],
     ['USFQ', 'malla_curricular', 'USFQ - Administracion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1ADM&out=1'],
     ['STANFORD', 'plan_estudios', 'Stanford - Management Science and Engineering BS', 'https://bulletin.stanford.edu/programs/MGTSC-BS'],
-    ['HARVARD', 'brochure_pdf', 'Harvard - Economics Concentration Requirements', 'https://www.economics.harvard.edu/sites/g/files/omnuum5991/files/econ/files/concentration-requirements_2020.pdf'],
   ],
   MARKETING: [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Marketing BA', 'https://tec.mx/en/business/ba-in-marketing'],
