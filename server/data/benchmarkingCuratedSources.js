@@ -444,7 +444,7 @@ const INTERNATIONAL_URLS_BY_CAREER = {
   'EDUCACION INICIAL': [
     ['TEC', 'pagina_programa', 'Tec de Monterrey - Educational Innovation', 'https://tec.mx/en/creative-studies/ba-in-educational-innovation'],
     ['USFQ', 'malla_curricular', 'USFQ - Educacion portal malla', 'https://wsexternal.usfq.edu.ec/MallaCurricular-USFQ/DetalleMallaCurricular/DetalleMalla?codigoCarrera=1EDU&out=1'],
-    ['STANFORD', 'plan_estudios', 'Stanford - Education MA', 'https://bulletin.stanford.edu/programs/ED-MA'],
+    // Stanford ED-MA es un programa de posgrado (Master of Arts), no ofrece equivalente de pregrado. Retirado.
     // Harvard College no tiene concentration de pregrado en Educacion (Graduate School of Education es solo posgrado). Retirado.
   ],
   'EDUCACION SECUNDARIA CON ESPECIALIDAD EN INGLES': [
