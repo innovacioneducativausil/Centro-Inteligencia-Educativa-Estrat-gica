@@ -1403,15 +1403,13 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                       : 'todos';
                     const cursosUsilFiltrados = filterCoursesByCycle(cursosUsil, activeCiclo);
                     const cursosExternosFiltrados = filterCoursesByCycle(cursosExternos, activeCiclo);
-                    // Competencia directa (mallas peruanas, ambas en español): coincidencia por texto normalizado.
-                    // Competencia internacional (idiomas distintos): coincidencia por el par calculado con IA
-                    // (curso_benchmark.id_curso_usil_match), cacheado en BD via /match-ia.
+                    // Coincidencia por el par calculado y guardado en BD (curso_benchmark.id_curso_usil_match,
+                    // via /match-ia o /match-manual) cuando existe; si el curso aun no fue matcheado, se cae a
+                    // comparacion por texto normalizado como respaldo (aplica a los 4 tipos de benchmark).
                     const getUsilKey = (c: { id?: number; nombre: string }) =>
-                      isInternacional && c.id != null ? `usil:${c.id}` : courseKey(c.nombre);
+                      c.id != null ? `usil:${c.id}` : courseKey(c.nombre);
                     const getExtKey = (c: { nombre: string; matchedUsilId?: number | null }) =>
-                      isInternacional
-                        ? (c.matchedUsilId != null ? `usil:${c.matchedUsilId}` : `sinmatch:${courseKey(c.nombre)}`)
-                        : courseKey(c.nombre);
+                      c.matchedUsilId != null ? `usil:${c.matchedUsilId}` : `sinmatch:${courseKey(c.nombre)}`;
                     const usilKeys = new Set(cursosUsilFiltrados.map(getUsilKey));
                     const extKeys = new Set(cursosExternosFiltrados.map(getExtKey));
                     const coincidencias = cursosExternosFiltrados.filter(c => usilKeys.has(getExtKey(c))).length;
