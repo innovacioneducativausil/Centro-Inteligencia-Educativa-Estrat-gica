@@ -5080,6 +5080,10 @@ const DOMAIN_CONTEXT_RULES = [
     contexto: 'La carrera de Gestión en la PUCP dura 5 años: los primeros 2 años (4 semestres) el estudiante cursa "Estudios Generales Letras" (EEGGLL), un programa compartido con otras carreras de letras de la universidad y no específico de Gestión, por lo que no se incluye aquí. Los últimos 3 años (Ciclos 5 a 10, mostrados en esta malla) corresponden a la especialización propia de la Facultad de Gestión y Alta Dirección.',
   },
   {
+    test: /pucp\.edu\.pe/,
+    contexto: 'La PUCP organiza casi todas sus carreras en 5 años: los primeros 2 años (4 semestres, Ciclos 1 a 4) son "Estudios Generales" (Letras o Ciencias según la carrera), un programa compartido con otras carreras de la misma área y no específico de esta carrera, por lo que no se incluye aquí. Los últimos 3 años (Ciclos 5 a 10, mostrados en esta malla) corresponden a la especialización propia de la Facultad.',
+  },
+  {
     test: /utec\.edu\.pe\/carreras/,
     contexto: 'UTEC organiza su malla en 10 ciclos semestrales, igual que USIL. La extracción automática original capturaba las etiquetas de créditos de cada celda ("20 créditos", "3 créditos") como si fueran cursos; esta malla fue re-extraída y verificada manualmente contra la página oficial de la carrera.',
   },
