@@ -5324,6 +5324,24 @@ const KNOWN_CURRICULA = [
       ['Seminario de Investigación 2', 10], ['Gestión de la Regulación Pública', 10], ['Gestión del Cambio en el Sector Público', 10], ['Alianza estratégica y movilización de recursos', 10], ['Innovación y Emprendimiento Social', 10],
     ],
   },
+  {
+    key: 'utp_relaciones_internacionales',
+    sourceUrlIncludes: ['utp.edu.pe/web/sites/default/files/transparencia/p16'],
+    preferred: true,
+    evidence: 'Malla curricular Relaciones Internacionales UTP, extraida manualmente del PDF oficial (GCU-CU016, el scraper generaba fragmentos de tabla ilegibles cortados a mitad de palabra).',
+    rows: [
+      ['Introducción al Derecho', 1], ['Comprensión y Redacción de Textos I', 1], ['Individuo y Medio Ambiente', 1], ['Historia de las Ideas Políticas I', 1], ['Introducción a las Relaciones Internacionales', 1], ['Geopolítica', 1],
+      ['Economía General', 2], ['Teoría de las Relaciones Internacionales', 2], ['Inglés I', 2], ['Comprensión y Redacción de Textos II', 2], ['Historia de las Ideas Políticas II', 2], ['Teoría del Estado', 2],
+      ['Ciencia Política', 3], ['Derecho Constitucional', 3], ['Inglés II', 3], ['Problemas y Desafíos en el Perú Actual', 3], ['Pensamiento Político Comparado', 3], ['Macroeconomía', 3],
+      ['Ciudadanía y Reflexión Ética', 4], ['Inglés III', 4], ['Historia de las Relaciones Internacionales', 4], ['Relaciones Internacionales No Estatales', 4], ['Derecho Internacional Público', 4], ['Contabilidad General', 4],
+      ['Investigación Académica', 5], ['Inglés IV', 5], ['Relaciones Internacionales del Perú', 5], ['Teoría de la Globalización', 5], ['Regímenes Internacionales', 5], ['Administración del Estado Peruano', 5],
+      ['Formación para la Empleabilidad', 6], ['Sistemas Jurídico-Político Comparados', 6], ['Relaciones del Perú con América, Europa y Asia', 6], ['Derecho Internacional de los Derechos Humanos', 6], ['Presupuesto Público', 6], ['Curso Integrador I - Relaciones Internacionales', 6],
+      ['Relaciones Internacionales Latinoamericanas Contemporáneas', 7], ['Medio Oriente', 7], ['Régimen Internacional del Comercio', 7], ['Política Económica Internacional', 7], ['Inglés V', 7], ['Finanzas Internacionales', 7],
+      ['Teoría del Conflicto', 8], ['Defensa Nacional y Seguridad Internacional', 8], ['Régimen Internacional de la Propiedad Intelectual', 8], ['Derecho Diplomático y Consular', 8], ['Teoría y Técnicas de la Negociación', 8], ['Inglés VI', 8],
+      ['Formación para la Investigación - Derecho', 9], ['Planeamiento Estratégico de las Relaciones Externas', 9], ['Relaciones Externas Empresariales', 9], ['Inglés VII', 9], ['Curso Integrador II - Relaciones Internacionales', 9],
+      ['Ética Profesional - Derecho', 10], ['Diplomacia Pública', 10], ['Cooperación Internacional', 10], ['Litigio y Jurisprudencia Internacional', 10], ['Taller de Investigación - Relaciones Internacionales', 10], ['Inglés VIII', 10],
+    ],
+  },
 ];
 
 export function getKnownCurriculumByUrl(url = '', context = {}) {
