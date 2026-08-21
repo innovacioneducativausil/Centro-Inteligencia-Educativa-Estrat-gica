@@ -230,6 +230,64 @@ function sourceHasConflictingCareerLabel(sourceText: string, careerName: string)
   });
 }
 
+const ContextoAcademicoIcon: React.FC<{ url: string | null | undefined; isDark: boolean }> = ({ url, isDark }) => {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<{ contexto: string | null; evidencia?: string | null } | null>(null);
+  const [fetched, setFetched] = useState(false);
+
+  if (!url) return null;
+
+  const handleToggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !fetched) {
+      setLoading(true);
+      apiFetch<{ contexto: string | null; evidencia?: string | null }>(
+        `/api/mercado-laboral/benchmarking/contexto-academico?url=${encodeURIComponent(url)}`
+      )
+        .then(d => { setData(d); setFetched(true); })
+        .catch(() => { setData(null); setFetched(true); })
+        .finally(() => setLoading(false));
+    }
+  };
+
+  return (
+    <span style={{ position: 'relative', display: 'inline-block', marginLeft: 6 }}>
+      <button
+        type="button"
+        onClick={handleToggle}
+        title="Cómo está organizada esta malla"
+        style={{ background: 'rgba(255,255,255,0.25)', border: 'none', borderRadius: '50%',
+          width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', padding: 0, verticalAlign: 'middle' }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 12, color: '#fff' }}>info</span>
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', top: 20, left: 0, zIndex: 40, width: 280,
+          background: isDark ? '#1e293b' : '#fff', color: isDark ? '#f1f5f9' : '#191c1e',
+          border: `1px solid ${isDark ? 'rgba(148,163,184,0.25)' : '#d0d5db'}`, borderRadius: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)', padding: 10, fontSize: 11, lineHeight: 1.5 }}>
+          {loading ? (
+            <span>Cargando...</span>
+          ) : data?.contexto ? (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Cómo está organizada esta malla</div>
+              <div>{data.contexto}</div>
+            </>
+          ) : (
+            <div>Sin nota adicional registrada para esta fuente todavía.</div>
+          )}
+          <a href={url} target="_blank" rel="noopener noreferrer"
+            style={{ display: 'inline-block', marginTop: 8, color: isDark ? '#67e8f9' : '#0e7490', fontWeight: 600 }}>
+            Ver fuente original ↗
+          </a>
+        </div>
+      )}
+    </span>
+  );
+};
+
 const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRole, tiposDisponibles }) => {
   const isDark   = themeColors.bg?.includes('950') || themeColors.bg?.includes('slate-900') || false;
   const bg       = isDark ? '#0f172a' : SURFACE_LOW;
@@ -746,7 +804,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
   };
 
   const renderMallaBoard = <T extends { ciclo?: string | number | null; nombre: string; meta?: string | null; matchConfianza?: number | null }>(
-    title: string,
+    title: React.ReactNode,
     subtitle: string,
     courses: T[],
     accent: string,
@@ -770,7 +828,7 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
             gap: 8, padding: 10, background: isDark ? '#0f172a' : SURFACE_LOW }}>
             {grouped.map(([cycle, items]) => (
-              <div key={`${title}-${cycle}`} style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+              <div key={`${subtitle}-${cycle}`} style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, borderBottom: `1px solid ${border}`,
                   paddingBottom: 4, marginBottom: 6, flex: '0 0 auto' }}>
                   <span style={{ fontWeight: 700, fontSize: 11, color: accent, fontFamily: FONT_HEAD }}>Ciclo {cycle}</span>
@@ -1508,7 +1566,10 @@ const BenchmarkingView: React.FC<BenchmarkingViewProps> = ({ themeColors, userRo
                             getUsilKey
                           )}
                           {renderMallaBoard(
-                            `Malla referente - ${p.nombre_universidad}`,
+                            <>
+                              Malla referente - {p.nombre_universidad}
+                              <ContextoAcademicoIcon url={p.url_programa} isDark={isDark} />
+                            </>,
                             `${cursosExternosFiltrados.length}/${cursosExternos.length} cursos extraídos desde fuente oficial`,
                             cursosExternosFiltrados,
                             CYAN,

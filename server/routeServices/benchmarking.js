@@ -20,6 +20,7 @@ import {
   getCuratedInternationalUniversityCodesForCareer,
   getCuratedSourcesByBenchmarkType,
 } from '../data/benchmarkingCuratedSources.js';
+import { getKnownCurriculumContext } from '../data/benchmarkingKnownCurricula.js';
 
 const router = Router();
 
@@ -1084,6 +1085,16 @@ router.post('/mercado-laboral/benchmarking/programas/:id/match-manual', adminOnl
     }
     res.json({ ok: true, matched });
   } catch (e) { serverError(res, e, 'POST /benchmarking/programas/:id/match-manual'); }
+});
+
+
+router.get('/mercado-laboral/benchmarking/contexto-academico', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: 'url es requerido' });
+    const context = getKnownCurriculumContext(String(url));
+    res.json(context || { contexto: null });
+  } catch (e) { serverError(res, e, 'GET /benchmarking/contexto-academico'); }
 });
 
 

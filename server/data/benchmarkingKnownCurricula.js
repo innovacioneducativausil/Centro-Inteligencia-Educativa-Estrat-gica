@@ -5361,3 +5361,75 @@ export function shouldPreferKnownCurriculum(url = '', context = {}) {
   );
   return Boolean(match?.preferred);
 }
+
+const DOMAIN_CONTEXT_RULES = [
+  {
+    test: /bulletin\.stanford\.edu/,
+    contexto: 'Stanford no organiza su plan de estudios en "ciclos" numerados como las universidades peruanas: los estudiantes cursan 4 años (aprox. 12 trimestres) combinando cursos generales, electivos y los requisitos de su "major" (especialización) en el orden que prefieran, sin una secuencia fija por semestre. Por eso esta malla se muestra en un solo bloque ("Ciclo S/C" = sin ciclo) con los cursos oficialmente requeridos por el major, tal como los publica el Stanford Bulletin.',
+  },
+  {
+    test: /economics\.harvard\.edu|harvard\.edu/,
+    contexto: 'Harvard organiza el pregrado en "concentraciones" (equivalentes a una especialización) dentro de 4 años sin ciclos numerados fijos: el estudiante elige libremente el orden de sus cursos, cumpliendo un conjunto de requisitos de la concentración más cursos de Educación General y electivos. Los cursos que se listan aquí son los requisitos oficiales de la concentración, tomados del "Plan of Study" o la página de requisitos publicada por el departamento; no existe una malla año por año como la de USIL.',
+  },
+  {
+    test: /catalog\.mit\.edu|web\.mit\.edu|\bmit\.edu\b/,
+    contexto: 'MIT no publica una malla por ciclos: su "degree chart" combina requisitos generales del instituto (GIRs) descritos por categoría sin nombrar cursos específicos (ej. "6 asignaturas de ciencias", "8 de humanidades") con los cursos concretos y obligatorios del departamento/major, que sí se listan por código. Esta lista muestra únicamente esos cursos con nombre propio del major; los requisitos generales no aparecen porque el estudiante puede elegir entre muchas opciones válidas y MIT no fija cuáles.',
+  },
+  {
+    test: /catalog\.caltech\.edu|caltech\.edu/,
+    contexto: 'Caltech, igual que otras universidades estadounidenses, no tiene ciclos numerados fijos: el estudiante cumple los requisitos de su "option" (especialización) a lo largo de 4 años combinándolos con cursos generales, en el orden que prefiera. Los cursos mostrados son los requisitos oficiales de la option según el Caltech Course Catalog.',
+  },
+  {
+    test: /wsexternal\.usfq\.edu\.ec|usfq\.edu\.ec/,
+    contexto: 'La Universidad San Francisco de Quito (Ecuador) sí organiza su malla en semestres numerados (similar a USIL), pero su portal público (wsexternal.usfq.edu.ec) renderiza la tabla con JavaScript, lo que originalmente hacía que la extracción automática capturara solo códigos y encabezados de tabla en vez de nombres de curso. Esta malla fue verificada manualmente contra el portal oficial y, cuando existía, contra el brochure/PDF oficial de la carrera.',
+  },
+  {
+    test: /facultad\.pucp\.edu\.pe\/gestion-direccion/,
+    contexto: 'La carrera de Gestión en la PUCP dura 5 años: los primeros 2 años (4 semestres) el estudiante cursa "Estudios Generales Letras" (EEGGLL), un programa compartido con otras carreras de letras de la universidad y no específico de Gestión, por lo que no se incluye aquí. Los últimos 3 años (Ciclos 5 a 10, mostrados en esta malla) corresponden a la especialización propia de la Facultad de Gestión y Alta Dirección.',
+  },
+  {
+    test: /utec\.edu\.pe\/carreras/,
+    contexto: 'UTEC organiza su malla en 10 ciclos semestrales, igual que USIL. La extracción automática original capturaba las etiquetas de créditos de cada celda ("20 créditos", "3 créditos") como si fueran cursos; esta malla fue re-extraída y verificada manualmente contra la página oficial de la carrera.',
+  },
+  {
+    test: /urosario\.edu\.co/,
+    contexto: 'La Universidad del Rosario (Colombia) organiza su malla en 8 semestres. La extracción automática original duplicaba cada fila y truncaba varios nombres de curso (ej. "AIAS" en vez de "AIAS Biociencias"); esta malla fue re-extraída y verificada manualmente contra la página oficial del programa.',
+  },
+  {
+    test: /unav\.edu/,
+    contexto: 'La Universidad de Navarra (España) organiza su malla en 4 años/8 semestres, con algunas asignaturas anuales. La extracción automática original incluía los encabezados de la tabla ("Primer Semestre", "Segundo Semestre") como si fueran cursos; esta malla fue re-extraída y verificada manualmente contra la página oficial del plan de estudios.',
+  },
+  {
+    test: /utp\.edu\.pe/,
+    contexto: 'UTP organiza su malla en 10 ciclos semestrales, igual que USIL. La extracción automática original devolvía fragmentos de tabla ilegibles cortados a mitad de palabra desde el PDF oficial; esta malla fue re-extraída directamente del PDF oficial (código GCU) y verificada manualmente.',
+  },
+  {
+    test: /pregrado\.upc\.edu\.pe|epe\.upc\.edu\.pe|upc-cdn\.b-cdn\.net/,
+    contexto: 'UPC organiza su malla en 10 ciclos semestrales, igual que USIL. En algunos programas la extracción automática original capturaba las etiquetas de código y créditos de cada curso ("Codigo AP124", "20 créditos") como si fueran asignaturas; esta malla fue re-extraída y verificada manualmente contra la página oficial de la carrera.',
+  },
+  {
+    test: /austral\.edu\.ar/,
+    contexto: 'La Universidad Austral (Argentina) organiza su malla en años/cuatrimestres. Esta malla fue curada manualmente desde el folleto/plan de estudios oficial de la carrera.',
+  },
+  {
+    test: /uba\.ar/,
+    contexto: 'La Universidad de Buenos Aires (Argentina) organiza su malla por años. Esta malla fue curada manualmente desde el plan de estudios oficial de la carrera.',
+  },
+  {
+    test: /tec\.mx/,
+    contexto: 'El Tecnológico de Monterrey (México) usa el modelo Tec21, organizado por bloques/semestres con nombres de curso frecuentemente en inglés y con enfoque en competencias, distinto al sistema de ciclos tradicional. Los cursos mostrados son los publicados en la página oficial del programa.',
+  },
+];
+
+export function getKnownCurriculumContext(url = '', context = {}) {
+  const normalized = normalizeUrl(url);
+  const match = KNOWN_CURRICULA.find(item =>
+    item.sourceUrlIncludes.some(fragment => normalized.includes(fragment)) &&
+    contextMatches(item, context)
+  );
+  if (match?.contexto) return { contexto: match.contexto, evidencia: match.evidence || null };
+  const domainRule = DOMAIN_CONTEXT_RULES.find(rule => rule.test.test(normalized));
+  if (domainRule) return { contexto: domainRule.contexto, evidencia: match?.evidence || null };
+  if (match?.evidence) return { contexto: match.evidence, evidencia: null };
+  return null;
+}
