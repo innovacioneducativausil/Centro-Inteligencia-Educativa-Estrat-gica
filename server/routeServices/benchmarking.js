@@ -704,6 +704,7 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
       const entries = [
         ...[...new Set(directCodes)].map(code => ({ code, tipo: 'competencia_directa' })),
         ...[...new Set(internationalCodes)].map(code => ({ code, tipo: 'competencia_internacional' })),
+        ...[...new Set(directCodes)].map(code => ({ code, tipo: 'referente_nacional' })),
       ];
 
       for (const entry of entries) {
@@ -756,9 +757,9 @@ router.post('/mercado-laboral/benchmarking/seed-inicial', adminOnly, async (_req
           programasCreados++;
         }
 
-        const curatedSources = entry.tipo === 'competencia_directa'
-          ? getCuratedDirectBenchmarkSources(carrera.nombre_carrera, univ.nombre)
-          : getCuratedInternationalBenchmarkSources(carrera.nombre_carrera, univ.nombre);
+        const curatedSources = entry.tipo === 'competencia_internacional'
+          ? getCuratedInternationalBenchmarkSources(carrera.nombre_carrera, univ.nombre)
+          : getCuratedDirectBenchmarkSources(carrera.nombre_carrera, univ.nombre);
         if (curatedSources.length) {
           for (const [sourceIndex, source] of curatedSources.entries()) {
             const [rSource] = await db.query(
