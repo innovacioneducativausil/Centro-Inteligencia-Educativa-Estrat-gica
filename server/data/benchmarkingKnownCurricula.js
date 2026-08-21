@@ -5009,7 +5009,7 @@ const KNOWN_CURRICULA = [
     key: 'cayetano_heredia_medicina',
     sourceUrlIncludes: ['cayetano.edu.pe/pregrado/carreras/medicina'],
     preferred: true,
-    evidence: 'Malla curricular Medicina Humana Universidad Peruana Cayetano Heredia (7 anios / 14 ciclos), extraida manualmente (el scraper generaba fragmentos de calendario de evaluaciones como "3era evaluacion", "Mejora 1" en vez de cursos reales).',
+    evidence: 'Malla curricular Medicina Humana Universidad Peruana Cayetano Heredia (7 anios), extraida manualmente (el scraper generaba fragmentos de calendario de evaluaciones como "3era evaluacion", "Mejora 1" en vez de cursos reales). La fuente oficial nombra 14 ciclos en total, pero solo numera individualmente los ciclos 1-9; el Sexto Ano (Externado) y el Septimo Ano (Internado, "Ciclo 11-14") se publican como dos bloques anuales sin desglose por ciclo, por lo que aqui se representan como ciclo 10 y ciclo 11 respectivamente (correccion de una version anterior que los etiquetaba erroneamente como ciclos 13 y 14, dejando un hueco falso en los ciclos 10-12).',
     rows: [
       ['Matemática', 1], ['Química General', 1], ['Principios de Biología Integrativa', 1], ['Técnicas Básicas de Atención en Salud', 1], ['Filosofía y Ética', 1], ['Desarrollo Personal y Autonomía', 1], ['Inglés 1', 1],
       ['Física', 2], ['Química Orgánica', 2], ['Introducción a la Biología Celular', 2], ['Ciencias Sociales en el Contexto Actual', 2], ['Comunicación y Redacción II', 2], ['Inglés 2', 2], ['Pensamiento Científico e Investigación', 2], ['Cultura Ambiental y Desarrollo Sostenible', 2],
@@ -5020,8 +5020,8 @@ const KNOWN_CURRICULA = [
       ['Introducción a Clínica', 7],
       ['Epidemiología Clínica', 8], ['Clínica Médica I', 8], ['Clínica Pediátrica', 8], ['Clínica Quirúrgica I', 8],
       ['Clínica Neurológica', 9], ['Enfermedades Infecciosas y Tropicales', 9], ['Clínica Dermatológica', 9], ['Clínica Gineco-Obstétrica II', 9], ['Clínica Psiquiátrica', 9],
-      ['Medicina Interna (Externado)', 13], ['Medicina Familiar (Externado)', 13], ['Psiquiatría (Externado)', 13], ['Pediatría (Externado)', 13], ['Cirugía (Externado)', 13], ['Gineco-Obstetricia (Externado)', 13], ['Gestión en Salud (Externado)', 13],
-      ['Internado en Medicina', 14], ['Internado en Pediatría', 14], ['Internado en Cirugía', 14], ['Internado en Gineco-Obstetricia', 14], ['Internado en Atención Primaria', 14], ['Trabajo de Investigación', 14],
+      ['Introducción a la Práctica Profesional', 10], ['Externado de Medicina Interna', 10], ['Externado de Medicina Familiar y Práctica Ambulatoria', 10], ['Externado de Psiquiatría', 10], ['Externado de Pediatría', 10], ['Externado de Cirugía', 10], ['Externado de Ginecología-Obstetricia', 10], ['Gestión (Externado)', 10], ['Electivo de Externado I', 10], ['Electivo de Externado II', 10], ['Electivo de Externado III', 10], ['Electivo de Externado IV', 10],
+      ['Internado de Medicina', 11], ['Internado de Pediatría', 11], ['Internado de Cirugía', 11], ['Internado de Ginecología-Obstetricia', 11], ['Internado en el Primer Nivel de Atención', 11], ['Trabajo de Investigación', 11],
     ],
   },
   {
