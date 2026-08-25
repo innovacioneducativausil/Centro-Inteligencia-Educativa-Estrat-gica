@@ -56,22 +56,41 @@ async function callGroqWithBackoff(systemPrompt, userPrompt, maxTokens) {
   }
 }
 
+// Orden de intento: primero la key dedicada de este motor (HF_API_KEY_ANALISIS_CURSO
+// — se prueba siempre primero, así que en cuanto se le resetee la cuota mensual
+// vuelve a usarse sola, sin tocar código). Si esa está agotada (402), se prueban
+// las demás keys de HF de la cuenta (compartidas con otras features) como respaldo
+// temporal antes de caer a Groq.
+const HF_KEY_ENV_VARS = [
+  'HF_API_KEY_ANALISIS_CURSO',
+  'HF_API_KEY_METRICS',
+  'HF_API_KEY_ESCENARIOS',
+  'HF_API_KEY_MAPPING',
+  'HF_API_KEY_IMPORT3',
+  'HF_API_KEY_IMPORT2',
+  'HF_API_KEY_IMPORT',
+  'HF_API_KEY',
+];
+
 /**
  * Llama al proveedor de IA compartido por los motores curriculares (Visión
- * 360 y Plan de acción). HuggingFace primero, Groq como respaldo. `context`
- * (opcional) se usa para loggear qué motor/curso está llamando.
+ * 360 y Plan de acción). Prueba las keys de HuggingFace en orden (ver
+ * HF_KEY_ENV_VARS), Groq como último respaldo. `context` (opcional) se usa
+ * para loggear qué motor/curso está llamando.
  *
  * `providerState` es un objeto mutable que el LLAMADOR crea UNA VEZ por
- * corrida completa (ej. por carrera/malla) y reutiliza en cada llamada: si
- * HuggingFace responde 402 (cuota agotada) una vez, se marca ahí y las
- * siguientes llamadas de esa misma corrida saltan directo a Groq en vez de
- * esperar un timeout que ya sabemos que va a fallar.
+ * corrida completa (ej. por carrera/malla) y reutiliza en cada llamada:
+ * cada key de HF que responda 402 (cuota agotada) se marca ahí, así las
+ * siguientes llamadas de esa misma corrida saltan directo a la próxima key
+ * en vez de esperar un timeout que ya sabemos que va a fallar.
  */
 async function callLLM(systemPrompt, userPrompt, { providerState = {}, maxTokens = 700, context = 'LLM' } = {}) {
-  const hfKey = process.env.HF_API_KEY_ANALISIS_CURSO || process.env.HF_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
 
-  if (hfKey && hfKey !== 'hf_TU_TOKEN_AQUI' && !providerState.hfExhausted) {
+  for (const envVar of HF_KEY_ENV_VARS) {
+    const hfKey = process.env[envVar];
+    if (!hfKey || hfKey === 'hf_TU_TOKEN_AQUI' || providerState[envVar] === 'exhausted') continue;
+
     try {
       return await callProvider(
         HF_URL,
@@ -84,8 +103,13 @@ async function callLLM(systemPrompt, userPrompt, { providerState = {}, maxTokens
         }
       );
     } catch (err) {
-      if (err.status === 402) providerState.hfExhausted = true;
-      logger.warn(`[${context}] HuggingFace falló, intentando Groq: ${err.message}`, { context });
+      if (err.status === 402) {
+        providerState[envVar] = 'exhausted';
+        logger.warn(`[${context}] HuggingFace (${envVar}) sin cuota, probando siguiente key`, { context });
+      } else {
+        logger.warn(`[${context}] HuggingFace (${envVar}) falló: ${err.message}`, { context });
+        break; // error distinto a cuota (red, modelo, etc.) — no tiene sentido rotar keys, ir directo a Groq
+      }
     }
   }
 
