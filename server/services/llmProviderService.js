@@ -1,0 +1,103 @@
+import logger from '../logger.js';
+
+const HF_URL     = 'https://router.huggingface.co/v1/chat/completions';
+const HF_MODEL   = 'Qwen/Qwen2.5-7B-Instruct:together';
+const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function callProvider(url, headers, body) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => '');
+    const err = new Error(`${url} error ${r.status}: ${txt.substring(0, 200)}`);
+    err.status = r.status;
+    throw err;
+  }
+  const json = await r.json();
+  return json?.choices?.[0]?.message?.content ?? '';
+}
+
+async function callGroqWithBackoff(systemPrompt, userPrompt, maxTokens) {
+  const groqKey = process.env.GROQ_API_KEY;
+  const body = {
+    model: GROQ_MODEL,
+    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+    max_tokens: maxTokens,
+    temperature: 0.2,
+  };
+  const headers = { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' };
+  try {
+    return await callProvider(GROQ_URL, headers, body);
+  } catch (err) {
+    if (err.status === 429) {
+      // Backoff corto y un solo reintento: evita perder el resultado por una
+      // ráfaga de llamadas que topa el límite de tokens/minuto de Groq.
+      await sleep(8000);
+      return callProvider(GROQ_URL, headers, body);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Llama al proveedor de IA compartido por los motores curriculares (Visión
+ * 360 y Plan de acción). HuggingFace primero, Groq como respaldo. `context`
+ * (opcional) se usa para loggear qué motor/curso está llamando.
+ *
+ * `providerState` es un objeto mutable que el LLAMADOR crea UNA VEZ por
+ * corrida completa (ej. por carrera/malla) y reutiliza en cada llamada: si
+ * HuggingFace responde 402 (cuota agotada) una vez, se marca ahí y las
+ * siguientes llamadas de esa misma corrida saltan directo a Groq en vez de
+ * esperar un timeout que ya sabemos que va a fallar.
+ */
+async function callLLM(systemPrompt, userPrompt, { providerState = {}, maxTokens = 700, context = 'LLM' } = {}) {
+  const hfKey = process.env.HF_API_KEY_ANALISIS_CURSO || process.env.HF_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+
+  if (hfKey && hfKey !== 'hf_TU_TOKEN_AQUI' && !providerState.hfExhausted) {
+    try {
+      return await callProvider(
+        HF_URL,
+        { Authorization: `Bearer ${hfKey}`, 'Content-Type': 'application/json' },
+        {
+          model: HF_MODEL,
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+          max_tokens: maxTokens,
+          temperature: 0.2,
+        }
+      );
+    } catch (err) {
+      if (err.status === 402) providerState.hfExhausted = true;
+      logger.warn(`[${context}] HuggingFace falló, intentando Groq: ${err.message}`, { context });
+    }
+  }
+
+  if (groqKey) return callGroqWithBackoff(systemPrompt, userPrompt, maxTokens);
+
+  throw new Error('No hay proveedor de IA configurado (HF_API_KEY / GROQ_API_KEY)');
+}
+
+function safeParseJson(raw) {
+  if (!raw) return null;
+  const match = String(raw).trim().match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
+}
+
+const PLACEHOLDER_ECHO = /maximo \d|máximo \d|solo si hay evidencia|frases cortas|no gen[eé]ricas|deja el array vac[ií]o/i;
+
+/** Descarta texto que es eco literal de las instrucciones del prompt en vez de contenido real generado. */
+function isRealText(value) {
+  return typeof value === 'string' && value.trim().length > 0 && !PLACEHOLDER_ECHO.test(value);
+}
+
+export { callLLM, safeParseJson, isRealText, sleep, HF_MODEL, GROQ_MODEL };

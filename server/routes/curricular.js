@@ -8,6 +8,7 @@ import { auditEvent } from '../services/auditService.js';
 import { serverError } from '../middleware/errorHandler.js';
 import {
   createSilabo,
+  deleteSilabo,
   ensureSilaboSupport,
   getCursoById,
   getCurricularFiltros,
@@ -309,6 +310,28 @@ router.patch('/curricular/silabos/:id/estado', adminOrAnalyst, async (req, res) 
     res.json({ ok: true });
   } catch (err) {
     serverError(res, err, 'PATCH /curricular/silabos/:id/estado');
+  }
+});
+
+router.delete('/curricular/silabos/:id', adminOrAnalyst, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await getSilaboById(id);
+    if (!existing) return res.status(404).json({ error: 'Silabo no encontrado.' });
+
+    await deleteSilabo(id);
+    await auditEvent(req, {
+      evento: 'silabo_eliminado',
+      accion: 'eliminar_silabo',
+      modulo: 'curricular',
+      entidad: 'silabo',
+      entidadId: id,
+      elementoTitulo: existing.titulo,
+      detalle: `Silabo eliminado: ${existing.titulo}`,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    serverError(res, err, 'DELETE /curricular/silabos/:id');
   }
 });
 

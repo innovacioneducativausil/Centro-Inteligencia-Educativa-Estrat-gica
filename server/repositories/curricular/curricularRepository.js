@@ -587,6 +587,7 @@ export async function searchCursos(q) {
         { nombre_curso: { contains: q } },
         { codigo_curso: { contains: q } },
       ],
+      malla_version: { es_vigente: true },
     },
     select: { id_curso: true, nombre_curso: true, codigo_curso: true },
     take: 20,
@@ -637,4 +638,8 @@ export async function updateSilaboEstado({ id, activo }) {
     where: { id_silabo: id },
     data: { activo: Boolean(activo) },
   });
+}
+
+export async function deleteSilabo(id) {
+  await curricularPrisma.silabo.delete({ where: { id_silabo: id } });
 }

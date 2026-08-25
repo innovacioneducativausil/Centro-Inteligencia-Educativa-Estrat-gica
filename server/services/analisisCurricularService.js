@@ -6,11 +6,9 @@ import {
   recogerEvidenciaMercado,
   recogerEvidenciaBenchmarking,
 } from './motorImpactoCurricularService.js';
+import { callLLM, safeParseJson, isRealText } from './llmProviderService.js';
+import { matchCursoEvidencia, getCursosConContexto } from './curricularEvidenceMatching.js';
 
-const HF_URL     = 'https://router.huggingface.co/v1/chat/completions';
-const HF_MODEL   = 'Qwen/Qwen2.5-7B-Instruct:together';
-const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const MODELO_ID  = 'qwen2.5-7b/llama-3.3-70b';
 const PROMPT_VERSION = 'v1';
 
@@ -28,46 +26,6 @@ inventar contenido — pero igual elige el estado_alineacion que mejor describa 
 (no asumas "riesgo" por defecto; si la evidencia muestra una tendencia emergente sobre un curso
 ya alineado, es "oportunidad", no "riesgo").
 Devuelve ÚNICAMENTE un objeto JSON válido, sin markdown, sin texto adicional.`;
-
-function keywordsOf(text) {
-  return String(text || '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .split(/[^a-z0-9áéíóúñ]+/i)
-    .filter(w => w.length > 4);
-}
-
-function overlaps(a, b) {
-  const setB = new Set(b);
-  return a.some(w => setB.has(w));
-}
-
-/**
- * El curso se compara contra la evidencia usando TODO lo real que tenemos de
- * él (nombre + sumilla + competencias declaradas), no solo el nombre — el
- * nombre por sí solo es demasiado angosto (p.ej. "Coaching Educativo" no
- * comparte palabras con una señal sobre "mentoría docente", pero su sumilla
- * probablemente sí). Nada de esto es inventado: son campos reales ya
- * cargados desde el Excel de la malla.
- */
-function textoCursoParaMatching(curso) {
-  return [
-    curso.nombre_curso,
-    curso.sumilla,
-    ...(curso.competencias || []).map(c => c.nombre_competencia),
-  ].filter(Boolean).join(' ');
-}
-
-function matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv }) {
-  const cursoKw = keywordsOf(textoCursoParaMatching(curso));
-
-  const radar = radarEv.filter(ev => overlaps(cursoKw, keywordsOf(`${ev.titulo} ${ev.descripcion || ''}`)));
-  const mercado = mercadoSkills.filter(s => overlaps(cursoKw, keywordsOf(s)));
-  const bench = benchEv.filter(b => overlaps(cursoKw, keywordsOf(b.nombre_competencia)));
-
-  return { radar, mercado, bench };
-}
 
 function buildPrompt(curso, evidencia, emplEv) {
   const lines = [
@@ -124,98 +82,6 @@ function buildPrompt(curso, evidencia, emplEv) {
   return lines.join('\n');
 }
 
-function safeParseJson(raw) {
-  if (!raw) return null;
-  const match = String(raw).trim().match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  try { return JSON.parse(match[0]); } catch { return null; }
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function callProvider(url, headers, body) {
-  const r = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30000),
-  });
-  if (!r.ok) {
-    const txt = await r.text().catch(() => '');
-    const err = new Error(`${url} error ${r.status}: ${txt.substring(0, 200)}`);
-    err.status = r.status;
-    throw err;
-  }
-  const json = await r.json();
-  return json?.choices?.[0]?.message?.content ?? '';
-}
-
-async function callGroqWithBackoff(prompt) {
-  const groqKey = process.env.GROQ_API_KEY;
-  const body = {
-    model: GROQ_MODEL,
-    messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }],
-    max_tokens: 700,
-    temperature: 0.2,
-  };
-  const headers = { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' };
-  try {
-    return await callProvider(GROQ_URL, headers, body);
-  } catch (err) {
-    if (err.status === 429) {
-      // Backoff corto y un solo reintento: evita perder el análisis por una
-      // ráfaga de llamadas que topa el límite de tokens/minuto de Groq.
-      await sleep(8000);
-      return callProvider(GROQ_URL, headers, body);
-    }
-    throw err;
-  }
-}
-
-/**
- * Estado compartido dentro de UNA corrida de analizarMapaCurricular: si
- * HuggingFace responde 402 (cuota mensual agotada) una vez, se asume agotada
- * para el resto de la corrida y se salta directo a Groq — evita esperar el
- * timeout de un proveedor que ya sabemos que va a fallar en cada curso.
- */
-async function callLLM(prompt, providerState = {}) {
-  // Clave dedicada exclusivamente a este motor (aislada de HF_API_KEY, que
-  // usan otras features y ya agotó su cuota) — si no está configurada, cae
-  // a la compartida como respaldo.
-  const hfKey = process.env.HF_API_KEY_ANALISIS_CURSO || process.env.HF_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
-
-  if (hfKey && hfKey !== 'hf_TU_TOKEN_AQUI' && !providerState.hfExhausted) {
-    try {
-      return await callProvider(
-        HF_URL,
-        { Authorization: `Bearer ${hfKey}`, 'Content-Type': 'application/json' },
-        {
-          model: HF_MODEL,
-          messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }],
-          max_tokens: 700,
-          temperature: 0.2,
-        }
-      );
-    } catch (err) {
-      if (err.status === 402) providerState.hfExhausted = true;
-      logger.warn(`HuggingFace falló, intentando Groq: ${err.message}`, { context: 'ANALISIS_CURSO' });
-    }
-  }
-
-  if (groqKey) return callGroqWithBackoff(prompt);
-
-  throw new Error('No hay proveedor de IA configurado (HF_API_KEY / GROQ_API_KEY)');
-}
-
-const PLACEHOLDER_ECHO = /maximo 4|máximo 4|solo si hay evidencia|frases cortas|no gen[eé]ricas/i;
-
-function isRealText(value) {
-  return typeof value === 'string' && value.trim().length > 0 && !PLACEHOLDER_ECHO.test(value);
-}
-
 function normalizeResultado(parsed) {
   if (!parsed) return null;
   const estado = ESTADOS_VALIDOS.includes(parsed.estado_alineacion) ? parsed.estado_alineacion : null;
@@ -235,35 +101,6 @@ function normalizeResultado(parsed) {
     : [];
 
   return { estado, score, tendencias, brechas, recomendaciones };
-}
-
-async function getCursosConContexto(idMallaVersion) {
-  const [cursos] = await dbCurricular.query(
-    `SELECT c.id_curso, c.nombre_curso, c.numero_ciclo, c.creditos, c.tipo_curso,
-            cs.sumilla
-     FROM curso c
-     LEFT JOIN curso_sumilla cs ON cs.id_curso = c.id_curso
-     WHERE c.id_malla = ?
-     ORDER BY c.numero_ciclo, c.nombre_curso`,
-    [idMallaVersion]
-  );
-  if (!cursos.length) return [];
-
-  const [competencias] = await dbCurricular.query(
-    `SELECT cc.id_curso, comp.nombre_competencia
-     FROM curso_competencia cc
-     JOIN competencia_curricular comp ON comp.id_competencia = cc.id_competencia
-     WHERE cc.id_curso IN (${cursos.map(() => '?').join(',')})`,
-    cursos.map(c => c.id_curso)
-  ).catch(() => [[]]);
-
-  const compByCurso = new Map();
-  for (const row of competencias) {
-    if (!compByCurso.has(row.id_curso)) compByCurso.set(row.id_curso, []);
-    compByCurso.get(row.id_curso).push(row);
-  }
-
-  return cursos.map(c => ({ ...c, competencias: compByCurso.get(c.id_curso) || [] }));
 }
 
 async function upsertAnalisisCurso(idCurso, resultado) {
@@ -321,19 +158,21 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion) {
 
   for (const curso of cursos) {
     const evidencia = matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv });
-    if (!evidencia.radar.length && !evidencia.mercado.length && !evidencia.bench.length) {
-      resumen.omitidos++;
-      continue;
-    }
+
+    // No saltar cursos sin evidencia directa (ej. formación general: Lenguaje,
+    // Matemática): buildPrompt ya le avisa a la IA cuando no hay evidencia
+    // relacionada y el system prompt la instruye a elegir igual el estado que
+    // mejor describa lo que SÍ hay, en vez de dejarlos "Sin análisis" para
+    // siempre en el mapa de pertinencia.
 
     // Throttle: sin esto, una ráfaga de cursos con evidencia topa el límite
-    // de tokens/minuto de Groq (fallback) en pocos segundos.
-    if (!primeraLlamada) await sleep(1500);
+    // de tokens/minuto de Groq (fallback).
+    if (!primeraLlamada) await new Promise(r => setTimeout(r, 1500));
     primeraLlamada = false;
 
     try {
       const prompt = buildPrompt(curso, evidencia, emplEv);
-      const raw = await callLLM(prompt, providerState);
+      const raw = await callLLM(SYSTEM_PROMPT, prompt, { providerState, maxTokens: 700, context: 'ANALISIS_CURSO' });
       const resultado = normalizeResultado(safeParseJson(raw));
       if (!resultado) {
         resumen.errores++;

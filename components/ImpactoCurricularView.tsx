@@ -146,6 +146,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
     return stored && VALID_IMPACTO_TABS.includes(stored) ? stored : 'impactos';
   });
   const [analyzing, setAnalyzing]   = useState(false);
+  const [analyzeResumen, setAnalyzeResumen] = useState<{ total: number; analizados: number; omitidos: number; errores: number; impactos: number; brechas: number; propuestas: number } | null>(null);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<number, string>>({});
@@ -193,12 +194,14 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
     if (!idCarrera || !idMallaVersion) return;
     setAnalyzing(true);
     setError(null);
+    setAnalyzeResumen(null);
     try {
-      await apiFetch(`/api/curricular/analizar-impacto/${idCarrera}`, {
+      const resumen = await apiFetch<typeof analyzeResumen>(`/api/curricular/analizar-impacto/${idCarrera}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_malla_version: idMallaVersion, pesos }),
       });
+      setAnalyzeResumen(resumen);
       await loadData();
     } catch (e: any) { setError(e.message); }
     setAnalyzing(false);
@@ -292,13 +295,23 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
             </button>
           )}
           {canEdit && (
-            <button onClick={handleAnalizar} disabled={analyzing}
-              style={{ padding: '9px 20px', borderRadius: 8, border: 'none',
-                background: analyzing ? '#94a3b8' : USIL,
-                color: '#fff', fontWeight: 800, fontSize: 12, cursor: analyzing ? 'not-allowed' : 'pointer',
-                fontFamily: FONT_DATA }}>
-              {analyzing ? 'Analizando...' : '▶ Analizar Impacto Curricular'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <button onClick={handleAnalizar} disabled={analyzing}
+                style={{ padding: '9px 20px', borderRadius: 8, border: 'none',
+                  background: analyzing ? '#94a3b8' : USIL,
+                  color: '#fff', fontWeight: 800, fontSize: 12, cursor: analyzing ? 'not-allowed' : 'pointer',
+                  fontFamily: FONT_DATA }}>
+                {analyzing ? 'Analizando...' : '▶ Analizar Impacto Curricular'}
+              </button>
+              {analyzeResumen && (
+                <span style={{ fontSize: 10, color: analyzeResumen.impactos > 0 ? '#166534' : '#9a3412', maxWidth: 280, textAlign: 'right' }}>
+                  {analyzeResumen.analizados} de {analyzeResumen.total} cursos con evidencia analizados
+                  {analyzeResumen.omitidos > 0 ? ` · ${analyzeResumen.omitidos} sin evidencia` : ''}
+                  {analyzeResumen.errores > 0 ? ` · ${analyzeResumen.errores} con error` : ''}
+                  {' → '}{analyzeResumen.impactos} impactos, {analyzeResumen.brechas} brechas, {analyzeResumen.propuestas} propuestas
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>

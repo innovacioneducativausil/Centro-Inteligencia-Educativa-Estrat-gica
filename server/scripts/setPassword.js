@@ -55,7 +55,12 @@ const hash = await bcrypt.hash(password, 10);
 
 
 await db.query(
-  'UPDATE usuario SET password_hash = ? WHERE id_usuario = ?',
+  `UPDATE usuario
+   SET password_hash = ?,
+       failed_login_attempts = 0,
+       locked_until = NULL,
+       fecha_actualizacion = NOW()
+   WHERE id_usuario = ?`,
   [hash, user.id_usuario]
 );
 

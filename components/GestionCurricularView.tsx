@@ -124,6 +124,22 @@ const GestionCurricularView: React.FC<GestionCurricularViewProps> = ({ themeColo
     }
   };
 
+  const deleteRow = async (row: SilaboRow) => {
+    if (!window.confirm(`¿Eliminar el silabo "${row.titulo}"? Esta accion no se puede deshacer.`)) return;
+    setError(null);
+    try {
+      const { res, data } = await requestJson(`/api/curricular/silabos/${row.id_silabo}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(data.error || 'No se pudo eliminar el silabo.');
+      if (editId === row.id_silabo) resetForm();
+      await fetchRows();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo eliminar el silabo.');
+    }
+  };
+
   const inputCls = `px-3 py-2 text-xs rounded-lg border outline-none ${
     isDark ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
   }`;
@@ -232,10 +248,14 @@ const GestionCurricularView: React.FC<GestionCurricularViewProps> = ({ themeColo
                         {row.activo ? 'Activo' : 'Archivado'}
                       </button>
                     </td>
-                    <td style={{ padding: 12 }}>
+                    <td style={{ padding: 12, display: 'flex', gap: 6 }}>
                       <button onClick={() => startEdit(row)}
                         style={{ border: '1px solid #bfdbfe', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 800, color: '#1d4ed8', background: '#eff6ff', cursor: 'pointer' }}>
                         Editar
+                      </button>
+                      <button onClick={() => deleteRow(row)}
+                        style={{ border: '1px solid #fecaca', borderRadius: 8, padding: '6px 10px', fontSize: 11, fontWeight: 800, color: '#b91c1c', background: '#fef2f2', cursor: 'pointer' }}>
+                        Eliminar
                       </button>
                     </td>
                   </tr>
