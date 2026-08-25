@@ -1,9 +1,9 @@
 import logger from '../logger.js';
 
 const HF_URL     = 'https://router.huggingface.co/v1/chat/completions';
-const HF_MODEL   = 'Qwen/Qwen2.5-7B-Instruct:together';
+const HF_MODEL   = 'Qwen/Qwen2.5-7B-Instruct:featherless-ai';
 const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_MODEL = 'openai/gpt-oss-120b';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));

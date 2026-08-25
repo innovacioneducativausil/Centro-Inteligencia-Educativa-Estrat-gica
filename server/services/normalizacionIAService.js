@@ -5,7 +5,7 @@ import { getProgramaForNormalizacion, getCursosBenchmark, executeNormalizationTr
 import { extractPageTextWithFetch, parseCurriculumCourses, parseHtmlCurriculumCourses } from './scrapingService.js';
 
 const HF_URL   = 'https://router.huggingface.co/v1/chat/completions';
-const HF_MODEL = 'Qwen/Qwen2.5-7B-Instruct:together';
+const HF_MODEL = 'Qwen/Qwen2.5-7B-Instruct:featherless-ai';
 
 const SYSTEM_PROMPT = `Eres un experto en análisis curricular universitario.
 Tu tarea es extraer información estructurada de textos públicos de páginas universitarias.

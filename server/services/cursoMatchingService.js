@@ -2,7 +2,7 @@ import db from '../db_empl.js';
 import { curricularPrisma } from '../prismaClient.js';
 
 const HF_URL = 'https://router.huggingface.co/v1/chat/completions';
-const HF_MODEL = 'Qwen/Qwen2.5-7B-Instruct:together';
+const HF_MODEL = 'Qwen/Qwen2.5-7B-Instruct:featherless-ai';
 const MATCH_BATCH_SIZE = 60;
 
 const SYSTEM_PROMPT = `Eres un experto en analisis curricular universitario comparando mallas de distintas universidades y distintos idiomas.

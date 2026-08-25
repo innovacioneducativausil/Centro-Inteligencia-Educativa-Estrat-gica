@@ -26,8 +26,8 @@ async function fetchWithRetry(url, options, maxRetries = 3, baseDelayMs = 800) {
   throw lastErr;
 }
 
-const HF_MODEL_HEAVY  = 'Qwen/Qwen2.5-7B-Instruct:together';
-const HF_MODEL_LIGHT  = 'Qwen/Qwen2.5-7B-Instruct:together';
+const HF_MODEL_HEAVY  = 'Qwen/Qwen2.5-7B-Instruct:featherless-ai';
+const HF_MODEL_LIGHT  = 'Qwen/Qwen2.5-7B-Instruct:featherless-ai';
 const HF_URL          = 'https://router.huggingface.co/v1/chat/completions';
 
 //----------------OBS-05----------------
@@ -257,7 +257,7 @@ router.post('/ai/importar', async (req, res) => {
   if (!groqKey) {
     return res.status(503).json({ error: 'HuggingFace fallÃ³ y no hay GROQ_API_KEY configurada.' });
   }
-  const groqBody    = { model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: RADAR_SYSTEM }, { role: 'user', content: prompt }], max_tokens: safeMaxTokens, temperature: 0.3 };
+  const groqBody    = { model: 'openai/gpt-oss-120b', messages: [{ role: 'system', content: RADAR_SYSTEM }, { role: 'user', content: prompt }], max_tokens: safeMaxTokens, temperature: 0.3 };
   const groqHeaders = { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' };
   const groqUrl     = 'https://api.groq.com/openai/v1/chat/completions';
 

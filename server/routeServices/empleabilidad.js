@@ -476,7 +476,7 @@ Respond with ONLY valid compact JSON, no markdown, no explanation:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'Qwen/Qwen2.5-7B-Instruct:together',
+        model: 'Qwen/Qwen2.5-7B-Instruct:featherless-ai',
         messages: [
           {
             role: 'system',
