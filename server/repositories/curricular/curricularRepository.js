@@ -581,7 +581,7 @@ export async function getSilabos({ q = '' } = {}) {
 }
 
 export async function searchCursos(q) {
-  return curricularPrisma.curso.findMany({
+  const cursos = await curricularPrisma.curso.findMany({
     where: {
       OR: [
         { nombre_curso: { contains: q } },
@@ -589,9 +589,28 @@ export async function searchCursos(q) {
       ],
       malla_version: { es_vigente: true },
     },
-    select: { id_curso: true, nombre_curso: true, codigo_curso: true },
+    select: {
+      id_curso: true,
+      nombre_curso: true,
+      codigo_curso: true,
+      malla_version: { select: { carrera: { select: { nombre_carrera: true } } } },
+    },
     take: 20,
   });
+
+  // El mismo codigo_curso puede repetirse en mallas vigentes de carreras
+  // distintas (curso compartido) — se agrega la carrera al nombre solo en
+  // esos casos, para que el dropdown no muestre "duplicados" indistinguibles.
+  const countByCodigo = new Map();
+  for (const c of cursos) countByCodigo.set(c.codigo_curso, (countByCodigo.get(c.codigo_curso) || 0) + 1);
+
+  return cursos.map(c => ({
+    id_curso: c.id_curso,
+    codigo_curso: c.codigo_curso,
+    nombre_curso: countByCodigo.get(c.codigo_curso) > 1
+      ? `${c.nombre_curso} (${c.malla_version.carrera.nombre_carrera})`
+      : c.nombre_curso,
+  }));
 }
 
 export async function getCursoById(idCurso) {
