@@ -336,8 +336,10 @@ async function analizarImpacto(idCarrera, idMallaVersion, pesos = {}, usuarioCre
       continue;
     }
 
-    // Throttle: evita ráfagas que topan el límite de tokens/minuto de Groq (fallback).
-    if (!primeraLlamada) await sleep(1500);
+    // Throttle: 10s entre llamadas. Necesario porque cuando HuggingFace se
+    // queda sin cuota mensual, TODA la corrida cae en el tier gratuito de
+    // Groq (6000 tokens/minuto) — con 1.5s se agotaba en segundos.
+    if (!primeraLlamada) await sleep(10000);
     primeraLlamada = false;
 
     try {

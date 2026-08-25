@@ -20,12 +20,22 @@ async function callProvider(url, headers, body) {
     const txt = await r.text().catch(() => '');
     const err = new Error(`${url} error ${r.status}: ${txt.substring(0, 200)}`);
     err.status = r.status;
+    err.retryAfterMs = Number(r.headers.get('retry-after')) * 1000 || null;
     throw err;
   }
   const json = await r.json();
   return json?.choices?.[0]?.message?.content ?? '';
 }
 
+const GROQ_MAX_RETRIES = 3;
+
+/**
+ * Reintenta hasta GROQ_MAX_RETRIES veces ante 429 (límite de tokens/minuto),
+ * usando el header Retry-After de Groq cuando viene, o un backoff creciente
+ * (8s, 16s, 24s) si no. Necesario porque cuando HuggingFace se queda sin
+ * cuota, TODA la corrida cae en Groq y su tier gratuito (6000 TPM) se agota
+ * rápido con muchos cursos seguidos — un solo reintento no alcanzaba.
+ */
 async function callGroqWithBackoff(systemPrompt, userPrompt, maxTokens) {
   const groqKey = process.env.GROQ_API_KEY;
   const body = {
@@ -35,16 +45,14 @@ async function callGroqWithBackoff(systemPrompt, userPrompt, maxTokens) {
     temperature: 0.2,
   };
   const headers = { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' };
-  try {
-    return await callProvider(GROQ_URL, headers, body);
-  } catch (err) {
-    if (err.status === 429) {
-      // Backoff corto y un solo reintento: evita perder el resultado por una
-      // ráfaga de llamadas que topa el límite de tokens/minuto de Groq.
-      await sleep(8000);
-      return callProvider(GROQ_URL, headers, body);
+
+  for (let attempt = 1; attempt <= GROQ_MAX_RETRIES; attempt++) {
+    try {
+      return await callProvider(GROQ_URL, headers, body);
+    } catch (err) {
+      if (err.status !== 429 || attempt === GROQ_MAX_RETRIES) throw err;
+      await sleep(err.retryAfterMs || attempt * 8000);
     }
-    throw err;
   }
 }
 

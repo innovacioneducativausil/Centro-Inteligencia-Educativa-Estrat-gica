@@ -165,9 +165,10 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion) {
     // mejor describa lo que SÍ hay, en vez de dejarlos "Sin análisis" para
     // siempre en el mapa de pertinencia.
 
-    // Throttle: sin esto, una ráfaga de cursos con evidencia topa el límite
-    // de tokens/minuto de Groq (fallback).
-    if (!primeraLlamada) await new Promise(r => setTimeout(r, 1500));
+    // Throttle: 10s entre llamadas. Necesario porque cuando HuggingFace se
+    // queda sin cuota mensual, TODA la corrida cae en el tier gratuito de
+    // Groq (6000 tokens/minuto) — con 1.5s se agotaba en segundos.
+    if (!primeraLlamada) await new Promise(r => setTimeout(r, 10000));
     primeraLlamada = false;
 
     try {
