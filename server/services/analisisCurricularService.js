@@ -159,11 +159,17 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion) {
   for (const curso of cursos) {
     const evidencia = matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv });
 
-    // No saltar cursos sin evidencia directa (ej. formación general: Lenguaje,
-    // Matemática): buildPrompt ya le avisa a la IA cuando no hay evidencia
-    // relacionada y el system prompt la instruye a elegir igual el estado que
-    // mejor describa lo que SÍ hay, en vez de dejarlos "Sin análisis" para
-    // siempre en el mapa de pertinencia.
+    // Revertido: mandar a la IA cursos SIN ninguna evidencia (radar/mercado/
+    // benchmark todos vacíos) resultó en un "alineado ~85%" generico y falso
+    // para cada uno -- confirmado revisando el detalle de un curso: "Confianza:
+    // Media (1 de 4 fuentes)" con 3 de 4 fuentes vacías, igual marcado
+    // "alineado". El enum de estado_alineacion no tiene un valor tipo "sin
+    // evidencia" (requeriria migracion de BD), asi que "Sin análisis" honesto
+    // es preferible a un "Alineado" que no está respaldado por nada real.
+    if (!evidencia.radar.length && !evidencia.mercado.length && !evidencia.bench.length) {
+      resumen.omitidos++;
+      continue;
+    }
 
     // Throttle: 10s entre llamadas. Necesario porque cuando HuggingFace se
     // queda sin cuota mensual, TODA la corrida cae en el tier gratuito de
