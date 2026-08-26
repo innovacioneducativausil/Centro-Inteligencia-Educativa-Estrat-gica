@@ -47,6 +47,7 @@ import { ensureActividadSupport, cleanupOldActividad, getActividadRetentionDays 
 import { runUserMigration } from './services/userMigration.js';
 import actividadRouter from './routes/actividad.js';
 import alertasRouter from './routes/alertas.js';
+import adminSchemaRouter from './routes/adminSchema.js';
 import { evaluarReglas } from './services/alertEngine.js';
 import { ensureEducationXlsmImported } from './services/curricularXlsmImportService.js';
 import { ensureCarreraCorrespondencia } from './services/carreraCorrespondenciaService.js';
@@ -182,6 +183,7 @@ app.use('/api', requireAuth, benchmarkingRouter);
 app.use('/api', requireAuth, motorCurricularRouter);
 app.use('/api', requireAuth, actividadRouter);
 app.use('/api', requireAuth, alertasRouter);
+app.use('/api', requireAuth, adminSchemaRouter);
 
 
 app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));

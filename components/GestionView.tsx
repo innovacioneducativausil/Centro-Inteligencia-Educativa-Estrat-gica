@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { Loader2, ShieldAlert, Zap, Activity, Eye } from 'lucide-react';
 import { ThemeColors } from '../types';
 import { AuthUser } from './LoginView';
@@ -10,6 +10,10 @@ import AlertasView from './AlertasView';
 import GestionEmpleoView from './GestionEmpleoView';
 import GestionCurricularView from './GestionCurricularView';
 import GestionMercadoView from './GestionMercadoView';
+// Cargados solo cuando Andrea/Michelle abren estas vistas: mermaid (motor del diagrama)
+// pesa ~2MB minificado y no debe ir en el bundle principal que descargan los 60 usuarios.
+const GestionDiagramaView = lazy(() => import('./GestionDiagramaView'));
+const GestionTamanoView = lazy(() => import('./GestionTamanoView'));
 import { sanitizeRichHtml } from '../services/sanitizeHtml';
 import { downloadExcel } from '../services/excelExport';
 import { logActividad } from '../services/actividadService';
@@ -147,10 +151,10 @@ const COUNTRIES = [
   'Oceanía','Europa del Este','Europa Occidental','Antártida',
 ];
 
-type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar' | 'monitoreo' | 'usuarios' | 'alertas' | 'empleo' | 'curricular' | 'mercado';
+type Tab = 'senales' | 'tendencias' | 'escenarios' | 'importar' | 'monitoreo' | 'usuarios' | 'alertas' | 'empleo' | 'curricular' | 'mercado' | 'diagrama' | 'tamano';
 
 //----------------reorg Gestion----------------
-type Seccion = 'radar' | 'empleo' | 'curricular' | 'mercado' | 'usuarios' | 'alertas' | 'monitoreo';
+type Seccion = 'radar' | 'empleo' | 'curricular' | 'mercado' | 'usuarios' | 'alertas' | 'monitoreo' | 'diagrama' | 'tamano';
 const RADAR_TABS: ('senales' | 'tendencias' | 'escenarios' | 'importar')[] = ['senales', 'tendencias', 'escenarios', 'importar'];
 const SECCIONES: { key: Seccion; label: string; icon: string }[] = [
   { key: 'radar',      label: 'RADAR',      icon: 'sensors' },
@@ -161,6 +165,13 @@ const SECCIONES: { key: Seccion; label: string; icon: string }[] = [
   { key: 'alertas',    label: 'ALERTAS',    icon: 'notifications_active' },
   { key: 'monitoreo',  label: 'MONITOREO',  icon: 'monitoring' },
 ];
+// Solo visibles para acastro@usil.edu.pe y mmontoya@usil.edu.pe (ver DIAGRAM_WHITELIST) — el backend
+// también las bloquea con requireSpecificAdmins, esto es solo para que no aparezcan en la grilla.
+const SECCIONES_DIAGRAMA: { key: Extract<Seccion, 'diagrama' | 'tamano'>; label: string; icon: string }[] = [
+  { key: 'diagrama', label: 'MODELO DE DATOS', icon: 'hub' },
+  { key: 'tamano',   label: 'TAMAÑO DE TABLAS', icon: 'database' },
+];
+const DIAGRAM_WHITELIST = new Set(['acastro@usil.edu.pe', 'mmontoya@usil.edu.pe']);
 //----------------reorg Gestion----------------
 // Se reinicia solo cuando el JS del navegador recarga desde cero (F5);
 // se mantiene en true mientras el usuario navega por la SPA sin recargar.
@@ -237,7 +248,7 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     gestionMontadaEnEstaSesion = true;
     if (!esRecarga) return null;
     const stored = localStorage.getItem('radar_gestion_tab') as Tab | null;
-    return stored && ['senales', 'tendencias', 'escenarios', 'importar', 'monitoreo', 'usuarios', 'alertas', 'empleo', 'curricular', 'mercado'].includes(stored) ? stored : null;
+    return stored && ['senales', 'tendencias', 'escenarios', 'importar', 'monitoreo', 'usuarios', 'alertas', 'empleo', 'curricular', 'mercado', 'diagrama', 'tamano'].includes(stored) ? stored : null;
   });
   const [pageData,     setPageData]     = useState<PageData | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -311,10 +322,11 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
   } | null>(null);
 
   const canAccess = ALLOWED_ROLES.includes(user.rol);
+  const canAccessDiagramas = canAccess && DIAGRAM_WHITELIST.has((user.correo || '').toLowerCase());
 
 
   const fetchData = useCallback(async () => {
-    if (!canAccess || activeTab === null || activeTab === 'importar' || activeTab === 'monitoreo' || activeTab === 'usuarios' || activeTab === 'alertas' || activeTab === 'empleo' || activeTab === 'curricular' || activeTab === 'mercado') return;
+    if (!canAccess || activeTab === null || activeTab === 'importar' || activeTab === 'monitoreo' || activeTab === 'usuarios' || activeTab === 'alertas' || activeTab === 'empleo' || activeTab === 'curricular' || activeTab === 'mercado' || activeTab === 'diagrama' || activeTab === 'tamano') return;
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({
@@ -890,6 +902,24 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
     return <GestionMercadoView themeColors={themeColors} onVolver={volverASeleccion} />;
   }
 
+  if (activeTab === 'diagrama') {
+    if (!canAccessDiagramas) return null;
+    return (
+      <Suspense fallback={<div style={{ padding: 32, fontSize: 13, color: '#94a3b8' }}>Cargando…</div>}>
+        <GestionDiagramaView themeColors={themeColors} onVolver={volverASeleccion} />
+      </Suspense>
+    );
+  }
+
+  if (activeTab === 'tamano') {
+    if (!canAccessDiagramas) return null;
+    return (
+      <Suspense fallback={<div style={{ padding: 32, fontSize: 13, color: '#94a3b8' }}>Cargando…</div>}>
+        <GestionTamanoView themeColors={themeColors} onVolver={volverASeleccion} />
+      </Suspense>
+    );
+  }
+
   //----------------reorg Gestion----------------
   if (activeTab === null) {
     return (
@@ -910,6 +940,17 @@ const GestionView: React.FC<GestionViewProps> = ({ themeColors, user }) => {
               className={`flex items-center gap-2 px-6 py-4 rounded-xl border shadow-sm text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-md ${themeColors.cardBg} ${themeColors.cardBorder} ${themeColors.text}`}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 20 }}>{sec.icon}</span>
+              {sec.label}
+            </button>
+          ))}
+          {canAccessDiagramas && SECCIONES_DIAGRAMA.map(sec => (
+            <button
+              key={sec.key}
+              onClick={() => switchTab(sec.key)}
+              className={`flex items-center gap-2 px-6 py-4 rounded-xl border shadow-sm text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-md ${themeColors.cardBg} ${themeColors.cardBorder} ${themeColors.text}`}
+              style={{ borderColor: '#c81e4f55' }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#c81e4f' }}>{sec.icon}</span>
               {sec.label}
             </button>
           ))}
