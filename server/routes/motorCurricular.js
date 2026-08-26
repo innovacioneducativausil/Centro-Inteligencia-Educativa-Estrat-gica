@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { adminOrAnalyst } from '../middleware/roles.js';
 import { serverError } from '../middleware/errorHandler.js';
+import { auditEvent } from '../services/auditService.js';
 import { analizarImpacto } from '../services/motorImpactoCurricularService.js';
-import { analizarMapaCurricular, getEvidenciaCurso } from '../services/analisisCurricularService.js';
+import { analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia } from '../services/analisisCurricularService.js';
 import {
   createMallaVersionPropuesta,
   createPropuestaCurricular,
@@ -54,6 +55,21 @@ router.post('/curricular/analizar-mapa/:idCarrera', adminOrAnalyst, async (req, 
     res.json(result);
   } catch (err) {
     serverError(res, err, 'POST /curricular/analizar-mapa');
+  }
+});
+
+router.post('/curricular/limpiar-analisis-obsoletos', adminOrAnalyst, async (req, res) => {
+  try {
+    const result = await limpiarAnalisisSinEvidencia();
+    await auditEvent(req, {
+      evento: 'limpieza_analisis_obsoletos',
+      accion: 'limpiar_analisis_obsoletos',
+      modulo: 'curricular',
+      detalle: { totalRemovidos: result.totalRemovidos, carreras: result.carreras.length },
+    });
+    res.json(result);
+  } catch (err) {
+    serverError(res, err, 'POST /curricular/limpiar-analisis-obsoletos');
   }
 });
 

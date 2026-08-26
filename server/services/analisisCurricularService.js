@@ -196,6 +196,54 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion) {
   return { ok: true, ...resumen };
 }
 
+/**
+ * Elimina registros de analisis_curso que quedaron de corridas anteriores al
+ * fix del "alineado 85% falso" (ver analizarMapaCurricular): cursos que HOY
+ * no tienen ninguna evidencia real (radar/mercado/benchmark) pero que aun
+ * conservan un analisis viejo generado cuando el motor SI les mandaba
+ * evidencia vacia a la IA. Deja esos cursos en "Sin análisis" (sin fila en
+ * analisis_curso) en vez de mostrar un resultado inventado.
+ */
+async function limpiarAnalisisSinEvidencia() {
+  const [carreras] = await dbCurricular.query(
+    `SELECT c.id_carrera, c.nombre_carrera, mv.id_malla
+     FROM carrera c
+     JOIN malla_version mv ON mv.id_carrera = c.id_carrera AND mv.es_vigente = 1`
+  );
+
+  const resumen = [];
+  let totalRemovidos = 0;
+
+  for (const { id_carrera, nombre_carrera, id_malla } of carreras) {
+    const cursos = await getCursosConContexto(id_malla);
+    if (!cursos.length) continue;
+
+    const [radarEv, mercadoSkills, benchEv] = await Promise.all([
+      recogerEvidenciaRadar(id_carrera),
+      recogerEvidenciaMercado(id_carrera),
+      recogerEvidenciaBenchmarking(id_carrera),
+    ]);
+
+    const idsSinEvidencia = [];
+    for (const curso of cursos) {
+      const ev = matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv });
+      if (!ev.radar.length && !ev.mercado.length && !ev.bench.length) idsSinEvidencia.push(curso.id_curso);
+    }
+    if (!idsSinEvidencia.length) continue;
+
+    const [result] = await dbCurricular.query(
+      `DELETE FROM analisis_curso WHERE id_curso IN (${idsSinEvidencia.map(() => '?').join(',')})`,
+      idsSinEvidencia
+    );
+    if (result.affectedRows) {
+      resumen.push({ carrera: nombre_carrera, removidos: result.affectedRows, revisados: idsSinEvidencia.length });
+      totalRemovidos += result.affectedRows;
+    }
+  }
+
+  return { ok: true, totalRemovidos, carreras: resumen };
+}
+
 function relevancia(count) {
   if (count >= 2) return 'alta';
   if (count === 1) return 'media';
@@ -322,4 +370,4 @@ async function getEvidenciaCurso(idCurso) {
   };
 }
 
-export { analizarMapaCurricular, getEvidenciaCurso };
+export { analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia };

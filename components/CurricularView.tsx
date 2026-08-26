@@ -462,6 +462,10 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   const [analyzeMapaError, setAnalyzeMapaError] = useState<string | null>(null);
   const [analyzeMapaResumen, setAnalyzeMapaResumen] = useState<{ analizados: number; omitidos: number; errores: number; total: number } | null>(null);
 
+  const [limpiandoObsoletos, setLimpiandoObsoletos] = useState(false);
+  const [limpiarError, setLimpiarError] = useState<string | null>(null);
+  const [limpiarResumen, setLimpiarResumen] = useState<{ totalRemovidos: number; carreras: { carrera: string; removidos: number }[] } | null>(null);
+
   const [cursoEvidencia, setCursoEvidencia] = useState<EvidenciaCursoData | null>(null);
   const [loadingEvidencia, setLoadingEvidencia] = useState(false);
   const [showEvidenciaModal, setShowEvidenciaModal] = useState(false);
@@ -503,6 +507,29 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       setAnalyzeMapaError(e.message ?? 'Error al analizar el mapa curricular');
     }
     setAnalyzingMapa(false);
+  };
+
+  const handleLimpiarObsoletos = async () => {
+    if (!window.confirm('Esto revisa TODAS las carreras y elimina los análisis IA de cursos que ya no tienen evidencia real (quedan en "Sin análisis" en vez de mostrar un resultado desactualizado). ¿Continuar?')) return;
+    setLimpiandoObsoletos(true);
+    setLimpiarError(null);
+    setLimpiarResumen(null);
+    try {
+      const r = await fetch('/api/curricular/limpiar-analisis-obsoletos', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) {
+        setLimpiarError(d.error || 'No se pudo limpiar los análisis obsoletos');
+      } else {
+        setLimpiarResumen(d);
+        await fetchMalla();
+      }
+    } catch (e: any) {
+      setLimpiarError(e.message ?? 'Error al limpiar análisis obsoletos');
+    }
+    setLimpiandoObsoletos(false);
   };
 
   const handleFacultadChange = (fac: string) => {
@@ -830,6 +857,29 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                   {analyzeMapaResumen.analizados} de {analyzeMapaResumen.total} cursos analizados
                   {analyzeMapaResumen.omitidos > 0 ? ` (${analyzeMapaResumen.omitidos} sin evidencia relacionada)` : ''}
                   {analyzeMapaResumen.errores > 0 ? ` · ${analyzeMapaResumen.errores} con error` : ''}
+                </span>
+              )}
+            </div>
+          )}
+          {canImport && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <button onClick={handleLimpiarObsoletos} disabled={limpiandoObsoletos}
+                title="Revisa todas las carreras y elimina análisis IA de cursos que ya no tienen evidencia real"
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  height: 36, padding: '0 14px', borderRadius: 8, border: `1px solid ${border}`,
+                  background: 'transparent', color: limpiandoObsoletos ? '#94a3b8' : text, fontSize: 12, fontWeight: 700,
+                  cursor: limpiandoObsoletos ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                  {limpiandoObsoletos ? 'sync' : 'mop'}
+                </span>
+                {limpiandoObsoletos ? 'Limpiando…' : 'Limpiar análisis obsoletos'}
+              </button>
+              {limpiarError && (
+                <span style={{ fontSize: 10, color: '#ba1a1a', maxWidth: 260 }}>{limpiarError}</span>
+              )}
+              {limpiarResumen && (
+                <span style={{ fontSize: 10, color: '#166534', maxWidth: 260 }}>
+                  {limpiarResumen.totalRemovidos} análisis obsoletos removidos en {limpiarResumen.carreras.length} carreras
                 </span>
               )}
             </div>
