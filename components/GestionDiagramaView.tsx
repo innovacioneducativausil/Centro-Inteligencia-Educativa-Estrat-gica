@@ -375,10 +375,6 @@ const GestionDiagramaView: React.FC<GestionDiagramaViewProps> = ({ themeColors, 
 
       {activeDb === 'cross' && (
         <div style={{ border: `1px solid ${isDark ? '#22303c' : '#dbe3e9'}`, borderRadius: 12, background: isDark ? '#121820' : '#fff', padding: 18 }}>
-          <p style={{ fontSize: 12.5, color: '#5b6b7a', marginBottom: 14, maxWidth: '74ch' }}>
-            MySQL no permite <code>FOREIGN KEY</code> entre bases distintas — estos vínculos existen solo porque el código los respeta.
-            Línea sólida = referencia por ID real · guiones largos = coincidencia de texto (frágil) · puntos = búsqueda en tiempo de ejecución sin nada persistido (la más frágil).
-          </p>
           <CrossDbDiagram crossDb={data.crossDb} databases={data.databases} isDark={isDark} />
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
             {data.crossDb.map(rel => (
