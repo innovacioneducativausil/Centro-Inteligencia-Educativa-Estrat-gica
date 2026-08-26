@@ -32,24 +32,24 @@ async function main() {
   const resultados = [];
 
   for (const carrera of carreras) {
-    const malla = await curricularPrisma.malla_version.findFirst({
-      where: { id_carrera: carrera.id_carrera, es_vigente: true },
-      select: { id_malla_version: true },
-    });
-
     const etiqueta = `${carrera.nombre_carrera} (${carrera.facultad.nombre_facultad})`;
-
-    if (!malla) {
-      console.log(`\n[SKIP] ${etiqueta} -- sin malla vigente cargada`);
-      resultados.push({ carrera: etiqueta, ok: false, error: 'sin malla vigente' });
-      continue;
-    }
-
-    console.log(`\n[INICIO] ${etiqueta} -- malla_version ${malla.id_malla_version}`);
     const inicio = Date.now();
 
     try {
-      const r = await analizarMapaCurricular(carrera.id_carrera, malla.id_malla_version);
+      const malla = await curricularPrisma.malla_version.findFirst({
+        where: { id_carrera: carrera.id_carrera, es_vigente: true },
+        select: { id_malla: true },
+      });
+
+      if (!malla) {
+        console.log(`\n[SKIP] ${etiqueta} -- sin malla vigente cargada`);
+        resultados.push({ carrera: etiqueta, ok: false, error: 'sin malla vigente' });
+        continue;
+      }
+
+      console.log(`\n[INICIO] ${etiqueta} -- malla ${malla.id_malla}`);
+
+      const r = await analizarMapaCurricular(carrera.id_carrera, malla.id_malla);
       const seg = Math.round((Date.now() - inicio) / 1000);
       if (!r.ok) {
         console.log(`[ERROR] ${etiqueta} -- ${r.error}`);
