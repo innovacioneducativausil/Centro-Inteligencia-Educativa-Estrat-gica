@@ -4,7 +4,7 @@ import { requireSpecificAdmins } from '../middleware/roles.js';
 import { getSchemaDiagram, getSchemaSizes } from '../repositories/principal/schemaRepository.js';
 
 const router = Router();
-const onlyDiagramAdmins = requireSpecificAdmins('acastro@usil.edu.pe', 'mmontoya@usil.edu.pe');
+const onlyDiagramAdmins = requireSpecificAdmins('acastroh@usil.edu.pe', 'mmontoyar@usil.edu.pe');
 
 router.get('/admin/schema-diagrama', onlyDiagramAdmins, async (_req, res) => {
   try {

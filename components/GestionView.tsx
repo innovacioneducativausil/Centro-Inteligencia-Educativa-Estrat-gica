@@ -165,13 +165,13 @@ const SECCIONES: { key: Seccion; label: string; icon: string }[] = [
   { key: 'alertas',    label: 'ALERTAS',    icon: 'notifications_active' },
   { key: 'monitoreo',  label: 'MONITOREO',  icon: 'monitoring' },
 ];
-// Solo visibles para acastro@usil.edu.pe y mmontoya@usil.edu.pe (ver DIAGRAM_WHITELIST) — el backend
+// Solo visibles para acastroh@usil.edu.pe y mmontoyar@usil.edu.pe (ver DIAGRAM_WHITELIST) — el backend
 // también las bloquea con requireSpecificAdmins, esto es solo para que no aparezcan en la grilla.
 const SECCIONES_DIAGRAMA: { key: Extract<Seccion, 'diagrama' | 'tamano'>; label: string; icon: string }[] = [
   { key: 'diagrama', label: 'MODELO DE DATOS', icon: 'hub' },
   { key: 'tamano',   label: 'TAMAÑO DE TABLAS', icon: 'database' },
 ];
-const DIAGRAM_WHITELIST = new Set(['acastro@usil.edu.pe', 'mmontoya@usil.edu.pe']);
+const DIAGRAM_WHITELIST = new Set(['acastroh@usil.edu.pe', 'mmontoyar@usil.edu.pe']);
 //----------------reorg Gestion----------------
 // Se reinicia solo cuando el JS del navegador recarga desde cero (F5);
 // se mantiene en true mientras el usuario navega por la SPA sin recargar.
