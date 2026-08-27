@@ -466,6 +466,10 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
   const [limpiarError, setLimpiarError] = useState<string | null>(null);
   const [limpiarResumen, setLimpiarResumen] = useState<{ totalRemovidos: number; carreras: { carrera: string; removidos: number }[] } | null>(null);
 
+  const [migrandoSumillas, setMigrandoSumillas] = useState(false);
+  const [migrarError, setMigrarError] = useState<string | null>(null);
+  const [migrarResumen, setMigrarResumen] = useState<{ carreras: { carrera: string; cursosMatcheados: number; sumillasEscritas: number; competenciasDefinidas: number; vinculosEscritos: number }[] } | null>(null);
+
   const [cursoEvidencia, setCursoEvidencia] = useState<EvidenciaCursoData | null>(null);
   const [loadingEvidencia, setLoadingEvidencia] = useState(false);
   const [showEvidenciaModal, setShowEvidenciaModal] = useState(false);
@@ -530,6 +534,29 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       setLimpiarError(e.message ?? 'Error al limpiar análisis obsoletos');
     }
     setLimpiandoObsoletos(false);
+  };
+
+  const handleMigrarSumillas = async () => {
+    if (!window.confirm('Esto busca mallas antiguas con sumilla/competencias (import XLSM) que quedaron huérfanas porque la malla vigente se actualizó desde un PDF más simple, y copia esos datos a los cursos vigentes que coincidan por código. ¿Continuar?')) return;
+    setMigrandoSumillas(true);
+    setMigrarError(null);
+    setMigrarResumen(null);
+    try {
+      const r = await fetch('/api/curricular/migrar-sumillas-huerfanas', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) {
+        setMigrarError(d.error || 'No se pudo migrar sumillas/competencias');
+      } else {
+        setMigrarResumen(d);
+        await fetchMalla();
+      }
+    } catch (e: any) {
+      setMigrarError(e.message ?? 'Error al migrar sumillas/competencias');
+    }
+    setMigrandoSumillas(false);
   };
 
   const handleFacultadChange = (fac: string) => {
@@ -880,6 +907,29 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               {limpiarResumen && (
                 <span style={{ fontSize: 10, color: '#166534', maxWidth: 260 }}>
                   {limpiarResumen.totalRemovidos} análisis obsoletos removidos en {limpiarResumen.carreras.length} carreras
+                </span>
+              )}
+            </div>
+          )}
+          {canImport && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <button onClick={handleMigrarSumillas} disabled={migrandoSumillas}
+                title="Copia sumilla y competencias de mallas antiguas (import XLSM) hacia la malla vigente cuando quedaron huérfanas"
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  height: 36, padding: '0 14px', borderRadius: 8, border: `1px solid ${border}`,
+                  background: 'transparent', color: migrandoSumillas ? '#94a3b8' : text, fontSize: 12, fontWeight: 700,
+                  cursor: migrandoSumillas ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                  {migrandoSumillas ? 'sync' : 'move_up'}
+                </span>
+                {migrandoSumillas ? 'Migrando…' : 'Migrar sumillas huérfanas'}
+              </button>
+              {migrarError && (
+                <span style={{ fontSize: 10, color: '#ba1a1a', maxWidth: 260 }}>{migrarError}</span>
+              )}
+              {migrarResumen && (
+                <span style={{ fontSize: 10, color: '#166534', maxWidth: 280 }}>
+                  {migrarResumen.carreras.map(c => `${c.carrera}: ${c.sumillasEscritas} sumillas, ${c.vinculosEscritos} vínculos`).join(' · ') || 'Nada que migrar'}
                 </span>
               )}
             </div>

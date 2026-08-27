@@ -3,7 +3,7 @@ import { adminOrAnalyst } from '../middleware/roles.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { auditEvent } from '../services/auditService.js';
 import { analizarImpacto } from '../services/motorImpactoCurricularService.js';
-import { analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia } from '../services/analisisCurricularService.js';
+import { analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia, migrarSumillasCompetenciasHuerfanas } from '../services/analisisCurricularService.js';
 import {
   createMallaVersionPropuesta,
   createPropuestaCurricular,
@@ -55,6 +55,21 @@ router.post('/curricular/analizar-mapa/:idCarrera', adminOrAnalyst, async (req, 
     res.json(result);
   } catch (err) {
     serverError(res, err, 'POST /curricular/analizar-mapa');
+  }
+});
+
+router.post('/curricular/migrar-sumillas-huerfanas', adminOrAnalyst, async (req, res) => {
+  try {
+    const result = await migrarSumillasCompetenciasHuerfanas();
+    await auditEvent(req, {
+      evento: 'migracion_sumillas_huerfanas',
+      accion: 'migrar_sumillas_competencias',
+      modulo: 'curricular',
+      detalle: { carreras: result.carreras },
+    });
+    res.json(result);
+  } catch (err) {
+    serverError(res, err, 'POST /curricular/migrar-sumillas-huerfanas');
   }
 });
 

@@ -244,6 +244,119 @@ async function limpiarAnalisisSinEvidencia() {
   return { ok: true, totalRemovidos, carreras: resumen };
 }
 
+function normalizeCodigo(s) {
+  return String(s || '')
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Migra sumillas y competencias desde una malla_version antigua con import
+ * rico (fuente_carga = XLSM_USIL, no vigente) hacia la malla_version vigente
+ * de la misma carrera, quedando huerfana de esos datos porque la vigente se
+ * cargo despues desde un PDF mas simple (solo nombre/codigo de curso).
+ * El cruce es por codigo_curso (estable entre versiones); cursos nuevos que
+ * no existian en la malla vieja simplemente no reciben nada (correcto: no
+ * hay de donde sacarlos).
+ */
+async function migrarSumillasCompetenciasHuerfanas() {
+  const [pares] = await dbCurricular.query(
+    `SELECT mv_vieja.id_malla AS id_malla_rica, mv_vigente.id_malla AS id_malla_vigente,
+            c.nombre_carrera
+     FROM malla_version mv_vigente
+     JOIN carrera c ON c.id_carrera = mv_vigente.id_carrera
+     JOIN malla_version mv_vieja ON mv_vieja.id_carrera = mv_vigente.id_carrera
+       AND mv_vieja.id_malla != mv_vigente.id_malla
+       AND mv_vieja.fuente_carga = 'XLSM_USIL'
+     WHERE mv_vigente.es_vigente = 1`
+  );
+
+  const resumen = [];
+
+  for (const { id_malla_rica, id_malla_vigente, nombre_carrera } of pares) {
+    const [ricos] = await dbCurricular.query('SELECT id_curso, codigo_curso FROM curso WHERE id_malla=?', [id_malla_rica]);
+    const [vigentes] = await dbCurricular.query('SELECT id_curso, codigo_curso FROM curso WHERE id_malla=?', [id_malla_vigente]);
+
+    const ricoByCodigo = new Map();
+    for (const r of ricos) if (r.codigo_curso) ricoByCodigo.set(normalizeCodigo(r.codigo_curso), r);
+
+    const cursoPares = [];
+    for (const v of vigentes) {
+      const r = ricoByCodigo.get(normalizeCodigo(v.codigo_curso));
+      if (r) cursoPares.push({ ricoId: r.id_curso, vigenteId: v.id_curso });
+    }
+    if (!cursoPares.length) continue;
+
+    const ricoIds = cursoPares.map(p => p.ricoId);
+    const [sumillas] = await dbCurricular.query(
+      `SELECT * FROM curso_sumilla WHERE id_curso IN (${ricoIds.map(() => '?').join(',')})`, ricoIds
+    );
+    const sumillaByCurso = new Map(sumillas.map(s => [s.id_curso, s]));
+
+    let sumillasEscritas = 0;
+    for (const p of cursoPares) {
+      const s = sumillaByCurso.get(p.ricoId);
+      if (!s) continue;
+      await dbCurricular.query(
+        `INSERT INTO curso_sumilla
+           (id_curso, sumilla, resultado_aprendizaje, justificacion, recursos_necesarios, pertinencia_modalidad, metodologia, idoneidad_modalidad)
+         VALUES (?,?,?,?,?,?,?,?)
+         ON DUPLICATE KEY UPDATE
+           sumilla=VALUES(sumilla), resultado_aprendizaje=VALUES(resultado_aprendizaje), justificacion=VALUES(justificacion),
+           recursos_necesarios=VALUES(recursos_necesarios), pertinencia_modalidad=VALUES(pertinencia_modalidad),
+           metodologia=VALUES(metodologia), idoneidad_modalidad=VALUES(idoneidad_modalidad)`,
+        [p.vigenteId, s.sumilla, s.resultado_aprendizaje, s.justificacion, s.recursos_necesarios, s.pertinencia_modalidad, s.metodologia, s.idoneidad_modalidad]
+      );
+      sumillasEscritas++;
+    }
+
+    const [compsRicas] = await dbCurricular.query('SELECT * FROM competencia_curricular WHERE id_malla=?', [id_malla_rica]);
+    const mapCompetencia = new Map();
+    for (const c of compsRicas) {
+      await dbCurricular.query(
+        `INSERT INTO competencia_curricular (id_malla, codigo_competencia, nombre_competencia, tipo_competencia)
+         VALUES (?,?,?,?)
+         ON DUPLICATE KEY UPDATE nombre_competencia=VALUES(nombre_competencia), tipo_competencia=VALUES(tipo_competencia)`,
+        [id_malla_vigente, c.codigo_competencia, c.nombre_competencia, c.tipo_competencia]
+      );
+      const [[row]] = await dbCurricular.query(
+        'SELECT id_competencia FROM competencia_curricular WHERE id_malla=? AND codigo_competencia=?',
+        [id_malla_vigente, c.codigo_competencia]
+      );
+      mapCompetencia.set(c.id_competencia, row.id_competencia);
+    }
+
+    const [ccursoRicos] = await dbCurricular.query(
+      `SELECT * FROM curso_competencia WHERE id_curso IN (${ricoIds.map(() => '?').join(',')})`, ricoIds
+    );
+    const ricoIdToVigenteId = new Map(cursoPares.map(p => [p.ricoId, p.vigenteId]));
+    let vinculosEscritos = 0;
+    for (const cc of ccursoRicos) {
+      const vigenteCursoId = ricoIdToVigenteId.get(cc.id_curso);
+      const vigenteCompId = mapCompetencia.get(cc.id_competencia);
+      if (!vigenteCursoId || !vigenteCompId) continue;
+      await dbCurricular.query(
+        'INSERT IGNORE INTO curso_competencia (id_curso, id_competencia, nivel, evidencia_textual) VALUES (?,?,?,?)',
+        [vigenteCursoId, vigenteCompId, cc.nivel, cc.evidencia_textual]
+      );
+      vinculosEscritos++;
+    }
+
+    resumen.push({
+      carrera: nombre_carrera,
+      cursosMatcheados: cursoPares.length,
+      sumillasEscritas,
+      competenciasDefinidas: mapCompetencia.size,
+      vinculosEscritos,
+    });
+  }
+
+  return { ok: true, carreras: resumen };
+}
+
 function relevancia(count) {
   if (count >= 2) return 'alta';
   if (count === 1) return 'media';
@@ -370,4 +483,4 @@ async function getEvidenciaCurso(idCurso) {
   };
 }
 
-export { analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia };
+export { analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia, migrarSumillasCompetenciasHuerfanas };
