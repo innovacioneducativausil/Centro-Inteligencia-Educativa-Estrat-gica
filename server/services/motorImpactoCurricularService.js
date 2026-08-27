@@ -41,24 +41,31 @@ async function recogerEvidenciaRadar(idCarrera) {
     const palabrasClave = nombreCarrera.split(/\s+/).filter(p => p.length > 3);
     if (!palabrasClave.length) return [];
 
-    const likeTerms = palabrasClave.map(() => 'descripcion LIKE ?').join(' OR ');
+    const likeTermsSenal = palabrasClave.map(() => 'desc_larga_senal LIKE ?').join(' OR ');
+    const likeTermsTend  = palabrasClave.map(() => 'desc_larga_tendencia LIKE ?').join(' OR ');
     const params    = palabrasClave.map(p => `%${p}%`);
 
+    // Nombres de columna reales de `senal`/`tendencia` (verificado con SHOW COLUMNS):
+    // titulo_senal/desc_larga_senal/url_fuente, no titulo/descripcion/fuente_url/urgencia/impacto
+    // (esas dos últimas no existen en absoluto). `estado` tampoco es una columna de texto:
+    // es id_estado, FK a la tabla `estado` (id_estado=1 -> slug_estado='publicado').
     const [senales] = await dbRadar.query(
-      `SELECT id_senal AS id, 'senal' AS tipo, titulo, descripcion, fuente_url, fecha_publicacion,
-              urgencia, impacto
-       FROM senal
-       WHERE estado = 'publicado' AND (${likeTerms})
-       ORDER BY id_senal
+      `SELECT s.id_senal AS id, 'senal' AS tipo, s.titulo_senal AS titulo, s.desc_larga_senal AS descripcion,
+              s.url_fuente AS fuente_url, s.fecha_publicacion, NULL AS urgencia, NULL AS impacto
+       FROM senal s
+       JOIN estado e ON e.id_estado = s.id_estado
+       WHERE e.slug_estado = 'publicado' AND (${likeTermsSenal})
+       ORDER BY s.id_senal
        LIMIT 10`,
       params
     );
     const [tendencias] = await dbRadar.query(
-      `SELECT id_tendencia AS id, 'tendencia' AS tipo, nombre AS titulo, descripcion,
+      `SELECT t.id_tendencia AS id, 'tendencia' AS tipo, t.nombre_tendencia AS titulo, t.desc_larga_tendencia AS descripcion,
               NULL AS fuente_url, NULL AS fecha_publicacion, NULL AS urgencia, NULL AS impacto
-       FROM tendencia
-       WHERE estado = 'publicado' AND (${likeTerms.replace(/descripcion/g, 'descripcion')})
-       ORDER BY id_tendencia
+       FROM tendencia t
+       JOIN estado e ON e.id_estado = t.id_estado
+       WHERE e.slug_estado = 'publicado' AND (${likeTermsTend})
+       ORDER BY t.id_tendencia
        LIMIT 5`,
       params
     );
