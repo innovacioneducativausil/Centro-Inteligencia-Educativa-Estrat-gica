@@ -179,7 +179,15 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion) {
 
     try {
       const prompt = buildPrompt(curso, evidencia, emplEv);
-      const raw = await callLLM(SYSTEM_PROMPT, prompt, { providerState, maxTokens: 700, context: 'ANALISIS_CURSO' });
+      // Watchdog aparte del AbortSignal interno de callLLM: se observó que un
+      // fetch a Groq puede quedarse colgado indefinidamente sin abortar ni
+      // rechazar (curl al mismo endpoint respondía en <100ms, así que no es
+      // un problema de red) -- sin este límite, un solo curso puede trabar
+      // la corrida completa por horas.
+      const raw = await Promise.race([
+        callLLM(SYSTEM_PROMPT, prompt, { providerState, maxTokens: 700, context: 'ANALISIS_CURSO' }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de 45s esperando respuesta del proveedor de IA')), 45000)),
+      ]);
       const resultado = normalizeResultado(safeParseJson(raw));
       if (!resultado) {
         resumen.errores++;
