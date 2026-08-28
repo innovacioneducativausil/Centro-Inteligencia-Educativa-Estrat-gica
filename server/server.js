@@ -199,13 +199,21 @@ app.post('/api/debug/analisis-relanzar', async (req, res) => {
   if (!process.env.DEBUG_STATUS_TOKEN || req.query.token !== process.env.DEBUG_STATUS_TOKEN) {
     return res.status(404).json({ error: 'Ruta no encontrada' });
   }
-  const { execSync, spawn } = await import('child_process');
+  const { spawn } = await import('child_process');
   const fs = await import('fs');
+  const pidFile = '/tmp/analisis_run.pid';
   try {
-    const running = execSync('pgrep -f runDosCarreras2.js').toString().trim();
-    if (running) return res.status(409).json({ error: 'Ya hay una corrida activa', pids: running.split('\n') });
+    const existingPid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+    if (existingPid) {
+      try {
+        process.kill(existingPid, 0); // no mata el proceso, solo verifica que existe
+        return res.status(409).json({ error: 'Ya hay una corrida activa', pid: existingPid });
+      } catch {
+        // el proceso del pid guardado ya no existe, se puede relanzar
+      }
+    }
   } catch {
-    // pgrep sale con codigo != 0 si no encuentra nada: significa que no hay corrida activa
+    // no hay pid file previo, se puede lanzar
   }
   const logFd = fs.openSync('/tmp/analisis_run.log', 'w');
   const child = spawn('node', ['scripts/runDosCarreras2.js'], {
@@ -214,6 +222,7 @@ app.post('/api/debug/analisis-relanzar', async (req, res) => {
     stdio: ['ignore', logFd, logFd],
   });
   child.unref();
+  fs.writeFileSync(pidFile, String(child.pid));
   res.json({ ok: true, pid: child.pid, log: '/tmp/analisis_run.log' });
 });
 
