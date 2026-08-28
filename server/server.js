@@ -173,12 +173,12 @@ app.get('/api/debug/analisis-status', async (req, res) => {
     out.ps = `error: ${err.message}`;
   }
   try {
-    out.finalLog = fs.readFileSync('/tmp/final3.log', 'utf8');
+    out.finalLog = fs.readFileSync('/tmp/analisis_run.log', 'utf8');
   } catch (err) {
     out.finalLog = `error: ${err.message}`;
   }
   try {
-    const logDir = path.join(__dirname, '../logs');
+    const logDir = path.join(__dirname, 'logs');
     const files = fs.readdirSync(logDir).filter(f => f.startsWith('server-') && f.endsWith('.txt')).sort();
     const latest = files[files.length - 1];
     if (latest) {
@@ -191,6 +191,30 @@ app.get('/api/debug/analisis-status', async (req, res) => {
     out.serverLogTail = `error: ${err.message}`;
   }
   res.json(out);
+});
+
+// Relanza scripts/runDosCarreras2.js en background sin depender de la consola de
+// Railway. Idempotente en el sentido de que si ya hay una corrida viva no hace nada.
+app.post('/api/debug/analisis-relanzar', async (req, res) => {
+  if (!process.env.DEBUG_STATUS_TOKEN || req.query.token !== process.env.DEBUG_STATUS_TOKEN) {
+    return res.status(404).json({ error: 'Ruta no encontrada' });
+  }
+  const { execSync, spawn } = await import('child_process');
+  const fs = await import('fs');
+  try {
+    const running = execSync('pgrep -f runDosCarreras2.js').toString().trim();
+    if (running) return res.status(409).json({ error: 'Ya hay una corrida activa', pids: running.split('\n') });
+  } catch {
+    // pgrep sale con codigo != 0 si no encuentra nada: significa que no hay corrida activa
+  }
+  const logFd = fs.openSync('/tmp/analisis_run.log', 'w');
+  const child = spawn('node', ['scripts/runDosCarreras2.js'], {
+    cwd: __dirname,
+    detached: true,
+    stdio: ['ignore', logFd, logFd],
+  });
+  child.unref();
+  res.json({ ok: true, pid: child.pid, log: '/tmp/analisis_run.log' });
 });
 
 
