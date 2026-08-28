@@ -156,6 +156,43 @@ app.get('/api/version', (_req, res) => {
   });
 });
 
+// Diagnostico temporal para monitorear la corrida de analisis curricular sin depender
+// de la consola web de Railway (poco confiable, se desconecta seguido). Gateado por
+// token compartido en vez de JWT porque necesita responder incluso sin sesion activa.
+app.get('/api/debug/analisis-status', async (req, res) => {
+  if (!process.env.DEBUG_STATUS_TOKEN || req.query.token !== process.env.DEBUG_STATUS_TOKEN) {
+    return res.status(404).json({ error: 'Ruta no encontrada' });
+  }
+  const { execSync } = await import('child_process');
+  const fs = await import('fs');
+  const path = await import('path');
+  const out = {};
+  try {
+    out.ps = execSync('ps aux | grep node').toString();
+  } catch (err) {
+    out.ps = `error: ${err.message}`;
+  }
+  try {
+    out.finalLog = fs.readFileSync('/tmp/final3.log', 'utf8');
+  } catch (err) {
+    out.finalLog = `error: ${err.message}`;
+  }
+  try {
+    const logDir = path.join(__dirname, '../logs');
+    const files = fs.readdirSync(logDir).filter(f => f.startsWith('server-') && f.endsWith('.txt')).sort();
+    const latest = files[files.length - 1];
+    if (latest) {
+      const content = fs.readFileSync(path.join(logDir, latest), 'utf8');
+      out.serverLogTail = content.trim().split('\n').slice(-40).join('\n');
+    } else {
+      out.serverLogTail = '(sin archivos de log)';
+    }
+  } catch (err) {
+    out.serverLogTail = `error: ${err.message}`;
+  }
+  res.json(out);
+});
+
 
 app.use('/api', authRouter);
 
