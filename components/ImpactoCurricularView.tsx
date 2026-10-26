@@ -17,7 +17,7 @@ interface KpisImpacto {
   propuestas_pendientes: number;
   propuestas_aprobadas: number;
   evidencias_verificadas: number;
-  score_promedio: number | null;
+  pct_multifuente: number | null;
   ultima_ejecucion: string | null;
 }
 
@@ -27,6 +27,7 @@ interface Impacto {
   descripcion_impacto: string | null;
   nivel_impacto: 'bajo' | 'medio' | 'alto' | 'critico';
   score_impacto: number;
+  num_evidencias: number;
   estado: string;
   nombre_curso: string | null;
   numero_ciclo: number | null;
@@ -358,7 +359,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
             { label: 'Brechas Detectadas', value: kpis.total_brechas, accent: ERROR, sub: 'gaps identificados' },
             { label: 'Propuestas Pendientes', value: kpis.propuestas_pendientes, accent: '#eab308', sub: 'requieren revisión' },
             { label: 'Propuestas Aprobadas', value: kpis.propuestas_aprobadas, accent: '#22c55e', sub: 'listas para aplicar' },
-            { label: 'Score de Impacto', value: kpis.score_promedio !== null ? `${kpis.score_promedio}` : '—', accent: USIL, sub: 'promedio ponderado' },
+            { label: 'Evidencia Multi-fuente', value: kpis.pct_multifuente !== null ? `${kpis.pct_multifuente}%` : '—', accent: USIL, sub: 'impactos con 2+ fuentes' },
           ].map((k, i) => (
             <div key={i} style={{ background: card, borderRadius: 12, padding: '14px 16px',
               border: `1px solid ${border}`, borderTop: `3px solid ${k.accent}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
@@ -465,8 +466,9 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
                         background: cfg.bg, color: cfg.text }}>
                         {cfg.label}
                       </span>
-                      <span style={{ fontFamily: FONT_HEAD, fontSize: 20, fontWeight: 800, color: cfg.border, lineHeight: 1 }}>
-                        {Number(imp.score_impacto).toFixed(0)}
+                      <span title="Fuentes de evidencia distintas que respaldan este impacto (radar/mercado/empleabilidad/benchmarking)"
+                        style={{ fontFamily: FONT_HEAD, fontSize: 13, fontWeight: 800, color: cfg.border, lineHeight: 1 }}>
+                        {imp.num_evidencias} {imp.num_evidencias === 1 ? 'fuente' : 'fuentes'}
                       </span>
                     </div>
                   </div>

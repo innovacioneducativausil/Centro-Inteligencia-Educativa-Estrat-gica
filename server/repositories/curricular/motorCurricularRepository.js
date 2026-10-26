@@ -6,10 +6,11 @@ function numberOrNull(value) {
   return value === null || value === undefined ? null : Number(value);
 }
 
-function impactoToRow(impacto, curso = null) {
+function impactoToRow(impacto, curso = null, numEvidencias = 0) {
   return {
     ...impacto,
     score_impacto: numberOrNull(impacto.score_impacto),
+    num_evidencias: numEvidencias,
     nombre_curso: curso?.nombre_curso || null,
     numero_ciclo: curso?.numero_ciclo || null,
   };
@@ -39,6 +40,27 @@ function propuestaToRow(propuesta, brecha = null, curso = null) {
 
 function prioridadRank(prioridad) {
   return { critica: 0, alta: 1, media: 2, baja: 3 }[prioridad] ?? 9;
+}
+
+function nivelImpactoRank(nivel) {
+  return { critico: 0, alto: 1, medio: 2, bajo: 3 }[nivel] ?? 9;
+}
+
+/** Cuenta cuantas filas de evidencia_curricular respaldan cada id_impacto.
+ * Es una señal real (determinista, no inventada por el LLM) de cuan
+ * sustentado esta un impacto: cuantas fuentes distintas (radar/mercado/
+ * empleabilidad/benchmarking) lo tocan. Se usa para ordenar y para el KPI
+ * de evidencia multi-fuente, en vez de depender del score_impacto del LLM. */
+async function contarEvidenciasPorImpacto(impactIds) {
+  const uniqueIds = [...new Set(impactIds.filter(Boolean).map(Number))];
+  if (!uniqueIds.length) return new Map();
+  const rows = await curricularPrisma.impacto_curricular_evidencia.findMany({
+    where: { id_impacto: { in: uniqueIds } },
+    select: { id_impacto: true },
+  });
+  const counts = new Map();
+  for (const r of rows) counts.set(r.id_impacto, (counts.get(r.id_impacto) ?? 0) + 1);
+  return counts;
 }
 
 function estadoPropuestaRank(estado) {
@@ -172,10 +194,22 @@ export async function getImpactosCurriculares({ idCarrera, idMalla }) {
       id_carrera: Number(idCarrera),
       ...(idMalla ? { id_malla_version: Number(idMalla) } : {}),
     },
-    orderBy: [{ score_impacto: 'desc' }, { created_at: 'desc' }],
   });
-  const cursos = await cursosById(impactos.map(i => i.id_curso));
-  return impactos.map(i => impactoToRow(i, cursos.get(i.id_curso)));
+  const [cursos, evidenciaCounts] = await Promise.all([
+    cursosById(impactos.map(i => i.id_curso)),
+    contarEvidenciasPorImpacto(impactos.map(i => i.id_impacto)),
+  ]);
+
+  // Orden: nivel_impacto (critico primero) -> num_evidencias (mas fuentes
+  // primero) -> score_impacto solo como ultimo desempate. El score del LLM
+  // ya no manda el orden: num_evidencias es una cuenta real de filas en
+  // impacto_curricular_evidencia, no un numero que el LLM se inventa.
+  return impactos
+    .map(i => impactoToRow(i, cursos.get(i.id_curso), evidenciaCounts.get(i.id_impacto) ?? 0))
+    .sort((a, b) => nivelImpactoRank(a.nivel_impacto) - nivelImpactoRank(b.nivel_impacto)
+      || b.num_evidencias - a.num_evidencias
+      || (b.score_impacto ?? 0) - (a.score_impacto ?? 0)
+      || new Date(b.created_at || 0) - new Date(a.created_at || 0));
 }
 
 export async function getBrechasCurriculares({ idCarrera, idMalla, prioridad }) {
@@ -343,7 +377,18 @@ export async function getKpisImpacto({ idCarrera, idMalla }) {
   const evidencias = impactIds.length
     ? await curricularPrisma.impacto_curricular_evidencia.findMany({ where: { id_impacto: { in: impactIds } } })
     : [];
-  const scores = impactos.map(i => numberOrNull(i.score_impacto)).filter(score => score !== null);
+
+  // % de impactos respaldados por 2+ fuentes de evidencia distintas (radar,
+  // mercado, empleabilidad, benchmarking). Es la misma regla que ya exige el
+  // prompt del LLM para generar una propuesta ("al menos 2 fuentes"), asi que
+  // este KPI es verificable con una query, no un numero que el LLM se
+  // inventa. Reemplaza al antiguo "score_promedio", que promediaba un
+  // score_impacto de 0-100 sin rubrica ni calibracion entre corridas.
+  const evidenciasPorImpacto = new Map();
+  for (const ev of evidencias) {
+    evidenciasPorImpacto.set(ev.id_impacto, (evidenciasPorImpacto.get(ev.id_impacto) ?? 0) + 1);
+  }
+  const conMultifuente = impactos.filter(i => (evidenciasPorImpacto.get(i.id_impacto) ?? 0) >= 2).length;
 
   return {
     total_impactos: impactos.length,
@@ -351,7 +396,7 @@ export async function getKpisImpacto({ idCarrera, idMalla }) {
     propuestas_pendientes: propuestas.filter(p => p.estado_revision === 'pendiente').length,
     propuestas_aprobadas: propuestas.filter(p => p.estado_revision === 'aprobada').length,
     evidencias_verificadas: new Set(evidencias.map(e => e.id_evidencia)).size,
-    score_promedio: scores.length ? Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 10) / 10 : null,
+    pct_multifuente: impactos.length ? Math.round((conMultifuente / impactos.length) * 1000) / 10 : null,
     ultima_ejecucion: impactos.reduce((latest, item) => {
       if (!item.created_at) return latest;
       return !latest || item.created_at > latest ? item.created_at : latest;
