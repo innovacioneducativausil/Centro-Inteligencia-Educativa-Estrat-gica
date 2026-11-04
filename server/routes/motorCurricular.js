@@ -3,6 +3,7 @@ import { adminOrAnalyst } from '../middleware/roles.js';
 import { serverError } from '../middleware/errorHandler.js';
 import { auditEvent } from '../services/auditService.js';
 import { analizarImpacto } from '../services/motorImpactoCurricularService.js';
+import { probarProveedores } from '../services/llmProviderService.js';
 import { analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia, migrarSumillasCompetenciasHuerfanas } from '../services/analisisCurricularService.js';
 import {
   createMallaVersionPropuesta,
@@ -41,6 +42,16 @@ router.post('/curricular/analizar-impacto/:idCarrera', adminOrAnalyst, async (re
     res.json(result);
   } catch (err) {
     serverError(res, err, 'POST /curricular/analizar-impacto');
+  }
+});
+
+// Diagnostico del proveedor de IA: no corre ningun analisis ni escribe en BD,
+// solo hace una llamada minima por key y devuelve el estado (sin las keys).
+router.get('/curricular/diagnostico-llm', adminOrAnalyst, async (_req, res) => {
+  try {
+    res.json(await probarProveedores());
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/diagnostico-llm');
   }
 });
 

@@ -127,6 +127,40 @@ async function callLLM(systemPrompt, userPrompt, { providerState = {}, maxTokens
   throw new Error('No hay proveedor de IA configurado (HF_API_KEY / GROQ_API_KEY)');
 }
 
+const PROBE_STATUS = { 200: 'ok', 401: 'key_invalida', 402: 'sin_credito', 429: 'limite_de_uso' };
+
+async function probarKey(url, key, model) {
+  if (!key) return 'no_definida';
+  try {
+    await callProvider(
+      url,
+      { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      { model, messages: [{ role: 'user', content: 'Responde solo: ok' }], max_tokens: 5 }
+    );
+    return 'ok';
+  } catch (err) {
+    return PROBE_STATUS[err.status] ?? (err.status ? `error_${err.status}` : 'sin_conexion');
+  }
+}
+
+/**
+ * Diagnostico: una llamada minima (5 tokens) a cada key de HuggingFace y a Groq.
+ * Devuelve solo el estado de cada variable, nunca la key. Sirve para saber, sin
+ * correr un analisis completo, que proveedor va a usar el motor y si responde.
+ */
+async function probarProveedores() {
+  const hf = await Promise.all(HF_KEY_ENV_VARS.map(async variable => ({
+    variable,
+    estado: await probarKey(HF_URL, process.env[variable], HF_MODEL),
+  })));
+  const groq = await probarKey(GROQ_URL, process.env.GROQ_API_KEY, GROQ_MODEL);
+  const groqPrimero = process.env.LLM_PRIMARY_PROVIDER?.trim().toLowerCase() === 'groq';
+  const hfOk = hf.some(k => k.estado === 'ok');
+  const usara = groqPrimero ? (groq === 'ok' ? 'groq' : 'ninguno')
+    : hfOk ? 'huggingface' : (groq === 'ok' ? 'groq (respaldo)' : 'ninguno');
+  return { llm_primary_provider: groqPrimero ? 'groq' : '(no definido: HuggingFace primero)', huggingface: hf, groq, proveedor_que_usara_el_motor: usara };
+}
+
 function safeParseJson(raw) {
   if (!raw) return null;
   const match = String(raw).trim().match(/\{[\s\S]*\}/);
@@ -141,4 +175,4 @@ function isRealText(value) {
   return typeof value === 'string' && value.trim().length > 0 && !PLACEHOLDER_ECHO.test(value);
 }
 
-export { callLLM, safeParseJson, isRealText, sleep, HF_MODEL, GROQ_MODEL };
+export { callLLM, probarProveedores, safeParseJson, isRealText, sleep, HF_MODEL, GROQ_MODEL };
