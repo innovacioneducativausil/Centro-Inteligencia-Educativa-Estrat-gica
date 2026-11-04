@@ -87,6 +87,13 @@ const HF_KEY_ENV_VARS = [
 async function callLLM(systemPrompt, userPrompt, { providerState = {}, maxTokens = 700, context = 'LLM' } = {}) {
   const groqKey = process.env.GROQ_API_KEY;
 
+  // LLM_PRIMARY_PROVIDER=groq salta HuggingFace por completo. Se usa cuando la
+  // cuota/credito de HF esta agotado: evita probar 8 keys muertas en cada
+  // corrida. Sin la variable, el orden sigue siendo HF primero, Groq de respaldo.
+  if (process.env.LLM_PRIMARY_PROVIDER?.trim().toLowerCase() === 'groq' && groqKey) {
+    return callGroqWithBackoff(systemPrompt, userPrompt, maxTokens);
+  }
+
   for (const envVar of HF_KEY_ENV_VARS) {
     const hfKey = process.env[envVar];
     if (!hfKey || hfKey === 'hf_TU_TOKEN_AQUI' || providerState[envVar] === 'exhausted') continue;
@@ -103,9 +110,11 @@ async function callLLM(systemPrompt, userPrompt, { providerState = {}, maxTokens
         }
       );
     } catch (err) {
-      if (err.status === 402) {
+      if (err.status === 402 || err.status === 401) {
+        // 402 = cuota/credito agotado, 401 = key invalida o revocada: en ambos
+        // casos esa key no sirve, se marca y se prueba la siguiente.
         providerState[envVar] = 'exhausted';
-        logger.warn(`[${context}] HuggingFace (${envVar}) sin cuota, probando siguiente key`, { context });
+        logger.warn(`[${context}] HuggingFace (${envVar}) ${err.status === 401 ? 'key invalida' : 'sin cuota'}, probando siguiente key`, { context });
       } else {
         logger.warn(`[${context}] HuggingFace (${envVar}) falló: ${err.message}`, { context });
         break; // error distinto a cuota (red, modelo, etc.) — no tiene sentido rotar keys, ir directo a Groq
