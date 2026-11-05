@@ -4,6 +4,7 @@ import { serverError } from '../middleware/errorHandler.js';
 import { auditEvent } from '../services/auditService.js';
 import { analizarImpacto } from '../services/motorImpactoCurricularService.js';
 import { probarProveedores } from '../services/llmProviderService.js';
+import { iniciarJob, estadoJob } from '../services/analisisImpactoJobs.js';
 import { analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia, migrarSumillasCompetenciasHuerfanas } from '../services/analisisCurricularService.js';
 import {
   createMallaVersionPropuesta,
@@ -42,6 +43,30 @@ router.post('/curricular/analizar-impacto/:idCarrera', adminOrAnalyst, async (re
     res.json(result);
   } catch (err) {
     serverError(res, err, 'POST /curricular/analizar-impacto');
+  }
+});
+
+// Corrida en segundo plano: responde 202 al instante y la pantalla consulta el
+// avance con el endpoint de estado (ver services/analisisImpactoJobs.js).
+router.post('/curricular/analizar-impacto-async/:idCarrera', adminOrAnalyst, async (req, res) => {
+  try {
+    const { id_malla_version, pesos } = req.body;
+    if (!id_malla_version) return res.status(400).json({ error: 'id_malla_version es requerido' });
+
+    const usuario = req.user?.nombre || req.user?.email || 'motor_automatico';
+    const { iniciado, job } = iniciarJob(req.params.idCarrera, id_malla_version, pesos, usuario);
+    res.status(iniciado ? 202 : 409).json(iniciado ? job : { ...job, error: 'Ya hay un analisis en curso para esta malla.' });
+  } catch (err) {
+    serverError(res, err, 'POST /curricular/analizar-impacto-async');
+  }
+});
+
+router.get('/curricular/analizar-impacto-estado/:idCarrera', async (req, res) => {
+  try {
+    if (!req.query.id_malla) return res.status(400).json({ error: 'id_malla es requerido' });
+    res.json(estadoJob(req.params.idCarrera, req.query.id_malla));
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/analizar-impacto-estado');
   }
 });
 

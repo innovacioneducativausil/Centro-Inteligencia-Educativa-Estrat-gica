@@ -312,11 +312,16 @@ async function limpiarCorridaAnterior(idCarrera, idMallaVersion) {
  * contexto para no contradecirlo. Reemplaza la fórmula anterior, que
  * calculaba UN score para toda la carrera y lo repetía en cada curso.
  */
-async function analizarImpacto(idCarrera, idMallaVersion, pesos = {}, usuarioCreador = 'motor_automatico') {
+/**
+ * `progress` (opcional) es un objeto mutable que el llamador lee para mostrar
+ * el avance de una corrida larga: { total, procesados, actual, resumen }.
+ */
+async function analizarImpacto(idCarrera, idMallaVersion, pesos = {}, usuarioCreador = 'motor_automatico', progress = null) {
   const w = { ...PESOS_DEFAULT, ...pesos };
 
   const cursos = await getCursosConContexto(idMallaVersion);
   if (!cursos.length) return { ok: false, error: 'No hay cursos en esta versión de malla' };
+  if (progress) { progress.total = cursos.length; progress.procesados = 0; }
 
   const [radarEv, emplEv, mercadoSkills, benchEv] = await Promise.all([
     recogerEvidenciaRadar(idCarrera),
@@ -335,8 +340,10 @@ async function analizarImpacto(idCarrera, idMallaVersion, pesos = {}, usuarioCre
   const resumen = { total: cursos.length, analizados: 0, omitidos: 0, errores: 0, impactos: 0, brechas: 0, propuestas: 0, evidencias: 0 };
   const providerState = { hfExhausted: false };
   let primeraLlamada = true;
+  if (progress) progress.resumen = resumen;
 
-  for (const curso of cursos) {
+  for (const [idx, curso] of cursos.entries()) {
+    if (progress) { progress.procesados = idx; progress.actual = curso.nombre_curso; }
     const evidencia = matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv });
     if (!evidencia.radar.length && !evidencia.mercado.length && !evidencia.bench.length) {
       resumen.omitidos++;
@@ -468,6 +475,7 @@ async function analizarImpacto(idCarrera, idMallaVersion, pesos = {}, usuarioCre
     }
   }
 
+  if (progress) { progress.procesados = cursos.length; progress.actual = null; }
   return { ok: true, ...resumen };
 }
 

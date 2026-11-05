@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ThemeColors } from '../types';
 
 interface ImpactoCurricularViewProps {
@@ -19,6 +19,13 @@ interface KpisImpacto {
   evidencias_verificadas: number;
   pct_multifuente: number | null;
   ultima_ejecucion: string | null;
+}
+
+interface JobImpacto {
+  estado: 'corriendo' | 'terminado' | 'error' | 'sin_corrida';
+  progreso: { total: number; procesados: number; actual: string | null };
+  resultado: { total: number; analizados: number; omitidos: number; errores: number; impactos: number; brechas: number; propuestas: number } | null;
+  error: string | null;
 }
 
 interface Impacto {
@@ -148,6 +155,8 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
   });
   const [analyzing, setAnalyzing]   = useState(false);
   const [analyzeResumen, setAnalyzeResumen] = useState<{ total: number; analizados: number; omitidos: number; errores: number; impactos: number; brechas: number; propuestas: number } | null>(null);
+  const [progreso, setProgreso]     = useState<{ total: number; procesados: number; actual: string | null } | null>(null);
+  const pollRef = useRef<number | null>(null);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<number, string>>({});
@@ -191,21 +200,63 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
     } catch { setEvidencias([]); }
   };
 
+  // La corrida completa tarda varios minutos: el servidor la ejecuta en segundo
+  // plano y aqui solo se consulta el avance (una sola peticion larga se cortaba).
+  const seguirJob = useCallback((soloSiCorriendo = false) => {
+    if (!idCarrera || !idMallaVersion) return;
+    let fallosSeguidos = 0;
+    let vioCorriendo = false;
+    const tick = async () => {
+      try {
+        const job = await apiFetch<JobImpacto>(`/api/curricular/analizar-impacto-estado/${idCarrera}?id_malla=${idMallaVersion}`);
+        fallosSeguidos = 0;
+        if (job.estado === 'corriendo') {
+          vioCorriendo = true;
+          setAnalyzing(true);
+          setProgreso({ total: job.progreso.total, procesados: job.progreso.procesados, actual: job.progreso.actual });
+          pollRef.current = window.setTimeout(tick, 4000);
+          return;
+        }
+        setProgreso(null);
+        setAnalyzing(false);
+        if (soloSiCorriendo && !vioCorriendo) return;
+        if (job.estado === 'terminado' && job.resultado) { setAnalyzeResumen(job.resultado); await loadData(); }
+        else if (job.estado === 'error') setError(job.error || 'El análisis falló.');
+        else if (job.estado === 'sin_corrida') setError('El servidor se reinició durante el análisis. Vuelve a lanzarlo.');
+      } catch (e: any) {
+        fallosSeguidos += 1;
+        if (fallosSeguidos < 5) { pollRef.current = window.setTimeout(tick, 6000); return; }
+        setProgreso(null);
+        setAnalyzing(false);
+        setError(e.message);
+      }
+    };
+    tick();
+  }, [idCarrera, idMallaVersion, loadData]);
+
+  useEffect(() => {
+    seguirJob(true);
+    return () => { if (pollRef.current) window.clearTimeout(pollRef.current); };
+  }, [seguirJob]);
+
   const handleAnalizar = async () => {
     if (!idCarrera || !idMallaVersion) return;
     setAnalyzing(true);
     setError(null);
     setAnalyzeResumen(null);
+    setProgreso({ total: 0, procesados: 0, actual: null });
     try {
-      const resumen = await apiFetch<typeof analyzeResumen>(`/api/curricular/analizar-impacto/${idCarrera}`, {
+      await apiFetch(`/api/curricular/analizar-impacto-async/${idCarrera}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_malla_version: idMallaVersion, pesos }),
       });
-      setAnalyzeResumen(resumen);
-      await loadData();
-    } catch (e: any) { setError(e.message); }
-    setAnalyzing(false);
+      seguirJob();
+    } catch (e: any) {
+      setError(e.message);
+      setProgreso(null);
+      setAnalyzing(false);
+    }
   };
 
   const handleCambiarEstado = async (idPropuesta: number, estadoNuevo: string, obs?: string) => {
@@ -302,7 +353,9 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
                   background: analyzing ? '#94a3b8' : USIL,
                   color: '#fff', fontWeight: 800, fontSize: 12, cursor: analyzing ? 'not-allowed' : 'pointer',
                   fontFamily: FONT_DATA }}>
-                {analyzing ? 'Analizando...' : '▶ Analizar Impacto Curricular'}
+                {analyzing
+                  ? (progreso && progreso.total > 0 ? `Analizando ${progreso.procesados}/${progreso.total} cursos...` : 'Analizando...')
+                  : '▶ Analizar Impacto Curricular'}
               </button>
               {analyzeResumen && (
                 <span style={{ fontSize: 10, color: analyzeResumen.impactos > 0 ? '#166534' : '#9a3412', maxWidth: 280, textAlign: 'right' }}>
