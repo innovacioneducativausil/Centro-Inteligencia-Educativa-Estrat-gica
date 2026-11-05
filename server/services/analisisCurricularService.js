@@ -137,9 +137,10 @@ async function upsertAnalisisCurso(idCurso, resultado) {
  * resultado en `analisis_curso` (lo que alimenta el Mapa de Visión 360).
  * Cursos sin ninguna evidencia relacionada se omiten (no se inventa nada).
  */
-async function analizarMapaCurricular(idCarrera, idMallaVersion) {
+async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null) {
   const cursos = await getCursosConContexto(idMallaVersion);
   if (!cursos.length) return { ok: false, error: 'No hay cursos en esta versión de malla' };
+  if (progress) { progress.total = cursos.length; progress.procesados = 0; }
 
   const [radarEv, emplEv, mercadoSkills, benchEv] = await Promise.all([
     recogerEvidenciaRadar(idCarrera),
@@ -155,8 +156,10 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion) {
   const resumen = { analizados: 0, omitidos: 0, errores: 0, total: cursos.length };
   const providerState = { hfExhausted: false };
   let primeraLlamada = true;
+  if (progress) progress.resumen = resumen;
 
-  for (const curso of cursos) {
+  for (const [idx, curso] of cursos.entries()) {
+    if (progress) { progress.procesados = idx; progress.actual = curso.nombre_curso; }
     const evidencia = matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv });
 
     // Revertido: mandar a la IA cursos SIN ninguna evidencia (radar/mercado/
@@ -201,6 +204,7 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion) {
     }
   }
 
+  if (progress) { progress.procesados = cursos.length; progress.actual = null; }
   return { ok: true, ...resumen };
 }
 

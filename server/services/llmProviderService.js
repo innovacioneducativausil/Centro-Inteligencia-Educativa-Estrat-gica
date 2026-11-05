@@ -29,6 +29,14 @@ async function callProvider(url, headers, body) {
 
 const GROQ_MAX_RETRIES = 3;
 
+/** 'groq' por defecto si existe GROQ_API_KEY; 'hf' solo si se pide con LLM_PRIMARY_PROVIDER=hf. */
+function primaryProvider() {
+  const forced = process.env.LLM_PRIMARY_PROVIDER?.trim().toLowerCase();
+  if (forced === 'hf' || forced === 'huggingface') return 'hf';
+  if (forced === 'groq') return 'groq';
+  return process.env.GROQ_API_KEY ? 'groq' : 'hf';
+}
+
 /**
  * Reintenta hasta GROQ_MAX_RETRIES veces ante 429 (límite de tokens/minuto),
  * usando el header Retry-After de Groq cuando viene, o un backoff creciente
@@ -87,10 +95,10 @@ const HF_KEY_ENV_VARS = [
 async function callLLM(systemPrompt, userPrompt, { providerState = {}, maxTokens = 700, context = 'LLM' } = {}) {
   const groqKey = process.env.GROQ_API_KEY;
 
-  // LLM_PRIMARY_PROVIDER=groq salta HuggingFace por completo. Se usa cuando la
-  // cuota/credito de HF esta agotado: evita probar 8 keys muertas en cada
-  // corrida. Sin la variable, el orden sigue siendo HF primero, Groq de respaldo.
-  if (process.env.LLM_PRIMARY_PROVIDER?.trim().toLowerCase() === 'groq' && groqKey) {
+  // Groq es el proveedor principal cuando hay GROQ_API_KEY: las keys de HF no
+  // tienen credito y cada corrida perdia tiempo probando keys muertas.
+  // LLM_PRIMARY_PROVIDER=hf devuelve el orden anterior (HF primero, Groq de respaldo).
+  if (primaryProvider() === 'groq' && groqKey) {
     return callGroqWithBackoff(systemPrompt, userPrompt, maxTokens);
   }
 
@@ -154,11 +162,11 @@ async function probarProveedores() {
     estado: await probarKey(HF_URL, process.env[variable], HF_MODEL),
   })));
   const groq = await probarKey(GROQ_URL, process.env.GROQ_API_KEY, GROQ_MODEL);
-  const groqPrimero = process.env.LLM_PRIMARY_PROVIDER?.trim().toLowerCase() === 'groq';
+  const groqPrimero = primaryProvider() === 'groq';
   const hfOk = hf.some(k => k.estado === 'ok');
-  const usara = groqPrimero ? (groq === 'ok' ? 'groq' : 'ninguno')
+  const usara = groqPrimero ? (groq === 'ok' ? 'groq' : (hfOk ? 'huggingface (respaldo)' : 'ninguno'))
     : hfOk ? 'huggingface' : (groq === 'ok' ? 'groq (respaldo)' : 'ninguno');
-  return { llm_primary_provider: groqPrimero ? 'groq' : '(no definido: HuggingFace primero)', huggingface: hf, groq, proveedor_que_usara_el_motor: usara };
+  return { proveedor_principal: groqPrimero ? 'groq' : 'huggingface', huggingface: hf, groq, proveedor_que_usara_el_motor: usara };
 }
 
 function safeParseJson(raw) {

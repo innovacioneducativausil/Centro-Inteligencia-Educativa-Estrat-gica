@@ -488,13 +488,59 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
     return () => { cancelled = true; };
   }, [selectedCurso?.id]);
 
+  // El analisis recorre todos los cursos con pausa entre llamadas a la IA y tarda
+  // varios minutos: el servidor lo corre en segundo plano y aqui solo se consulta
+  // el avance (como una sola peticion larga se cortaba con "Failed to fetch").
+  const [mapaProgreso, setMapaProgreso] = useState<{ total: number; procesados: number } | null>(null);
+  const mapaPollRef = useRef<number | null>(null);
+
+  const seguirMapaJob = useCallback((soloSiCorriendo = false) => {
+    if (!selCarreraId || !selMallaId) return;
+    let fallosSeguidos = 0;
+    let vioCorriendo = false;
+    const tick = async () => {
+      try {
+        const r = await fetch(`/api/curricular/analizar-mapa-estado/${selCarreraId}?id_malla=${selMallaId}`, { credentials: 'include' });
+        const job = await r.json();
+        if (!r.ok) throw new Error(job.error || 'No se pudo consultar el avance');
+        fallosSeguidos = 0;
+        if (job.estado === 'corriendo') {
+          vioCorriendo = true;
+          setAnalyzingMapa(true);
+          setMapaProgreso({ total: job.progreso.total, procesados: job.progreso.procesados });
+          mapaPollRef.current = window.setTimeout(tick, 4000);
+          return;
+        }
+        setMapaProgreso(null);
+        setAnalyzingMapa(false);
+        if (soloSiCorriendo && !vioCorriendo) return;
+        if (job.estado === 'terminado' && job.resultado) { setAnalyzeMapaResumen(job.resultado); await fetchMalla(); }
+        else if (job.estado === 'error') setAnalyzeMapaError(job.error || 'El analisis fallo.');
+        else if (job.estado === 'sin_corrida') setAnalyzeMapaError('El servidor se reinicio durante el analisis. Vuelve a lanzarlo.');
+      } catch (e: any) {
+        fallosSeguidos += 1;
+        if (fallosSeguidos < 5) { mapaPollRef.current = window.setTimeout(tick, 6000); return; }
+        setMapaProgreso(null);
+        setAnalyzingMapa(false);
+        setAnalyzeMapaError(e.message ?? 'Error al consultar el avance');
+      }
+    };
+    tick();
+  }, [selCarreraId, selMallaId, fetchMalla]);
+
+  useEffect(() => {
+    seguirMapaJob(true);
+    return () => { if (mapaPollRef.current) window.clearTimeout(mapaPollRef.current); };
+  }, [seguirMapaJob]);
+
   const handleAnalizarMapa = async () => {
     if (!selCarreraId || !selMallaId) return;
     setAnalyzingMapa(true);
     setAnalyzeMapaError(null);
     setAnalyzeMapaResumen(null);
+    setMapaProgreso({ total: 0, procesados: 0 });
     try {
-      const r = await fetch(`/api/curricular/analizar-mapa/${selCarreraId}`, {
+      const r = await fetch(`/api/curricular/analizar-mapa-async/${selCarreraId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -503,14 +549,16 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       const d = await r.json();
       if (!r.ok || d.error) {
         setAnalyzeMapaError(d.error || 'No se pudo analizar el mapa curricular');
+        setMapaProgreso(null);
+        setAnalyzingMapa(false);
       } else {
-        setAnalyzeMapaResumen(d);
-        await fetchMalla();
+        seguirMapaJob();
       }
     } catch (e: any) {
       setAnalyzeMapaError(e.message ?? 'Error al analizar el mapa curricular');
+      setMapaProgreso(null);
+      setAnalyzingMapa(false);
     }
-    setAnalyzingMapa(false);
   };
 
   const handleLimpiarObsoletos = async () => {
@@ -874,7 +922,9 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                   {analyzingMapa ? 'sync' : 'model_training'}
                 </span>
-                {analyzingMapa ? 'Analizando cursos…' : 'Analizar mapa curricular'}
+                {analyzingMapa
+                  ? (mapaProgreso && mapaProgreso.total > 0 ? `Analizando ${mapaProgreso.procesados}/${mapaProgreso.total} cursos…` : 'Analizando cursos…')
+                  : 'Analizar mapa curricular'}
               </button>
               {analyzeMapaError && (
                 <span style={{ fontSize: 10, color: '#ba1a1a', maxWidth: 260 }}>{analyzeMapaError}</span>
