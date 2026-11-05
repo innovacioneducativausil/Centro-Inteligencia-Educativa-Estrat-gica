@@ -997,9 +997,23 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               <h1 style={{ margin: 0, fontSize: 26, lineHeight: 1.2, fontWeight: 800, letterSpacing: '-0.01em', color: USIL, fontFamily: FONT_HEAD }}>
                 {mallaActual?.nombre_carrera || selCarrera || 'Selecciona una carrera'}
               </h1>
-              <span style={{ background: SURFACE_LOW, color: text, border: `1px solid ${OUTLINE_VARIANT}`, borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
-                {planLabel}
-              </span>
+              {mallas.length > 1 ? (
+                // Una carrera puede tener varias versiones de malla (p. ej. la vigente y la
+                // importada del XLSM): la pantalla abre una por defecto y aqui se cambia.
+                <select value={selMallaId ?? ''} onChange={e => setSelMallaId(Number(e.target.value))}
+                  title="Versión de malla"
+                  style={{ background: SURFACE_LOW, color: text, border: `1px solid ${OUTLINE_VARIANT}`, borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 700, letterSpacing: '0.03em', cursor: 'pointer' }}>
+                  {mallas.map(m => (
+                    <option key={m.id_malla} value={m.id_malla}>
+                      {`${m.nombre_version.replace(/\s*XLSM\s*$/i, '').trim()}${m.es_vigente ? ' · vigente' : ''} · ${m.total_cursos} cursos`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span style={{ background: SURFACE_LOW, color: text, border: `1px solid ${OUTLINE_VARIANT}`, borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
+                  {planLabel}
+                </span>
+              )}
               <span style={{ background: TERTIARY_FIXED, color: '#002204', borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 Tendencia
                 <span className="material-symbols-outlined" style={{ fontSize: 13 }}>trending_up</span>
