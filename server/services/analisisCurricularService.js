@@ -27,7 +27,7 @@ inventar contenido — pero igual elige el estado_alineacion que mejor describa 
 ya alineado, es "oportunidad", no "riesgo").
 Devuelve ÚNICAMENTE un objeto JSON válido, sin markdown, sin texto adicional.`;
 
-function buildPrompt(curso, evidencia, emplEv) {
+function buildPrompt(curso, evidencia, emplEv, general = false) {
   const lines = [
     `Curso: "${curso.nombre_curso}" (Ciclo ${curso.numero_ciclo}, ${curso.creditos ?? '?'} créditos, tipo: ${curso.tipo_curso || 'Obligatorio'}).`,
   ];
@@ -37,7 +37,9 @@ function buildPrompt(curso, evidencia, emplEv) {
     lines.push(`Competencias declaradas del curso: ${curso.competencias.map(c => c.nombre_competencia).join(', ')}`);
   }
 
-  lines.push('', 'EVIDENCIA DISPONIBLE:');
+  lines.push('', general
+    ? 'EVIDENCIA GENERAL DE LA CARRERA (NO es específica de este curso: úsala solo como marco de referencia y compárala con la sumilla y las competencias del curso):'
+    : 'EVIDENCIA DISPONIBLE:');
 
   if (evidencia.radar.length) {
     lines.push(`- Señales/tendencias de Radar relacionadas (${evidencia.radar.length}):`);
@@ -55,6 +57,9 @@ function buildPrompt(curso, evidencia, emplEv) {
   }
   if (!evidencia.radar.length && !evidencia.mercado.length && !evidencia.bench.length) {
     lines.push('- No hay señales de Radar, mercado laboral ni benchmarking directamente relacionadas con este curso.');
+  }
+  if (general) {
+    lines.push('- AVISO: como la evidencia es general y no específica de este curso, NO marques "alineado" por defecto. Elige el estado que la sumilla y las competencias del curso justifiquen frente a esa evidencia, y deja los arrays vacíos si no puedes demostrar una relación concreta.');
   }
 
   lines.push(
@@ -103,7 +108,11 @@ function normalizeResultado(parsed) {
   return { estado, score, tendencias, brechas, recomendaciones };
 }
 
-async function upsertAnalisisCurso(idCurso, resultado) {
+// Marca los analisis hechos contra evidencia GENERAL de la carrera (el curso no
+// tenia evidencia propia). Permite distinguirlos y que la limpieza no los borre.
+const PROMPT_VERSION_GENERAL = 'v1-general';
+
+async function upsertAnalisisCurso(idCurso, resultado, promptVersion = PROMPT_VERSION) {
   await dbCurricular.query(
     `INSERT INTO analisis_curso
       (id_curso, score_alineacion, estado_alineacion, tendencias_impacto, brechas_detectadas,
@@ -126,7 +135,7 @@ async function upsertAnalisisCurso(idCurso, resultado) {
       JSON.stringify(resultado.brechas),
       JSON.stringify(resultado.recomendaciones),
       MODELO_ID,
-      PROMPT_VERSION,
+      promptVersion,
     ]
   );
 }
@@ -137,7 +146,7 @@ async function upsertAnalisisCurso(idCurso, resultado) {
  * resultado en `analisis_curso` (lo que alimenta el Mapa de Visión 360).
  * Cursos sin ninguna evidencia relacionada se omiten (no se inventa nada).
  */
-async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null) {
+async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null, { evidenciaGeneral = false } = {}) {
   const cursos = await getCursosConContexto(idMallaVersion);
   if (!cursos.length) return { ok: false, error: 'No hay cursos en esta versión de malla' };
   if (progress) { progress.total = cursos.length; progress.procesados = 0; }
@@ -160,7 +169,8 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null
 
   for (const [idx, curso] of cursos.entries()) {
     if (progress) { progress.procesados = idx; progress.actual = curso.nombre_curso; }
-    const evidencia = matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv });
+    let evidencia = matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv });
+    let esGeneral = false;
 
     // Revertido: mandar a la IA cursos SIN ninguna evidencia (radar/mercado/
     // benchmark todos vacíos) resultó en un "alineado ~85%" generico y falso
@@ -170,8 +180,17 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null
     // evidencia" (requeriria migracion de BD), asi que "Sin análisis" honesto
     // es preferible a un "Alineado" que no está respaldado por nada real.
     if (!evidencia.radar.length && !evidencia.mercado.length && !evidencia.bench.length) {
-      resumen.omitidos++;
-      continue;
+      // Opcional (evidenciaGeneral): en vez de omitir el curso, se analiza contra la
+      // evidencia GENERAL de la carrera (no vacia), con aviso en el prompt de que no
+      // es especifica y marcando el analisis como 'v1-general'. Apagado por defecto
+      // para respetar la decision anterior.
+      const hayGeneral = radarEv.length || mercadoSkills.length;
+      if (!evidenciaGeneral || !hayGeneral) {
+        resumen.omitidos++;
+        continue;
+      }
+      evidencia = { radar: radarEv.slice(0, 4), mercado: mercadoSkills.slice(0, 10), bench: [] };
+      esGeneral = true;
     }
 
     // Throttle: 10s entre llamadas. Necesario porque cuando HuggingFace se
@@ -181,7 +200,7 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null
     primeraLlamada = false;
 
     try {
-      const prompt = buildPrompt(curso, evidencia, emplEv);
+      const prompt = buildPrompt(curso, evidencia, emplEv, esGeneral);
       // Watchdog aparte del AbortSignal interno de callLLM: se observó que un
       // fetch a Groq puede quedarse colgado indefinidamente sin abortar ni
       // rechazar (curl al mismo endpoint respondía en <100ms, así que no es
@@ -202,8 +221,9 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null
         logger.warn(`Respuesta invalida del proveedor de IA para "${curso.nombre_curso}" tras 2 intentos`, { context: 'ANALISIS_CURSO' });
         continue;
       }
-      await upsertAnalisisCurso(curso.id_curso, resultado);
+      await upsertAnalisisCurso(curso.id_curso, resultado, esGeneral ? PROMPT_VERSION_GENERAL : PROMPT_VERSION);
       resumen.analizados++;
+      if (esGeneral) resumen.con_evidencia_general = (resumen.con_evidencia_general || 0) + 1;
     } catch (err) {
       resumen.errores++;
       logger.error(`Error analizando curso "${curso.nombre_curso}": ${err.message}`, { context: 'ANALISIS_CURSO' });
@@ -250,7 +270,10 @@ async function limpiarAnalisisSinEvidencia() {
     if (!idsSinEvidencia.length) continue;
 
     const [result] = await dbCurricular.query(
-      `DELETE FROM analisis_curso WHERE id_curso IN (${idsSinEvidencia.map(() => '?').join(',')})`,
+      // Los analisis marcados 'v1-general' se hicieron a proposito contra evidencia
+      // general de la carrera (ver analizarMapaCurricular): no son "huerfanos".
+      `DELETE FROM analisis_curso WHERE id_curso IN (${idsSinEvidencia.map(() => '?').join(',')})
+         AND (prompt_version IS NULL OR prompt_version <> '${PROMPT_VERSION_GENERAL}')`,
       idsSinEvidencia
     );
     if (result.affectedRows) {
@@ -501,4 +524,4 @@ async function getEvidenciaCurso(idCurso) {
   };
 }
 
-export { analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia, migrarSumillasCompetenciasHuerfanas };
+export { buildPrompt, SYSTEM_PROMPT, analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia, migrarSumillasCompetenciasHuerfanas };

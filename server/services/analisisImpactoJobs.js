@@ -82,13 +82,13 @@ export const iniciarJob = (idCarrera, idMalla, pesos, usuario) =>
 export const estadoJob = (idCarrera, idMalla) => estadoGenerico(`impacto:${keyOf(idCarrera, idMalla)}`);
 
 // ---- Mapa de estados de Vision 360 (una carrera) ----
-export const iniciarJobMapa = (idCarrera, idMalla, usuario) =>
+export const iniciarJobMapa = (idCarrera, idMalla, usuario, opciones = {}) =>
   iniciarGenerico(`mapa:${keyOf(idCarrera, idMalla)}`, usuario,
-    p => analizarMapaCurricular(Number(idCarrera), Number(idMalla), p));
+    p => analizarMapaCurricular(Number(idCarrera), Number(idMalla), p, { evidenciaGeneral: !!opciones.evidenciaGeneral }));
 export const estadoJobMapa = (idCarrera, idMalla) => estadoGenerico(`mapa:${keyOf(idCarrera, idMalla)}`);
 
 // ---- Lote: el mapa de varias carreras, una tras otra ----
-async function ejecutarLote(items, progress) {
+async function ejecutarLote(items, progress, opciones = {}) {
   const detalle = [];
   progress.total = items.length;
   progress.procesados = 0;
@@ -99,9 +99,10 @@ async function ejecutarLote(items, progress) {
     progress.actual = it.carrera || `carrera ${it.id_carrera}`;
     progress.sub = {};
     try {
-      const r = await analizarMapaCurricular(Number(it.id_carrera), Number(it.id_malla), progress.sub);
+      const r = await analizarMapaCurricular(Number(it.id_carrera), Number(it.id_malla), progress.sub,
+        { evidenciaGeneral: !!(it.evidencia_general ?? opciones.evidenciaGeneral) });
       detalle.push(r.ok
-        ? { carrera: progress.actual, ok: true, total: r.total, analizados: r.analizados, omitidos: r.omitidos, errores: r.errores }
+        ? { carrera: progress.actual, ok: true, total: r.total, analizados: r.analizados, omitidos: r.omitidos, errores: r.errores, con_evidencia_general: r.con_evidencia_general || 0 }
         : { carrera: progress.actual, ok: false, error: r.error });
     } catch (err) {
       detalle.push({ carrera: progress.actual, ok: false, error: err.message });
@@ -115,5 +116,5 @@ async function ejecutarLote(items, progress) {
   return { ok: true, carreras: detalle.length, detalle };
 }
 
-export const iniciarJobLote = (items, usuario) => iniciarGenerico('lote-mapa', usuario, p => ejecutarLote(items, p));
+export const iniciarJobLote = (items, usuario, opciones = {}) => iniciarGenerico('lote-mapa', usuario, p => ejecutarLote(items, p, opciones));
 export const estadoJobLote = () => estadoGenerico('lote-mapa');

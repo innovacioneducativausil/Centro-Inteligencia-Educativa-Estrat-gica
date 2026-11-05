@@ -78,10 +78,10 @@ router.get('/curricular/analizar-impacto-estado/:idCarrera', async (req, res) =>
 // ---- Mapa de estados de Vision 360 en segundo plano ----
 router.post('/curricular/analizar-mapa-async/:idCarrera', adminOrAnalyst, async (req, res) => {
   try {
-    const { id_malla_version } = req.body;
+    const { id_malla_version, evidencia_general } = req.body;
     if (!id_malla_version) return res.status(400).json({ error: 'id_malla_version es requerido' });
     const usuario = req.user?.nombre || req.user?.email || 'motor_automatico';
-    const { iniciado, job } = iniciarJobMapa(req.params.idCarrera, id_malla_version, usuario);
+    const { iniciado, job } = iniciarJobMapa(req.params.idCarrera, id_malla_version, usuario, { evidenciaGeneral: !!evidencia_general });
     res.status(iniciado ? 202 : 409).json(iniciado ? job : { ...job, error: 'Ya hay un analisis del mapa en curso para esta malla.' });
   } catch (err) {
     serverError(res, err, 'POST /curricular/analizar-mapa-async');
@@ -121,7 +121,7 @@ router.post('/curricular/analizar-mapa-lote', adminOrAnalyst, async (req, res) =
     if (!items.length) return res.status(422).json({ error: 'No hay carreras con evidencia para analizar.' });
 
     const usuario = req.user?.nombre || req.user?.email || 'motor_automatico';
-    const { iniciado, job } = iniciarJobLote(items, usuario);
+    const { iniciado, job } = iniciarJobLote(items, usuario, { evidenciaGeneral: !!req.body?.evidencia_general });
     res.status(iniciado ? 202 : 409).json({
       ...(iniciado ? job : { ...job, error: 'Ya hay un lote en curso.' }),
       carreras: items.map(i => i.carrera || i.id_carrera),
