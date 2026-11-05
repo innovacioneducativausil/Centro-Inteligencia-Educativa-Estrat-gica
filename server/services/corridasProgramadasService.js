@@ -40,9 +40,10 @@ export function ensureCorridasSchema() {
 const toUtcSql = d => new Date(d).toISOString().slice(0, 19).replace('T', ' ');
 const parseJson = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };
 
-export async function programarCorrida({ items, ejecutarEn, evidenciaGeneral = false, soloPendientes = true, usuario = 'sistema' }) {
+export async function programarCorrida({ items, ejecutarEn, evidenciaGeneral = false, soloPendientes = true, desde = null, usuario = 'sistema' }) {
   await ensureCorridasSchema();
-  const payload = { items, evidencia_general: !!evidenciaGeneral, solo_pendientes: !!soloPendientes };
+  // `desde`: solo cuentan como "ya analizados" los cursos analizados a partir de esa fecha.
+  const payload = { items, evidencia_general: !!evidenciaGeneral, solo_pendientes: !!soloPendientes, desde: desde ? new Date(desde).toISOString() : null };
   const [r] = await dbCurricular.query(
     'INSERT INTO corrida_programada (payload, ejecutar_en, creado_por) VALUES (?, ?, ?)',
     [JSON.stringify(payload), toUtcSql(ejecutarEn), String(usuario).slice(0, 120)]
@@ -113,6 +114,7 @@ async function tick() {
   const { iniciado } = iniciarJobLote(payload.items, 'programada', {
     evidenciaGeneral: !!payload.evidencia_general,
     soloPendientes: !!payload.solo_pendientes,
+    analizadosDesde: payload.desde || null,
     onCarrera: detalle => guardarDetalle(id, detalle),
     onFin: async (resultado, fallo, detalle) => {
       corriendoAhora = false;

@@ -105,6 +105,7 @@ async function ejecutarLote(items, progress, opciones = {}) {
         const r = await analizarMapaCurricular(Number(it.id_carrera), Number(it.id_malla), progress.sub, {
           evidenciaGeneral: !!(it.evidencia_general ?? opciones.evidenciaGeneral),
           soloPendientes: !!(it.solo_pendientes ?? opciones.soloPendientes),
+          analizadosDesde: (it.desde ?? opciones.analizadosDesde) ? new Date(it.desde ?? opciones.analizadosDesde) : null,
         });
         detalle.push(r.ok
           ? { carrera: progress.actual, ok: true, total: r.total, analizados: r.analizados, omitidos: r.omitidos, errores: r.errores, ya_analizados: r.ya_analizados || 0, con_evidencia_general: r.con_evidencia_general || 0 }

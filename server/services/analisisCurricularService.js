@@ -166,7 +166,7 @@ async function llamarConEspera(fn, maxEsperaMs = 8 * 3600 * 1000) {
   }
 }
 
-async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null, { evidenciaGeneral = false, soloPendientes = false } = {}) {
+async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null, { evidenciaGeneral = false, soloPendientes = false, analizadosDesde = null } = {}) {
   const cursos = await getCursosConContexto(idMallaVersion);
   if (!cursos.length) return { ok: false, error: 'No hay cursos en esta versión de malla' };
   if (progress) { progress.total = cursos.length; progress.procesados = 0; }
@@ -190,9 +190,12 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null
   for (const [idx, curso] of cursos.entries()) {
     if (progress) { progress.procesados = idx; progress.actual = curso.nombre_curso; }
 
-    // Reanudar sin gastar tokens otra vez: si el curso ya tiene un analisis guardado
-    // se salta (util cuando una corrida larga se corta o se reparte en varios dias).
-    if (soloPendientes && curso.analisis_estado) {
+    // Reanudar sin gastar tokens otra vez: se salta el curso si ya tiene un analisis
+    // HECHO DESDE `analizadosDesde` (util cuando una corrida larga se corta o se reparte
+    // en varios dias). Los analisis anteriores a esa fecha (p. ej. los del modelo
+    // debil, que marcaba todo "alineado") NO se saltan: se vuelven a analizar.
+    if (soloPendientes && curso.analisis_estado
+        && (!analizadosDesde || (curso.analisis_fecha && new Date(curso.analisis_fecha) >= analizadosDesde))) {
       resumen.ya_analizados = (resumen.ya_analizados || 0) + 1;
       continue;
     }

@@ -165,6 +165,7 @@ router.post('/curricular/programar-corrida', adminOrAnalyst, async (req, res) =>
       ejecutarEn: cuando,
       evidenciaGeneral: !!req.body?.evidencia_general,
       soloPendientes: req.body?.solo_pendientes !== false,
+      desde: req.body?.desde || null,
       usuario,
     });
     res.status(201).json({ id, ejecutar_en_utc: cuando.toISOString(), carreras: items.map(i => i.carrera || i.id_carrera) });

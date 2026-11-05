@@ -47,6 +47,7 @@ async function getCursosConContexto(idMallaVersion) {
     `SELECT c.id_curso, c.nombre_curso, c.numero_ciclo, c.creditos, c.tipo_curso,
             cs.sumilla,
             ac.score_alineacion AS analisis_score, ac.estado_alineacion AS analisis_estado,
+            ac.analizado_en AS analisis_fecha,
             ac.brechas_detectadas AS analisis_brechas
      FROM curso c
      LEFT JOIN curso_sumilla cs ON cs.id_curso = c.id_curso
