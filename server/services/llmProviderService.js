@@ -64,7 +64,10 @@ async function callGroqWithBackoff(systemPrompt, userPrompt, maxTokens) {
     try {
       return await callProvider(GROQ_URL, headers, body);
     } catch (err) {
-      if (err.status !== 429 || attempt === GROQ_MAX_RETRIES) throw err;
+      // Limite DIARIO de tokens (TPD): reintentar en segundos no sirve. Se propaga el
+      // error (con retryAfterMs) para que quien llama decida esperar mas tiempo.
+      const limiteDiario = /per day|\(TPD\)/i.test(err.message || '');
+      if (err.status !== 429 || attempt === GROQ_MAX_RETRIES || limiteDiario) throw err;
       await sleep(err.retryAfterMs || attempt * 8000);
     }
   }

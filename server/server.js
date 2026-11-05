@@ -45,6 +45,7 @@ import { cleanupExpiredArchives, ensureArchiveSupport, getArchiveRetentionDays }
 import { ensureRadarSchemaSupport, ensureAlertasSupport } from './services/schemaMaintenance.js';
 import { ensureActividadSupport, cleanupOldActividad, getActividadRetentionDays } from './services/actividadMaintenance.js';
 import { runUserMigration } from './services/userMigration.js';
+import { iniciarPlanificador } from './services/corridasProgramadasService.js';
 import actividadRouter from './routes/actividad.js';
 import alertasRouter from './routes/alertas.js';
 import adminSchemaRouter from './routes/adminSchema.js';
@@ -290,6 +291,11 @@ async function startServer() {
       context: 'ALERTAS',
       stack: err?.stack,
     });
+  });
+
+  // Corridas programadas del mapa de estados (cola en BD; reanuda tras reinicios).
+  iniciarPlanificador().catch(err => {
+    logger.error(err?.message || 'No se pudo iniciar el planificador de corridas.', { context: 'CORRIDAS_PROGRAMADAS' });
   });
 
   app.listen(PORT, () => {

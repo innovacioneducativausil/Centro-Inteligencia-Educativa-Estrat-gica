@@ -93,27 +93,40 @@ async function ejecutarLote(items, progress, opciones = {}) {
   progress.total = items.length;
   progress.procesados = 0;
   progress.resumen = { carreras: detalle };
+  let resultado = null;
+  let fallo = null;
 
-  for (const [i, it] of items.entries()) {
-    progress.procesados = i;
-    progress.actual = it.carrera || `carrera ${it.id_carrera}`;
-    progress.sub = {};
-    try {
-      const r = await analizarMapaCurricular(Number(it.id_carrera), Number(it.id_malla), progress.sub,
-        { evidenciaGeneral: !!(it.evidencia_general ?? opciones.evidenciaGeneral) });
-      detalle.push(r.ok
-        ? { carrera: progress.actual, ok: true, total: r.total, analizados: r.analizados, omitidos: r.omitidos, errores: r.errores, con_evidencia_general: r.con_evidencia_general || 0 }
-        : { carrera: progress.actual, ok: false, error: r.error });
-    } catch (err) {
-      detalle.push({ carrera: progress.actual, ok: false, error: err.message });
-      logger.error(`Lote de mapa: fallo ${progress.actual}: ${err.message}`, { context: 'JOBS_CURRICULARES' });
+  try {
+    for (const [i, it] of items.entries()) {
+      progress.procesados = i;
+      progress.actual = it.carrera || `carrera ${it.id_carrera}`;
+      progress.sub = {};
+      try {
+        const r = await analizarMapaCurricular(Number(it.id_carrera), Number(it.id_malla), progress.sub, {
+          evidenciaGeneral: !!(it.evidencia_general ?? opciones.evidenciaGeneral),
+          soloPendientes: !!(it.solo_pendientes ?? opciones.soloPendientes),
+        });
+        detalle.push(r.ok
+          ? { carrera: progress.actual, ok: true, total: r.total, analizados: r.analizados, omitidos: r.omitidos, errores: r.errores, ya_analizados: r.ya_analizados || 0, con_evidencia_general: r.con_evidencia_general || 0 }
+          : { carrera: progress.actual, ok: false, error: r.error });
+      } catch (err) {
+        detalle.push({ carrera: progress.actual, ok: false, error: err.message });
+        logger.error(`Lote de mapa: fallo ${progress.actual}: ${err.message}`, { context: 'JOBS_CURRICULARES' });
+      }
+      await opciones.onCarrera?.(detalle).catch?.(() => {});
     }
-  }
 
-  progress.procesados = items.length;
-  progress.actual = null;
-  progress.sub = null;
-  return { ok: true, carreras: detalle.length, detalle };
+    progress.procesados = items.length;
+    progress.actual = null;
+    progress.sub = null;
+    resultado = { ok: true, carreras: detalle.length, detalle };
+    return resultado;
+  } catch (err) {
+    fallo = err;
+    throw err;
+  } finally {
+    try { await opciones.onFin?.(resultado, fallo, detalle); } catch { /* el aviso final no debe romper la corrida */ }
+  }
 }
 
 export const iniciarJobLote = (items, usuario, opciones = {}) => iniciarGenerico('lote-mapa', usuario, p => ejecutarLote(items, p, opciones));

@@ -146,7 +146,27 @@ async function upsertAnalisisCurso(idCurso, resultado, promptVersion = PROMPT_VE
  * resultado en `analisis_curso` (lo que alimenta el Mapa de Visión 360).
  * Cursos sin ninguna evidencia relacionada se omiten (no se inventa nada).
  */
-async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null, { evidenciaGeneral = false } = {}) {
+/**
+ * Si el proveedor de IA responde con limite de uso (429, p. ej. el tope DIARIO de
+ * tokens del plan gratuito), espera y reintenta el MISMO curso en vez de marcarlo
+ * como error. Espera entre 30 s y 15 min por intento, hasta 8 h en total.
+ */
+async function llamarConEspera(fn, maxEsperaMs = 8 * 3600 * 1000) {
+  const inicio = Date.now();
+  for (;;) {
+    try {
+      return await fn();
+    } catch (err) {
+      const esLimite = err?.status === 429 || /rate limit|per day|\(TPD\)/i.test(err?.message || '');
+      if (!esLimite || Date.now() - inicio > maxEsperaMs) throw err;
+      const espera = Math.min(Math.max(err.retryAfterMs || 60000, 30000), 15 * 60 * 1000);
+      logger.warn(`Limite de uso del proveedor de IA; reintento en ${Math.round(espera / 1000)}s`, { context: 'ANALISIS_CURSO' });
+      await new Promise(r => setTimeout(r, espera));
+    }
+  }
+}
+
+async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null, { evidenciaGeneral = false, soloPendientes = false } = {}) {
   const cursos = await getCursosConContexto(idMallaVersion);
   if (!cursos.length) return { ok: false, error: 'No hay cursos en esta versión de malla' };
   if (progress) { progress.total = cursos.length; progress.procesados = 0; }
@@ -169,6 +189,14 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null
 
   for (const [idx, curso] of cursos.entries()) {
     if (progress) { progress.procesados = idx; progress.actual = curso.nombre_curso; }
+
+    // Reanudar sin gastar tokens otra vez: si el curso ya tiene un analisis guardado
+    // se salta (util cuando una corrida larga se corta o se reparte en varios dias).
+    if (soloPendientes && curso.analisis_estado) {
+      resumen.ya_analizados = (resumen.ya_analizados || 0) + 1;
+      continue;
+    }
+
     let evidencia = matchCursoEvidencia(curso, { radarEv, mercadoSkills, benchEv });
     let esGeneral = false;
 
@@ -210,10 +238,10 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null
       let resultado = null;
       for (let intento = 1; intento <= 2 && !resultado; intento++) {
         if (intento > 1) await new Promise(r => setTimeout(r, 4000));
-        const raw = await Promise.race([
+        const raw = await llamarConEspera(() => Promise.race([
           callLLM(SYSTEM_PROMPT, prompt, { providerState, maxTokens: 700, context: 'ANALISIS_CURSO' }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de 45s esperando respuesta del proveedor de IA')), 45000)),
-        ]);
+        ]));
         resultado = normalizeResultado(safeParseJson(raw));
       }
       if (!resultado) {

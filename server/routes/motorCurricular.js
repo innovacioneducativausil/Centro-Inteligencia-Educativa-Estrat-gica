@@ -9,7 +9,8 @@ import {
   iniciarJobMapa, estadoJobMapa,
   iniciarJobLote, estadoJobLote,
 } from '../services/analisisImpactoJobs.js';
-import { rankingEvidenciaCarreras } from '../services/resumenEvidenciaService.js';
+import { rankingEvidenciaCarreras, estadoAnalisisCarreras } from '../services/resumenEvidenciaService.js';
+import { programarCorrida, listarCorridas, cancelarCorrida } from '../services/corridasProgramadasService.js';
 import { analizarMapaCurricular, getEvidenciaCurso, limpiarAnalisisSinEvidencia, migrarSumillasCompetenciasHuerfanas } from '../services/analisisCurricularService.js';
 import {
   createMallaVersionPropuesta,
@@ -136,6 +137,56 @@ router.get('/curricular/analizar-mapa-lote-estado', async (_req, res) => {
     res.json(estadoJobLote());
   } catch (err) {
     serverError(res, err, 'GET /curricular/analizar-mapa-lote-estado');
+  }
+});
+
+// Que carreras ya tienen su mapa analizado y como quedo (cursos por estado). Solo lectura.
+router.get('/curricular/estado-carreras', adminOrAnalyst, async (_req, res) => {
+  try {
+    res.json(await estadoAnalisisCarreras());
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/estado-carreras');
+  }
+});
+
+// Programa una corrida del mapa para una fecha/hora. Body: { items:[{id_carrera,id_malla,carrera?,evidencia_general?}],
+// ejecutar_en: ISO (UTC o con zona), solo_pendientes?: true, evidencia_general?: false }.
+router.post('/curricular/programar-corrida', adminOrAnalyst, async (req, res) => {
+  try {
+    const items = (Array.isArray(req.body?.items) ? req.body.items : [])
+      .filter(it => it?.id_carrera && it?.id_malla).slice(0, 40);
+    if (!items.length) return res.status(400).json({ error: 'items es requerido (id_carrera e id_malla por carrera)' });
+    const cuando = new Date(req.body?.ejecutar_en || Date.now());
+    if (Number.isNaN(cuando.getTime())) return res.status(400).json({ error: 'ejecutar_en no es una fecha valida' });
+
+    const usuario = req.user?.nombre || req.user?.email || 'usuario';
+    const id = await programarCorrida({
+      items,
+      ejecutarEn: cuando,
+      evidenciaGeneral: !!req.body?.evidencia_general,
+      soloPendientes: req.body?.solo_pendientes !== false,
+      usuario,
+    });
+    res.status(201).json({ id, ejecutar_en_utc: cuando.toISOString(), carreras: items.map(i => i.carrera || i.id_carrera) });
+  } catch (err) {
+    serverError(res, err, 'POST /curricular/programar-corrida');
+  }
+});
+
+router.get('/curricular/corridas-programadas', adminOrAnalyst, async (_req, res) => {
+  try {
+    res.json(await listarCorridas());
+  } catch (err) {
+    serverError(res, err, 'GET /curricular/corridas-programadas');
+  }
+});
+
+router.post('/curricular/corridas-programadas/:id/cancelar', adminOrAnalyst, async (req, res) => {
+  try {
+    const ok = await cancelarCorrida(req.params.id);
+    res.status(ok ? 200 : 409).json({ ok, ...(ok ? {} : { error: 'Solo se pueden cancelar corridas pendientes.' }) });
+  } catch (err) {
+    serverError(res, err, 'POST /curricular/corridas-programadas/:id/cancelar');
   }
 });
 
