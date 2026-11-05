@@ -198,11 +198,15 @@ export async function runUserMigration() {
         await createUsuario({ ...u, rol: 'admin' });
         console.log(`[USER MIGRATION] Paso 6: admin creado ${u.correo}`);
       } else {
+        // OJO: no tocar password_hash aqui. Esta migracion corre en CADA arranque
+        // del servidor (server.js), asi que reescribir el hash con la clave por
+        // defecto borraba la contraseña que el admin habia restablecido, cada vez
+        // que Railway reiniciaba o se desplegaba. El hash por defecto solo se
+        // usa al CREAR el usuario (createUsuario) o si el hash guardado es invalido.
         await radarPrisma.usuario.update({
           where: { correo_usuario: u.correo },
           data: {
             rol: 'admin',
-            password_hash: HASH_USUARIO2026,
             activo: true,
             email_verificado: true,
             fecha_actualizacion: new Date(),
