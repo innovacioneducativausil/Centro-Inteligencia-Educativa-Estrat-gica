@@ -506,6 +506,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
         fallosSeguidos = 0;
         if (job.estado === 'corriendo') {
           vioCorriendo = true;
+          window.dispatchEvent(new Event('ciee:keepalive')); // evita el cierre por inactividad mientras corre
           setAnalyzingMapa(true);
           setMapaProgreso({ total: job.progreso.total, procesados: job.progreso.procesados });
           mapaPollRef.current = window.setTimeout(tick, 4000);

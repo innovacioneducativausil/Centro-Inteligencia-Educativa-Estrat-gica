@@ -212,6 +212,7 @@ const ImpactoCurricularView: React.FC<ImpactoCurricularViewProps> = ({
         fallosSeguidos = 0;
         if (job.estado === 'corriendo') {
           vioCorriendo = true;
+          window.dispatchEvent(new Event('ciee:keepalive')); // evita el cierre por inactividad mientras corre
           setAnalyzing(true);
           setProgreso({ total: job.progreso.total, procesados: job.progreso.procesados, actual: job.progreso.actual });
           pollRef.current = window.setTimeout(tick, 4000);

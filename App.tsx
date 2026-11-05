@@ -306,7 +306,10 @@ const App: React.FC = () => {
       warningId = window.setTimeout(() => setInactivityWarning(true), Math.max(0, INACTIVITY_TIMEOUT_MS - INACTIVITY_WARNING_MS));
       timeoutId = window.setTimeout(() => handleLogout('inactivity'), INACTIVITY_TIMEOUT_MS);
     };
-    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    // 'ciee:keepalive' lo emiten las vistas mientras corre un analisis largo en
+    // segundo plano (el usuario espera el resultado sin tocar la pantalla): sin
+    // esto la sesion se cerraba por inactividad a mitad de la corrida.
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'ciee:keepalive'];
 
     resetTimer();
     activityEvents.forEach(eventName => {
