@@ -46,10 +46,16 @@ function primaryProvider() {
  */
 async function callGroqWithBackoff(systemPrompt, userPrompt, maxTokens) {
   const groqKey = process.env.GROQ_API_KEY;
+  // gpt-oss-120b es un modelo que razona: los tokens de razonamiento cuentan contra
+  // max_tokens. Con max_tokens=700 y el esfuerzo por defecto se gastaba todo
+  // razonando y el contenido volvia VACIO (finish_reason=length), asi ~90% de los
+  // cursos fallaban. Esfuerzo bajo + margen para la respuesta lo evitan
+  // (GROQ_REASONING_EFFORT permite cambiarlo sin tocar codigo).
   const body = {
     model: GROQ_MODEL,
     messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-    max_tokens: maxTokens,
+    max_tokens: Math.max(maxTokens, 1200),
+    reasoning_effort: process.env.GROQ_REASONING_EFFORT?.trim() || 'low',
     temperature: 0.2,
   };
   const headers = { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' };

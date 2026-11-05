@@ -187,13 +187,19 @@ async function analizarMapaCurricular(idCarrera, idMallaVersion, progress = null
       // rechazar (curl al mismo endpoint respondía en <100ms, así que no es
       // un problema de red) -- sin este límite, un solo curso puede trabar
       // la corrida completa por horas.
-      const raw = await Promise.race([
-        callLLM(SYSTEM_PROMPT, prompt, { providerState, maxTokens: 700, context: 'ANALISIS_CURSO' }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de 45s esperando respuesta del proveedor de IA')), 45000)),
-      ]);
-      const resultado = normalizeResultado(safeParseJson(raw));
+      // Hasta 2 intentos: ocasionalmente el modelo devuelve un JSON mal formado.
+      let resultado = null;
+      for (let intento = 1; intento <= 2 && !resultado; intento++) {
+        if (intento > 1) await new Promise(r => setTimeout(r, 4000));
+        const raw = await Promise.race([
+          callLLM(SYSTEM_PROMPT, prompt, { providerState, maxTokens: 700, context: 'ANALISIS_CURSO' }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de 45s esperando respuesta del proveedor de IA')), 45000)),
+        ]);
+        resultado = normalizeResultado(safeParseJson(raw));
+      }
       if (!resultado) {
         resumen.errores++;
+        logger.warn(`Respuesta invalida del proveedor de IA para "${curso.nombre_curso}" tras 2 intentos`, { context: 'ANALISIS_CURSO' });
         continue;
       }
       await upsertAnalisisCurso(curso.id_curso, resultado);
