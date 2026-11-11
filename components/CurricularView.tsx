@@ -219,7 +219,8 @@ function pickMallaVersion(rows: MallaOpcion[], carrera: string) {
   // Siempre la vigente: ahi corre el motor actual. Las mallas XLSM antiguas quedan
   // disponibles en el selector de version, pero ya no se abren por defecto.
   void carrera;
-  return rows.find((m: MallaOpcion) => m.es_vigente === 1) || rows[0];
+  // es_vigente puede llegar como 1, "1" o true segun el driver: no comparar con ===.
+  return rows.find((m: MallaOpcion) => Number(m.es_vigente) === 1) || rows.find((m: MallaOpcion) => !!m.es_vigente) || rows[0];
 }
 
 interface ImportPreview {
