@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ThemeColors } from '../types';
 import ImpactoCurricularView from './ImpactoCurricularView';
 import BenchmarkingView from './BenchmarkingView';
+import EstadoAnalisisCarreras from './EstadoAnalisisCarreras';
 import { downloadExcel } from '../services/excelExport';
 import { logActividad } from '../services/actividadService';
 
@@ -215,12 +216,9 @@ function pickRichCurricularCareer(carreras: FiltrosData['carreras']) {
 }
 
 function pickMallaVersion(rows: MallaOpcion[], carrera: string) {
-  const normalized = normalizeCurricularName(carrera);
-  if (normalized === 'educacion inicial' || normalized === 'educacion secundaria con especialidad en ingles') {
-    const enriched = rows.find(m => normalizeCurricularName(m.nombre_version).includes('xlsm'))
-      ?? rows.find(m => Number(m.total_cursos) === (normalized === 'educacion inicial' ? 58 : 55));
-    if (enriched) return enriched;
-  }
+  // Siempre la vigente: ahi corre el motor actual. Las mallas XLSM antiguas quedan
+  // disponibles en el selector de version, pero ya no se abren por defecto.
+  void carrera;
   return rows.find((m: MallaOpcion) => m.es_vigente === 1) || rows[0];
 }
 
@@ -240,8 +238,8 @@ interface ImportResult {
   errors: { fila: number; error: string }[];
 }
 
-type TabCurricular = 'mapa' | 'silabos' | 'benchmarking' | 'impacto';
-const VALID_CURRICULAR_TABS: TabCurricular[] = ['mapa', 'benchmarking', 'impacto'];
+type TabCurricular = 'mapa' | 'silabos' | 'benchmarking' | 'impacto' | 'estado';
+const VALID_CURRICULAR_TABS: TabCurricular[] = ['mapa', 'benchmarking', 'impacto', 'estado'];
 
 
 function MapaSilabosView({ card, text, muted, border, isDark, selCarrera, carrerasFiltradas, selFacultad, filtros }: {
@@ -863,6 +861,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               { key: 'mapa', label: 'Visión 360' },
               { key: 'benchmarking', label: 'Benchmarking' },
               { key: 'impacto', label: 'Plan de acción' },
+              { key: 'estado', label: 'Estado del análisis' },
             ] as { key: TabCurricular; label: string }[]).map(t => {
               const active = activeTab === t.key;
               return (
@@ -1059,6 +1058,11 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
       )}
 
 
+      {activeTab === 'estado' && (
+        <EstadoAnalisisCarreras isDark={isDark} card={card} text={text} muted={muted} border={border} />
+      )}
+
+
       {activeTab === 'silabos' && (
         <MapaSilabosView card={card} text={text} muted={muted} border={border} isDark={isDark}
           selCarrera={selCarrera} carrerasFiltradas={carrerasFiltradas}
@@ -1087,7 +1091,7 @@ const CurricularView: React.FC<CurricularViewProps> = ({ themeColors: C, userRol
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: muted, marginBottom: 8 }}>Índice de Alineación</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                 <span style={{ fontSize: 30, fontWeight: 700, color: USIL, fontFamily: FONT_HEAD, letterSpacing: '-0.01em' }}>
-                  {kpis.pctAlineacionPromedio ?? kpis.pctAlineado}
+                  {kpis.pctAlineado}
                 </span>
                 <span style={{ fontSize: 15, fontWeight: 600, color: muted }}>%</span>
               </div>
