@@ -84,7 +84,10 @@ export const estadoJob = (idCarrera, idMalla) => estadoGenerico(`impacto:${keyOf
 // ---- Mapa de estados de Vision 360 (una carrera) ----
 export const iniciarJobMapa = (idCarrera, idMalla, usuario, opciones = {}) =>
   iniciarGenerico(`mapa:${keyOf(idCarrera, idMalla)}`, usuario,
-    p => analizarMapaCurricular(Number(idCarrera), Number(idMalla), p, { evidenciaGeneral: !!opciones.evidenciaGeneral }));
+    p => analizarMapaCurricular(Number(idCarrera), Number(idMalla), p, {
+      evidenciaGeneral: !!opciones.evidenciaGeneral,
+      soloPendientes: !!opciones.soloPendientes,
+    }));
 export const estadoJobMapa = (idCarrera, idMalla) => estadoGenerico(`mapa:${keyOf(idCarrera, idMalla)}`);
 
 // ---- Lote: el mapa de varias carreras, una tras otra ----

@@ -79,10 +79,13 @@ router.get('/curricular/analizar-impacto-estado/:idCarrera', async (req, res) =>
 // ---- Mapa de estados de Vision 360 en segundo plano ----
 router.post('/curricular/analizar-mapa-async/:idCarrera', adminOrAnalyst, async (req, res) => {
   try {
-    const { id_malla_version, evidencia_general } = req.body;
+    const { id_malla_version, evidencia_general, solo_pendientes } = req.body;
     if (!id_malla_version) return res.status(400).json({ error: 'id_malla_version es requerido' });
     const usuario = req.user?.nombre || req.user?.email || 'motor_automatico';
-    const { iniciado, job } = iniciarJobMapa(req.params.idCarrera, id_malla_version, usuario, { evidenciaGeneral: !!evidencia_general });
+    const { iniciado, job } = iniciarJobMapa(req.params.idCarrera, id_malla_version, usuario, {
+      evidenciaGeneral: !!evidencia_general,
+      soloPendientes: !!solo_pendientes,
+    });
     res.status(iniciado ? 202 : 409).json(iniciado ? job : { ...job, error: 'Ya hay un analisis del mapa en curso para esta malla.' });
   } catch (err) {
     serverError(res, err, 'POST /curricular/analizar-mapa-async');
